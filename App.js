@@ -11,53 +11,15 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import SplashScreen from "./components/SplashScreen";
+import OnboardingForm from "./components/OnboardingForm";
 import { db } from "./lib/supabase";
 
-// Music genres for selection
-const MUSIC_GENRES = [
-  "House",
-  "Techno",
-  "Drum & Bass",
-  "Dubstep",
-  "Trap",
-  "Hip-Hop",
-  "Electronic",
-  "Progressive",
-  "Trance",
-  "Ambient",
-  "Breakbeat",
-];
-
-// Major music cities
-const MAJOR_CITIES = [
-  "New York",
-  "Los Angeles",
-  "Chicago",
-  "Miami",
-  "San Francisco",
-  "Berlin",
-  "London",
-  "Amsterdam",
-  "Ibiza",
-  "Barcelona",
-  "Tokyo",
-  "Sydney",
-  "Toronto",
-  "Montreal",
-  "Vancouver",
-  "Paris",
-  "Madrid",
-  "Rome",
-  "Stockholm",
-  "Copenhagen",
-];
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [isFirstTime, setIsFirstTime] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState("home");
-  const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [opportunities, setOpportunities] = useState([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [djProfile, setDjProfile] = useState({
@@ -77,19 +39,6 @@ export default function App() {
     setShowSplash(false);
   };
 
-  const toggleGenre = (genre) => {
-    setDjProfile((prev) => ({
-      ...prev,
-      genres: prev.genres.includes(genre)
-        ? prev.genres.filter((g) => g !== genre)
-        : [...prev.genres, genre],
-    }));
-  };
-
-  const selectCity = (city) => {
-    setDjProfile((prev) => ({ ...prev, city }));
-    setShowCityDropdown(false);
-  };
 
   const loadOpportunities = async () => {
     try {
@@ -202,121 +151,12 @@ export default function App() {
 
   if (isFirstTime) {
     return (
-      <SafeAreaView style={[styles.container, styles.onboarding]}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.center}>
-            <Text style={styles.title}>Welcome to R/HOOD!</Text>
-            <Text style={styles.subtitle}>
-              Join the Underground Music Network
-            </Text>
-
-            <View style={styles.form}>
-              <Text style={styles.formTitle}>Create Your Profile</Text>
-
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your full name"
-                value={djProfile.fullName}
-                onChangeText={(text) =>
-                  setDjProfile((prev) => ({ ...prev, fullName: text }))
-                }
-              />
-
-              <Text style={styles.label}>DJ Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Your DJ stage name"
-                value={djProfile.djName}
-                onChangeText={(text) =>
-                  setDjProfile((prev) => ({ ...prev, djName: text }))
-                }
-              />
-
-              <Text style={styles.label}>Instagram</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="@yourhandle or full URL"
-                value={djProfile.instagram}
-                onChangeText={(text) =>
-                  setDjProfile((prev) => ({ ...prev, instagram: text }))
-                }
-              />
-
-              <Text style={styles.label}>SoundCloud</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Your SoundCloud URL"
-                value={djProfile.soundcloud}
-                onChangeText={(text) =>
-                  setDjProfile((prev) => ({ ...prev, soundcloud: text }))
-                }
-              />
-
-              <Text style={styles.label}>City</Text>
-              <TouchableOpacity
-                style={styles.dropdownButton}
-                onPress={() => setShowCityDropdown(!showCityDropdown)}
-              >
-                <Text
-                  style={[
-                    styles.dropdownText,
-                    !djProfile.city && styles.placeholderText,
-                  ]}
-                >
-                  {djProfile.city || "Select your city"}
-                </Text>
-                <Text style={styles.dropdownArrow}>▼</Text>
-              </TouchableOpacity>
-              
-              {showCityDropdown && (
-                <View style={styles.dropdown}>
-                  {MAJOR_CITIES.map((city) => (
-                    <TouchableOpacity
-                      key={city}
-                      style={styles.dropdownItem}
-                      onPress={() => selectCity(city)}
-                    >
-                      <Text style={styles.dropdownItemText}>{city}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              <Text style={styles.label}>Your Genres</Text>
-              <View style={styles.genreContainer}>
-                {MUSIC_GENRES.map((genre) => (
-                  <TouchableOpacity
-                    key={genre}
-                    style={[
-                      styles.genreTag,
-                      djProfile.genres.includes(genre) &&
-                        styles.genreTagSelected,
-                    ]}
-                    onPress={() => toggleGenre(genre)}
-                  >
-                    <Text
-                      style={[
-                        styles.genreTagText,
-                        djProfile.genres.includes(genre) &&
-                          styles.genreTagTextSelected,
-                      ]}
-                    >
-                      {genre}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.button}
-              onPress={completeOnboarding}
-            >
-              <Text style={styles.buttonText}>Request Access</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+      <SafeAreaView style={styles.container}>
+        <OnboardingForm
+          onComplete={completeOnboarding}
+          djProfile={djProfile}
+          setDjProfile={setDjProfile}
+        />
       </SafeAreaView>
     );
   }
