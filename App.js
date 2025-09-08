@@ -400,6 +400,62 @@ export default function App() {
           </ScrollView>
         );
 
+      case "notifications":
+        return (
+          <ScrollView style={styles.screen}>
+            <Text style={styles.screenTitle}>Notifications</Text>
+            <View style={styles.notificationCard}>
+              <Text style={styles.notificationTitle}>New Opportunity</Text>
+              <Text style={styles.notificationText}>
+                Underground Warehouse Rave is looking for DJs
+              </Text>
+              <Text style={styles.notificationTime}>2 hours ago</Text>
+            </View>
+            <View style={styles.notificationCard}>
+              <Text style={styles.notificationTitle}>Application Accepted</Text>
+              <Text style={styles.notificationText}>
+                Your application for Club Neon has been accepted
+              </Text>
+              <Text style={styles.notificationTime}>1 day ago</Text>
+            </View>
+            <View style={styles.notificationCard}>
+              <Text style={styles.notificationTitle}>New Message</Text>
+              <Text style={styles.notificationText}>
+                You have a new message from Darkside Collective
+              </Text>
+              <Text style={styles.notificationTime}>3 days ago</Text>
+            </View>
+          </ScrollView>
+        );
+
+      case "community":
+        return (
+          <ScrollView style={styles.screen}>
+            <Text style={styles.screenTitle}>Community</Text>
+            <View style={styles.communityCard}>
+              <Text style={styles.communityTitle}>Underground DJs</Text>
+              <Text style={styles.communityMembers}>1,234 members</Text>
+              <Text style={styles.communityDescription}>
+                Connect with underground DJs worldwide
+              </Text>
+            </View>
+            <View style={styles.communityCard}>
+              <Text style={styles.communityTitle}>Techno Collective</Text>
+              <Text style={styles.communityMembers}>856 members</Text>
+              <Text style={styles.communityDescription}>
+                Share techno tracks and collaborate
+              </Text>
+            </View>
+            <View style={styles.communityCard}>
+              <Text style={styles.communityTitle}>Miami Music Scene</Text>
+              <Text style={styles.communityMembers}>432 members</Text>
+              <Text style={styles.communityDescription}>
+                Local Miami DJs and producers
+              </Text>
+            </View>
+          </ScrollView>
+        );
+
       case "profile":
         return (
           <ScrollView style={styles.screen}>
@@ -437,6 +493,43 @@ export default function App() {
           </ScrollView>
         );
 
+      case "settings":
+        return (
+          <ScrollView style={styles.screen}>
+            <Text style={styles.screenTitle}>Settings</Text>
+            <View style={styles.settingsCard}>
+              <Text style={styles.settingsTitle}>Account</Text>
+              <TouchableOpacity style={styles.settingsItem}>
+                <Text style={styles.settingsItemText}>Edit Profile</Text>
+                <Text style={styles.settingsArrow}>›</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingsItem}>
+                <Text style={styles.settingsItemText}>Privacy Settings</Text>
+                <Text style={styles.settingsArrow}>›</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingsItem}>
+                <Text style={styles.settingsItemText}>Notification Preferences</Text>
+                <Text style={styles.settingsArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.settingsCard}>
+              <Text style={styles.settingsTitle}>App</Text>
+              <TouchableOpacity style={styles.settingsItem}>
+                <Text style={styles.settingsItemText}>Theme</Text>
+                <Text style={styles.settingsArrow}>›</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingsItem}>
+                <Text style={styles.settingsItemText}>Language</Text>
+                <Text style={styles.settingsArrow}>›</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingsItem}>
+                <Text style={styles.settingsItemText}>About R/HOOD</Text>
+                <Text style={styles.settingsArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        );
+
       default:
         return (
           <ScrollView style={styles.screen}>
@@ -462,7 +555,26 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>R/HOOD</Text>
+        <View style={styles.headerLeft}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoIcon}>🌍</Text>
+            <Text style={styles.logoText}>WELCOME TO R/HOOD</Text>
+          </View>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("notifications")}>
+            <Text style={styles.headerIconText}>🔔</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("community")}>
+            <Text style={styles.headerIconText}>👥</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("profile")}>
+            <Text style={styles.headerIconText}>👤</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("settings")}>
+            <Text style={styles.headerIconText}>⚙️</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {renderScreen()}
@@ -551,15 +663,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)", // Subtle border
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  headerTitle: {
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
+  },
+  logoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  logoIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  logoText: {
     color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
-    fontSize: 24,
+    fontSize: 14,
     fontFamily: "Arial Black",
     fontWeight: "900",
-    textAlign: "center",
-    letterSpacing: 1,
-    // Removed glow effects
+    letterSpacing: 0.5,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "hsl(0, 0%, 10%)", // Dark background
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)", // Subtle border
+  },
+  headerIconText: {
+    fontSize: 18,
+    color: "hsl(0, 0%, 100%)", // Pure white
   },
   screen: {
     flex: 1,
@@ -1068,5 +1211,95 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 4,
+  },
+  // Notifications Screen Styles
+  notificationCard: {
+    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)", // Subtle border
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontFamily: "Arial",
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)", // Pure white text
+    marginBottom: 5,
+  },
+  notificationText: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)", // Muted foreground
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  notificationTime: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 50%)", // More muted text
+  },
+  // Community Screen Styles
+  communityCard: {
+    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    borderRadius: 8,
+    padding: 20,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)", // Subtle border
+  },
+  communityTitle: {
+    fontSize: 18,
+    fontFamily: "Arial",
+    fontWeight: "bold",
+    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    marginBottom: 5,
+  },
+  communityMembers: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)", // Muted foreground
+    marginBottom: 8,
+  },
+  communityDescription: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)", // Pure white text
+    lineHeight: 20,
+  },
+  // Settings Screen Styles
+  settingsCard: {
+    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)", // Subtle border
+  },
+  settingsTitle: {
+    fontSize: 16,
+    fontFamily: "Arial",
+    fontWeight: "bold",
+    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)", // Subtle border
+  },
+  settingsItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 10%)", // Very subtle border
+  },
+  settingsItemText: {
+    fontSize: 16,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)", // Pure white text
+  },
+  settingsArrow: {
+    fontSize: 18,
+    color: "hsl(0, 0%, 50%)", // Muted text
   },
 });
