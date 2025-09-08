@@ -292,36 +292,78 @@ export default function App() {
 
   const renderScreen = () => {
     switch (currentScreen) {
-      case "feed":
+      case "opportunities":
         return (
           <ScrollView style={styles.screen}>
-            <Text style={styles.screenTitle}>Underground Feed</Text>
-            <View style={styles.eventCard}>
-              <Text style={styles.eventDJ}>DJ Pulse</Text>
-              <Text style={styles.eventTitle}>Friday Night Vibes</Text>
-              <Text style={styles.eventInfo}>Club Neon, Miami</Text>
-              <Text style={styles.eventInfo}>10:00 PM • House Music</Text>
-              <View style={styles.eventActions}>
+            <Text style={styles.screenTitle}>Opportunities</Text>
+            
+            {/* Featured Opportunity */}
+            <View style={styles.featuredOpportunityCard}>
+              <View style={styles.opportunityImageContainer}>
+                <View style={styles.opportunityImagePlaceholder}>
+                  <Text style={styles.opportunityImageText}>🎵</Text>
+                </View>
+                <View style={styles.genreTag}>
+                  <Text style={styles.genreTagText}>Techno</Text>
+                </View>
+              </View>
+              <View style={styles.opportunityContent}>
+                <Text style={styles.opportunityTitle}>Underground Warehouse Rave</Text>
+                <Text style={styles.opportunityDescription}>
+                  High-energy underground event. Looking for DJs who can bring the heat with hard techno and industrial beats.
+                </Text>
+                <View style={styles.opportunityDetails}>
+                  <Text style={styles.opportunityDetail}>📅 2024-08-15 at 22:00</Text>
+                  <Text style={styles.opportunityDetail}>📍 East London</Text>
+                  <Text style={styles.opportunityDetail}>💰 £300</Text>
+                </View>
+                <View style={styles.opportunityFooter}>
+                  <View style={styles.skillLevelTag}>
+                    <Text style={styles.skillLevelText}>Intermediate</Text>
+                  </View>
+                  <Text style={styles.organizerName}>Darkside Collective</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.opportunityActions}>
+              <TouchableOpacity style={styles.passButton}>
+                <Text style={styles.passButtonText}>✕</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.applyButton}>
+                <Text style={styles.applyButtonText}>♥</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.actionHint}>Tap to pass • Tap to apply</Text>
+
+            {/* Other Opportunities */}
+            <View style={styles.opportunityCard}>
+              <Text style={styles.opportunityDJ}>Club Neon</Text>
+              <Text style={styles.opportunityTitle}>Resident DJ Position</Text>
+              <Text style={styles.opportunityInfo}>Miami, FL</Text>
+              <Text style={styles.opportunityInfo}>Weekly • House Music</Text>
+              <View style={styles.opportunityActions}>
                 <TouchableOpacity style={styles.actionButton}>
-                  <Text style={styles.actionText}>Like</Text>
+                  <Text style={styles.actionText}>Pass</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton}>
-                  <Text style={styles.actionText}>Comment</Text>
+                  <Text style={styles.actionText}>Apply</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            <View style={styles.eventCard}>
-              <Text style={styles.eventDJ}>Luna Beats</Text>
-              <Text style={styles.eventTitle}>Techno Underground</Text>
-              <Text style={styles.eventInfo}>The Warehouse, Berlin</Text>
-              <Text style={styles.eventInfo}>11:30 PM • Techno</Text>
-              <View style={styles.eventActions}>
+            <View style={styles.opportunityCard}>
+              <Text style={styles.opportunityDJ}>Berlin Underground</Text>
+              <Text style={styles.opportunityTitle}>Festival Lineup</Text>
+              <Text style={styles.opportunityInfo}>Berlin, Germany</Text>
+              <Text style={styles.opportunityInfo}>Summer 2024 • Electronic</Text>
+              <View style={styles.opportunityActions}>
                 <TouchableOpacity style={styles.actionButton}>
-                  <Text style={styles.actionText}>Like</Text>
+                  <Text style={styles.actionText}>Pass</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton}>
-                  <Text style={styles.actionText}>Comment</Text>
+                  <Text style={styles.actionText}>Apply</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -441,16 +483,16 @@ export default function App() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, currentScreen === "feed" && styles.activeTab]}
-          onPress={() => setCurrentScreen("feed")}
+          style={[styles.tab, currentScreen === "opportunities" && styles.activeTab]}
+          onPress={() => setCurrentScreen("opportunities")}
         >
           <Text
             style={[
               styles.tabText,
-              currentScreen === "feed" && styles.activeTabText,
+              currentScreen === "opportunities" && styles.activeTabText,
             ]}
           >
-            Feed
+            Opportunities
           </Text>
         </TouchableOpacity>
 
@@ -871,5 +913,160 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: "hsl(0, 0%, 0%)", // Black text on active tab
     fontWeight: "bold",
+  },
+  // Opportunities Screen Styles
+  featuredOpportunityCard: {
+    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    borderRadius: 12,
+    marginBottom: 20,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)", // Subtle border
+  },
+  opportunityImageContainer: {
+    position: "relative",
+    height: 200,
+    backgroundColor: "hsl(0, 0%, 10%)", // Dark background for image placeholder
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  opportunityImagePlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "hsl(0, 0%, 20%)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  opportunityImageText: {
+    fontSize: 40,
+    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+  },
+  genreTag: {
+    position: "absolute",
+    top: 15,
+    right: 15,
+    backgroundColor: "hsl(0, 0%, 0%)", // Black background
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  genreTagText: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)", // Pure white text
+    fontWeight: "bold",
+  },
+  opportunityContent: {
+    padding: 20,
+  },
+  opportunityTitle: {
+    fontSize: 20,
+    fontFamily: "Arial",
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)", // Pure white text
+    marginBottom: 10,
+  },
+  opportunityDescription: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)", // Muted foreground
+    lineHeight: 20,
+    marginBottom: 15,
+  },
+  opportunityDetails: {
+    marginBottom: 15,
+  },
+  opportunityDetail: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)", // Pure white text
+    marginBottom: 5,
+  },
+  opportunityFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  skillLevelTag: {
+    backgroundColor: "hsl(0, 0%, 15%)", // Muted background
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  skillLevelText: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)", // Pure white text
+    fontWeight: "bold",
+  },
+  organizerName: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)", // Muted foreground
+    fontWeight: "bold",
+  },
+  opportunityActions: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+    gap: 40,
+  },
+  passButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "hsl(0, 0%, 15%)", // Muted background
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "hsl(0, 0%, 25%)",
+  },
+  passButtonText: {
+    fontSize: 24,
+    color: "hsl(0, 0%, 100%)", // Pure white text
+    fontWeight: "bold",
+  },
+  applyButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  applyButtonText: {
+    fontSize: 24,
+    color: "hsl(0, 0%, 0%)", // Black text on primary
+    fontWeight: "bold",
+  },
+  actionHint: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 50%)", // Muted text
+    textAlign: "center",
+    marginBottom: 30,
+  },
+  opportunityCard: {
+    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)", // Subtle border
+  },
+  opportunityDJ: {
+    fontSize: 16,
+    fontFamily: "Arial",
+    fontWeight: "bold",
+    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    marginBottom: 5,
+  },
+  opportunityInfo: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)", // Muted foreground
+    marginBottom: 4,
   },
 });
