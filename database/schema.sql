@@ -1,8 +1,7 @@
 -- R/HOOD Database Schema for Supabase
 -- Run these commands in your Supabase SQL editor
 
--- Enable Row Level Security
-ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret';
+-- Note: JWT secret is automatically configured by Supabase
 
 -- Create user_profiles table
 CREATE TABLE user_profiles (

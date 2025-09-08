@@ -28,8 +28,8 @@ This guide will help you connect your R/HOOD app to a Supabase database for clou
 1. Open `lib/supabase.js` in your project
 2. Replace the placeholder values:
    ```javascript
-   const supabaseUrl = 'https://your-project.supabase.co';
-   const supabaseAnonKey = 'your-anon-key-here';
+   const supabaseUrl = "https://your-project.supabase.co";
+   const supabaseAnonKey = "your-anon-key-here";
    ```
 
 ### 4. Set Up Database Schema
@@ -63,6 +63,7 @@ This guide will help you connect your R/HOOD app to a Supabase database for clou
 For better security, you can use environment variables:
 
 1. Create `.env` file in your project root:
+
    ```
    EXPO_PUBLIC_SUPABASE_URL=your-supabase-url
    EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
@@ -77,21 +78,25 @@ For better security, you can use environment variables:
 ## 🎯 Integration Points
 
 ### User Profiles
+
 - Replace AsyncStorage with Supabase for profile data
 - Real-time profile updates
 - Cloud backup of user data
 
 ### Opportunities
+
 - Store opportunities in database
 - Real-time updates when new opportunities are added
 - Application tracking
 
 ### Notifications
+
 - Push notifications from database
 - Real-time notification updates
 - Notification history
 
 ### Communities
+
 - Community membership management
 - Real-time member count updates
 - Community messaging
@@ -106,6 +111,7 @@ For better security, you can use environment variables:
 ## 📱 Real-time Features
 
 Supabase provides real-time subscriptions for:
+
 - New opportunities
 - Application status updates
 - New notifications
