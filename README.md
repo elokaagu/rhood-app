@@ -1,146 +1,141 @@
-# RhoodApp
+# R/HOOD - Underground Music Platform
 
-A React Native mobile application built with Expo, featuring both frontend mobile app and backend API server.
+![R/HOOD Logo](https://img.shields.io/badge/R%2FHOOD-Underground%20Music%20Platform-lime?style=for-the-badge&logo=music&logoColor=white)
 
-## 🚀 Quick Start
+A React Native mobile application for the underground music community, featuring DJ networking, event discovery, and music platform integration.
+
+## 🎵 Features
+
+### ✨ Core Functionality
+- **Splash Screen**: Animated R/HOOD branding with loading progress
+- **User Onboarding**: Comprehensive DJ profile creation
+- **Social Integration**: Instagram and SoundCloud profile linking
+- **Location Services**: City-based networking and discovery
+- **Genre Selection**: Multi-select music genre preferences
+- **Dark Theme**: Underground aesthetic with lime accents
+
+### 🎨 Design System
+- **Brand Guidelines**: Complete R/HOOD visual identity
+- **Dark Theme**: Pure black backgrounds with high contrast
+- **Signature Colors**: Lime/yellow-green primary color
+- **Typography**: Arial/Arial Black font family
+- **Professional UI**: Clean, modern interface design
+
+### 📱 Mobile Features
+- **Cross-Platform**: React Native for iOS and Android
+- **Touch Optimized**: Mobile-first responsive design
+- **Smooth Animations**: Native performance animations
+- **Offline Ready**: Local data persistence with AsyncStorage
+
+## 🚀 Getting Started
 
 ### Prerequisites
-
-- Node.js (v16 or higher)
+- Node.js (v14 or higher)
 - npm or yarn
-- Expo CLI (`npm install -g @expo/cli`)
-- Expo Go app on your mobile device (for testing)
+- Expo CLI
+- iOS Simulator or Android Emulator (for development)
 
 ### Installation
 
-1. Install dependencies:
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/rhoodapp.git
+   cd rhoodapp
+   ```
 
-```bash
-npm install
-```
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
 
-2. Start the Expo development server:
+3. **Start the development server**
+   ```bash
+   npm start
+   # or
+   yarn start
+   ```
 
-```bash
-npm start
-```
-
-3. Scan the QR code with Expo Go app (Android) or Camera app (iOS)
-
-## 📱 Mobile App Features
-
-- **Home Screen**: Welcome screen with quick actions and activity overview
-- **Profile Screen**: User profile management with stats and settings
-- **Settings Screen**: App preferences and configuration options
-- **Bottom Tab Navigation**: Easy navigation between main screens
-- **Modern UI**: Clean, responsive design with gradient backgrounds
-
-## 🔧 Backend API
-
-The project also includes a Node.js/Express backend API server.
-
-### Running the Backend
-
-```bash
-# Start backend in development mode
-npm run backend:dev
-
-# Start backend in production mode
-npm run backend:start
-```
-
-The backend API will be available at `http://localhost:3000`
+4. **Run on device/simulator**
+   ```bash
+   # iOS
+   npm run ios
+   
+   # Android
+   npm run android
+   ```
 
 ## 📁 Project Structure
 
 ```
 rhoodapp/
-├── App.js                 # Main app component
-├── app.json              # Expo configuration
-├── package.json          # Dependencies and scripts
-├── babel.config.js       # Babel configuration
-├── assets/               # Images, fonts, and other static assets
-├── components/           # Reusable React Native components
-│   └── TabBarIcon.js
-├── screens/              # App screens
-│   ├── HomeScreen.js
-│   ├── ProfileScreen.js
-│   └── SettingsScreen.js
-└── src/                  # Backend API source
-    ├── controllers/
-    ├── models/
-    ├── routes/
-    └── utils/
+├── components/           # React components
+│   └── SplashScreen.js  # Animated splash screen
+├── assets/              # Images and icons
+├── App.js              # Main application component
+├── brand-guidelines.md # Complete brand documentation
+└── README.md           # This file
 ```
 
-## 🛠 Available Scripts
+## 🎨 Brand Guidelines
 
-### Mobile App
+The app follows the R/HOOD brand guidelines:
 
-- `npm start` - Start Expo development server
-- `npm run android` - Run on Android device/emulator
-- `npm run ios` - Run on iOS device/simulator
-- `npm run web` - Run in web browser
+- **Primary Color**: `hsl(75, 100%, 60%)` (Lime/Yellow-Green)
+- **Background**: `hsl(0, 0%, 0%)` (Pure Black)
+- **Text**: `hsl(0, 0%, 100%)` (Pure White)
+- **Typography**: Arial/Arial Black
+- **Aesthetic**: Underground, premium, music-focused
 
-### Backend API
+See `brand-guidelines.md` for complete design system documentation.
 
-- `npm run backend:dev` - Start backend with nodemon (development)
-- `npm run backend:start` - Start backend (production)
+## 🔧 Technical Stack
 
-## 🎨 Customization
+- **Framework**: React Native with Expo
+- **Navigation**: React Navigation
+- **State Management**: React Hooks (useState, useEffect)
+- **Storage**: AsyncStorage for local data persistence
+- **Styling**: StyleSheet with HSL color system
+- **Animations**: React Native Animated API
 
-### Colors & Theme
+## 📱 Screenshots
 
-The app uses a blue color scheme (`#2196F3`). You can customize colors in the individual screen files.
+### Splash Screen
+- Animated R/HOOD logo with loading progress
+- Underground music platform branding
+- Smooth fade and scale animations
 
-### Navigation
-
-Navigation is handled by React Navigation v6 with bottom tabs. Modify `App.js` to add new screens or change navigation structure.
-
-### Icons
-
-Currently using Unicode emoji icons. For production apps, consider using:
-
-- `@expo/vector-icons`
-- `react-native-vector-icons`
-
-## 📦 Dependencies
-
-### Mobile App
-
-- `expo` - Expo platform
-- `react-native` - React Native framework
-- `@react-navigation/native` - Navigation library
-- `@react-navigation/bottom-tabs` - Bottom tab navigation
-- `expo-linear-gradient` - Gradient backgrounds
-- `expo-status-bar` - Status bar management
-
-### Backend
-
-- `express` - Web framework
-- `cors` - Cross-origin resource sharing
-- `dotenv` - Environment variables
-- `nodemon` - Development server auto-reload
-
-## 🚀 Deployment
-
-### Mobile App
-
-1. Build for production: `expo build`
-2. Submit to app stores using Expo Application Services (EAS)
-
-### Backend
-
-Deploy to your preferred hosting platform (Heroku, AWS, DigitalOcean, etc.)
-
-## 📄 License
-
-ISC License
+### Onboarding Form
+- Comprehensive DJ profile creation
+- Social media integration (Instagram, SoundCloud)
+- City selection dropdown
+- Music genre multi-selection
+- Professional dark theme design
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🎵 About R/HOOD
+
+R/HOOD is an underground music platform designed to connect DJs, producers, and music enthusiasts. The app provides a professional networking environment for the underground music community with features tailored to the music industry.
+
+## 📞 Contact
+
+- **Project**: R/HOOD Underground Music Platform
+- **Developer**: [Your Name]
+- **Email**: [your.email@example.com]
+- **GitHub**: [@yourusername](https://github.com/yourusername)
+
+---
+
+**Built with ❤️ for the underground music community**
