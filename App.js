@@ -167,114 +167,89 @@ export default function App() {
                 }
               />
 
-              <View style={styles.inputWithIcon}>
-                <Text style={styles.inputIcon}>⚡</Text>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>DJ Name</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Your DJ stage name"
-                    value={djProfile.djName}
-                    onChangeText={(text) =>
-                      setDjProfile((prev) => ({ ...prev, djName: text }))
-                    }
-                  />
-                </View>
-              </View>
+              <Text style={styles.label}>DJ Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Your DJ stage name"
+                value={djProfile.djName}
+                onChangeText={(text) =>
+                  setDjProfile((prev) => ({ ...prev, djName: text }))
+                }
+              />
 
-              <View style={styles.inputWithIcon}>
-                <Text style={styles.inputIcon}>📷</Text>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Instagram</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="@yourhandle or full URL"
-                    value={djProfile.instagram}
-                    onChangeText={(text) =>
-                      setDjProfile((prev) => ({ ...prev, instagram: text }))
-                    }
-                  />
-                </View>
-              </View>
+              <Text style={styles.label}>Instagram</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="@yourhandle or full URL"
+                value={djProfile.instagram}
+                onChangeText={(text) =>
+                  setDjProfile((prev) => ({ ...prev, instagram: text }))
+                }
+              />
 
-              <View style={styles.inputWithIcon}>
-                <Text style={styles.inputIcon}>☁️</Text>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>SoundCloud</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Your SoundCloud URL"
-                    value={djProfile.soundcloud}
-                    onChangeText={(text) =>
-                      setDjProfile((prev) => ({ ...prev, soundcloud: text }))
-                    }
-                  />
-                </View>
-              </View>
+              <Text style={styles.label}>SoundCloud</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Your SoundCloud URL"
+                value={djProfile.soundcloud}
+                onChangeText={(text) =>
+                  setDjProfile((prev) => ({ ...prev, soundcloud: text }))
+                }
+              />
 
-              <View style={styles.inputWithIcon}>
-                <Text style={styles.inputIcon}>📍</Text>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>City</Text>
+              <Text style={styles.label}>City</Text>
+              <TouchableOpacity
+                style={styles.dropdownButton}
+                onPress={() => setShowCityDropdown(!showCityDropdown)}
+              >
+                <Text
+                  style={[
+                    styles.dropdownText,
+                    !djProfile.city && styles.placeholderText,
+                  ]}
+                >
+                  {djProfile.city || "Select your city"}
+                </Text>
+                <Text style={styles.dropdownArrow}>▼</Text>
+              </TouchableOpacity>
+              
+              {showCityDropdown && (
+                <View style={styles.dropdown}>
+                  {MAJOR_CITIES.map((city) => (
+                    <TouchableOpacity
+                      key={city}
+                      style={styles.dropdownItem}
+                      onPress={() => selectCity(city)}
+                    >
+                      <Text style={styles.dropdownItemText}>{city}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              <Text style={styles.label}>Your Genres</Text>
+              <View style={styles.genreContainer}>
+                {MUSIC_GENRES.map((genre) => (
                   <TouchableOpacity
-                    style={styles.dropdownButton}
-                    onPress={() => setShowCityDropdown(!showCityDropdown)}
+                    key={genre}
+                    style={[
+                      styles.genreTag,
+                      djProfile.genres.includes(genre) &&
+                        styles.genreTagSelected,
+                    ]}
+                    onPress={() => toggleGenre(genre)}
                   >
                     <Text
                       style={[
-                        styles.dropdownText,
-                        !djProfile.city && styles.placeholderText,
+                        styles.genreTagText,
+                        djProfile.genres.includes(genre) &&
+                          styles.genreTagTextSelected,
                       ]}
                     >
-                      {djProfile.city || "Select your city"}
+                      {genre}
                     </Text>
-                    <Text style={styles.dropdownArrow}>▼</Text>
                   </TouchableOpacity>
-
-                  {showCityDropdown && (
-                    <View style={styles.dropdown}>
-                      {MAJOR_CITIES.map((city) => (
-                        <TouchableOpacity
-                          key={city}
-                          style={styles.dropdownItem}
-                          onPress={() => selectCity(city)}
-                        >
-                          <Text style={styles.dropdownItemText}>{city}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.inputWithIcon}>
-                <Text style={styles.inputIcon}>🎵</Text>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Your Genres</Text>
-                  <View style={styles.genreContainer}>
-                    {MUSIC_GENRES.map((genre) => (
-                      <TouchableOpacity
-                        key={genre}
-                        style={[
-                          styles.genreTag,
-                          djProfile.genres.includes(genre) &&
-                            styles.genreTagSelected,
-                        ]}
-                        onPress={() => toggleGenre(genre)}
-                      >
-                        <Text
-                          style={[
-                            styles.genreTagText,
-                            djProfile.genres.includes(genre) &&
-                              styles.genreTagTextSelected,
-                          ]}
-                        >
-                          {genre}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
+                ))}
               </View>
             </View>
 
@@ -301,7 +276,7 @@ export default function App() {
             <View style={styles.featuredOpportunityCard}>
               <View style={styles.opportunityImageContainer}>
                 <View style={styles.opportunityImagePlaceholder}>
-                  <Text style={styles.opportunityImageText}>🎵</Text>
+                  <Text style={styles.opportunityImageText}>♪</Text>
                 </View>
                 <View style={styles.genreTag}>
                   <Text style={styles.genreTagText}>Techno</Text>
@@ -313,9 +288,9 @@ export default function App() {
                   High-energy underground event. Looking for DJs who can bring the heat with hard techno and industrial beats.
                 </Text>
                 <View style={styles.opportunityDetails}>
-                  <Text style={styles.opportunityDetail}>📅 2024-08-15 at 22:00</Text>
-                  <Text style={styles.opportunityDetail}>📍 East London</Text>
-                  <Text style={styles.opportunityDetail}>💰 £300</Text>
+                  <Text style={styles.opportunityDetail}>2024-08-15 at 22:00</Text>
+                  <Text style={styles.opportunityDetail}>East London</Text>
+                  <Text style={styles.opportunityDetail}>£300</Text>
                 </View>
                 <View style={styles.opportunityFooter}>
                   <View style={styles.skillLevelTag}>
@@ -329,7 +304,7 @@ export default function App() {
             {/* Action Buttons */}
             <View style={styles.opportunityActions}>
               <TouchableOpacity style={styles.passButton}>
-                <Text style={styles.passButtonText}>✕</Text>
+                <Text style={styles.passButtonText}>×</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.applyButton}>
                 <Text style={styles.applyButtonText}>♥</Text>
@@ -557,22 +532,21 @@ export default function App() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoIcon}>🌍</Text>
-            <Text style={styles.logoText}>WELCOME TO R/HOOD</Text>
+            <Text style={styles.logoText}>R/HOOD</Text>
           </View>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("notifications")}>
-            <Text style={styles.headerIconText}>🔔</Text>
+            <Text style={styles.headerIconText}>○</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("community")}>
-            <Text style={styles.headerIconText}>👥</Text>
+            <Text style={styles.headerIconText}>◐</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("profile")}>
-            <Text style={styles.headerIconText}>👤</Text>
+            <Text style={styles.headerIconText}>○</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("settings")}>
-            <Text style={styles.headerIconText}>⚙️</Text>
+            <Text style={styles.headerIconText}>⚙</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -679,30 +653,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  logoIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
   logoText: {
     color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
-    fontSize: 14,
+    fontSize: 18,
     fontFamily: "Arial Black",
     fontWeight: "900",
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "hsl(0, 0%, 10%)", // Dark background
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "transparent", // Transparent background
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)", // Subtle border
+    borderColor: "hsl(0, 0%, 30%)", // Subtle border
   },
   headerIconText: {
-    fontSize: 18,
+    fontSize: 16,
     color: "hsl(0, 0%, 100%)", // Pure white
+    fontWeight: "300",
   },
   screen: {
     flex: 1,
@@ -769,20 +740,6 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)", // Pure white text
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)", // Subtle border
-  },
-  inputWithIcon: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 15,
-  },
-  inputIcon: {
-    fontSize: 20,
-    marginRight: 12,
-    marginTop: 5,
-    color: "hsl(0, 0%, 100%)", // Pure white
-  },
-  inputContainer: {
-    flex: 1,
   },
   dropdownButton: {
     backgroundColor: "hsl(0, 0%, 10%)", // Input background
