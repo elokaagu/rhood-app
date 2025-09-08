@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import SplashScreen from "./components/SplashScreen";
+import { db } from "./lib/supabase";
 
 // Music genres for selection
 const MUSIC_GENRES = [
@@ -57,6 +58,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState("home");
   const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [opportunities, setOpportunities] = useState([]);
+  const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [djProfile, setDjProfile] = useState({
     djName: "",
     fullName: "",
@@ -87,6 +90,42 @@ export default function App() {
     setDjProfile((prev) => ({ ...prev, city }));
     setShowCityDropdown(false);
   };
+
+  const loadOpportunities = async () => {
+    try {
+      setLoadingOpportunities(true);
+      const data = await db.getOpportunities();
+      setOpportunities(data);
+    } catch (error) {
+      console.error("Error loading opportunities:", error);
+      Alert.alert("Error", "Failed to load opportunities. Please check your internet connection.");
+    } finally {
+      setLoadingOpportunities(false);
+    }
+  };
+
+  const applyToOpportunity = async (opportunityId) => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      if (!userId) {
+        Alert.alert("Error", "Please complete your profile first.");
+        return;
+      }
+
+      await db.applyToOpportunity(opportunityId, userId);
+      Alert.alert("Success", "Application submitted successfully!");
+    } catch (error) {
+      console.error("Error applying to opportunity:", error);
+      Alert.alert("Error", "Failed to submit application. Please try again.");
+    }
+  };
+
+  // Load opportunities when opportunities screen is accessed
+  useEffect(() => {
+    if (currentScreen === "opportunities") {
+      loadOpportunities();
+    }
+  }, [currentScreen]);
 
   const checkFirstTime = async () => {
     try {
@@ -119,12 +158,29 @@ export default function App() {
     }
 
     try {
+      // Save to Supabase
+      const profileData = {
+        dj_name: djProfile.djName,
+        full_name: djProfile.fullName,
+        instagram: djProfile.instagram || null,
+        soundcloud: djProfile.soundcloud || null,
+        city: djProfile.city,
+        genres: djProfile.genres,
+        bio: `DJ from ${djProfile.city} specializing in ${djProfile.genres.join(', ')}`
+      };
+
+      const savedProfile = await db.createUserProfile(profileData);
+      
+      // Also save to AsyncStorage for offline access
       await AsyncStorage.setItem("hasOnboarded", "true");
       await AsyncStorage.setItem("djProfile", JSON.stringify(djProfile));
+      await AsyncStorage.setItem("userId", savedProfile.id);
+      
       setIsFirstTime(false);
-      Alert.alert("Success", "Welcome to R/HOOD!");
+      Alert.alert("Success", "Welcome to R/HOOD! Your profile has been saved to the cloud.");
     } catch (error) {
-      Alert.alert("Error", "Failed to save profile");
+      console.error("Error saving profile:", error);
+      Alert.alert("Error", "Failed to save profile. Please check your internet connection and try again.");
     }
   };
 
@@ -272,76 +328,66 @@ export default function App() {
           <ScrollView style={styles.screen}>
             <Text style={styles.screenTitle}>Opportunities</Text>
             
-            {/* Featured Opportunity */}
-            <View style={styles.featuredOpportunityCard}>
-              <View style={styles.opportunityImageContainer}>
-                <View style={styles.opportunityImagePlaceholder}>
-                  <Text style={styles.opportunityImageText}>♪</Text>
-                </View>
-                <View style={styles.genreTag}>
-                  <Text style={styles.genreTagText}>Techno</Text>
-                </View>
+            {loadingOpportunities ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading opportunities...</Text>
               </View>
-              <View style={styles.opportunityContent}>
-                <Text style={styles.opportunityTitle}>Underground Warehouse Rave</Text>
-                <Text style={styles.opportunityDescription}>
-                  High-energy underground event. Looking for DJs who can bring the heat with hard techno and industrial beats.
-                </Text>
-                <View style={styles.opportunityDetails}>
-                  <Text style={styles.opportunityDetail}>2024-08-15 at 22:00</Text>
-                  <Text style={styles.opportunityDetail}>East London</Text>
-                  <Text style={styles.opportunityDetail}>£300</Text>
-                </View>
-                <View style={styles.opportunityFooter}>
-                  <View style={styles.skillLevelTag}>
-                    <Text style={styles.skillLevelText}>Intermediate</Text>
+            ) : opportunities.length > 0 ? (
+              opportunities.map((opportunity, index) => (
+                <View key={opportunity.id} style={styles.opportunityCard}>
+                  <View style={styles.opportunityImageContainer}>
+                    <View style={styles.opportunityImagePlaceholder}>
+                      <Text style={styles.opportunityImageText}>♪</Text>
+                    </View>
+                    <View style={styles.genreTag}>
+                      <Text style={styles.genreTagText}>{opportunity.genre}</Text>
+                    </View>
                   </View>
-                  <Text style={styles.organizerName}>Darkside Collective</Text>
+                  <View style={styles.opportunityContent}>
+                    <Text style={styles.opportunityTitle}>{opportunity.title}</Text>
+                    <Text style={styles.opportunityDescription}>
+                      {opportunity.description}
+                    </Text>
+                    <View style={styles.opportunityDetails}>
+                      {opportunity.event_date && (
+                        <Text style={styles.opportunityDetail}>
+                          {new Date(opportunity.event_date).toLocaleDateString()} at {new Date(opportunity.event_date).toLocaleTimeString()}
+                        </Text>
+                      )}
+                      <Text style={styles.opportunityDetail}>{opportunity.location}</Text>
+                      {opportunity.payment && (
+                        <Text style={styles.opportunityDetail}>£{opportunity.payment}</Text>
+                      )}
+                    </View>
+                    <View style={styles.opportunityFooter}>
+                      <View style={styles.skillLevelTag}>
+                        <Text style={styles.skillLevelText}>{opportunity.skill_level}</Text>
+                      </View>
+                      <Text style={styles.organizerName}>{opportunity.organizer_name}</Text>
+                    </View>
+                  </View>
+                  
+                  {/* Action Buttons */}
+                  <View style={styles.opportunityActions}>
+                    <TouchableOpacity style={styles.passButton}>
+                      <Text style={styles.passButtonText}>×</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.applyButton}
+                      onPress={() => applyToOpportunity(opportunity.id)}
+                    >
+                      <Text style={styles.applyButtonText}>♥</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.actionHint}>Tap to pass • Tap to apply</Text>
                 </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No opportunities available</Text>
+                <Text style={styles.emptyStateSubtext}>Check back later for new gigs!</Text>
               </View>
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.opportunityActions}>
-              <TouchableOpacity style={styles.passButton}>
-                <Text style={styles.passButtonText}>×</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.applyButton}>
-                <Text style={styles.applyButtonText}>♥</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.actionHint}>Tap to pass • Tap to apply</Text>
-
-            {/* Other Opportunities */}
-            <View style={styles.opportunityCard}>
-              <Text style={styles.opportunityDJ}>Club Neon</Text>
-              <Text style={styles.opportunityTitle}>Resident DJ Position</Text>
-              <Text style={styles.opportunityInfo}>Miami, FL</Text>
-              <Text style={styles.opportunityInfo}>Weekly • House Music</Text>
-              <View style={styles.opportunityActions}>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Text style={styles.actionText}>Pass</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Text style={styles.actionText}>Apply</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.opportunityCard}>
-              <Text style={styles.opportunityDJ}>Berlin Underground</Text>
-              <Text style={styles.opportunityTitle}>Festival Lineup</Text>
-              <Text style={styles.opportunityInfo}>Berlin, Germany</Text>
-              <Text style={styles.opportunityInfo}>Summer 2024 • Electronic</Text>
-              <View style={styles.opportunityActions}>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Text style={styles.actionText}>Pass</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Text style={styles.actionText}>Apply</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            )}
           </ScrollView>
         );
 
@@ -1258,5 +1304,30 @@ const styles = StyleSheet.create({
   settingsArrow: {
     fontSize: 18,
     color: "hsl(0, 0%, 50%)", // Muted text
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Arial",
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: "center",
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 8,
+    fontFamily: "Arial",
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Arial",
   },
 });
