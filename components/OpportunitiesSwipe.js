@@ -368,6 +368,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
                   outputRange: [0, 1],
                   extrapolate: 'clamp',
                 }),
+                transform: [{ rotate: '12deg' }], // Static rotation for indicator
               }
             ]}
           >
@@ -384,6 +385,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
                   outputRange: [1, 0],
                   extrapolate: 'clamp',
                 }),
+                transform: [{ rotate: '-12deg' }], // Static rotation for indicator
               }
             ]}
           >
@@ -589,7 +591,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -50 }, { translateY: -50 }],
+    marginTop: -20,
+    marginLeft: -50,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
