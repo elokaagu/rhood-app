@@ -14,7 +14,6 @@ import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
 import { db } from "./lib/supabase";
 
-
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [isFirstTime, setIsFirstTime] = useState(true);
@@ -39,7 +38,6 @@ export default function App() {
     setShowSplash(false);
   };
 
-
   const loadOpportunities = async () => {
     try {
       setLoadingOpportunities(true);
@@ -47,7 +45,10 @@ export default function App() {
       setOpportunities(data);
     } catch (error) {
       console.error("Error loading opportunities:", error);
-      Alert.alert("Error", "Failed to load opportunities. Please check your internet connection.");
+      Alert.alert(
+        "Error",
+        "Failed to load opportunities. Please check your internet connection."
+      );
     } finally {
       setLoadingOpportunities(false);
     }
@@ -115,21 +116,29 @@ export default function App() {
         soundcloud: djProfile.soundcloud || null,
         city: djProfile.city,
         genres: djProfile.genres,
-        bio: `DJ from ${djProfile.city} specializing in ${djProfile.genres.join(', ')}`
+        bio: `DJ from ${djProfile.city} specializing in ${djProfile.genres.join(
+          ", "
+        )}`,
       };
 
       const savedProfile = await db.createUserProfile(profileData);
-      
+
       // Also save to AsyncStorage for offline access
       await AsyncStorage.setItem("hasOnboarded", "true");
       await AsyncStorage.setItem("djProfile", JSON.stringify(djProfile));
       await AsyncStorage.setItem("userId", savedProfile.id);
-      
+
       setIsFirstTime(false);
-      Alert.alert("Success", "Welcome to R/HOOD! Your profile has been saved to the cloud.");
+      Alert.alert(
+        "Success",
+        "Welcome to R/HOOD! Your profile has been saved to the cloud."
+      );
     } catch (error) {
       console.error("Error saving profile:", error);
-      Alert.alert("Error", "Failed to save profile. Please check your internet connection and try again.");
+      Alert.alert(
+        "Error",
+        "Failed to save profile. Please check your internet connection and try again."
+      );
     }
   };
 
@@ -369,7 +378,9 @@ export default function App() {
                 <Text style={styles.settingsArrow}>›</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.settingsItem}>
-                <Text style={styles.settingsItemText}>Notification Preferences</Text>
+                <Text style={styles.settingsItemText}>
+                  Notification Preferences
+                </Text>
                 <Text style={styles.settingsArrow}>›</Text>
               </TouchableOpacity>
             </View>
@@ -422,16 +433,28 @@ export default function App() {
           </View>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("notifications")}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => setCurrentScreen("notifications")}
+          >
             <Text style={styles.headerIconText}>○</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("community")}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => setCurrentScreen("community")}
+          >
             <Text style={styles.headerIconText}>◐</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("profile")}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => setCurrentScreen("profile")}
+          >
             <Text style={styles.headerIconText}>○</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => setCurrentScreen("settings")}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => setCurrentScreen("settings")}
+          >
             <Text style={styles.headerIconText}>⚙</Text>
           </TouchableOpacity>
         </View>
@@ -455,7 +478,10 @@ export default function App() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, currentScreen === "opportunities" && styles.activeTab]}
+          style={[
+            styles.tab,
+            currentScreen === "opportunities" && styles.activeTab,
+          ]}
           onPress={() => setCurrentScreen("opportunities")}
         >
           <Text
