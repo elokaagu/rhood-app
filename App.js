@@ -15,6 +15,7 @@ import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
 import OpportunitiesList from "./components/OpportunitiesList";
 import OpportunitiesSwipe from "./components/OpportunitiesSwipe";
+import ConnectionsScreen from "./components/ConnectionsScreen";
 import ListenScreen from "./components/ListenScreen";
 import { db } from "./lib/supabase";
 
@@ -194,33 +195,9 @@ export default function App() {
 
       case "connections":
         return (
-          <ScrollView style={styles.screen}>
-            <Text style={styles.screenTitle}>Connections</Text>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureText}>DJ Network</Text>
-              <Text style={styles.featureSubtext}>
-                Connect with other DJs in your area
-              </Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureText}>Organizers</Text>
-              <Text style={styles.featureSubtext}>
-                Build relationships with event organizers
-              </Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureText}>Collaborations</Text>
-              <Text style={styles.featureSubtext}>
-                Find DJs to collaborate with
-              </Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureText}>Mentorship</Text>
-              <Text style={styles.featureSubtext}>
-                Connect with experienced DJs for guidance
-              </Text>
-            </View>
-          </ScrollView>
+          <ConnectionsScreen 
+            onNavigate={(screen) => setCurrentScreen(screen)}
+          />
         );
 
       case "listen":
