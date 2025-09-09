@@ -5,23 +5,27 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rhoodapp.mobile"
+      "bundleIdentifier": "com.rhoodapp.mobile",
+      "newArchEnabled": false
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
-      "package": "com.rhoodapp.mobile"
+      "package": "com.rhoodapp.mobile",
+      "newArchEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,6 +34,9 @@
       "eas": {
         "projectId": "your-project-id-here"
       }
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
