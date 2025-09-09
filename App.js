@@ -10,6 +10,7 @@ import {
   TextInput,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
 import OpportunitiesList from "./components/OpportunitiesList";
@@ -189,6 +190,68 @@ export default function App() {
           />
         );
 
+      case "connections":
+        return (
+          <ScrollView style={styles.screen}>
+            <Text style={styles.screenTitle}>Connections</Text>
+            <View style={styles.featureItem}>
+              <Text style={styles.featureText}>DJ Network</Text>
+              <Text style={styles.featureSubtext}>
+                Connect with other DJs in your area
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Text style={styles.featureText}>Organizers</Text>
+              <Text style={styles.featureSubtext}>
+                Build relationships with event organizers
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Text style={styles.featureText}>Collaborations</Text>
+              <Text style={styles.featureSubtext}>
+                Find DJs to collaborate with
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Text style={styles.featureText}>Mentorship</Text>
+              <Text style={styles.featureSubtext}>
+                Connect with experienced DJs for guidance
+              </Text>
+            </View>
+          </ScrollView>
+        );
+
+      case "listen":
+        return (
+          <ScrollView style={styles.screen}>
+            <Text style={styles.screenTitle}>Listen</Text>
+            <View style={styles.featureItem}>
+              <Text style={styles.featureText}>Latest Tracks</Text>
+              <Text style={styles.featureSubtext}>
+                Discover new music from the community
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Text style={styles.featureText}>DJ Mixes</Text>
+              <Text style={styles.featureSubtext}>
+                Listen to mixes from other DJs
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Text style={styles.featureText}>Live Sets</Text>
+              <Text style={styles.featureSubtext}>
+                Stream live performances
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Text style={styles.featureText}>Playlists</Text>
+              <Text style={styles.featureSubtext}>
+                Curated playlists by genre and mood
+              </Text>
+            </View>
+          </ScrollView>
+        );
+
       case "messages":
         return (
           <ScrollView style={styles.screen}>
@@ -353,22 +416,18 @@ export default function App() {
 
       default:
         return (
-          <ScrollView style={styles.screen}>
-            <Text style={styles.screenTitle}>R/HOOD</Text>
-            <Text style={styles.welcomeText}>
-              Welcome {djProfile.djName}! Your social networking app for DJs is
-              ready.
-            </Text>
-
-            <View style={styles.featuresCard}>
-              <Text style={styles.featuresTitle}>Features Available:</Text>
-              <Text style={styles.featureItem}>DJ Feed with event cards</Text>
-              <Text style={styles.featureItem}>Forum-style messaging</Text>
-              <Text style={styles.featureItem}>Complete DJ profiles</Text>
-              <Text style={styles.featureItem}>Community features</Text>
-              <Text style={styles.featureItem}>Admin panel</Text>
-            </View>
-          </ScrollView>
+          <OpportunitiesList
+            onApply={(opportunity) => {
+              console.log("Applied to:", opportunity.title);
+              Alert.alert(
+                "Application Sent",
+                `You've applied to ${opportunity.title}!`
+              );
+            }}
+            onPass={(opportunity) => {
+              console.log("Passed on:", opportunity.title);
+            }}
+          />
         );
     }
   };
@@ -413,26 +472,17 @@ export default function App() {
 
       <View style={styles.tabBar}>
         <TouchableOpacity
-          style={[styles.tab, currentScreen === "home" && styles.activeTab]}
-          onPress={() => setCurrentScreen("home")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              currentScreen === "home" && styles.activeTabText,
-            ]}
-          >
-            Home
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={[
             styles.tab,
             currentScreen === "opportunities" && styles.activeTab,
           ]}
           onPress={() => setCurrentScreen("opportunities")}
         >
+          <Ionicons
+            name="briefcase-outline"
+            size={20}
+            color={currentScreen === "opportunities" ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"}
+          />
           <Text
             style={[
               styles.tabText,
@@ -444,30 +494,40 @@ export default function App() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, currentScreen === "messages" && styles.activeTab]}
-          onPress={() => setCurrentScreen("messages")}
+          style={[styles.tab, currentScreen === "connections" && styles.activeTab]}
+          onPress={() => setCurrentScreen("connections")}
         >
+          <Ionicons
+            name="people-outline"
+            size={20}
+            color={currentScreen === "connections" ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"}
+          />
           <Text
             style={[
               styles.tabText,
-              currentScreen === "messages" && styles.activeTabText,
+              currentScreen === "connections" && styles.activeTabText,
             ]}
           >
-            Messages
+            Connections
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, currentScreen === "profile" && styles.activeTab]}
-          onPress={() => setCurrentScreen("profile")}
+          style={[styles.tab, currentScreen === "listen" && styles.activeTab]}
+          onPress={() => setCurrentScreen("listen")}
         >
+          <Ionicons
+            name="musical-notes-outline"
+            size={20}
+            color={currentScreen === "listen" ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"}
+          />
           <Text
             style={[
               styles.tabText,
-              currentScreen === "profile" && styles.activeTabText,
+              currentScreen === "listen" && styles.activeTabText,
             ]}
           >
-            Profile
+            Listen
           </Text>
         </TouchableOpacity>
       </View>
@@ -862,9 +922,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
+    flexDirection: "column",
+    gap: 4,
   },
   activeTab: {
-    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    backgroundColor: "hsl(0, 0%, 10%)", // Slightly lighter background for active tab
   },
   tabText: {
     fontSize: 12,
@@ -872,8 +934,8 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)", // Muted foreground
   },
   activeTabText: {
-    color: "hsl(0, 0%, 0%)", // Black text on active tab
-    fontWeight: "bold",
+    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color for active text
+    fontWeight: "600",
   },
   // Opportunities Screen Styles
   featuredOpportunityCard: {
