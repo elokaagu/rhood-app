@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
 import OpportunitiesList from "./components/OpportunitiesList";
+import ListenScreen from "./components/ListenScreen";
 import { db } from "./lib/supabase";
 
 export default function App() {
@@ -222,35 +223,7 @@ export default function App() {
         );
 
       case "listen":
-        return (
-          <ScrollView style={styles.screen}>
-            <Text style={styles.screenTitle}>Listen</Text>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureText}>Latest Tracks</Text>
-              <Text style={styles.featureSubtext}>
-                Discover new music from the community
-              </Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureText}>DJ Mixes</Text>
-              <Text style={styles.featureSubtext}>
-                Listen to mixes from other DJs
-              </Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureText}>Live Sets</Text>
-              <Text style={styles.featureSubtext}>
-                Stream live performances
-              </Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureText}>Playlists</Text>
-              <Text style={styles.featureSubtext}>
-                Curated playlists by genre and mood
-              </Text>
-            </View>
-          </ScrollView>
-        );
+        return <ListenScreen />;
 
       case "messages":
         return (
