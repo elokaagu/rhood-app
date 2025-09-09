@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
 import OpportunitiesList from "./components/OpportunitiesList";
+import OpportunitiesSwipe from "./components/OpportunitiesSwipe";
 import ListenScreen from "./components/ListenScreen";
 import { db } from "./lib/supabase";
 
@@ -177,16 +178,16 @@ export default function App() {
     switch (currentScreen) {
       case "opportunities":
         return (
-          <OpportunitiesList
+          <OpportunitiesSwipe
             onApply={(opportunity) => {
-              console.log("Applied to:", opportunity.title);
+              console.log("Applied to:", opportunity.name);
               Alert.alert(
                 "Application Sent",
-                `You've applied to ${opportunity.title}!`
+                `You've applied to ${opportunity.name}!`
               );
             }}
             onPass={(opportunity) => {
-              console.log("Passed on:", opportunity.title);
+              console.log("Passed on:", opportunity.name);
             }}
           />
         );
@@ -389,16 +390,16 @@ export default function App() {
 
       default:
         return (
-          <OpportunitiesList
+          <OpportunitiesSwipe
             onApply={(opportunity) => {
-              console.log("Applied to:", opportunity.title);
+              console.log("Applied to:", opportunity.name);
               Alert.alert(
                 "Application Sent",
-                `You've applied to ${opportunity.title}!`
+                `You've applied to ${opportunity.name}!`
               );
             }}
             onPass={(opportunity) => {
-              console.log("Passed on:", opportunity.title);
+              console.log("Passed on:", opportunity.name);
             }}
           />
         );

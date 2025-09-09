@@ -1,305 +1,483 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Image,
-  Animated,
-  PanGestureHandler,
-  Dimensions,
-  Alert,
-  Modal,
   StyleSheet,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import LinearGradient from "expo-linear-gradient";
+  Animated,
+  Dimensions,
+  PanResponder,
+  Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Mock data for opportunities
+// Mock gigs data
 const mockGigs = [
   {
-    id: "1",
+    id: 1,
     name: "Underground Warehouse Rave",
-    date: "2024-08-15",
+    date: "Aug 15, 2024",
     time: "22:00",
-    location: "East London",
+    location: "East London, UK",
     fee: "£300",
-    description:
-      "High-energy underground event. Looking for DJs who can bring the heat with hard techno and industrial beats.",
-    genre: ["Techno", "Industrial"],
-    heroImage:
-      "https://images.unsplash.com/photo-1571266028243-4c8c8b0b8b0b?w=800&h=600&fit=crop",
-    applicationsRemaining: 12,
+    description: "High-energy underground event. Looking for DJs who can bring the heat with hard techno and industrial beats.",
+    genre: "Techno",
+    skillLevel: "Intermediate",
+    organizer: "Darkside Collective",
+    heroImage: "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=600&fit=crop",
   },
   {
-    id: "2",
+    id: 2,
     name: "Club Neon Resident DJ",
-    date: "2024-07-01",
+    date: "Jul 1, 2024",
     time: "22:00",
     location: "Miami, FL",
     fee: "£200",
-    description:
-      "Weekly resident DJ position at Club Neon. House music focus with a vibrant crowd.",
-    genre: ["House", "Deep House"],
-    heroImage:
-      "https://images.unsplash.com/photo-1571266028243-4c8c8b0b8b0b?w=800&h=600&fit=crop",
-    applicationsRemaining: 8,
+    description: "Weekly resident DJ position at Club Neon. House music focus with a vibrant crowd.",
+    genre: "House",
+    skillLevel: "Beginner",
+    organizer: "Club Neon",
+    heroImage: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=600&fit=crop",
   },
   {
-    id: "3",
+    id: 3,
     name: "Berlin Underground Festival",
-    date: "2024-08-20",
+    date: "Aug 20, 2024",
     time: "20:00",
     location: "Berlin, Germany",
     fee: "£500",
-    description:
-      "Summer festival lineup. Electronic music showcase with international artists.",
-    genre: ["Electronic", "Techno", "Ambient"],
-    heroImage:
-      "https://images.unsplash.com/photo-1571266028243-4c8c8b0b8b0b?w=800&h=600&fit=crop",
-    applicationsRemaining: 5,
+    description: "Summer festival lineup. Electronic music showcase with international artists.",
+    genre: "Electronic",
+    skillLevel: "Advanced",
+    organizer: "Berlin Underground",
+    heroImage: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=600&fit=crop",
   },
   {
-    id: "4",
+    id: 4,
     name: "Ibiza Beach Party",
-    date: "2024-09-10",
+    date: "Sep 10, 2024",
     time: "18:00",
     location: "Ibiza, Spain",
     fee: "£400",
-    description:
-      "Sunset beach party with world-class sound system. Progressive house and trance focus.",
-    genre: ["Progressive", "Trance", "House"],
-    heroImage:
-      "https://images.unsplash.com/photo-1571266028243-4c8c8b0b8b0b?w=800&h=600&fit=crop",
-    applicationsRemaining: 15,
+    description: "Sunset beach party with world-class sound system. Progressive house and trance focus.",
+    genre: "Progressive",
+    skillLevel: "Intermediate",
+    organizer: "Ibiza Events",
+    heroImage: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=600&fit=crop",
+  },
+  {
+    id: 5,
+    name: "NYC Rooftop Sessions",
+    date: "Jul 25, 2024",
+    time: "19:00",
+    location: "New York, NY",
+    fee: "£250",
+    description: "Intimate rooftop DJ sessions in Manhattan. Deep house and minimal techno.",
+    genre: "Deep House",
+    skillLevel: "Intermediate",
+    organizer: "NYC Underground",
+    heroImage: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=600&fit=crop",
   },
 ];
 
 export default function OpportunitiesSwipe({ onApply, onPass }) {
   const [currentGigIndex, setCurrentGigIndex] = useState(0);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [applicationsRemaining, setApplicationsRemaining] = useState(40);
+  const [appliesLeft, setAppliesLeft] = useState(3);
+  const [showApplication, setShowApplication] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const rotate = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
+  const nextCardScale = useRef(new Animated.Value(0.9)).current;
+  const nextCardOpacity = useRef(new Animated.Value(0.8)).current;
 
   const currentGig = mockGigs[currentGigIndex];
+  const nextGig = mockGigs[(currentGigIndex + 1) % mockGigs.length];
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => !isAnimating,
+    onMoveShouldSetPanResponder: () => !isAnimating,
+    onPanResponderGrant: () => {
+      // Reset values when starting drag
+      translateX.setOffset(translateX._value);
+      translateY.setOffset(translateY._value);
+      translateX.setValue(0);
+      translateY.setValue(0);
+    },
+    onPanResponderMove: (evt, gestureState) => {
+      if (isAnimating) return;
+      
+      const { dx, dy } = gestureState;
+      translateX.setValue(dx);
+      translateY.setValue(dy * 0.2); // Reduce vertical movement
+      
+      // Calculate rotation based on horizontal movement
+      const rotationValue = dx * 0.1;
+      rotate.setValue(rotationValue);
+      
+      // Calculate opacity based on horizontal movement
+      const opacityValue = 1 - Math.abs(dx) * 0.001;
+      opacity.setValue(Math.max(0.3, opacityValue));
+      
+      // Animate next card
+      const scaleValue = 0.9 + Math.abs(dx) * 0.0002;
+      const nextOpacityValue = 0.8 + Math.abs(dx) * 0.0005;
+      nextCardScale.setValue(scaleValue);
+      nextCardOpacity.setValue(nextOpacityValue);
+    },
+    onPanResponderRelease: (evt, gestureState) => {
+      if (isAnimating) return;
+      
+      translateX.flattenOffset();
+      translateY.flattenOffset();
+      
+      const { dx, vx } = gestureState;
+      const threshold = 100;
+      
+      if (Math.abs(dx) > threshold || Math.abs(vx) > 0.5) {
+        if (dx > 0) {
+          handleSwipeRight();
+        } else {
+          handleSwipeLeft();
+        }
+      } else {
+        // Snap back
+        snapBack();
+      }
+    },
+  });
+
+  const snapBack = () => {
+    setIsAnimating(true);
+    Animated.parallel([
+      Animated.spring(translateX, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }),
+      Animated.spring(rotate, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }),
+      Animated.spring(opacity, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }),
+      Animated.spring(nextCardScale, {
+        toValue: 0.9,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }),
+      Animated.spring(nextCardOpacity, {
+        toValue: 0.8,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }),
+    ]).start(() => {
+      setIsAnimating(false);
+    });
+  };
 
   const handleSwipeLeft = () => {
+    setIsAnimating(true);
     Animated.parallel([
       Animated.timing(translateX, {
         toValue: -screenWidth,
         duration: 300,
         useNativeDriver: true,
       }),
+      Animated.timing(translateY, {
+        toValue: -50,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(rotate, {
+        toValue: -30,
+        duration: 300,
+        useNativeDriver: true,
+      }),
       Animated.timing(opacity, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
       }),
     ]).start(() => {
-      nextGig();
+      // Reset values and move to next gig
+      translateX.setValue(0);
+      translateY.setValue(0);
+      rotate.setValue(0);
+      opacity.setValue(1);
+      nextCardScale.setValue(0.9);
+      nextCardOpacity.setValue(0.8);
+      
+      setCurrentGigIndex((prevIndex) => 
+        prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
+      );
+      setIsAnimating(false);
       onPass && onPass(currentGig);
     });
   };
 
   const handleSwipeRight = () => {
-    setShowConfirmDialog(true);
+    if (appliesLeft > 0) {
+      setIsAnimating(true);
+      Animated.parallel([
+        Animated.timing(translateX, {
+          toValue: screenWidth,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: -50,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rotate, {
+          toValue: 30,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // Reset values
+        translateX.setValue(0);
+        translateY.setValue(0);
+        rotate.setValue(0);
+        opacity.setValue(1);
+        nextCardScale.setValue(0.9);
+        nextCardOpacity.setValue(0.8);
+        
+        setShowApplication(true);
+        setIsAnimating(false);
+        onApply && onApply(currentGig);
+      });
+    } else {
+      Alert.alert('No Applications Left', 'You have used all your applications for today. Check back tomorrow!');
+    }
   };
 
-  const confirmApply = () => {
-    setShowConfirmDialog(false);
-    setApplicationsRemaining((prev) => prev - 1);
-
-    Animated.parallel([
-      Animated.timing(translateX, {
-        toValue: screenWidth,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      nextGig();
-      onApply && onApply(currentGig);
-    });
+  const handleApplyConfirm = () => {
+    setAppliesLeft(prev => prev - 1);
+    setShowApplication(false);
+    setCurrentGigIndex((prevIndex) => 
+      prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
+    );
+    Alert.alert('Application Sent!', `You've applied to ${currentGig.name}`);
   };
 
-  const nextGig = () => {
-    const nextIndex = (currentGigIndex + 1) % mockGigs.length;
-    setCurrentGigIndex(nextIndex);
-    translateX.setValue(0);
-    opacity.setValue(1);
+  const handleApplyCancel = () => {
+    setShowApplication(false);
   };
 
-  const renderGenreTags = () => (
-    <View style={styles.genreContainer}>
-      {currentGig.genre.map((genre, index) => (
-        <View key={index} style={styles.genreTag}>
-          <Text style={styles.genreTagText}>{genre}</Text>
-        </View>
-      ))}
-    </View>
-  );
+  const getSkillLevelColor = (level) => {
+    switch (level) {
+      case 'Beginner': return 'hsl(120, 100%, 50%)';
+      case 'Intermediate': return 'hsl(45, 100%, 50%)';
+      case 'Advanced': return 'hsl(0, 100%, 50%)';
+      default: return 'hsl(0, 0%, 70%)';
+    }
+  };
 
-  const renderOpportunityCard = () => (
-    <Animated.View
-      style={[
-        styles.card,
-        {
-          transform: [{ translateX }],
-          opacity,
-        },
-      ]}
-    >
-      <Image source={{ uri: currentGig.heroImage }} style={styles.heroImage} />
-      <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.8)"]}
-        style={styles.gradientOverlay}
-      />
-
-      {/* Applications Remaining Counter */}
-      <View style={styles.applicationsCounter}>
-        <Ionicons name="people-outline" size={16} color="hsl(75, 100%, 60%)" />
-        <Text style={styles.applicationsText}>
-          {currentGig.applicationsRemaining} left
-        </Text>
-      </View>
-
-      {/* Card Content */}
-      <View style={styles.cardContent}>
-        <Text style={styles.gigTitle}>{currentGig.name}</Text>
-
-        <View style={styles.dateLocationRow}>
-          <View style={styles.dateContainer}>
-            <Ionicons
-              name="calendar-outline"
-              size={16}
-              color="hsl(0, 0%, 100%)"
-            />
-            <Text style={styles.dateText}>
-              {currentGig.date} at {currentGig.time}
-            </Text>
+  if (showApplication) {
+    return (
+      <View style={styles.applicationModal}>
+        <View style={styles.applicationCard}>
+          <Text style={styles.applicationTitle}>Apply for this gig?</Text>
+          <Text style={styles.applicationGigName}>{currentGig.name}</Text>
+          <Text style={styles.applicationDetails}>
+            {currentGig.date} at {currentGig.time} • {currentGig.location}
+          </Text>
+          <Text style={styles.applicationFee}>{currentGig.fee}</Text>
+          
+          <View style={styles.applicationButtons}>
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={handleApplyCancel}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.confirmButton}
+              onPress={handleApplyConfirm}
+            >
+              <Text style={styles.confirmButtonText}>Apply</Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        <View style={styles.locationContainer}>
-          <Ionicons
-            name="location-outline"
-            size={16}
-            color="hsl(0, 0%, 100%)"
-          />
-          <Text style={styles.locationText}>{currentGig.location}</Text>
-        </View>
-
-        <View style={styles.feeContainer}>
-          <Text style={styles.feeText}>{currentGig.fee}</Text>
-        </View>
-
-        {renderGenreTags()}
-
-        <Text style={styles.descriptionText}>{currentGig.description}</Text>
       </View>
-    </Animated.View>
-  );
+    );
+  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.logoText}>R/HOOD</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons
-              name="notifications-outline"
-              size={24}
-              color="hsl(0, 0%, 100%)"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons
-              name="people-outline"
-              size={24}
-              color="hsl(0, 0%, 100%)"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons
-              name="person-outline"
-              size={24}
-              color="hsl(0, 0%, 100%)"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons
-              name="settings-outline"
-              size={24}
-              color="hsl(0, 0%, 100%)"
-            />
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.headerTitle}>Opportunities</Text>
+        <Text style={styles.appliesLeft}>Applications left: {appliesLeft}</Text>
       </View>
 
-      {/* Main Card Area */}
-      <View style={styles.cardContainer}>{renderOpportunityCard()}</View>
+      {/* Card Stack Container */}
+      <View style={styles.cardContainer}>
+        {/* Next Card (underneath) */}
+        <Animated.View 
+          style={[
+            styles.card,
+            styles.nextCard,
+            {
+              transform: [
+                { scale: nextCardScale },
+                { translateY: 10 }
+              ],
+              opacity: nextCardOpacity,
+            }
+          ]}
+        >
+          <Image source={{ uri: nextGig.heroImage }} style={styles.cardImage} />
+          <View style={styles.cardOverlay} />
+          <View style={styles.cardContent}>
+            <Text style={styles.nextCardTitle}>{nextGig.name}</Text>
+            <Text style={styles.nextCardLocation}>{nextGig.location}</Text>
+          </View>
+        </Animated.View>
 
-      {/* Bottom Action Bar */}
-      <View style={styles.actionBar}>
-        <TouchableOpacity style={styles.passButton} onPress={handleSwipeLeft}>
-          <Ionicons name="close" size={32} color="hsl(0, 0%, 100%)" />
-        </TouchableOpacity>
+        {/* Current Card (draggable) */}
+        <Animated.View
+          style={[
+            styles.card,
+            styles.currentCard,
+            {
+              transform: [
+                { translateX },
+                { translateY },
+                { rotate },
+              ],
+              opacity,
+            }
+          ]}
+          {...panResponder.panHandlers}
+        >
+          {/* Swipe indicators */}
+          <Animated.View 
+            style={[
+              styles.swipeIndicator,
+              styles.applyIndicator,
+              {
+                opacity: translateX.interpolate({
+                  inputRange: [50, 100],
+                  outputRange: [0, 1],
+                  extrapolate: 'clamp',
+                }),
+              }
+            ]}
+          >
+            <Text style={styles.swipeIndicatorText}>APPLY</Text>
+          </Animated.View>
+          
+          <Animated.View 
+            style={[
+              styles.swipeIndicator,
+              styles.passIndicator,
+              {
+                opacity: translateX.interpolate({
+                  inputRange: [-100, -50],
+                  outputRange: [1, 0],
+                  extrapolate: 'clamp',
+                }),
+              }
+            ]}
+          >
+            <Text style={styles.swipeIndicatorText}>PASS</Text>
+          </Animated.View>
 
-        <View style={styles.remainingContainer}>
-          <Text style={styles.remainingText}>
-            {applicationsRemaining} applications remaining
-          </Text>
-        </View>
+          <Image source={{ uri: currentGig.heroImage }} style={styles.cardImage} />
+          <View style={styles.cardOverlay} />
+          
+          {/* Genre badge */}
+          <View style={styles.genreBadge}>
+            <Text style={styles.genreText}>{currentGig.genre}</Text>
+          </View>
 
-        <TouchableOpacity style={styles.applyButton} onPress={handleSwipeRight}>
-          <Ionicons name="heart" size={32} color="hsl(0, 0%, 0%)" />
-        </TouchableOpacity>
-      </View>
+          {/* Content overlay */}
+          <View style={styles.cardContent}>
+            <Text style={styles.gigTitle}>{currentGig.name}</Text>
+            <Text style={styles.gigDescription}>{currentGig.description}</Text>
+            
+            <View style={styles.gigDetails}>
+              <View style={styles.detailRow}>
+                <Ionicons name="calendar-outline" size={16} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.detailText}>
+                  {currentGig.date} at {currentGig.time}
+                </Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Ionicons name="location-outline" size={16} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.detailText}>{currentGig.location}</Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Ionicons name="cash-outline" size={16} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.detailText}>{currentGig.fee}</Text>
+              </View>
+            </View>
 
-      {/* Confirmation Modal */}
-      <Modal
-        visible={showConfirmDialog}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowConfirmDialog(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Apply for this gig?</Text>
-            <Text style={styles.modalSubtitle}>{currentGig.name}</Text>
-            <Text style={styles.modalDescription}>
-              You're about to apply for this opportunity. This will use one of
-              your remaining applications.
-            </Text>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowConfirmDialog(false)}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={confirmApply}
-              >
-                <Text style={styles.modalConfirmText}>Apply Now</Text>
-              </TouchableOpacity>
+            <View style={styles.gigFooter}>
+              <View style={styles.skillLevelContainer}>
+                <Text style={[styles.skillLevelText, { color: getSkillLevelColor(currentGig.skillLevel) }]}>
+                  {currentGig.skillLevel}
+                </Text>
+              </View>
+              <Text style={styles.organizerName}>{currentGig.organizer}</Text>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Animated.View>
+      </View>
+
+      {/* Action buttons */}
+      <View style={styles.actionButtons}>
+        <TouchableOpacity 
+          style={styles.passButton}
+          onPress={handleSwipeLeft}
+          disabled={isAnimating}
+        >
+          <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.applyButton, appliesLeft === 0 && styles.disabledButton]}
+          onPress={handleSwipeRight}
+          disabled={appliesLeft === 0 || isAnimating}
+        >
+          <Ionicons name="heart" size={24} color="hsl(0, 0%, 0%)" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Instructions */}
+      <Text style={styles.instructions}>
+        Swipe right to apply • Swipe left to pass
+      </Text>
     </View>
   );
 }
@@ -307,259 +485,281 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 0%)", // Pure black
+    backgroundColor: 'hsl(0, 0%, 0%)',
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 20,
+    padding: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
+    borderBottomColor: 'hsl(0, 0%, 15%)',
   },
-  headerLeft: {
-    flex: 1,
+  headerTitle: {
+    fontSize: 28,
+    fontFamily: 'Arial Black',
+    fontWeight: '900',
+    color: 'hsl(0, 0%, 100%)',
+    marginBottom: 4,
   },
-  logoText: {
-    fontSize: 24,
-    fontFamily: "Arial Black",
-    fontWeight: "900",
-    color: "hsl(75, 100%, 60%)", // R/HOOD lime
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "hsl(0, 0%, 10%)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
+  appliesLeft: {
+    fontSize: 14,
+    fontFamily: 'Arial',
+    color: 'hsl(75, 100%, 60%)',
   },
   cardContainer: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   card: {
-    flex: 1,
+    position: 'absolute',
+    width: screenWidth - 40,
+    height: 500,
     borderRadius: 16,
-    overflow: "hidden",
-    backgroundColor: "hsl(0, 0%, 5%)",
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+    borderColor: 'hsl(0, 0%, 15%)',
   },
-  heroImage: {
-    width: "100%",
-    height: "60%",
-    resizeMode: "cover",
+  currentCard: {
+    zIndex: 20,
   },
-  gradientOverlay: {
-    position: "absolute",
+  nextCard: {
+    zIndex: 10,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardOverlay: {
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
-  applicationsCounter: {
-    position: "absolute",
-    top: 20,
-    right: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "hsl(0, 0%, 0%)",
+  genreBadge: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: 'hsla(0, 0%, 0%, 0.6)',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'hsl(75, 100%, 60%)',
   },
-  applicationsText: {
-    color: "hsl(75, 100%, 60%)",
+  genreText: {
     fontSize: 12,
-    fontFamily: "Arial",
-    fontWeight: "600",
-    marginLeft: 4,
+    fontFamily: 'Arial',
+    fontWeight: '600',
+    color: 'hsl(75, 100%, 60%)',
   },
   cardContent: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   gigTitle: {
-    fontSize: 28,
-    fontFamily: "Arial Black",
-    fontWeight: "900",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 12,
-  },
-  dateLocationRow: {
+    fontSize: 24,
+    fontFamily: 'Arial Black',
+    fontWeight: '900',
+    color: 'hsl(0, 0%, 100%)',
     marginBottom: 8,
   },
-  dateContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  dateText: {
-    fontSize: 16,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)",
-    marginLeft: 8,
-  },
-  locationContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  locationText: {
-    fontSize: 16,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)",
-    marginLeft: 8,
-  },
-  feeContainer: {
-    marginBottom: 12,
-  },
-  feeText: {
-    fontSize: 24,
-    fontFamily: "Arial Black",
-    fontWeight: "900",
-    color: "hsl(75, 100%, 60%)",
-  },
-  genreContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 12,
-  },
-  genreTag: {
-    backgroundColor: "hsl(75, 100%, 60%)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 4,
-  },
-  genreTagText: {
-    fontSize: 12,
-    fontFamily: "Arial",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 0%)",
-  },
-  descriptionText: {
+  gigDescription: {
     fontSize: 14,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 80%)",
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 80%)',
     lineHeight: 20,
+    marginBottom: 16,
   },
-  actionBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  gigDetails: {
+    marginBottom: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 100%)',
+    marginLeft: 8,
+  },
+  gigFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  skillLevelContainer: {
+    backgroundColor: 'hsl(0, 0%, 15%)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  skillLevelText: {
+    fontSize: 10,
+    fontFamily: 'Arial',
+    fontWeight: '600',
+  },
+  organizerName: {
+    fontSize: 14,
+    fontFamily: 'Arial',
+    fontWeight: '600',
+    color: 'hsl(75, 100%, 60%)',
+  },
+  nextCardTitle: {
+    fontSize: 18,
+    fontFamily: 'Arial Black',
+    fontWeight: '900',
+    color: 'hsl(0, 0%, 100%)',
+    marginBottom: 4,
+  },
+  nextCardLocation: {
+    fontSize: 12,
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 70%)',
+  },
+  swipeIndicator: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -50 }, { translateY: -50 }],
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    zIndex: 30,
+  },
+  applyIndicator: {
+    backgroundColor: 'hsla(120, 100%, 50%, 0.9)',
+  },
+  passIndicator: {
+    backgroundColor: 'hsla(0, 100%, 50%, 0.9)',
+  },
+  swipeIndicatorText: {
+    fontSize: 18,
+    fontFamily: 'Arial Black',
+    fontWeight: '900',
+    color: 'hsl(0, 0%, 100%)',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 40,
     paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: "hsl(0, 0%, 15%)",
+    gap: 40,
   },
   passButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "hsl(0, 0%, 15%)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'hsl(0, 0%, 15%)',
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 2,
-    borderColor: "hsl(0, 0%, 25%)",
+    borderColor: 'hsl(0, 0%, 25%)',
   },
   applyButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "hsl(75, 100%, 60%)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'hsl(75, 100%, 60%)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  remainingContainer: {
-    flex: 1,
-    alignItems: "center",
+  disabledButton: {
+    backgroundColor: 'hsl(0, 0%, 15%)',
+    opacity: 0.5,
   },
-  remainingText: {
-    fontSize: 14,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 70%)",
+  instructions: {
+    fontSize: 12,
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 70%)',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
+  applicationModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
   },
-  modalContent: {
-    backgroundColor: "hsl(0, 0%, 5%)",
+  applicationCard: {
+    backgroundColor: 'hsl(0, 0%, 5%)',
     borderRadius: 16,
     padding: 24,
-    marginHorizontal: 20,
+    margin: 20,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+    borderColor: 'hsl(0, 0%, 15%)',
+    alignItems: 'center',
   },
-  modalTitle: {
+  applicationTitle: {
     fontSize: 20,
-    fontFamily: "Arial Black",
-    fontWeight: "900",
-    color: "hsl(0, 0%, 100%)",
-    textAlign: "center",
+    fontFamily: 'Arial Black',
+    fontWeight: '900',
+    color: 'hsl(0, 0%, 100%)',
     marginBottom: 8,
   },
-  modalSubtitle: {
+  applicationGigName: {
     fontSize: 16,
-    fontFamily: "Arial",
-    color: "hsl(75, 100%, 60%)",
-    textAlign: "center",
-    marginBottom: 12,
+    fontFamily: 'Arial',
+    color: 'hsl(75, 100%, 60%)',
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  modalDescription: {
+  applicationDetails: {
     fontSize: 14,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 70%)",
-    textAlign: "center",
-    lineHeight: 20,
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 70%)',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  applicationFee: {
+    fontSize: 18,
+    fontFamily: 'Arial Black',
+    fontWeight: '900',
+    color: 'hsl(75, 100%, 60%)',
     marginBottom: 24,
   },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  applicationButtons: {
+    flexDirection: 'row',
+    gap: 16,
   },
-  modalCancelButton: {
-    flex: 1,
-    backgroundColor: "hsl(0, 0%, 15%)",
+  cancelButton: {
+    backgroundColor: 'hsl(0, 0%, 15%)',
+    paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
-    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'hsl(0, 0%, 25%)',
   },
-  modalCancelText: {
-    fontSize: 16,
-    fontFamily: "Arial",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
-    textAlign: "center",
+  cancelButtonText: {
+    fontSize: 14,
+    fontFamily: 'Arial',
+    fontWeight: '600',
+    color: 'hsl(0, 0%, 100%)',
   },
-  modalConfirmButton: {
-    flex: 1,
-    backgroundColor: "hsl(75, 100%, 60%)",
+  confirmButton: {
+    backgroundColor: 'hsl(75, 100%, 60%)',
+    paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
-    marginLeft: 8,
   },
-  modalConfirmText: {
-    fontSize: 16,
-    fontFamily: "Arial",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 0%)",
-    textAlign: "center",
+  confirmButtonText: {
+    fontSize: 14,
+    fontFamily: 'Arial',
+    fontWeight: '600',
+    color: 'hsl(0, 0%, 0%)',
   },
 });
