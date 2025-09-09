@@ -294,10 +294,10 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
       <Text style={styles.stepSubtitle}>Connect your profiles (optional)</Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Instagram</Text>
+        <Text style={styles.label}>Instagram (Optional)</Text>
         <TextInput
           style={[styles.input, errors.instagram && styles.inputError]}
-          placeholder="@yourhandle or full URL"
+          placeholder="@yourhandle or full URL (optional)"
           value={djProfile.instagram}
           onChangeText={(text) => {
             setDjProfile((prev) => ({ ...prev, instagram: text }));
@@ -310,10 +310,10 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>SoundCloud</Text>
+        <Text style={styles.label}>SoundCloud (Optional)</Text>
         <TextInput
           style={[styles.input, errors.soundcloud && styles.inputError]}
-          placeholder="Your SoundCloud URL"
+          placeholder="Your SoundCloud URL (optional)"
           value={djProfile.soundcloud}
           onChangeText={(text) => {
             setDjProfile((prev) => ({ ...prev, soundcloud: text }));

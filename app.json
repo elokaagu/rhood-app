@@ -17,7 +17,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rhoodapp.mobile",
-      "newArchEnabled": false
+      "newArchEnabled": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -32,11 +35,18 @@
     },
     "extra": {
       "eas": {
-        "projectId": "your-project-id-here"
+        "projectId": "499f2244-43f3-478d-8b88-85c2da9f1d52"
       }
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "owner": "elokaagu",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/499f2244-43f3-478d-8b88-85c2da9f1d52"
+    }
   }
 }
