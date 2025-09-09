@@ -89,6 +89,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   const [showApplication, setShowApplication] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
+  // Create new animated values for each card to avoid conflicts
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const rotate = useRef(new Animated.Value(0)).current;
@@ -458,25 +459,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         </Animated.View>
       </View>
 
-      {/* Action buttons */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity 
-          style={styles.passButton}
-          onPress={handleSwipeLeft}
-          disabled={isAnimating}
-        >
-          <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.applyButton, appliesLeft === 0 && styles.disabledButton]}
-          onPress={handleSwipeRight}
-          disabled={appliesLeft === 0 || isAnimating}
-        >
-          <Ionicons name="heart" size={24} color="hsl(0, 0%, 0%)" />
-        </TouchableOpacity>
-      </View>
-
       {/* Instructions */}
       <Text style={styles.instructions}>
         Swipe right to apply • Swipe left to pass
@@ -650,42 +632,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: 'hsl(0, 0%, 100%)',
   },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    paddingVertical: 20,
-    gap: 40,
-  },
-  passButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'hsl(0, 0%, 15%)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'hsl(0, 0%, 25%)',
-  },
-  applyButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'hsl(75, 100%, 60%)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  disabledButton: {
-    backgroundColor: 'hsl(0, 0%, 15%)',
-    opacity: 0.5,
-  },
   instructions: {
     fontSize: 12,
     fontFamily: 'Arial',
     color: 'hsl(0, 0%, 70%)',
     textAlign: 'center',
     marginBottom: 20,
+    paddingHorizontal: 20,
   },
   applicationModal: {
     position: 'absolute',
