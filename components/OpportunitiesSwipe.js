@@ -92,7 +92,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   // Create new animated values for each card to avoid conflicts
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
-  const rotate = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
   const nextCardScale = useRef(new Animated.Value(0.9)).current;
   const nextCardOpacity = useRef(new Animated.Value(0.8)).current;
@@ -117,9 +116,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       translateX.setValue(dx);
       translateY.setValue(dy * 0.2); // Reduce vertical movement
       
-      // Calculate rotation based on horizontal movement
-      const rotationValue = dx * 0.1;
-      rotate.setValue(rotationValue);
+      // No rotation needed for smooth swipe experience
       
       // Calculate opacity based on horizontal movement
       const opacityValue = 1 - Math.abs(dx) * 0.001;
@@ -168,12 +165,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         tension: 100,
         friction: 8,
       }),
-      Animated.spring(rotate, {
-        toValue: 0,
-        useNativeDriver: false,
-        tension: 100,
-        friction: 8,
-      }),
       Animated.spring(opacity, {
         toValue: 1,
         useNativeDriver: true,
@@ -210,11 +201,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         duration: 300,
         useNativeDriver: true,
       }),
-      Animated.timing(rotate, {
-        toValue: -30,
-        duration: 300,
-        useNativeDriver: false,
-      }),
       Animated.timing(opacity, {
         toValue: 0,
         duration: 300,
@@ -224,7 +210,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       // Reset values and move to next gig
       translateX.setValue(0);
       translateY.setValue(0);
-      rotate.setValue(0);
       opacity.setValue(1);
       nextCardScale.setValue(0.9);
       nextCardOpacity.setValue(0.8);
@@ -251,11 +236,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
           duration: 300,
           useNativeDriver: true,
         }),
-        Animated.timing(rotate, {
-          toValue: 30,
-          duration: 300,
-          useNativeDriver: false,
-        }),
         Animated.timing(opacity, {
           toValue: 0,
           duration: 300,
@@ -265,7 +245,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         // Reset values
         translateX.setValue(0);
         translateY.setValue(0);
-        rotate.setValue(0);
         opacity.setValue(1);
         nextCardScale.setValue(0.9);
         nextCardOpacity.setValue(0.8);
@@ -372,10 +351,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
               transform: [
                 { translateX },
                 { translateY },
-                { rotate: rotate.interpolate({
-                  inputRange: [-180, 180],
-                  outputRange: ['-180deg', '180deg'],
-                }) },
               ],
               opacity,
             }
