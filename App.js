@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
   TextInput,
+  Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +27,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState("home");
   const [opportunities, setOpportunities] = useState([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [djProfile, setDjProfile] = useState({
     djName: "",
     fullName: "",
@@ -96,6 +98,11 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleMenuNavigation = (screen) => {
+    setCurrentScreen(screen);
+    setShowMenu(false);
   };
 
   const completeOnboarding = async () => {
@@ -393,28 +400,10 @@ export default function App() {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => setCurrentScreen("notifications")}
+            style={styles.menuButton}
+            onPress={() => setShowMenu(true)}
           >
-            <Text style={styles.headerIconText}>○</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => setCurrentScreen("community")}
-          >
-            <Text style={styles.headerIconText}>◐</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => setCurrentScreen("profile")}
-          >
-            <Text style={styles.headerIconText}>○</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => setCurrentScreen("settings")}
-          >
-            <Text style={styles.headerIconText}>⚙</Text>
+            <Ionicons name="menu" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
         </View>
       </View>
@@ -482,6 +471,68 @@ export default function App() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Hamburger Menu Modal */}
+      <Modal
+        visible={showMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
+        >
+          <View style={styles.menuContainer}>
+            <View style={styles.menuContent}>
+              <View style={styles.menuHeader}>
+                <Text style={styles.menuTitle}>Menu</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setShowMenu(false)}
+                >
+                  <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.menuItems}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigation("notifications")}
+                >
+                  <Ionicons name="notifications-outline" size={20} color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.menuItemText}>Notifications</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigation("community")}
+                >
+                  <Ionicons name="people-outline" size={20} color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.menuItemText}>Community</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigation("profile")}
+                >
+                  <Ionicons name="person-outline" size={20} color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.menuItemText}>Profile</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigation("settings")}
+                >
+                  <Ionicons name="settings-outline" size={20} color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.menuItemText}>Settings</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -519,7 +570,16 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 15,
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 30%)",
   },
   logoContainer: {
     flexDirection: "row",
@@ -1157,5 +1217,65 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
     fontFamily: "Arial",
+  },
+  // Hamburger Menu Styles
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "flex-end",
+  },
+  menuContainer: {
+    backgroundColor: "hsl(0, 0%, 5%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+    borderBottomWidth: 0,
+  },
+  menuContent: {
+    padding: 20,
+  },
+  menuHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  menuTitle: {
+    fontSize: 20,
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  menuItems: {
+    gap: 8,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 15,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)",
+    marginLeft: 12,
+    fontWeight: "500",
   },
 });
