@@ -169,7 +169,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       }),
       Animated.spring(rotate, {
         toValue: 0,
-        useNativeDriver: true,
+        useNativeDriver: false,
         tension: 100,
         friction: 8,
       }),
@@ -212,7 +212,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       Animated.timing(rotate, {
         toValue: -30,
         duration: 300,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(opacity, {
         toValue: 0,
@@ -253,7 +253,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         Animated.timing(rotate, {
           toValue: 30,
           duration: 300,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(opacity, {
           toValue: 0,
@@ -371,7 +371,10 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
               transform: [
                 { translateX },
                 { translateY },
-                { rotate },
+                { rotate: rotate.interpolate({
+                  inputRange: [-180, 180],
+                  outputRange: ['-180deg', '180deg'],
+                }) },
               ],
               opacity,
             }
