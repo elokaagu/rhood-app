@@ -12,6 +12,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
+import OpportunitiesList from "./components/OpportunitiesList";
 import { db } from "./lib/supabase";
 
 export default function App() {
@@ -174,70 +175,18 @@ export default function App() {
     switch (currentScreen) {
       case "opportunities":
         return (
-          <ScrollView style={styles.screen}>
-            <Text style={styles.screenTitle}>Opportunities</Text>
-            
-            {loadingOpportunities ? (
-              <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Loading opportunities...</Text>
-              </View>
-            ) : opportunities.length > 0 ? (
-              opportunities.map((opportunity, index) => (
-                <View key={opportunity.id} style={styles.opportunityCard}>
-                  <View style={styles.opportunityImageContainer}>
-                    <View style={styles.opportunityImagePlaceholder}>
-                      <Text style={styles.opportunityImageText}>♪</Text>
-                    </View>
-                    <View style={styles.genreTag}>
-                      <Text style={styles.genreTagText}>{opportunity.genre}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.opportunityContent}>
-                    <Text style={styles.opportunityTitle}>{opportunity.title}</Text>
-                    <Text style={styles.opportunityDescription}>
-                      {opportunity.description}
-                    </Text>
-                    <View style={styles.opportunityDetails}>
-                      {opportunity.event_date && (
-                        <Text style={styles.opportunityDetail}>
-                          {new Date(opportunity.event_date).toLocaleDateString()} at {new Date(opportunity.event_date).toLocaleTimeString()}
-                        </Text>
-                      )}
-                      <Text style={styles.opportunityDetail}>{opportunity.location}</Text>
-                      {opportunity.payment && (
-                        <Text style={styles.opportunityDetail}>£{opportunity.payment}</Text>
-                      )}
-                    </View>
-                    <View style={styles.opportunityFooter}>
-                      <View style={styles.skillLevelTag}>
-                        <Text style={styles.skillLevelText}>{opportunity.skill_level}</Text>
-                      </View>
-                      <Text style={styles.organizerName}>{opportunity.organizer_name}</Text>
-                    </View>
-                  </View>
-                  
-                  {/* Action Buttons */}
-                  <View style={styles.opportunityActions}>
-                    <TouchableOpacity style={styles.passButton}>
-                      <Text style={styles.passButtonText}>×</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.applyButton}
-                      onPress={() => applyToOpportunity(opportunity.id)}
-                    >
-                      <Text style={styles.applyButtonText}>♥</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.actionHint}>Tap to pass • Tap to apply</Text>
-                </View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No opportunities available</Text>
-                <Text style={styles.emptyStateSubtext}>Check back later for new gigs!</Text>
-              </View>
-            )}
-          </ScrollView>
+          <OpportunitiesList
+            onApply={(opportunity) => {
+              console.log("Applied to:", opportunity.title);
+              Alert.alert(
+                "Application Sent",
+                `You've applied to ${opportunity.title}!`
+              );
+            }}
+            onPass={(opportunity) => {
+              console.log("Passed on:", opportunity.title);
+            }}
+          />
         );
 
       case "messages":
