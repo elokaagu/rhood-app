@@ -317,12 +317,6 @@ export default function MessagesScreen({ navigation, route }) {
           
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.headerAction}>
-              <Ionicons name="call-outline" size={20} color="hsl(0, 0%, 70%)" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerAction}>
-              <Ionicons name="videocam-outline" size={20} color="hsl(0, 0%, 70%)" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerAction}>
               <Ionicons name="ellipsis-vertical" size={20} color="hsl(0, 0%, 70%)" />
             </TouchableOpacity>
           </View>
