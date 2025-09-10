@@ -17,51 +17,55 @@ const ScreenTransition = ({
   useEffect(() => {
     const animations = [];
 
-    if (transitionType === 'fade') {
-      animations.push(
-        Animated.timing(fadeAnim, {
-          toValue: isActive ? 1 : 0,
-          duration,
-          useNativeDriver: true,
-        })
-      );
-    } else if (transitionType === 'slide') {
-      const slideValue = isActive ? 0 : (direction === 'right' ? screenWidth : -screenWidth);
-      animations.push(
-        Animated.timing(slideAnim, {
-          toValue: slideValue,
-          duration,
-          useNativeDriver: true,
-        })
-      );
-    } else if (transitionType === 'scale') {
-      animations.push(
-        Animated.timing(scaleAnim, {
-          toValue: isActive ? 1 : 0.95,
-          duration,
-          useNativeDriver: true,
-        })
-      );
-    } else if (transitionType === 'slideFade') {
-      const slideValue = isActive ? 0 : (direction === 'right' ? screenWidth : -screenWidth);
-      animations.push(
-        Animated.parallel([
+    try {
+      if (transitionType === 'fade') {
+        animations.push(
           Animated.timing(fadeAnim, {
             toValue: isActive ? 1 : 0,
             duration,
             useNativeDriver: true,
-          }),
+          })
+        );
+      } else if (transitionType === 'slide') {
+        const slideValue = isActive ? 0 : (direction === 'right' ? screenWidth : -screenWidth);
+        animations.push(
           Animated.timing(slideAnim, {
             toValue: slideValue,
             duration,
             useNativeDriver: true,
           })
-        ])
-      );
-    }
+        );
+      } else if (transitionType === 'scale') {
+        animations.push(
+          Animated.timing(scaleAnim, {
+            toValue: isActive ? 1 : 0.95,
+            duration,
+            useNativeDriver: true,
+          })
+        );
+      } else if (transitionType === 'slideFade') {
+        const slideValue = isActive ? 0 : (direction === 'right' ? screenWidth : -screenWidth);
+        animations.push(
+          Animated.parallel([
+            Animated.timing(fadeAnim, {
+              toValue: isActive ? 1 : 0,
+              duration,
+              useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+              toValue: slideValue,
+              duration,
+              useNativeDriver: true,
+            })
+          ])
+        );
+      }
 
-    if (animations.length > 0) {
-      Animated.parallel(animations).start();
+      if (animations.length > 0) {
+        Animated.parallel(animations).start();
+      }
+    } catch (error) {
+      console.log('ScreenTransition animation error:', error);
     }
   }, [isActive, transitionType, direction, duration]);
 
