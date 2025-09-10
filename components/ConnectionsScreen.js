@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import LazyImage from './LazyImage';
+import ProgressiveImage from './ProgressiveImage';
 
 // Mock connections data
 const mockConnections = [
@@ -178,7 +178,7 @@ export default function ConnectionsScreen({ onNavigate }) {
             <View style={styles.connectionContent}>
               {/* Profile Image with Online Status */}
               <View style={styles.profileContainer}>
-                <LazyImage
+                <ProgressiveImage
                   source={{ uri: connection.profileImage }} 
                   style={styles.profileImage}
                 />
