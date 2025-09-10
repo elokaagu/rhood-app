@@ -11,14 +11,18 @@
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rhoodapp.mobile",
       "newArchEnabled": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -48,7 +52,8 @@
         {
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "owner": "elokaagu",
     "runtimeVersion": "1.0.0",
