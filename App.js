@@ -203,15 +203,15 @@ export default function App() {
         {screens.map((screen) => {
           const isActive = currentScreen === screen;
           let transitionType = 'fade';
-          let direction = 'right';
+          let direction = 'up';
 
           // Different transition types for different screens
           if (screen === 'opportunities' || screen === 'connections' || screen === 'listen') {
             transitionType = 'slideFade';
-            direction = 'right';
+            direction = 'up';
           } else if (screen === 'messages') {
             transitionType = 'slide';
-            direction = 'right';
+            direction = 'up';
           } else {
             transitionType = 'fade';
           }

@@ -1,17 +1,17 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions } from 'react-native';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const ScreenTransition = ({ 
   children, 
   isActive, 
   transitionType = 'fade',
   duration = 300,
-  direction = 'right'
+  direction = 'up'
 }) => {
   const fadeAnim = useRef(new Animated.Value(isActive ? 1 : 0)).current;
-  const slideAnim = useRef(new Animated.Value(isActive ? 0 : screenWidth)).current;
+  const slideAnim = useRef(new Animated.Value(isActive ? 0 : screenHeight)).current;
   const scaleAnim = useRef(new Animated.Value(isActive ? 1 : 0.95)).current;
 
   useEffect(() => {
@@ -27,7 +27,7 @@ const ScreenTransition = ({
           })
         );
       } else if (transitionType === 'slide') {
-        const slideValue = isActive ? 0 : (direction === 'right' ? screenWidth : -screenWidth);
+        const slideValue = isActive ? 0 : (direction === 'up' ? screenHeight : -screenHeight);
         animations.push(
           Animated.timing(slideAnim, {
             toValue: slideValue,
@@ -44,7 +44,7 @@ const ScreenTransition = ({
           })
         );
       } else if (transitionType === 'slideFade') {
-        const slideValue = isActive ? 0 : (direction === 'right' ? screenWidth : -screenWidth);
+        const slideValue = isActive ? 0 : (direction === 'up' ? screenHeight : -screenHeight);
         animations.push(
           Animated.parallel([
             Animated.timing(fadeAnim, {
@@ -73,7 +73,7 @@ const ScreenTransition = ({
     const transforms = [];
     
     if (transitionType === 'slide' || transitionType === 'slideFade') {
-      transforms.push({ translateX: slideAnim });
+      transforms.push({ translateY: slideAnim });
     }
     
     if (transitionType === 'scale') {
