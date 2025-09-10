@@ -4,10 +4,7 @@ import {
   Image,
   StyleSheet,
   Animated,
-  Dimensions,
-  Platform,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 
 const LazyImage = ({ 
@@ -58,12 +55,14 @@ const LazyImage = ({
       return placeholder;
     }
 
+    const iconSize = Math.max(20, Math.min(style?.width || 40, style?.height || 40) * 0.4);
+
     if (hasError) {
       return (
         <View style={[styles.placeholder, style]}>
           <Ionicons 
             name="image-outline" 
-            size={Math.min(style?.width || 40, style?.height || 40) * 0.4} 
+            size={iconSize} 
             color="hsl(0, 0%, 30%)" 
           />
         </View>
@@ -74,7 +73,7 @@ const LazyImage = ({
       <View style={[styles.placeholder, style]}>
         <Ionicons 
           name="musical-notes-outline" 
-          size={Math.min(style?.width || 40, style?.height || 40) * 0.4} 
+          size={iconSize} 
           color="hsl(0, 0%, 30%)" 
         />
       </View>
@@ -83,26 +82,15 @@ const LazyImage = ({
 
   return (
     <View style={[styles.container, style]}>
-      {/* Blurred placeholder */}
+      {/* Loading placeholder */}
       {isLoading && (
         <Animated.View 
           style={[
-            styles.blurContainer,
+            styles.placeholderContainer,
             { opacity: blurAnim }
           ]}
         >
-          {Platform.OS === 'web' ? (
-            <View style={[StyleSheet.absoluteFillObject, styles.webBlurPlaceholder]}>
-              {renderPlaceholder()}
-            </View>
-          ) : (
-            <BlurView
-              intensity={blurRadius}
-              style={StyleSheet.absoluteFillObject}
-            >
-              {renderPlaceholder()}
-            </BlurView>
-          )}
+          {renderPlaceholder()}
         </Animated.View>
       )}
 
@@ -137,7 +125,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  blurContainer: {
+  placeholderContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -161,7 +149,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'hsl(0, 0%, 10%)',
+    backgroundColor: 'hsl(0, 0%, 15%)',
   },
   fallback: {
     position: 'absolute',
@@ -173,10 +161,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'hsl(0, 0%, 10%)',
-  },
-  webBlurPlaceholder: {
-    backgroundColor: 'hsl(0, 0%, 15%)',
-    filter: 'blur(10px)',
   },
 });
 
