@@ -161,3 +161,6 @@ jspm_packages/
 
 # TernJS port file
 .tern-port
+
+# Large audio files (too big for GitHub)
+assets/audio/rhood-demo-audio.wav
