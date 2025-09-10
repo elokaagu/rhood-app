@@ -8,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
+// Audio functionality temporarily using simulation - will implement real audio later
 import DJMix from "./DJMix";
 
 // Mock DJ mixes data
@@ -22,7 +22,7 @@ const mockMixes = [
     description: "Dark, pulsing techno perfect for late-night sessions",
     image:
       "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
-    audioUrl: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Placeholder - replace with actual audio
+    audioUrl: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Test audio - may not work in web
     plays: 1240,
     likes: 89,
   },
@@ -98,115 +98,43 @@ export default function ListenScreen() {
   const [playingMixId, setPlayingMixId] = useState(null);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const soundRef = useRef(null);
 
-  // Initialize audio mode
+  // Simulate progress for demo purposes since audio URLs are placeholders
   useEffect(() => {
-    const setupAudio = async () => {
-      try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          staysActiveInBackground: true,
-          playsInSilentModeIOS: true,
-          shouldDuckAndroid: true,
-          playThroughEarpieceAndroid: false,
+    let interval;
+    if (playingMixId && !isLoading) {
+      interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 100) {
+            // Mix finished, stop playing
+            setPlayingMixId(null);
+            return 0;
+          }
+          return prev + 2; // Simulate progress
         });
-      } catch (error) {
-        console.log("Error setting up audio mode:", error);
-      }
-    };
-    setupAudio();
-  }, []);
-
-  // Handle audio playback
-  useEffect(() => {
-    const playAudio = async () => {
-      if (playingMixId) {
-        try {
-          setIsLoading(true);
-
-          // Stop any currently playing sound
-          if (soundRef.current) {
-            await soundRef.current.unloadAsync();
-            soundRef.current = null;
-          }
-
-          // Find the mix to play
-          const mixToPlay = mixes.find((mix) => mix.id === playingMixId);
-          if (!mixToPlay) return;
-
-          // Create and load new sound
-          const { sound } = await Audio.Sound.createAsync(
-            { uri: mixToPlay.audioUrl },
-            { shouldPlay: true },
-            onPlaybackStatusUpdate
-          );
-
-          soundRef.current = sound;
-          setIsLoading(false);
-        } catch (error) {
-          console.log("Error playing audio:", error);
-          setIsLoading(false);
-          Alert.alert(
-            "Playback Error",
-            "Could not play this audio file. Please try again."
-          );
-        }
-      } else {
-        // Stop current sound
-        if (soundRef.current) {
-          try {
-            await soundRef.current.unloadAsync();
-            soundRef.current = null;
-          } catch (error) {
-            console.log("Error stopping audio:", error);
-          }
-        }
-        setProgress(0);
-      }
-    };
-
-    playAudio();
-  }, [playingMixId, mixes]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
-    };
-  }, []);
-
-  const onPlaybackStatusUpdate = (status) => {
-    if (status.isLoaded) {
-      if (status.didJustFinish) {
-        // Audio finished playing
-        setPlayingMixId(null);
-        setProgress(0);
-      } else if (status.positionMillis && status.durationMillis) {
-        // Update progress
-        const progressPercent =
-          (status.positionMillis / status.durationMillis) * 100;
-        setProgress(progressPercent);
-      }
+      }, 100);
+    } else if (!playingMixId) {
+      setProgress(0);
     }
-  };
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [playingMixId, isLoading]);
 
   const handlePlayPause = async (mixId) => {
     if (playingMixId === mixId) {
       // Pause current mix
-      if (soundRef.current) {
-        try {
-          await soundRef.current.pauseAsync();
-        } catch (error) {
-          console.log("Error pausing audio:", error);
-        }
-      }
       setPlayingMixId(null);
     } else {
       // Play new mix (pause any currently playing)
-      setPlayingMixId(mixId);
+      setIsLoading(true);
+      
+      // Simulate loading time
+      setTimeout(() => {
+        setIsLoading(false);
+        setPlayingMixId(mixId);
+      }, 500);
     }
   };
 
