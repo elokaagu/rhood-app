@@ -42,9 +42,7 @@
       "expo-font"
     ],
     "owner": "elokaagu",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/499f2244-43f3-478d-8b88-85c2da9f1d52"
     }
