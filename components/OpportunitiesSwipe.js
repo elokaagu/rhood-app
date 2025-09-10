@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Image,
   StyleSheet,
   Animated,
   Dimensions,
@@ -10,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import LazyImage from './LazyImage';
+// import LazyImage from './LazyImage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -334,7 +335,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             }
           ]}
         >
-          <LazyImage source={{ uri: nextGig.heroImage }} style={styles.cardImage} />
+          <Image source={{ uri: nextGig.heroImage }} style={styles.cardImage} />
           <View style={styles.cardOverlay} />
           <View style={styles.cardContent}>
             <Text style={styles.nextCardTitle}>{nextGig.name}</Text>
@@ -392,7 +393,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             <Text style={styles.swipeIndicatorText}>PASS</Text>
           </Animated.View>
 
-          <LazyImage source={{ uri: currentGig.heroImage }} style={styles.cardImage} />
+          <Image source={{ uri: currentGig.heroImage }} style={styles.cardImage} />
           <View style={styles.cardOverlay} />
           
           {/* Genre badge */}

@@ -3,11 +3,12 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Image,
   ScrollView,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import LazyImage from './LazyImage';
+// import LazyImage from './LazyImage';
 
 // Mock connections data
 const mockConnections = [
@@ -177,7 +178,7 @@ export default function ConnectionsScreen({ onNavigate }) {
             <View style={styles.connectionContent}>
               {/* Profile Image with Online Status */}
               <View style={styles.profileContainer}>
-                <LazyImage
+                <Image
                   source={{ uri: connection.profileImage }} 
                   style={styles.profileImage}
                 />
