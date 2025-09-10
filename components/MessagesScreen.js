@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// import LazyImage from './LazyImage';
+import LazyImage from './LazyImage';
 
 // Mock DJ Data
 const mockDJs = [
@@ -215,7 +215,7 @@ export default function MessagesScreen({ navigation, route }) {
           <View key={post.id} style={styles.postCard}>
             {/* Post Header */}
             <View style={styles.postHeader}>
-              <Image source={{ uri: post.avatar }} style={styles.postAvatar} />
+              <LazyImage source={{ uri: post.avatar }} style={styles.postAvatar} />
               
               <View style={styles.postAuthor}>
                 <View style={styles.postAuthorRow}>
@@ -301,7 +301,7 @@ export default function MessagesScreen({ navigation, route }) {
           
           <View style={styles.headerInfo}>
             <View style={styles.djImageContainer}>
-              <Image source={{ uri: currentDJ.profileImage }} style={styles.djImage} />
+              <LazyImage source={{ uri: currentDJ.profileImage }} style={styles.djImage} />
               {currentDJ.isOnline && <View style={styles.onlineIndicator} />}
             </View>
             
