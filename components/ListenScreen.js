@@ -124,7 +124,7 @@ export default function ListenScreen() {
       if (playingMixId) {
         try {
           setIsLoading(true);
-          
+
           // Stop any currently playing sound
           if (sound) {
             await sound.unloadAsync();
@@ -141,13 +141,16 @@ export default function ListenScreen() {
             { shouldPlay: true },
             onPlaybackStatusUpdate
           );
-          
+
           setSound(newSound);
           setIsLoading(false);
         } catch (error) {
           console.log("Error playing audio:", error);
           setIsLoading(false);
-          Alert.alert("Playback Error", "Could not play this audio file. Please try again.");
+          Alert.alert(
+            "Playback Error",
+            "Could not play this audio file. Please try again."
+          );
         }
       } else {
         // Stop current sound
@@ -183,7 +186,8 @@ export default function ListenScreen() {
         setProgress(0);
       } else if (status.positionMillis && status.durationMillis) {
         // Update progress
-        const progressPercent = (status.positionMillis / status.durationMillis) * 100;
+        const progressPercent =
+          (status.positionMillis / status.durationMillis) * 100;
         setProgress(progressPercent);
       }
     }
