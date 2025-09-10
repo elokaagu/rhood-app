@@ -19,6 +19,7 @@ import OpportunitiesSwipe from "./components/OpportunitiesSwipe";
 import ConnectionsScreen from "./components/ConnectionsScreen";
 import ListenScreen from "./components/ListenScreen";
 import MessagesScreen from "./components/MessagesScreen";
+import ScreenTransition from "./components/ScreenTransition";
 import { db } from "./lib/supabase";
 
 export default function App() {
@@ -186,7 +187,53 @@ export default function App() {
   }
 
   const renderScreen = () => {
-    switch (currentScreen) {
+    const screens = [
+      "opportunities",
+      "connections", 
+      "listen",
+      "messages",
+      "notifications",
+      "community",
+      "profile",
+      "settings"
+    ];
+
+    return (
+      <View style={styles.screenContainer}>
+        {screens.map((screen) => {
+          const isActive = currentScreen === screen;
+          let transitionType = 'fade';
+          let direction = 'right';
+
+          // Different transition types for different screens
+          if (screen === 'opportunities' || screen === 'connections' || screen === 'listen') {
+            transitionType = 'slideFade';
+            direction = 'right';
+          } else if (screen === 'messages') {
+            transitionType = 'slide';
+            direction = 'right';
+          } else {
+            transitionType = 'fade';
+          }
+
+          return (
+            <ScreenTransition
+              key={screen}
+              isActive={isActive}
+              transitionType={transitionType}
+              direction={direction}
+              duration={300}
+            >
+              {renderScreenContent(screen)}
+            </ScreenTransition>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderScreenContent = (screen) => {
+    switch (screen) {
       case "opportunities":
         return (
           <OpportunitiesSwipe
@@ -400,7 +447,7 @@ export default function App() {
             styles.tab,
             currentScreen === "opportunities" && styles.activeTab,
           ]}
-          onPress={() => setCurrentScreen("opportunities")}
+          onPress={() => handleMenuNavigation("opportunities")}
         >
           <Ionicons
             name="briefcase-outline"
@@ -419,7 +466,7 @@ export default function App() {
 
         <TouchableOpacity
           style={[styles.tab, currentScreen === "connections" && styles.activeTab]}
-          onPress={() => setCurrentScreen("connections")}
+          onPress={() => handleMenuNavigation("connections")}
         >
           <Ionicons
             name="people-outline"
@@ -438,7 +485,7 @@ export default function App() {
 
         <TouchableOpacity
           style={[styles.tab, currentScreen === "listen" && styles.activeTab]}
-          onPress={() => setCurrentScreen("listen")}
+          onPress={() => handleMenuNavigation("listen")}
         >
           <Ionicons
             name="musical-notes-outline"
@@ -533,6 +580,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "hsl(0, 0%, 0%)", // Pure black background
+  },
+  screenContainer: {
+    flex: 1,
+    position: 'relative',
   },
   onboarding: {
     backgroundColor: "hsl(0, 0%, 0%)", // Pure black background
