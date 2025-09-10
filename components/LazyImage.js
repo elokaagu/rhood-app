@@ -19,23 +19,15 @@ const LazyImage = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const blurAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (isLoaded) {
-      // Fade in the image and fade out the blur
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(blurAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Simple fade in animation without useNativeDriver for web compatibility
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false, // Changed to false for web compatibility
+      }).start();
     }
   }, [isLoaded]);
 
@@ -81,7 +73,7 @@ const LazyImage = ({
 
     // For native, use BlurView
     return (
-      <Animated.View style={[styles.blurContainer, { opacity: blurAnim }]}>
+      <View style={[styles.blurContainer, style]}>
         <BlurView
           intensity={blurRadius}
           style={[styles.blurView, style]}
@@ -94,7 +86,7 @@ const LazyImage = ({
             />
           </View>
         </BlurView>
-      </Animated.View>
+      </View>
     );
   };
 
@@ -104,19 +96,31 @@ const LazyImage = ({
 
   return (
     <View style={style}>
-      {/* Blur placeholder */}
+      {/* Blur placeholder - only show when not loaded */}
       {!isLoaded && renderBlurPlaceholder()}
       
-      {/* Actual image */}
-      <Animated.View style={[styles.imageContainer, { opacity: fadeAnim }]}>
+      {/* Actual image - only show when loaded */}
+      {isLoaded && (
+        <Animated.View style={[styles.imageContainer, { opacity: fadeAnim }]}>
+          <Image
+            source={source}
+            style={[styles.image, style]}
+            onError={handleError}
+            {...props}
+          />
+        </Animated.View>
+      )}
+      
+      {/* Hidden image for loading - this triggers the onLoad */}
+      {!isLoaded && !hasError && (
         <Image
           source={source}
-          style={[styles.image, style]}
+          style={styles.hiddenImage}
           onLoad={handleLoad}
           onError={handleError}
           {...props}
         />
-      </Animated.View>
+      )}
     </View>
   );
 };
@@ -164,6 +168,12 @@ const styles = StyleSheet.create({
   },
   image: {
     flex: 1,
+  },
+  hiddenImage: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
 });
 
