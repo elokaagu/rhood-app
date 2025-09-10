@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   Modal,
+  Animated,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,7 +20,6 @@ import OpportunitiesSwipe from "./components/OpportunitiesSwipe";
 import ConnectionsScreen from "./components/ConnectionsScreen";
 import ListenScreen from "./components/ListenScreen";
 import MessagesScreen from "./components/MessagesScreen";
-import ScreenTransition from "./components/ScreenTransition";
 import { db } from "./lib/supabase";
 
 export default function App() {
@@ -31,6 +31,7 @@ export default function App() {
   const [opportunities, setOpportunities] = useState([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
   const [djProfile, setDjProfile] = useState({
     djName: "",
     fullName: "",
@@ -104,6 +105,20 @@ export default function App() {
   };
 
   const handleMenuNavigation = (screen, params = {}) => {
+    // Simple fade transition for natural feel
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 0.3,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    
     setCurrentScreen(screen);
     setScreenParams(params);
     setShowMenu(false);
@@ -187,48 +202,10 @@ export default function App() {
   }
 
   const renderScreen = () => {
-    const screens = [
-      "opportunities",
-      "connections", 
-      "listen",
-      "messages",
-      "notifications",
-      "community",
-      "profile",
-      "settings"
-    ];
-
     return (
-      <View style={styles.screenContainer}>
-        {screens.map((screen) => {
-          const isActive = currentScreen === screen;
-          let transitionType = 'fade';
-          let direction = 'up';
-
-          // Different transition types for different screens
-          if (screen === 'opportunities' || screen === 'connections' || screen === 'listen') {
-            transitionType = 'slideFade';
-            direction = 'up';
-          } else if (screen === 'messages') {
-            transitionType = 'slide';
-            direction = 'up';
-          } else {
-            transitionType = 'fade';
-          }
-
-          return (
-            <ScreenTransition
-              key={screen}
-              isActive={isActive}
-              transitionType={transitionType}
-              direction={direction}
-              duration={300}
-            >
-              {renderScreenContent(screen)}
-            </ScreenTransition>
-          );
-        })}
-      </View>
+      <Animated.View style={[styles.screenContainer, { opacity: fadeAnim }]}>
+        {renderScreenContent(currentScreen)}
+      </Animated.View>
     );
   };
 
