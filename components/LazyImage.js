@@ -11,34 +11,23 @@ const LazyImage = ({
   source, 
   style, 
   placeholder = null,
-  blurRadius = 10,
-  fadeInDuration = 300,
-  showPlaceholder = true,
   ...props 
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const blurAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (isLoaded) {
       // Fade in the image
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: fadeInDuration,
-        useNativeDriver: true,
-      }).start();
-
-      // Fade out the blur
-      Animated.timing(blurAnim, {
-        toValue: 0,
-        duration: fadeInDuration,
+        duration: 300,
         useNativeDriver: true,
       }).start();
     }
-  }, [isLoaded, fadeAnim, blurAnim, fadeInDuration]);
+  }, [isLoaded, fadeAnim]);
 
   const handleLoad = () => {
     setIsLoaded(true);
@@ -55,14 +44,12 @@ const LazyImage = ({
       return placeholder;
     }
 
-    const iconSize = Math.max(20, Math.min(style?.width || 40, style?.height || 40) * 0.4);
-
     if (hasError) {
       return (
         <View style={[styles.placeholder, style]}>
           <Ionicons 
             name="image-outline" 
-            size={iconSize} 
+            size={24} 
             color="hsl(0, 0%, 30%)" 
           />
         </View>
@@ -73,7 +60,7 @@ const LazyImage = ({
       <View style={[styles.placeholder, style]}>
         <Ionicons 
           name="musical-notes-outline" 
-          size={iconSize} 
+          size={24} 
           color="hsl(0, 0%, 30%)" 
         />
       </View>
@@ -83,32 +70,29 @@ const LazyImage = ({
   return (
     <View style={[styles.container, style]}>
       {/* Loading placeholder */}
-      {isLoading && (
-        <Animated.View 
-          style={[
-            styles.placeholderContainer,
-            { opacity: blurAnim }
-          ]}
-        >
+      {isLoading && !hasError && (
+        <View style={styles.placeholderContainer}>
           {renderPlaceholder()}
-        </Animated.View>
+        </View>
       )}
 
       {/* Main image */}
-      <Animated.View 
-        style={[
-          styles.imageContainer,
-          { opacity: fadeAnim }
-        ]}
-      >
-        <Image
-          source={source}
-          style={[styles.image, style]}
-          onLoad={handleLoad}
-          onError={handleError}
-          {...props}
-        />
-      </Animated.View>
+      {!hasError && (
+        <Animated.View 
+          style={[
+            styles.imageContainer,
+            { opacity: fadeAnim }
+          ]}
+        >
+          <Image
+            source={source}
+            style={[styles.image, style]}
+            onLoad={handleLoad}
+            onError={handleError}
+            {...props}
+          />
+        </Animated.View>
+      )}
 
       {/* Fallback for when image fails to load */}
       {hasError && (
