@@ -8,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-// Audio functionality temporarily using simulation - will implement real audio later
+import { useAudioPlayer } from "expo-audio";
 import DJMix from "./DJMix";
 
 // Mock DJ mixes data
@@ -98,20 +98,57 @@ export default function ListenScreen() {
   const [playingMixId, setPlayingMixId] = useState(null);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [duration, setDuration] = useState(0);
+  
+  // Create audio player
+  const player = useAudioPlayer();
 
-  // Simulate progress for demo purposes since audio URLs are placeholders
+  // Handle audio playback
+  useEffect(() => {
+    const playAudio = async () => {
+      if (playingMixId) {
+        try {
+          setIsLoading(true);
+          
+          // Find the mix to play
+          const mixToPlay = mixes.find((mix) => mix.id === playingMixId);
+          if (!mixToPlay) return;
+
+          // Load and play the audio
+          await player.load(mixToPlay.audioUrl);
+          await player.play();
+          
+          setDuration(player.duration || 0);
+          setIsLoading(false);
+        } catch (error) {
+          console.log("Error playing audio:", error);
+          setIsLoading(false);
+          Alert.alert("Playback Error", "Could not play this audio file. Please try again.");
+        }
+      } else {
+        // Stop current audio
+        player.pause();
+        setProgress(0);
+      }
+    };
+
+    playAudio();
+  }, [playingMixId, mixes, player]);
+
+  // Update progress while playing
   useEffect(() => {
     let interval;
-    if (playingMixId && !isLoading) {
+    if (playingMixId && !isLoading && duration > 0) {
       interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 100) {
-            // Mix finished, stop playing
-            setPlayingMixId(null);
-            return 0;
-          }
-          return prev + 2; // Simulate progress
-        });
+        const currentTime = player.currentTime || 0;
+        const progressPercent = (currentTime / duration) * 100;
+        setProgress(progressPercent);
+        
+        // Check if audio finished
+        if (progressPercent >= 100) {
+          setPlayingMixId(null);
+          setProgress(0);
+        }
       }, 100);
     } else if (!playingMixId) {
       setProgress(0);
@@ -120,21 +157,19 @@ export default function ListenScreen() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [playingMixId, isLoading]);
+  }, [playingMixId, isLoading, duration, player]);
 
   const handlePlayPause = async (mixId) => {
     if (playingMixId === mixId) {
       // Pause current mix
+      player.pause();
       setPlayingMixId(null);
     } else {
       // Play new mix (pause any currently playing)
-      setIsLoading(true);
-
-      // Simulate loading time for smaller MP3 file
-      setTimeout(() => {
-        setIsLoading(false);
-        setPlayingMixId(mixId);
-      }, 800); // Faster loading for smaller file
+      if (playingMixId) {
+        player.pause();
+      }
+      setPlayingMixId(mixId);
     }
   };
 
