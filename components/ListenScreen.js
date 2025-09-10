@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import DJMix from './DJMix';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
+import DJMix from "./DJMix";
 
 // Mock DJ mixes data
 const mockMixes = [
@@ -19,8 +20,9 @@ const mockMixes = [
     genre: "Techno",
     duration: "5:00",
     description: "Dark, pulsing techno perfect for late-night sessions",
-    image: "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
-    audioUrl: "#",
+    image:
+      "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
+    audioUrl: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Placeholder - replace with actual audio
     plays: 1240,
     likes: 89,
   },
@@ -31,8 +33,9 @@ const mockMixes = [
     genre: "Deep House",
     duration: "5:00",
     description: "Smooth deep house for golden hour moments",
-    image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    audioUrl: "#",
+    image:
+      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+    audioUrl: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Placeholder - replace with actual audio
     plays: 892,
     likes: 156,
   },
@@ -43,8 +46,9 @@ const mockMixes = [
     genre: "Drum & Bass",
     duration: "5:00",
     description: "High-energy drum & bass to get your blood pumping",
-    image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop",
-    audioUrl: "#",
+    image:
+      "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop",
+    audioUrl: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Placeholder - replace with actual audio
     plays: 2103,
     likes: 234,
   },
@@ -55,8 +59,9 @@ const mockMixes = [
     genre: "Progressive",
     duration: "5:00",
     description: "Ethereal progressive house from the beach festival",
-    image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
-    audioUrl: "#",
+    image:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
+    audioUrl: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Placeholder - replace with actual audio
     plays: 1456,
     likes: 178,
   },
@@ -67,8 +72,9 @@ const mockMixes = [
     genre: "Industrial",
     duration: "5:00",
     description: "Raw industrial beats from the underground scene",
-    image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    audioUrl: "#",
+    image:
+      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+    audioUrl: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Placeholder - replace with actual audio
     plays: 678,
     likes: 45,
   },
@@ -79,8 +85,9 @@ const mockMixes = [
     genre: "Synthwave",
     duration: "5:00",
     description: "Retro-futuristic synthwave for cyberpunk vibes",
-    image: "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
-    audioUrl: "#",
+    image:
+      "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
+    audioUrl: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Placeholder - replace with actual audio
     plays: 934,
     likes: 112,
   },
@@ -90,33 +97,112 @@ export default function ListenScreen() {
   const [mixes, setMixes] = useState(mockMixes);
   const [playingMixId, setPlayingMixId] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const soundRef = useRef(null);
 
-  // Simulate progress animation
+  // Initialize audio mode
   useEffect(() => {
-    let interval;
-    if (playingMixId) {
-      interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            // Mix finished, stop playing
-            setPlayingMixId(null);
-            return 0;
-          }
-          return prev + 0.5; // Simulate 5-minute mix over 10 seconds for demo
+    const setupAudio = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          staysActiveInBackground: true,
+          playsInSilentModeIOS: true,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
         });
-      }, 50);
-    } else {
-      setProgress(0);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
+      } catch (error) {
+        console.log("Error setting up audio mode:", error);
+      }
     };
-  }, [playingMixId]);
+    setupAudio();
+  }, []);
 
-  const handlePlayPause = (mixId) => {
+  // Handle audio playback
+  useEffect(() => {
+    const playAudio = async () => {
+      if (playingMixId) {
+        try {
+          setIsLoading(true);
+
+          // Stop any currently playing sound
+          if (soundRef.current) {
+            await soundRef.current.unloadAsync();
+            soundRef.current = null;
+          }
+
+          // Find the mix to play
+          const mixToPlay = mixes.find((mix) => mix.id === playingMixId);
+          if (!mixToPlay) return;
+
+          // Create and load new sound
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: mixToPlay.audioUrl },
+            { shouldPlay: true },
+            onPlaybackStatusUpdate
+          );
+
+          soundRef.current = sound;
+          setIsLoading(false);
+        } catch (error) {
+          console.log("Error playing audio:", error);
+          setIsLoading(false);
+          Alert.alert(
+            "Playback Error",
+            "Could not play this audio file. Please try again."
+          );
+        }
+      } else {
+        // Stop current sound
+        if (soundRef.current) {
+          try {
+            await soundRef.current.unloadAsync();
+            soundRef.current = null;
+          } catch (error) {
+            console.log("Error stopping audio:", error);
+          }
+        }
+        setProgress(0);
+      }
+    };
+
+    playAudio();
+  }, [playingMixId, mixes]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
+
+  const onPlaybackStatusUpdate = (status) => {
+    if (status.isLoaded) {
+      if (status.didJustFinish) {
+        // Audio finished playing
+        setPlayingMixId(null);
+        setProgress(0);
+      } else if (status.positionMillis && status.durationMillis) {
+        // Update progress
+        const progressPercent =
+          (status.positionMillis / status.durationMillis) * 100;
+        setProgress(progressPercent);
+      }
+    }
+  };
+
+  const handlePlayPause = async (mixId) => {
     if (playingMixId === mixId) {
       // Pause current mix
+      if (soundRef.current) {
+        try {
+          await soundRef.current.pauseAsync();
+        } catch (error) {
+          console.log("Error pausing audio:", error);
+        }
+      }
       setPlayingMixId(null);
     } else {
       // Play new mix (pause any currently playing)
@@ -126,28 +212,32 @@ export default function ListenScreen() {
 
   const handleArtistPress = (artistName) => {
     Alert.alert(
-      'Connect with Artist',
+      "Connect with Artist",
       `Would you like to connect with ${artistName}?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Connect',
+          text: "Connect",
           onPress: () => {
             // Here you would navigate to the artist's profile
-            Alert.alert('Success', `Connection request sent to ${artistName}!`);
-          }
-        }
+            Alert.alert("Success", `Connection request sent to ${artistName}!`);
+          },
+        },
       ]
     );
   };
 
   const handleUploadMix = () => {
     Alert.alert(
-      'Upload Your Mix',
-      'Share your 5-minute DJ mix with the R/HOOD community!',
+      "Upload Your Mix",
+      "Share your 5-minute DJ mix with the R/HOOD community!",
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Upload', onPress: () => Alert.alert('Coming Soon', 'Mix upload feature coming soon!') }
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Upload",
+          onPress: () =>
+            Alert.alert("Coming Soon", "Mix upload feature coming soon!"),
+        },
       ]
     );
   };
@@ -167,6 +257,7 @@ export default function ListenScreen() {
             key={mix.id}
             mix={mix}
             isPlaying={playingMixId === mix.id}
+            isLoading={isLoading && playingMixId === mix.id}
             onPlayPause={() => handlePlayPause(mix.id)}
             onArtistPress={handleArtistPress}
             progress={playingMixId === mix.id ? progress : 0}
@@ -177,16 +268,16 @@ export default function ListenScreen() {
       {/* Upload CTA */}
       <View style={styles.uploadSection}>
         <View style={styles.uploadCard}>
-          <Ionicons 
-            name="add-circle-outline" 
-            size={48} 
-            color="hsl(75, 100%, 60%)" 
+          <Ionicons
+            name="add-circle-outline"
+            size={48}
+            color="hsl(75, 100%, 60%)"
           />
           <Text style={styles.uploadTitle}>Share Your Mix</Text>
           <Text style={styles.uploadDescription}>
             Upload your own 5-minute DJ mix and connect with the community
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.uploadButton}
             onPress={handleUploadMix}
           >
@@ -204,25 +295,25 @@ export default function ListenScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'hsl(0, 0%, 0%)',
+    backgroundColor: "hsl(0, 0%, 0%)",
   },
   header: {
     padding: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'hsl(0, 0%, 15%)',
+    borderBottomColor: "hsl(0, 0%, 15%)",
   },
   headerTitle: {
     fontSize: 28,
-    fontFamily: 'Arial Black',
-    fontWeight: '900',
-    color: 'hsl(0, 0%, 100%)',
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 70%)',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
   },
   mixesContainer: {
     padding: 16,
@@ -232,41 +323,41 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   uploadCard: {
-    backgroundColor: 'hsl(0, 0%, 5%)',
+    backgroundColor: "hsl(0, 0%, 5%)",
     borderRadius: 12,
     padding: 24,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 15%)',
-    borderStyle: 'dashed',
+    borderColor: "hsl(0, 0%, 15%)",
+    borderStyle: "dashed",
   },
   uploadTitle: {
     fontSize: 18,
-    fontFamily: 'Arial Black',
-    fontWeight: '900',
-    color: 'hsl(0, 0%, 100%)',
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
     marginTop: 12,
     marginBottom: 8,
   },
   uploadDescription: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 70%)',
-    textAlign: 'center',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
     lineHeight: 20,
     marginBottom: 20,
   },
   uploadButton: {
-    backgroundColor: 'hsl(75, 100%, 60%)',
+    backgroundColor: "hsl(75, 100%, 60%)",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   uploadButtonText: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    fontWeight: '600',
-    color: 'hsl(0, 0%, 0%)',
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
   },
   bottomSpacing: {
     height: 20,
