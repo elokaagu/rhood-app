@@ -22,7 +22,7 @@ const mockMixes = [
     description: "Dark, pulsing techno perfect for late-night sessions",
     image:
       "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/rhood-demo-audio.mp3"), // Large demo audio file (450MB)
+    audioUrl: require("../assets/audio/Unique - Original Mix.mp3"), // Smaller demo audio file
     plays: 1240,
     likes: 89,
   },
@@ -35,7 +35,7 @@ const mockMixes = [
     description: "Smooth deep house for golden hour moments",
     image:
       "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/rhood-demo-audio.mp3"), // Large demo audio file (450MB)
+    audioUrl: require("../assets/audio/Unique - Original Mix.mp3"), // Smaller demo audio file
     plays: 892,
     likes: 156,
   },
@@ -130,11 +130,11 @@ export default function ListenScreen() {
       // Play new mix (pause any currently playing)
       setIsLoading(true);
 
-      // Simulate loading time for large 450MB file
+      // Simulate loading time for smaller MP3 file
       setTimeout(() => {
         setIsLoading(false);
         setPlayingMixId(mixId);
-      }, 2000); // Longer loading time for large file
+      }, 800); // Faster loading for smaller file
     }
   };
 
@@ -177,7 +177,7 @@ export default function ListenScreen() {
         <Text style={styles.headerTitle}>DJ Mixes</Text>
         <Text style={styles.headerSubtitle}>5-minute sets from top DJs</Text>
         <Text style={styles.largeFileWarning}>
-          ⚠️ Large demo audio file (450MB) - may take longer to load
+          🎵 Demo audio: "Unique - Original Mix" - optimized for performance
         </Text>
       </View>
 
