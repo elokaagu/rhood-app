@@ -18,6 +18,7 @@ import OpportunitiesList from "./components/OpportunitiesList";
 import OpportunitiesSwipe from "./components/OpportunitiesSwipe";
 import ConnectionsScreen from "./components/ConnectionsScreen";
 import ListenScreen from "./components/ListenScreen";
+import MessagesScreen from "./components/MessagesScreen";
 import { db } from "./lib/supabase";
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
   const [isFirstTime, setIsFirstTime] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState("home");
+  const [screenParams, setScreenParams] = useState({});
   const [opportunities, setOpportunities] = useState([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -100,8 +102,9 @@ export default function App() {
     }
   };
 
-  const handleMenuNavigation = (screen) => {
+  const handleMenuNavigation = (screen, params = {}) => {
     setCurrentScreen(screen);
+    setScreenParams(params);
     setShowMenu(false);
   };
 
@@ -203,7 +206,10 @@ export default function App() {
       case "connections":
         return (
           <ConnectionsScreen 
-            onNavigate={(screen) => setCurrentScreen(screen)}
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
           />
         );
 
@@ -212,32 +218,10 @@ export default function App() {
 
       case "messages":
         return (
-          <ScrollView style={styles.screen}>
-            <Text style={styles.screenTitle}>Messages</Text>
-            <View style={styles.messageCard}>
-              <Text style={styles.messageName}>House Music Lovers</Text>
-              <Text style={styles.messagePreview}>
-                Who's going to the festival this weekend?
-              </Text>
-              <Text style={styles.messageTime}>156 members • 2m ago</Text>
-            </View>
-
-            <View style={styles.messageCard}>
-              <Text style={styles.messageName}>DJ Pulse</Text>
-              <Text style={styles.messagePreview}>
-                Thanks for the collaboration!
-              </Text>
-              <Text style={styles.messageTime}>1h ago</Text>
-            </View>
-
-            <View style={styles.messageCard}>
-              <Text style={styles.messageName}>Miami DJ Network</Text>
-              <Text style={styles.messagePreview}>
-                Looking for a resident DJ at our venue
-              </Text>
-              <Text style={styles.messageTime}>234 members • 1d ago</Text>
-            </View>
-          </ScrollView>
+          <MessagesScreen 
+            navigation={{ goBack: () => setCurrentScreen("home") }}
+            route={{ params: screenParams }}
+          />
         );
 
       case "notifications":
@@ -497,6 +481,14 @@ export default function App() {
               </View>
               
               <View style={styles.menuItems}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigation("messages")}
+                >
+                  <Ionicons name="chatbubbles-outline" size={20} color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.menuItemText}>Messages</Text>
+                </TouchableOpacity>
+                
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuNavigation("notifications")}

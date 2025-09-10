@@ -93,11 +93,11 @@ const mockConnections = [
 
 export default function ConnectionsScreen({ onNavigate }) {
   const handleGroupChatPress = () => {
-    onNavigate && onNavigate('messages');
+    onNavigate && onNavigate('messages', { isGroupChat: true });
   };
 
   const handleConnectionPress = (connection) => {
-    onNavigate && onNavigate('messages');
+    onNavigate && onNavigate('messages', { isGroupChat: false, djId: connection.id });
   };
 
   const handleBrowseCommunity = () => {
