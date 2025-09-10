@@ -48,7 +48,7 @@ const mockMixes = [
     description: "High-energy drum & bass to get your blood pumping",
     image:
       "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/mix3.mp3"), // Local audio file
+    audioUrl: require("../assets/audio/Unique - Original Mix.mp3"), // Smaller demo audio file
     plays: 2103,
     likes: 234,
   },
@@ -61,7 +61,7 @@ const mockMixes = [
     description: "Ethereal progressive house from the beach festival",
     image:
       "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/mix4.mp3"), // Local audio file
+    audioUrl: require("../assets/audio/Unique - Original Mix.mp3"), // Smaller demo audio file
     plays: 1456,
     likes: 178,
   },
@@ -74,7 +74,7 @@ const mockMixes = [
     description: "Raw industrial beats from the underground scene",
     image:
       "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/mix5.mp3"), // Local audio file
+    audioUrl: require("../assets/audio/Unique - Original Mix.mp3"), // Smaller demo audio file
     plays: 678,
     likes: 45,
   },
@@ -87,7 +87,7 @@ const mockMixes = [
     description: "Retro-futuristic synthwave for cyberpunk vibes",
     image:
       "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/mix6.mp3"), // Local audio file
+    audioUrl: require("../assets/audio/Unique - Original Mix.mp3"), // Smaller demo audio file
     plays: 934,
     likes: 112,
   },
