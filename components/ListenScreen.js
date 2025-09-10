@@ -8,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-audio";
+import { Audio } from "expo-av";
 import DJMix from "./DJMix";
 
 // Mock DJ mixes data
@@ -110,8 +110,8 @@ export default function ListenScreen() {
           playsInSilentModeIOS: true,
           shouldDuckAndroid: true,
           playThroughEarpieceAndroid: false,
-          interruptionModeIOS: Audio.InterruptionModeIOS.MixWithOthers,
-          interruptionModeAndroid: Audio.InterruptionModeAndroid.DoNotMix,
+          interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_MIX_WITH_OTHERS,
+          interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
         });
       } catch (error) {
         console.log("Error setting up audio mode:", error);
@@ -138,12 +138,11 @@ export default function ListenScreen() {
           if (!mixToPlay) return;
 
           // Create and load new sound
-          const newSound = new Audio.Sound();
-          await newSound.loadAsync(mixToPlay.audioUrl);
-          await newSound.playAsync();
-          
-          // Set up status update listener
-          newSound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
+          const { sound: newSound } = await Audio.Sound.createAsync(
+            mixToPlay.audioUrl,
+            { shouldPlay: true },
+            onPlaybackStatusUpdate
+          );
 
           setSound(newSound);
           setIsLoading(false);
@@ -159,7 +158,6 @@ export default function ListenScreen() {
         // Stop current sound
         if (sound) {
           try {
-            await sound.stopAsync();
             await sound.unloadAsync();
             setSound(null);
           } catch (error) {
@@ -177,9 +175,7 @@ export default function ListenScreen() {
   useEffect(() => {
     return () => {
       if (sound) {
-        sound.stopAsync().then(() => {
-          sound.unloadAsync();
-        });
+        sound.unloadAsync();
       }
     };
   }, [sound]);
