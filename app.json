@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.rhoodapp.mobile",
       "newArchEnabled": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {
@@ -26,7 +27,11 @@
         "backgroundColor": "#000000"
       },
       "package": "com.rhoodapp.mobile",
-      "newArchEnabled": false
+      "newArchEnabled": false,
+      "permissions": [
+        "android.permission.WAKE_LOCK",
+        "android.permission.FOREGROUND_SERVICE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,7 +41,15 @@
         "projectId": "499f2244-43f3-478d-8b88-85c2da9f1d52"
       }
     },
-    "plugins": ["expo-font"],
+    "plugins": [
+      "expo-font",
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ]
+    ],
     "owner": "elokaagu",
     "runtimeVersion": "1.0.0",
     "updates": {
