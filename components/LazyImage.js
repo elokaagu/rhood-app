@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -90,12 +91,18 @@ const LazyImage = ({
             { opacity: blurAnim }
           ]}
         >
-          <BlurView
-            intensity={blurRadius}
-            style={StyleSheet.absoluteFillObject}
-          >
-            {renderPlaceholder()}
-          </BlurView>
+          {Platform.OS === 'web' ? (
+            <View style={[StyleSheet.absoluteFillObject, styles.webBlurPlaceholder]}>
+              {renderPlaceholder()}
+            </View>
+          ) : (
+            <BlurView
+              intensity={blurRadius}
+              style={StyleSheet.absoluteFillObject}
+            >
+              {renderPlaceholder()}
+            </BlurView>
+          )}
         </Animated.View>
       )}
 
@@ -166,6 +173,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'hsl(0, 0%, 10%)',
+  },
+  webBlurPlaceholder: {
+    backgroundColor: 'hsl(0, 0%, 15%)',
+    filter: 'blur(10px)',
   },
 });
 
