@@ -68,14 +68,26 @@ export default function App() {
     checkFirstTime();
     setupGlobalAudio();
     
+    // Handle app state changes for background audio
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'background' && globalAudioState.isPlaying) {
+        console.log('App went to background, audio should continue playing');
+      } else if (nextAppState === 'active' && globalAudioState.isPlaying) {
+        console.log('App became active, audio is still playing');
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
     // Cleanup audio on unmount
     return () => {
+      subscription?.remove();
       if (globalAudioRef.current) {
         globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       }
     };
-  }, []);
+  }, [globalAudioState.isPlaying]);
 
   // Setup global audio configuration for background playback
   const setupGlobalAudio = async () => {
@@ -84,9 +96,10 @@ export default function App() {
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
+        shouldDuckAndroid: false,
         playThroughEarpieceAndroid: false,
-        // Remove problematic interruption modes for better compatibility
+        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
       });
       console.log("Global audio configured for background playback");
     } catch (error) {
@@ -118,6 +131,8 @@ export default function App() {
           isLooping: false,
           progressUpdateIntervalMillis: 1000,
           positionMillis: 0,
+          androidImplementation: 'MediaPlayer',
+          iosImplementation: 'AVPlayer',
         },
         onGlobalPlaybackStatusUpdate
       );
