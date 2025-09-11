@@ -282,24 +282,6 @@ export default function MessagesScreen({ navigation, route }) {
     saveForumPosts(updatedPosts);
   };
 
-  const deletePost = (postId) => {
-    Alert.alert(
-      'Delete Post',
-      'Are you sure you want to delete this post?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            const updatedPosts = forumPosts.filter(post => post.id !== postId);
-            setForumPosts(updatedPosts);
-            saveForumPosts(updatedPosts);
-          }
-        }
-      ]
-    );
-  };
 
   const likePost = (postId) => {
     const updatedPosts = forumPosts.map(post => 
