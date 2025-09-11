@@ -11,6 +11,7 @@ import {
   Modal,
   Animated,
   AppState,
+  Image,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -43,6 +44,9 @@ export default function App() {
     isLoading: false,
     sound: null,
   });
+
+  // Full-screen player state
+  const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
   
   const [djProfile, setDjProfile] = useState({
     djName: "",
@@ -673,7 +677,11 @@ export default function App() {
 
       {/* Global Audio Player - shows on all screens when audio is playing */}
       {globalAudioState.isPlaying && globalAudioState.currentTrack && (
-        <View style={styles.globalAudioPlayer}>
+        <TouchableOpacity 
+          style={styles.globalAudioPlayer}
+          onPress={() => setShowFullScreenPlayer(true)}
+          activeOpacity={0.8}
+        >
           <View style={styles.audioPlayerContent}>
             <View style={styles.audioTrackInfo}>
               <Text style={styles.audioTrackTitle} numberOfLines={1}>
@@ -687,7 +695,10 @@ export default function App() {
             <View style={styles.audioControls}>
               <TouchableOpacity
                 style={styles.audioControlButton}
-                onPress={globalAudioState.isPlaying ? pauseGlobalAudio : resumeGlobalAudio}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  globalAudioState.isPlaying ? pauseGlobalAudio() : resumeGlobalAudio();
+                }}
               >
                 <Ionicons 
                   name={globalAudioState.isPlaying ? "pause" : "play"} 
@@ -698,7 +709,10 @@ export default function App() {
               
               <TouchableOpacity
                 style={styles.audioControlButton}
-                onPress={stopGlobalAudio}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  stopGlobalAudio();
+                }}
               >
                 <Ionicons name="stop" size={20} color="hsl(0, 0%, 100%)" />
               </TouchableOpacity>
@@ -714,7 +728,113 @@ export default function App() {
               ]} 
             />
           </View>
-        </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Full-Screen Audio Player Modal */}
+      {showFullScreenPlayer && globalAudioState.currentTrack && (
+        <Modal
+          visible={showFullScreenPlayer}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowFullScreenPlayer(false)}
+        >
+          <View style={styles.fullScreenPlayerOverlay}>
+            <View style={styles.fullScreenPlayer}>
+              {/* Header with close button */}
+              <View style={styles.fullScreenHeader}>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setShowFullScreenPlayer(false)}
+                >
+                  <Ionicons name="chevron-down" size={24} color="hsl(0, 0%, 100%)" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Album Artwork */}
+              <View style={styles.albumArtContainer}>
+                <Image
+                  source={{ uri: globalAudioState.currentTrack.image }}
+                  style={styles.albumArt}
+                  resizeMode="cover"
+                />
+              </View>
+
+              {/* Track Info */}
+              <View style={styles.fullScreenTrackInfo}>
+                <Text style={styles.fullScreenTrackTitle}>
+                  {globalAudioState.currentTrack.title}
+                </Text>
+                <Text style={styles.fullScreenTrackArtist}>
+                  {globalAudioState.currentTrack.artist}
+                </Text>
+                <Text style={styles.fullScreenTrackGenre}>
+                  {globalAudioState.currentTrack.genre}
+                </Text>
+              </View>
+
+              {/* Progress Section */}
+              <View style={styles.fullScreenProgressSection}>
+                <View style={styles.fullScreenProgressContainer}>
+                  <View 
+                    style={[
+                      styles.fullScreenProgressBar, 
+                      { width: `${globalAudioState.progress}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.progressText}>
+                  {Math.floor(globalAudioState.progress * 5 / 100)}:00 / 5:00
+                </Text>
+              </View>
+
+              {/* Control Buttons */}
+              <View style={styles.fullScreenControls}>
+                <TouchableOpacity style={styles.controlButton}>
+                  <Ionicons name="shuffle" size={24} color="hsl(0, 0%, 70%)" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.controlButton}>
+                  <Ionicons name="play-skip-back" size={28} color="hsl(0, 0%, 100%)" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.playPauseButton}
+                  onPress={globalAudioState.isPlaying ? pauseGlobalAudio : resumeGlobalAudio}
+                >
+                  <Ionicons 
+                    name={globalAudioState.isPlaying ? "pause" : "play"} 
+                    size={40} 
+                    color="hsl(0, 0%, 0%)" 
+                  />
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.controlButton}>
+                  <Ionicons name="play-skip-forward" size={28} color="hsl(0, 0%, 100%)" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.controlButton}>
+                  <Ionicons name="repeat" size={24} color="hsl(0, 0%, 70%)" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Additional Actions */}
+              <View style={styles.fullScreenActions}>
+                <TouchableOpacity style={styles.actionButton}>
+                  <Ionicons name="heart-outline" size={20} color="hsl(0, 0%, 70%)" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.actionButton}>
+                  <Ionicons name="share-outline" size={20} color="hsl(0, 0%, 70%)" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.actionButton}>
+                  <Ionicons name="ellipsis-horizontal" size={20} color="hsl(0, 0%, 70%)" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       )}
     </SafeAreaView>
   );
@@ -1524,5 +1644,130 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: 'hsl(75, 100%, 60%)',
     borderRadius: 1.5,
+  },
+  
+  // Full-Screen Player Styles
+  fullScreenPlayerOverlay: {
+    flex: 1,
+    backgroundColor: 'hsl(0, 0%, 0%)',
+  },
+  fullScreenPlayer: {
+    flex: 1,
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  fullScreenHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 30,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'hsl(0, 0%, 15%)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  albumArtContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  albumArt: {
+    width: 300,
+    height: 300,
+    borderRadius: 20,
+    shadowColor: 'hsl(75, 100%, 60%)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  fullScreenTrackInfo: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  fullScreenTrackTitle: {
+    fontSize: 24,
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 100%)',
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  fullScreenTrackArtist: {
+    fontSize: 18,
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 70%)',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  fullScreenTrackGenre: {
+    fontSize: 14,
+    fontFamily: 'Arial',
+    color: 'hsl(75, 100%, 60%)',
+    textAlign: 'center',
+  },
+  fullScreenProgressSection: {
+    marginBottom: 40,
+  },
+  fullScreenProgressContainer: {
+    height: 4,
+    backgroundColor: 'hsl(0, 0%, 20%)',
+    borderRadius: 2,
+    marginBottom: 12,
+  },
+  fullScreenProgressBar: {
+    height: '100%',
+    backgroundColor: 'hsl(75, 100%, 60%)',
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 12,
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 50%)',
+    textAlign: 'center',
+  },
+  fullScreenControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 40,
+    gap: 20,
+  },
+  controlButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playPauseButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'hsl(75, 100%, 60%)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'hsl(75, 100%, 60%)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  fullScreenActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 30,
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'hsl(0, 0%, 15%)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
