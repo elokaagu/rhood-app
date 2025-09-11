@@ -362,6 +362,13 @@ export default function MessagesScreen({ navigation, route }) {
     console.log('Message sent and cleared');
   };
 
+  // Test function to verify basic functionality
+  const testSendMessage = () => {
+    console.log('Testing send message with hardcoded text');
+    const testMessage = 'Test message from debug';
+    createMessage(testMessage);
+  };
+
   const handlePostToForum = () => {
     if (!newPost.trim()) return;
     createPost(newPost);
@@ -664,6 +671,14 @@ export default function MessagesScreen({ navigation, route }) {
             disabled={!newMessage.trim()}
           >
             <Ionicons name="send" size={20} color="hsl(0, 0%, 100%)" />
+          </TouchableOpacity>
+          
+          {/* Temporary test button */}
+          <TouchableOpacity
+            style={[styles.sendButton, { backgroundColor: 'hsl(0, 100%, 50%)', marginLeft: 8 }]}
+            onPress={testSendMessage}
+          >
+            <Text style={{ color: 'white', fontSize: 12 }}>TEST</Text>
           </TouchableOpacity>
         </View>
       </View>
