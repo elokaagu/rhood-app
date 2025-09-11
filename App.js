@@ -47,6 +47,8 @@ export default function App() {
     sound: null,
     isShuffled: false,
     repeatMode: 'none', // 'none', 'one', 'all'
+    positionMillis: 0,
+    durationMillis: 0,
   });
 
   // Full-screen player state
@@ -100,17 +102,27 @@ export default function App() {
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
+        shouldDuckAndroid: false,
         playThroughEarpieceAndroid: false,
+        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
       });
-      console.log("Global audio configured for background playback");
+      console.log("✅ Global audio configured for background playback");
     } catch (error) {
-      console.log("Error setting up global audio:", error);
+      console.log("❌ Error setting up global audio:", error);
     }
   };
 
   const handleSplashFinish = () => {
     setShowSplash(false);
+  };
+
+  // Format time helper function
+  const formatTime = (millis) => {
+    if (!millis) return "0:00";
+    const minutes = Math.floor(millis / 60000);
+    const seconds = Math.floor((millis % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   // Global audio control functions
@@ -190,9 +202,18 @@ export default function App() {
   };
 
   const onGlobalPlaybackStatusUpdate = (status) => {
+    console.log("🎵 Playback status update:", status);
     if (status.isLoaded) {
+      // Update playing state
+      setGlobalAudioState(prev => ({
+        ...prev,
+        isPlaying: status.isPlaying,
+        isLoading: false,
+      }));
+
       if (status.didJustFinish) {
         // Audio finished playing
+        console.log("🎵 Audio finished playing");
         globalAudioRef.current = null;
         setGlobalAudioState(prev => ({
           ...prev,
@@ -204,8 +225,15 @@ export default function App() {
       } else if (status.positionMillis && status.durationMillis) {
         // Update progress
         const progressPercent = (status.positionMillis / status.durationMillis) * 100;
-        setGlobalAudioState(prev => ({ ...prev, progress: progressPercent }));
+        setGlobalAudioState(prev => ({ 
+          ...prev, 
+          progress: progressPercent,
+          positionMillis: status.positionMillis,
+          durationMillis: status.durationMillis
+        }));
       }
+    } else {
+      console.log("🎵 Audio not loaded yet");
     }
   };
 
@@ -898,7 +926,7 @@ export default function App() {
                   />
                 </View>
                 <Text style={styles.progressText}>
-                  {Math.floor(globalAudioState.progress * 5 / 100)}:00 / 5:00
+                  {formatTime(globalAudioState.positionMillis)} / {formatTime(globalAudioState.durationMillis)}
                 </Text>
               </View>
 
