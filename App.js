@@ -10,9 +10,11 @@ import {
   TextInput,
   Modal,
   Animated,
+  AppState,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
 import OpportunitiesList from "./components/OpportunitiesList";
@@ -32,6 +34,16 @@ export default function App() {
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  
+  // Global audio state for persistent playback
+  const [globalAudioState, setGlobalAudioState] = useState({
+    isPlaying: false,
+    currentTrack: null,
+    progress: 0,
+    isLoading: false,
+    sound: null,
+  });
+  
   const [djProfile, setDjProfile] = useState({
     djName: "",
     fullName: "",
@@ -43,10 +55,111 @@ export default function App() {
 
   useEffect(() => {
     checkFirstTime();
+    setupGlobalAudio();
   }, []);
+
+  // Setup global audio configuration for background playback
+  const setupGlobalAudio = async () => {
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+      });
+      console.log("Global audio configured for background playback");
+    } catch (error) {
+      console.log("Error setting up global audio:", error);
+    }
+  };
 
   const handleSplashFinish = () => {
     setShowSplash(false);
+  };
+
+  // Global audio control functions
+  const playGlobalAudio = async (track) => {
+    try {
+      // Stop current audio if playing
+      if (globalAudioState.sound) {
+        await globalAudioState.sound.unloadAsync();
+      }
+
+      setGlobalAudioState(prev => ({ ...prev, isLoading: true }));
+
+      // Create and load new sound
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        track.audioUrl,
+        { 
+          shouldPlay: true,
+          isLooping: false,
+          progressUpdateIntervalMillis: 1000,
+          positionMillis: 0,
+        },
+        onGlobalPlaybackStatusUpdate
+      );
+
+      setGlobalAudioState(prev => ({
+        ...prev,
+        sound: newSound,
+        isPlaying: true,
+        currentTrack: track,
+        isLoading: false,
+      }));
+
+      console.log("Global audio started:", track.title);
+    } catch (error) {
+      console.log("Error playing global audio:", error);
+      setGlobalAudioState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const pauseGlobalAudio = async () => {
+    if (globalAudioState.sound) {
+      await globalAudioState.sound.pauseAsync();
+      setGlobalAudioState(prev => ({ ...prev, isPlaying: false }));
+    }
+  };
+
+  const resumeGlobalAudio = async () => {
+    if (globalAudioState.sound) {
+      await globalAudioState.sound.playAsync();
+      setGlobalAudioState(prev => ({ ...prev, isPlaying: true }));
+    }
+  };
+
+  const stopGlobalAudio = async () => {
+    if (globalAudioState.sound) {
+      await globalAudioState.sound.unloadAsync();
+      setGlobalAudioState({
+        isPlaying: false,
+        currentTrack: null,
+        progress: 0,
+        isLoading: false,
+        sound: null,
+      });
+    }
+  };
+
+  const onGlobalPlaybackStatusUpdate = (status) => {
+    if (status.isLoaded) {
+      if (status.didJustFinish) {
+        // Audio finished playing
+        setGlobalAudioState(prev => ({
+          ...prev,
+          isPlaying: false,
+          currentTrack: null,
+          progress: 0,
+        }));
+      } else if (status.positionMillis && status.durationMillis) {
+        // Update progress
+        const progressPercent = (status.positionMillis / status.durationMillis) * 100;
+        setGlobalAudioState(prev => ({ ...prev, progress: progressPercent }));
+      }
+    }
   };
 
   const loadOpportunities = async () => {
@@ -238,7 +351,15 @@ export default function App() {
         );
 
       case "listen":
-        return <ListenScreen />;
+        return (
+          <ListenScreen 
+            globalAudioState={globalAudioState}
+            onPlayAudio={playGlobalAudio}
+            onPauseAudio={pauseGlobalAudio}
+            onResumeAudio={resumeGlobalAudio}
+            onStopAudio={stopGlobalAudio}
+          />
+        );
 
       case "messages":
         return (
@@ -549,6 +670,52 @@ export default function App() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Global Audio Player - shows on all screens when audio is playing */}
+      {globalAudioState.isPlaying && globalAudioState.currentTrack && (
+        <View style={styles.globalAudioPlayer}>
+          <View style={styles.audioPlayerContent}>
+            <View style={styles.audioTrackInfo}>
+              <Text style={styles.audioTrackTitle} numberOfLines={1}>
+                {globalAudioState.currentTrack.title}
+              </Text>
+              <Text style={styles.audioTrackArtist} numberOfLines={1}>
+                {globalAudioState.currentTrack.artist}
+              </Text>
+            </View>
+            
+            <View style={styles.audioControls}>
+              <TouchableOpacity
+                style={styles.audioControlButton}
+                onPress={globalAudioState.isPlaying ? pauseGlobalAudio : resumeGlobalAudio}
+              >
+                <Ionicons 
+                  name={globalAudioState.isPlaying ? "pause" : "play"} 
+                  size={20} 
+                  color="hsl(0, 0%, 100%)" 
+                />
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.audioControlButton}
+                onPress={stopGlobalAudio}
+              >
+                <Ionicons name="stop" size={20} color="hsl(0, 0%, 100%)" />
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {/* Progress Bar */}
+          <View style={styles.audioProgressContainer}>
+            <View 
+              style={[
+                styles.audioProgressBar, 
+                { width: `${globalAudioState.progress}%` }
+              ]} 
+            />
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1297,5 +1464,65 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     marginLeft: 12,
     fontWeight: "500",
+  },
+  
+  // Global Audio Player Styles
+  globalAudioPlayer: {
+    position: 'absolute',
+    bottom: 80, // Above tab bar
+    left: 0,
+    right: 0,
+    backgroundColor: 'hsl(0, 0%, 8%)',
+    borderTopWidth: 1,
+    borderTopColor: 'hsl(0, 0%, 15%)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    zIndex: 1000,
+  },
+  audioPlayerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  audioTrackInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  audioTrackTitle: {
+    fontSize: 14,
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 100%)',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  audioTrackArtist: {
+    fontSize: 12,
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 70%)',
+  },
+  audioControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  audioControlButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'hsl(75, 100%, 60%)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  audioProgressContainer: {
+    height: 3,
+    backgroundColor: 'hsl(0, 0%, 15%)',
+    borderRadius: 1.5,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  audioProgressBar: {
+    height: '100%',
+    backgroundColor: 'hsl(75, 100%, 60%)',
+    borderRadius: 1.5,
   },
 });

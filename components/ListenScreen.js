@@ -8,24 +8,25 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
 import DJMix from "./DJMix";
 
 // Audio optimization utilities for handling large files
 const getAudioOptimization = (audioUrl) => {
   const fileName = audioUrl.toString();
-  const isWav = fileName.includes('.wav');
-  const isLargeFile = fileName.includes('rhood-demo-audio'); // Your large WAV file
-  
+  const isWav = fileName.includes(".wav");
+  const isLargeFile = fileName.includes("rhood-demo-audio"); // Your large WAV file
+
   return {
     isWav,
     isLargeFile,
-    recommendedFormat: isWav ? 'MP3' : 'Current format is optimal',
-    compressionTip: isWav ? 'Consider converting to MP3 for better performance' : null,
+    recommendedFormat: isWav ? "MP3" : "Current format is optimal",
+    compressionTip: isWav
+      ? "Consider converting to MP3 for better performance"
+      : null,
     streamingOptimized: true,
     // Performance recommendations
-    maxFileSize: isWav ? '50MB' : '10MB',
-    compressionRatio: isWav ? '10:1' : '5:1'
+    maxFileSize: isWav ? "50MB" : "10MB",
+    compressionRatio: isWav ? "10:1" : "5:1",
   };
 };
 
@@ -140,149 +141,39 @@ const mockMixes = [
   },
 ];
 
-export default function ListenScreen() {
+export default function ListenScreen({
+  globalAudioState,
+  onPlayAudio,
+  onPauseAudio,
+  onResumeAudio,
+  onStopAudio,
+}) {
   const [mixes, setMixes] = useState(mockMixes);
   const [playingMixId, setPlayingMixId] = useState(null);
-  const [progress, setProgress] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [sound, setSound] = useState(null);
 
-  // Initialize audio mode
+  // Sync local playing state with global audio state
   useEffect(() => {
-    const setupAudio = async () => {
-      try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          staysActiveInBackground: true,
-          playsInSilentModeIOS: true,
-          shouldDuckAndroid: true,
-          playThroughEarpieceAndroid: false,
-        });
-      } catch (error) {
-        console.log("Error setting up audio mode:", error);
+    if (globalAudioState.currentTrack) {
+      const currentMix = mixes.find(mix => mix.id === globalAudioState.currentTrack.id);
+      if (currentMix) {
+        setPlayingMixId(globalAudioState.currentTrack.id);
       }
-    };
-    setupAudio();
-  }, []);
-
-  // Handle audio playback with streaming optimization
-  useEffect(() => {
-    const playAudio = async () => {
-      if (playingMixId) {
-        try {
-          setIsLoading(true);
-
-          // Stop any currently playing sound
-          if (sound) {
-            await sound.unloadAsync();
-            setSound(null);
-          }
-
-          // Find the mix to play
-          const mixToPlay = mixes.find((mix) => mix.id === playingMixId);
-          if (!mixToPlay) return;
-
-          // Check file optimization
-          const optimization = getAudioOptimization(mixToPlay.audioUrl);
-          if (optimization.isLargeFile) {
-            console.log("⚠️ Large audio file detected - using streaming optimization");
-          }
-
-          // Optimize audio loading based on file type
-          const audioConfig = {
-            shouldPlay: true,
-            isLooping: false,
-            // Optimize for streaming
-            progressUpdateIntervalMillis: 1000,
-            positionMillis: 0,
-            // Enable streaming for large files
-            androidImplementation: 'MediaPlayer',
-            iosImplementation: 'AVPlayer',
-            // Additional optimizations for large files
-            ...(optimization.isWav && {
-              // WAV-specific optimizations
-              volume: 1.0,
-              rate: 1.0,
-              shouldCorrectPitch: true,
-            })
-          };
-
-          // Create and load new sound with streaming optimization
-          console.log("Loading audio file:", mixToPlay.audioUrl);
-          const { sound: newSound } = await Audio.Sound.createAsync(
-            mixToPlay.audioUrl,
-            audioConfig,
-            onPlaybackStatusUpdate
-          );
-          console.log("Audio loaded successfully");
-
-          setSound(newSound);
-          setIsLoading(false);
-        } catch (error) {
-          console.log("Error playing audio:", error);
-          setIsLoading(false);
-          Alert.alert(
-            "Playback Error",
-            "Could not play this audio file. Please try again."
-          );
-        }
-      } else {
-        // Stop current sound
-        if (sound) {
-          try {
-            await sound.unloadAsync();
-            setSound(null);
-          } catch (error) {
-            console.log("Error stopping audio:", error);
-          }
-        }
-        setProgress(0);
-      }
-    };
-
-    playAudio();
-  }, [playingMixId, mixes]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, [sound]);
-
-  const onPlaybackStatusUpdate = (status) => {
-    if (status.isLoaded) {
-      if (status.didJustFinish) {
-        // Audio finished playing
-        setPlayingMixId(null);
-        setProgress(0);
-      } else if (status.positionMillis && status.durationMillis) {
-        // Update progress
-        const progressPercent =
-          (status.positionMillis / status.durationMillis) * 100;
-        setProgress(progressPercent);
-      }
-    }
-  };
-
-  const handlePlayPause = async (mixId) => {
-    if (playingMixId === mixId) {
-      // Pause current mix
-      if (sound) {
-        try {
-          await sound.pauseAsync();
-        } catch (error) {
-          console.log("Error pausing audio:", error);
-        }
-      }
-      setPlayingMixId(null);
     } else {
-      // Play new mix (pause any currently playing)
-      setPlayingMixId(mixId);
+      setPlayingMixId(null);
+    }
+  }, [globalAudioState.currentTrack, mixes]);
+
+  // Handle play/pause when user interacts with mix
+  const handleMixPress = (mix) => {
+    if (playingMixId === mix.id) {
+      // Currently playing this mix - pause it
+      onPauseAudio();
+    } else {
+      // Play this mix
+      onPlayAudio(mix);
     }
   };
+
 
   const handleArtistPress = (artistName) => {
     Alert.alert(
@@ -331,10 +222,10 @@ export default function ListenScreen() {
             key={mix.id}
             mix={mix}
             isPlaying={playingMixId === mix.id}
-            isLoading={isLoading && playingMixId === mix.id}
-            onPlayPause={() => handlePlayPause(mix.id)}
+            isLoading={globalAudioState.isLoading && playingMixId === mix.id}
+            onPlayPause={() => handleMixPress(mix)}
             onArtistPress={handleArtistPress}
-            progress={playingMixId === mix.id ? progress : 0}
+            progress={playingMixId === mix.id ? globalAudioState.progress : 0}
           />
         ))}
       </View>
