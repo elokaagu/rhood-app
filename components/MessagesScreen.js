@@ -7,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   Image,
-  Alert,
   Modal,
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProgressiveImage from './ProgressiveImage';
+import RhoodModal from './RhoodModal';
 
 // Mock DJ Data
 const mockDJs = [
@@ -128,6 +128,10 @@ export default function MessagesScreen({ navigation, route }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Custom modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  
   const currentDJ = mockDJs.find(dj => dj.id === djId) || mockDJs[0];
 
   // Storage keys
@@ -223,22 +227,29 @@ export default function MessagesScreen({ navigation, route }) {
   };
 
   const deleteMessage = (messageId) => {
-    Alert.alert(
-      'Delete Message',
-      'Are you sure you want to delete this message?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            const updatedMessages = messages.filter(msg => msg.id !== messageId);
-            setMessages(updatedMessages);
-            saveMessages(updatedMessages);
-          }
-        }
-      ]
-    );
+    setDeleteTarget({ type: 'message', id: messageId });
+    setShowDeleteModal(true);
+  };
+
+  const deletePost = (postId) => {
+    setDeleteTarget({ type: 'post', id: postId });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      if (deleteTarget.type === 'message') {
+        const updatedMessages = messages.filter(msg => msg.id !== deleteTarget.id);
+        setMessages(updatedMessages);
+        saveMessages(updatedMessages);
+      } else if (deleteTarget.type === 'post') {
+        const updatedPosts = forumPosts.filter(post => post.id !== deleteTarget.id);
+        setForumPosts(updatedPosts);
+        saveForumPosts(updatedPosts);
+      }
+    }
+    setShowDeleteModal(false);
+    setDeleteTarget(null);
   };
 
   // CRUD Operations for Forum Posts
@@ -739,6 +750,17 @@ export default function MessagesScreen({ navigation, route }) {
       <>
         {renderGroupForum()}
         {renderEditModal()}
+        <RhoodModal
+          visible={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title="Delete Message"
+          message="Are you sure you want to delete this message? This action cannot be undone."
+          type="warning"
+          primaryButtonText="Delete"
+          secondaryButtonText="Cancel"
+          onPrimaryPress={confirmDelete}
+          onSecondaryPress={() => setShowDeleteModal(false)}
+        />
       </>
     );
   }
@@ -747,6 +769,17 @@ export default function MessagesScreen({ navigation, route }) {
     <>
       {renderDirectMessage()}
       {renderEditModal()}
+      <RhoodModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Message"
+        message="Are you sure you want to delete this message? This action cannot be undone."
+        type="warning"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        onPrimaryPress={confirmDelete}
+        onSecondaryPress={() => setShowDeleteModal(false)}
+      />
     </>
   );
 }

@@ -8,10 +8,10 @@ import {
   Animated,
   Dimensions,
   PanResponder,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ProgressiveImage from './ProgressiveImage';
+import RhoodModal from './RhoodModal';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -89,6 +89,10 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   const [appliesLeft, setAppliesLeft] = useState(3);
   const [showApplication, setShowApplication] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  
+  // Custom modal states
+  const [showNoApplicationsModal, setShowNoApplicationsModal] = useState(false);
+  const [showApplicationSentModal, setShowApplicationSentModal] = useState(false);
 
   // Create new animated values for each card to avoid conflicts
   const translateX = useRef(new Animated.Value(0)).current;
@@ -255,7 +259,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         onApply && onApply(currentGig);
       });
     } else {
-      Alert.alert('No Applications Left', 'You have used all your applications for today. Check back tomorrow!');
+      setShowNoApplicationsModal(true);
     }
   };
 
@@ -265,7 +269,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
     setCurrentGigIndex((prevIndex) => 
       prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
     );
-    Alert.alert('Application Sent!', `You've applied to ${currentGig.name}`);
+    setShowApplicationSentModal(true);
   };
 
   const handleApplyCancel = () => {
@@ -441,6 +445,25 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       <Text style={styles.instructions}>
         Swipe right to apply • Swipe left to pass
       </Text>
+
+      {/* Custom Modals */}
+      <RhoodModal
+        visible={showNoApplicationsModal}
+        onClose={() => setShowNoApplicationsModal(false)}
+        title="No Applications Left"
+        message="You have used all your applications for today. Check back tomorrow!"
+        type="warning"
+        primaryButtonText="OK"
+      />
+
+      <RhoodModal
+        visible={showApplicationSentModal}
+        onClose={() => setShowApplicationSentModal(false)}
+        title="Application Sent!"
+        message={`You've applied to ${currentGig.name}`}
+        type="success"
+        primaryButtonText="OK"
+      />
     </View>
   );
 }
