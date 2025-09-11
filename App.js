@@ -87,7 +87,7 @@ export default function App() {
         globalAudioRef.current = null;
       }
     };
-  }, [globalAudioState.isPlaying]);
+  }, []);
 
   // Setup global audio configuration for background playback
   const setupGlobalAudio = async () => {
@@ -96,10 +96,9 @@ export default function App() {
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: false,
+        shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false,
-        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
-        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+        // Remove interruption modes for better compatibility
       });
       console.log("Global audio configured for background playback");
     } catch (error) {
@@ -131,8 +130,6 @@ export default function App() {
           isLooping: false,
           progressUpdateIntervalMillis: 1000,
           positionMillis: 0,
-          androidImplementation: 'MediaPlayer',
-          iosImplementation: 'AVPlayer',
         },
         onGlobalPlaybackStatusUpdate
       );
