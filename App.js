@@ -48,6 +48,9 @@ export default function App() {
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
   
+  // Global audio instance reference for cleanup
+  const globalAudioRef = useRef(null);
+  
   const [djProfile, setDjProfile] = useState({
     djName: "",
     fullName: "",
@@ -60,6 +63,14 @@ export default function App() {
   useEffect(() => {
     checkFirstTime();
     setupGlobalAudio();
+    
+    // Cleanup audio on unmount
+    return () => {
+      if (globalAudioRef.current) {
+        globalAudioRef.current.unloadAsync();
+        globalAudioRef.current = null;
+      }
+    };
   }, []);
 
   // Setup global audio configuration for background playback
@@ -87,8 +98,10 @@ export default function App() {
   const playGlobalAudio = async (track) => {
     try {
       // Stop current audio if playing
-      if (globalAudioState.sound) {
-        await globalAudioState.sound.unloadAsync();
+      if (globalAudioRef.current) {
+        console.log("Stopping current audio before playing new track");
+        await globalAudioRef.current.unloadAsync();
+        globalAudioRef.current = null;
       }
 
       setGlobalAudioState(prev => ({ ...prev, isLoading: true }));
@@ -104,6 +117,9 @@ export default function App() {
         },
         onGlobalPlaybackStatusUpdate
       );
+
+      // Store reference for cleanup
+      globalAudioRef.current = newSound;
 
       setGlobalAudioState(prev => ({
         ...prev,
@@ -135,27 +151,30 @@ export default function App() {
   };
 
   const stopGlobalAudio = async () => {
-    if (globalAudioState.sound) {
-      await globalAudioState.sound.unloadAsync();
-      setGlobalAudioState({
-        isPlaying: false,
-        currentTrack: null,
-        progress: 0,
-        isLoading: false,
-        sound: null,
-      });
+    if (globalAudioRef.current) {
+      await globalAudioRef.current.unloadAsync();
+      globalAudioRef.current = null;
     }
+    setGlobalAudioState({
+      isPlaying: false,
+      currentTrack: null,
+      progress: 0,
+      isLoading: false,
+      sound: null,
+    });
   };
 
   const onGlobalPlaybackStatusUpdate = (status) => {
     if (status.isLoaded) {
       if (status.didJustFinish) {
         // Audio finished playing
+        globalAudioRef.current = null;
         setGlobalAudioState(prev => ({
           ...prev,
           isPlaying: false,
           currentTrack: null,
           progress: 0,
+          sound: null,
         }));
       } else if (status.positionMillis && status.durationMillis) {
         // Update progress
