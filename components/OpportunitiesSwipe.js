@@ -92,7 +92,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   
   // Custom modal states
   const [showNoApplicationsModal, setShowNoApplicationsModal] = useState(false);
-  const [showApplicationSentModal, setShowApplicationSentModal] = useState(false);
 
   // Create new animated values for each card to avoid conflicts
   const translateX = useRef(new Animated.Value(0)).current;
@@ -269,7 +268,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
     setCurrentGigIndex((prevIndex) => 
       prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
     );
-    setShowApplicationSentModal(true);
   };
 
   const handleApplyCancel = () => {
@@ -453,15 +451,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         title="No Applications Left"
         message="You have used all your applications for today. Check back tomorrow!"
         type="warning"
-        primaryButtonText="OK"
-      />
-
-      <RhoodModal
-        visible={showApplicationSentModal}
-        onClose={() => setShowApplicationSentModal(false)}
-        title="Application Sent!"
-        message={`You've applied to ${currentGig.name}`}
-        type="success"
         primaryButtonText="OK"
       />
     </View>
