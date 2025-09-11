@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ScrollView,
-  Alert,
   TextInput,
   Modal,
   Animated,
@@ -25,6 +24,7 @@ import OpportunitiesSwipe from "./components/OpportunitiesSwipe";
 import ConnectionsScreen from "./components/ConnectionsScreen";
 import ListenScreen from "./components/ListenScreen";
 import MessagesScreen from "./components/MessagesScreen";
+import RhoodModal from "./components/RhoodModal";
 import { db } from "./lib/supabase";
 
 export default function App() {
@@ -52,6 +52,10 @@ export default function App() {
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
   
+  // Application sent modal state
+  const [showApplicationSentModal, setShowApplicationSentModal] = useState(false);
+  const [appliedOpportunity, setAppliedOpportunity] = useState(null);
+  
   // Global audio instance reference for cleanup
   const globalAudioRef = useRef(null);
   
@@ -69,9 +73,23 @@ export default function App() {
     setupGlobalAudio();
     
     // Handle app state changes for background audio
-    const handleAppStateChange = (nextAppState) => {
+    const handleAppStateChange = async (nextAppState) => {
       if (nextAppState === 'background' && globalAudioState.isPlaying) {
-        console.log('App went to background, audio should continue playing');
+        console.log('App went to background, ensuring audio continues playing');
+        // Reconfigure audio session for background
+        try {
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: false,
+            staysActiveInBackground: true,
+            playsInSilentModeIOS: true,
+            shouldDuckAndroid: false,
+            playThroughEarpieceAndroid: false,
+            interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_MIX_WITH_OTHERS,
+            interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+          });
+        } catch (error) {
+          console.log('Error reconfiguring audio for background:', error);
+        }
       } else if (nextAppState === 'active' && globalAudioState.isPlaying) {
         console.log('App became active, audio is still playing');
       }
@@ -96,9 +114,10 @@ export default function App() {
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
+        shouldDuckAndroid: false,
         playThroughEarpieceAndroid: false,
-        // Remove interruption modes for better compatibility
+        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_MIX_WITH_OTHERS,
+        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
       });
       console.log("Global audio configured for background playback");
     } catch (error) {
@@ -440,10 +459,8 @@ export default function App() {
           <OpportunitiesSwipe
             onApply={(opportunity) => {
               console.log("Applied to:", opportunity.name);
-              Alert.alert(
-                "Application Sent",
-                `You've applied to ${opportunity.name}!`
-              );
+              setAppliedOpportunity(opportunity);
+              setShowApplicationSentModal(true);
             }}
             onPass={(opportunity) => {
               console.log("Passed on:", opportunity.name);
@@ -966,6 +983,16 @@ export default function App() {
           </View>
         </Modal>
       )}
+
+      {/* Application Sent Modal */}
+      <RhoodModal
+        visible={showApplicationSentModal}
+        onClose={() => setShowApplicationSentModal(false)}
+        title="Application Sent!"
+        message={appliedOpportunity ? `You've applied to ${appliedOpportunity.name}!` : "Application sent successfully!"}
+        type="success"
+        primaryButtonText="OK"
+      />
     </SafeAreaView>
   );
 }
