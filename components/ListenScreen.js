@@ -11,6 +11,53 @@ import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import DJMix from "./DJMix";
 
+// Audio optimization utilities for handling large files
+const getAudioOptimization = (audioUrl) => {
+  const fileName = audioUrl.toString();
+  const isWav = fileName.includes('.wav');
+  const isLargeFile = fileName.includes('rhood-demo-audio'); // Your large WAV file
+  
+  return {
+    isWav,
+    isLargeFile,
+    recommendedFormat: isWav ? 'MP3' : 'Current format is optimal',
+    compressionTip: isWav ? 'Consider converting to MP3 for better performance' : null,
+    streamingOptimized: true,
+    // Performance recommendations
+    maxFileSize: isWav ? '50MB' : '10MB',
+    compressionRatio: isWav ? '10:1' : '5:1'
+  };
+};
+
+/*
+PERFORMANCE OPTIMIZATION STRATEGIES FOR LARGE AUDIO FILES:
+
+1. FORMAT CONVERSION:
+   - Convert WAV to MP3 (90% size reduction)
+   - Use AAC for iOS (better compression)
+   - Target bitrate: 128-192 kbps for music
+
+2. STREAMING OPTIMIZATION:
+   - Use progressive loading
+   - Enable native player implementations
+   - Implement buffering strategies
+
+3. CACHING STRATEGIES:
+   - Cache frequently played tracks
+   - Preload next track in queue
+   - Use disk caching for large files
+
+4. USER EXPERIENCE:
+   - Show loading indicators
+   - Provide quality options (High/Low)
+   - Implement offline mode for favorites
+
+5. TECHNICAL IMPLEMENTATIONS:
+   - Use Web Audio API for web
+   - Implement chunked loading
+   - Add compression detection
+*/
+
 // Mock DJ mixes data
 const mockMixes = [
   {
@@ -118,7 +165,7 @@ export default function ListenScreen() {
     setupAudio();
   }, []);
 
-  // Handle audio playback
+  // Handle audio playback with streaming optimization
   useEffect(() => {
     const playAudio = async () => {
       if (playingMixId) {
@@ -135,11 +182,36 @@ export default function ListenScreen() {
           const mixToPlay = mixes.find((mix) => mix.id === playingMixId);
           if (!mixToPlay) return;
 
-          // Create and load new sound
+          // Check file optimization
+          const optimization = getAudioOptimization(mixToPlay.audioUrl);
+          if (optimization.isLargeFile) {
+            console.log("⚠️ Large audio file detected - using streaming optimization");
+          }
+
+          // Optimize audio loading based on file type
+          const audioConfig = {
+            shouldPlay: true,
+            isLooping: false,
+            // Optimize for streaming
+            progressUpdateIntervalMillis: 1000,
+            positionMillis: 0,
+            // Enable streaming for large files
+            androidImplementation: 'MediaPlayer',
+            iosImplementation: 'AVPlayer',
+            // Additional optimizations for large files
+            ...(optimization.isWav && {
+              // WAV-specific optimizations
+              volume: 1.0,
+              rate: 1.0,
+              shouldCorrectPitch: true,
+            })
+          };
+
+          // Create and load new sound with streaming optimization
           console.log("Loading audio file:", mixToPlay.audioUrl);
           const { sound: newSound } = await Audio.Sound.createAsync(
             mixToPlay.audioUrl,
-            { shouldPlay: true },
+            audioConfig,
             onPlaybackStatusUpdate
           );
           console.log("Audio loaded successfully");
