@@ -9,6 +9,8 @@ import {
   Image,
   Alert,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -497,7 +499,11 @@ export default function MessagesScreen({ navigation, route }) {
 
   // Direct Message Interface
   const renderDirectMessage = () => (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -557,7 +563,11 @@ export default function MessagesScreen({ navigation, route }) {
       </View>
 
       {/* Messages */}
-      <ScrollView style={styles.messagesContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.messagesContainer} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {messages.map((message) => (
           <View
             key={message.id}
@@ -618,6 +628,11 @@ export default function MessagesScreen({ navigation, route }) {
             placeholder="Type a message..."
             placeholderTextColor="hsl(0, 0%, 50%)"
             multiline
+            autoFocus={false}
+            returnKeyType="send"
+            onSubmitEditing={handleSendMessage}
+            blurOnSubmit={false}
+            textAlignVertical="top"
           />
           <TouchableOpacity
             style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
@@ -628,7 +643,7 @@ export default function MessagesScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 
   // Edit Modal
