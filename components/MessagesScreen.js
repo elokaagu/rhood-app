@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,10 @@ import {
   StyleSheet,
   Image,
   Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProgressiveImage from './ProgressiveImage';
 
 // Mock DJ Data
@@ -110,12 +112,221 @@ const mockMessages = [
 
 export default function MessagesScreen({ navigation, route }) {
   const { isGroupChat = false, djId = 1 } = route.params || {};
+  
+  // State for messages and posts
   const [newMessage, setNewMessage] = useState('');
-  const [messages, setMessages] = useState(mockMessages);
+  const [messages, setMessages] = useState([]);
   const [newPost, setNewPost] = useState('');
-  const [forumPosts, setForumPosts] = useState(mockForumPosts);
+  const [forumPosts, setForumPosts] = useState([]);
+  
+  // State for CRUD operations
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [editingPost, setEditingPost] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   const currentDJ = mockDJs.find(dj => dj.id === djId) || mockDJs[0];
+
+  // Storage keys
+  const MESSAGES_KEY = `messages_${djId}`;
+  const FORUM_POSTS_KEY = 'forum_posts';
+
+  // Load data on component mount
+  useEffect(() => {
+    loadData();
+  }, [djId]);
+
+  // Data persistence functions
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Load messages
+      const savedMessages = await AsyncStorage.getItem(MESSAGES_KEY);
+      if (savedMessages) {
+        const parsedMessages = JSON.parse(savedMessages).map(msg => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+        setMessages(parsedMessages);
+      } else {
+        setMessages(mockMessages);
+      }
+      
+      // Load forum posts
+      const savedPosts = await AsyncStorage.getItem(FORUM_POSTS_KEY);
+      if (savedPosts) {
+        const parsedPosts = JSON.parse(savedPosts).map(post => ({
+          ...post,
+          timestamp: new Date(post.timestamp)
+        }));
+        setForumPosts(parsedPosts);
+      } else {
+        setForumPosts(mockForumPosts);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      // Fallback to mock data
+      setMessages(mockMessages);
+      setForumPosts(mockForumPosts);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveMessages = async (newMessages) => {
+    try {
+      await AsyncStorage.setItem(MESSAGES_KEY, JSON.stringify(newMessages));
+    } catch (error) {
+      console.error('Error saving messages:', error);
+    }
+  };
+
+  const saveForumPosts = async (newPosts) => {
+    try {
+      await AsyncStorage.setItem(FORUM_POSTS_KEY, JSON.stringify(newPosts));
+    } catch (error) {
+      console.error('Error saving forum posts:', error);
+    }
+  };
+
+  // CRUD Operations for Messages
+  const createMessage = (text) => {
+    const newMessage = {
+      id: Date.now(), // Simple ID generation
+      senderId: 'current',
+      text: text.trim(),
+      timestamp: new Date(),
+      isCurrentUser: true
+    };
+    
+    const updatedMessages = [...messages, newMessage];
+    setMessages(updatedMessages);
+    saveMessages(updatedMessages);
+    return newMessage;
+  };
+
+  const updateMessage = (messageId, newText) => {
+    const updatedMessages = messages.map(msg => 
+      msg.id === messageId 
+        ? { ...msg, text: newText.trim(), isEdited: true, editedAt: new Date() }
+        : msg
+    );
+    setMessages(updatedMessages);
+    saveMessages(updatedMessages);
+  };
+
+  const deleteMessage = (messageId) => {
+    Alert.alert(
+      'Delete Message',
+      'Are you sure you want to delete this message?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const updatedMessages = messages.filter(msg => msg.id !== messageId);
+            setMessages(updatedMessages);
+            saveMessages(updatedMessages);
+          }
+        }
+      ]
+    );
+  };
+
+  // CRUD Operations for Forum Posts
+  const createPost = (content) => {
+    const newPost = {
+      id: Date.now(),
+      author: "You",
+      username: "@yourusername",
+      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop",
+      timestamp: new Date(),
+      content: content.trim(),
+      likes: 0,
+      replies: 0,
+      isPinned: false,
+      tags: [],
+      isCurrentUser: true
+    };
+    
+    const updatedPosts = [newPost, ...forumPosts];
+    setForumPosts(updatedPosts);
+    saveForumPosts(updatedPosts);
+    return newPost;
+  };
+
+  const updatePost = (postId, newContent) => {
+    const updatedPosts = forumPosts.map(post => 
+      post.id === postId 
+        ? { ...post, content: newContent.trim(), isEdited: true, editedAt: new Date() }
+        : post
+    );
+    setForumPosts(updatedPosts);
+    saveForumPosts(updatedPosts);
+  };
+
+  const deletePost = (postId) => {
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const updatedPosts = forumPosts.filter(post => post.id !== postId);
+            setForumPosts(updatedPosts);
+            saveForumPosts(updatedPosts);
+          }
+        }
+      ]
+    );
+  };
+
+  const likePost = (postId) => {
+    const updatedPosts = forumPosts.map(post => 
+      post.id === postId 
+        ? { ...post, likes: post.likes + (post.isLiked ? -1 : 1), isLiked: !post.isLiked }
+        : post
+    );
+    setForumPosts(updatedPosts);
+    saveForumPosts(updatedPosts);
+  };
+
+  // Edit modal functions
+  const openEditModal = (item, type) => {
+    if (type === 'message') {
+      setEditingMessage(item);
+      setEditText(item.text);
+    } else {
+      setEditingPost(item);
+      setEditText(item.content);
+    }
+    setShowEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingMessage(null);
+    setEditingPost(null);
+    setEditText('');
+  };
+
+  const saveEdit = () => {
+    if (!editText.trim()) return;
+    
+    if (editingMessage) {
+      updateMessage(editingMessage.id, editText);
+    } else if (editingPost) {
+      updatePost(editingPost.id, editText);
+    }
+    
+    closeEditModal();
+  };
 
   // Utility Functions
   const formatTime = (date) => {
@@ -136,47 +347,18 @@ export default function MessagesScreen({ navigation, route }) {
   // Event Handlers
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
-    
-    const message = {
-      id: messages.length + 1,
-      senderId: 'current',
-      text: newMessage,
-      timestamp: new Date(),
-      isCurrentUser: true
-    };
-    
-    setMessages([...messages, message]);
+    createMessage(newMessage);
     setNewMessage('');
   };
 
   const handlePostToForum = () => {
     if (!newPost.trim()) return;
-    
-    const post = {
-      id: forumPosts.length + 1,
-      author: "Alex Thompson",
-      username: "@alexunderground",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop",
-      timestamp: new Date(),
-      content: newPost,
-      likes: 0,
-      replies: 0,
-      isPinned: false,
-      tags: []
-    };
-    
-    setForumPosts([post, ...forumPosts]);
+    createPost(newPost);
     setNewPost('');
   };
 
   const handleLike = (postId) => {
-    setForumPosts(posts => 
-      posts.map(post => 
-        post.id === postId 
-          ? { ...post, likes: post.likes + 1 }
-          : post
-      )
-    );
+    likePost(postId);
   };
 
   // Group Forum Interface
@@ -232,6 +414,9 @@ export default function MessagesScreen({ navigation, route }) {
 
             {/* Post Content */}
             <Text style={styles.postContent}>{post.content}</Text>
+            {post.isEdited && (
+              <Text style={styles.editedText}>(edited)</Text>
+            )}
 
             {/* Tags */}
             {post.tags.length > 0 && (
@@ -247,17 +432,41 @@ export default function MessagesScreen({ navigation, route }) {
             {/* Post Actions */}
             <View style={styles.postActions}>
               <TouchableOpacity 
-                style={styles.postAction}
+                style={[styles.postAction, post.isLiked && styles.postActionLiked]}
                 onPress={() => handleLike(post.id)}
               >
-                <Ionicons name="thumbs-up-outline" size={16} color="hsl(0, 0%, 70%)" />
-                <Text style={styles.postActionText}>{post.likes}</Text>
+                <Ionicons 
+                  name={post.isLiked ? "thumbs-up" : "thumbs-up-outline"} 
+                  size={16} 
+                  color={post.isLiked ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"} 
+                />
+                <Text style={[styles.postActionText, post.isLiked && styles.postActionTextLiked]}>
+                  {post.likes}
+                </Text>
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.postAction}>
                 <Ionicons name="chatbubble-outline" size={16} color="hsl(0, 0%, 70%)" />
                 <Text style={styles.postActionText}>{post.replies}</Text>
               </TouchableOpacity>
+
+              {post.isCurrentUser && (
+                <>
+                  <TouchableOpacity 
+                    style={styles.postAction}
+                    onPress={() => openEditModal(post, 'post')}
+                  >
+                    <Ionicons name="create-outline" size={16} color="hsl(0, 0%, 70%)" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.postAction}
+                    onPress={() => deletePost(post.id)}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="hsl(0, 0%, 70%)" />
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         ))}
@@ -369,12 +578,31 @@ export default function MessagesScreen({ navigation, route }) {
               ]}>
                 {message.text}
               </Text>
-              <Text style={[
-                styles.messageTime,
-                message.isCurrentUser ? styles.messageTimeRight : styles.messageTimeLeft
-              ]}>
-                {formatTime(message.timestamp)}
-              </Text>
+              <View style={styles.messageFooter}>
+                <Text style={[
+                  styles.messageTime,
+                  message.isCurrentUser ? styles.messageTimeRight : styles.messageTimeLeft
+                ]}>
+                  {formatTime(message.timestamp)}
+                  {message.isEdited && ' (edited)'}
+                </Text>
+                {message.isCurrentUser && (
+                  <View style={styles.messageActions}>
+                    <TouchableOpacity
+                      style={styles.messageAction}
+                      onPress={() => openEditModal(message, 'message')}
+                    >
+                      <Ionicons name="create-outline" size={14} color="hsl(0, 0%, 70%)" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.messageAction}
+                      onPress={() => deleteMessage(message.id)}
+                    >
+                      <Ionicons name="trash-outline" size={14} color="hsl(0, 0%, 70%)" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             </View>
           </View>
         ))}
@@ -403,11 +631,70 @@ export default function MessagesScreen({ navigation, route }) {
     </View>
   );
 
+  // Edit Modal
+  const renderEditModal = () => (
+    <Modal
+      visible={showEditModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={closeEditModal}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {editingMessage ? 'Edit Message' : 'Edit Post'}
+            </Text>
+            <TouchableOpacity onPress={closeEditModal}>
+              <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+            </TouchableOpacity>
+          </View>
+          
+          <TextInput
+            style={styles.modalInput}
+            value={editText}
+            onChangeText={setEditText}
+            placeholder={editingMessage ? "Edit your message..." : "Edit your post..."}
+            placeholderTextColor="hsl(0, 0%, 50%)"
+            multiline
+            autoFocus
+          />
+          
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={closeEditModal}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.saveButton]}
+              onPress={saveEdit}
+              disabled={!editText.trim()}
+            >
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   if (isGroupChat) {
-    return renderGroupForum();
+    return (
+      <>
+        {renderGroupForum()}
+        {renderEditModal()}
+      </>
+    );
   }
 
-  return renderDirectMessage();
+  return (
+    <>
+      {renderDirectMessage()}
+      {renderEditModal()}
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -730,5 +1017,112 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: 'hsl(0, 0%, 30%)',
+  },
+  
+  // CRUD Message Styles
+  messageFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  messageActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  messageAction: {
+    padding: 4,
+  },
+  editedText: {
+    fontSize: 12,
+    color: 'hsl(0, 0%, 50%)',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  
+  // CRUD Post Styles
+  postActionLiked: {
+    backgroundColor: 'hsl(75, 100%, 60%, 0.1)',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  postActionTextLiked: {
+    color: 'hsl(75, 100%, 60%)',
+  },
+  
+  // Edit Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'hsl(0, 0%, 8%)',
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: 'hsl(0, 0%, 15%)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: 'Arial',
+    color: 'hsl(0, 0%, 100%)',
+    fontWeight: '600',
+  },
+  modalInput: {
+    backgroundColor: 'hsl(0, 0%, 12%)',
+    borderRadius: 8,
+    padding: 12,
+    color: 'hsl(0, 0%, 100%)',
+    fontSize: 16,
+    fontFamily: 'Arial',
+    minHeight: 100,
+    textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: 'hsl(0, 0%, 20%)',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 16,
+  },
+  modalButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'hsl(0, 0%, 30%)',
+  },
+  cancelButtonText: {
+    color: 'hsl(0, 0%, 70%)',
+    fontSize: 16,
+    fontFamily: 'Arial',
+    fontWeight: '500',
+  },
+  saveButton: {
+    backgroundColor: 'hsl(75, 100%, 60%)',
+  },
+  saveButtonText: {
+    color: 'hsl(0, 0%, 0%)',
+    fontSize: 16,
+    fontFamily: 'Arial',
+    fontWeight: '600',
   },
 });
