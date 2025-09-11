@@ -645,12 +645,22 @@ export default function MessagesScreen({ navigation, route }) {
                 handleSendMessage();
               }
             }}
+            onKeyPress={(e) => {
+              console.log('onKeyPress triggered:', e.nativeEvent.key);
+              if (e.nativeEvent.key === 'Enter' && newMessage.trim()) {
+                console.log('Enter key pressed, sending message');
+                handleSendMessage();
+              }
+            }}
             blurOnSubmit={false}
             textAlignVertical="top"
           />
           <TouchableOpacity
             style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
-            onPress={handleSendMessage}
+            onPress={() => {
+              console.log('Send button pressed, newMessage:', newMessage);
+              handleSendMessage();
+            }}
             disabled={!newMessage.trim()}
           >
             <Ionicons name="send" size={20} color="hsl(0, 0%, 100%)" />
