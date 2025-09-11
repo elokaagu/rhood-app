@@ -73,23 +73,9 @@ export default function App() {
     setupGlobalAudio();
     
     // Handle app state changes for background audio
-    const handleAppStateChange = async (nextAppState) => {
+    const handleAppStateChange = (nextAppState) => {
       if (nextAppState === 'background' && globalAudioState.isPlaying) {
-        console.log('App went to background, ensuring audio continues playing');
-        // Reconfigure audio session for background
-        try {
-          await Audio.setAudioModeAsync({
-            allowsRecordingIOS: false,
-            staysActiveInBackground: true,
-            playsInSilentModeIOS: true,
-            shouldDuckAndroid: false,
-            playThroughEarpieceAndroid: false,
-            interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_MIX_WITH_OTHERS,
-            interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
-          });
-        } catch (error) {
-          console.log('Error reconfiguring audio for background:', error);
-        }
+        console.log('App went to background, audio should continue playing');
       } else if (nextAppState === 'active' && globalAudioState.isPlaying) {
         console.log('App became active, audio is still playing');
       }
@@ -114,10 +100,8 @@ export default function App() {
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: false,
+        shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false,
-        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_MIX_WITH_OTHERS,
-        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
       });
       console.log("Global audio configured for background playback");
     } catch (error) {
@@ -132,9 +116,12 @@ export default function App() {
   // Global audio control functions
   const playGlobalAudio = async (track) => {
     try {
+      console.log("🎵 Starting to play track:", track.title);
+      console.log("🎵 Audio URL:", track.audioUrl);
+      
       // Stop current audio if playing
       if (globalAudioRef.current) {
-        console.log("Stopping current audio before playing new track");
+        console.log("🛑 Stopping current audio before playing new track");
         await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       }
@@ -142,6 +129,7 @@ export default function App() {
       setGlobalAudioState(prev => ({ ...prev, isLoading: true }));
 
       // Create and load new sound
+      console.log("🔄 Creating new sound instance...");
       const { sound: newSound } = await Audio.Sound.createAsync(
         track.audioUrl,
         { 
@@ -152,6 +140,8 @@ export default function App() {
         },
         onGlobalPlaybackStatusUpdate
       );
+
+      console.log("✅ Sound created successfully");
 
       // Store reference for cleanup
       globalAudioRef.current = newSound;
@@ -164,9 +154,9 @@ export default function App() {
         isLoading: false,
       }));
 
-      console.log("Global audio started:", track.title);
+      console.log("🎉 Global audio started successfully:", track.title);
     } catch (error) {
-      console.log("Error playing global audio:", error);
+      console.log("❌ Error playing global audio:", error);
       setGlobalAudioState(prev => ({ ...prev, isLoading: false }));
     }
   };
