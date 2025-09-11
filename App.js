@@ -102,10 +102,8 @@ export default function App() {
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: false,
+        shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false,
-        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
-        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
       });
       console.log("✅ Global audio configured for background playback");
     } catch (error) {
@@ -142,10 +140,11 @@ export default function App() {
 
       // Create and load new sound
       console.log("🔄 Creating new sound instance...");
+      console.log("🔄 Audio file path:", track.audioUrl);
       const { sound: newSound } = await Audio.Sound.createAsync(
         track.audioUrl,
         { 
-          shouldPlay: true,
+          shouldPlay: false, // Don't auto-play, we'll call playAsync explicitly
           isLooping: false,
           progressUpdateIntervalMillis: 1000,
           positionMillis: 0,
@@ -157,6 +156,15 @@ export default function App() {
 
       // Store reference for cleanup
       globalAudioRef.current = newSound;
+
+      // Explicitly play the sound to ensure it starts
+      console.log("▶️ Starting playback...");
+      const playResult = await newSound.playAsync();
+      console.log("▶️ Play result:", playResult);
+
+      // Check status after playing
+      const status = await newSound.getStatusAsync();
+      console.log("📊 Audio status after play:", status);
 
       setGlobalAudioState(prev => ({
         ...prev,
