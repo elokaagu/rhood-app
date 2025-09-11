@@ -154,7 +154,9 @@ export default function ListenScreen({
   // Sync local playing state with global audio state
   useEffect(() => {
     if (globalAudioState.currentTrack) {
-      const currentMix = mixes.find(mix => mix.id === globalAudioState.currentTrack.id);
+      const currentMix = mixes.find(
+        (mix) => mix.id === globalAudioState.currentTrack.id
+      );
       if (currentMix) {
         setPlayingMixId(globalAudioState.currentTrack.id);
       }
@@ -173,7 +175,6 @@ export default function ListenScreen({
       onPlayAudio(mix);
     }
   };
-
 
   const handleArtistPress = (artistName) => {
     Alert.alert(
