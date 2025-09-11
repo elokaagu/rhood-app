@@ -195,6 +195,7 @@ export default function MessagesScreen({ navigation, route }) {
 
   // CRUD Operations for Messages
   const createMessage = (text) => {
+    console.log('createMessage called with text:', text);
     const newMessage = {
       id: Date.now(), // Simple ID generation
       senderId: 'current',
@@ -203,7 +204,9 @@ export default function MessagesScreen({ navigation, route }) {
       isCurrentUser: true
     };
     
+    console.log('Created new message:', newMessage);
     const updatedMessages = [...messages, newMessage];
+    console.log('Updated messages array:', updatedMessages);
     setMessages(updatedMessages);
     saveMessages(updatedMessages);
     return newMessage;
@@ -348,9 +351,15 @@ export default function MessagesScreen({ navigation, route }) {
 
   // Event Handlers
   const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+    console.log('handleSendMessage called, newMessage:', newMessage);
+    if (!newMessage.trim()) {
+      console.log('Message is empty, not sending');
+      return;
+    }
+    console.log('Creating message:', newMessage);
     createMessage(newMessage);
     setNewMessage('');
+    console.log('Message sent and cleared');
   };
 
   const handlePostToForum = () => {
@@ -630,7 +639,12 @@ export default function MessagesScreen({ navigation, route }) {
             multiline
             autoFocus={false}
             returnKeyType="send"
-            onSubmitEditing={handleSendMessage}
+            onSubmitEditing={(e) => {
+              console.log('onSubmitEditing triggered');
+              if (e.nativeEvent.text.trim()) {
+                handleSendMessage();
+              }
+            }}
             blurOnSubmit={false}
             textAlignVertical="top"
           />
