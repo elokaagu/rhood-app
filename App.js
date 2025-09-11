@@ -12,6 +12,8 @@ import {
   Animated,
   AppState,
   Image,
+  Share,
+  Linking,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -43,6 +45,8 @@ export default function App() {
     progress: 0,
     isLoading: false,
     sound: null,
+    isShuffled: false,
+    repeatMode: 'none', // 'none', 'one', 'all'
   });
 
   // Full-screen player state
@@ -180,6 +184,79 @@ export default function App() {
         // Update progress
         const progressPercent = (status.positionMillis / status.durationMillis) * 100;
         setGlobalAudioState(prev => ({ ...prev, progress: progressPercent }));
+      }
+    }
+  };
+
+  // Shuffle functionality
+  const toggleShuffle = () => {
+    setGlobalAudioState(prev => ({
+      ...prev,
+      isShuffled: !prev.isShuffled
+    }));
+  };
+
+  // Skip forward functionality
+  const skipForward = async () => {
+    if (globalAudioState.sound) {
+      try {
+        const status = await globalAudioState.sound.getStatusAsync();
+        if (status.isLoaded) {
+          const newPosition = Math.min(
+            status.positionMillis + 10000, // Skip 10 seconds
+            status.durationMillis
+          );
+          await globalAudioState.sound.setPositionAsync(newPosition);
+        }
+      } catch (error) {
+        console.log("Error skipping forward:", error);
+      }
+    }
+  };
+
+  // Skip backward functionality
+  const skipBackward = async () => {
+    if (globalAudioState.sound) {
+      try {
+        const status = await globalAudioState.sound.getStatusAsync();
+        if (status.isLoaded) {
+          const newPosition = Math.max(
+            status.positionMillis - 10000, // Skip back 10 seconds
+            0
+          );
+          await globalAudioState.sound.setPositionAsync(newPosition);
+        }
+      } catch (error) {
+        console.log("Error skipping backward:", error);
+      }
+    }
+  };
+
+  // Repeat functionality
+  const toggleRepeat = () => {
+    setGlobalAudioState(prev => {
+      const modes = ['none', 'one', 'all'];
+      const currentIndex = modes.indexOf(prev.repeatMode);
+      const nextIndex = (currentIndex + 1) % modes.length;
+      return {
+        ...prev,
+        repeatMode: modes[nextIndex]
+      };
+    });
+  };
+
+  // Share functionality
+  const shareTrack = async () => {
+    if (globalAudioState.currentTrack) {
+      try {
+        const shareMessage = `Check out this track: "${globalAudioState.currentTrack.title}" by ${globalAudioState.currentTrack.artist} on Rhood!`;
+        await Share.share({
+          message: shareMessage,
+          title: 'Share Track',
+        });
+      } catch (error) {
+        console.log("Error sharing track:", error);
+        Alert.alert("Error", "Failed to share track");
       }
     }
   };
@@ -808,11 +885,21 @@ export default function App() {
 
               {/* Control Buttons */}
               <View style={styles.fullScreenControls}>
-                <TouchableOpacity style={styles.controlButton}>
-                  <Ionicons name="shuffle" size={24} color="hsl(0, 0%, 70%)" />
+                <TouchableOpacity 
+                  style={styles.controlButton}
+                  onPress={toggleShuffle}
+                >
+                  <Ionicons 
+                    name="shuffle" 
+                    size={24} 
+                    color={globalAudioState.isShuffled ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"} 
+                  />
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.controlButton}>
+                <TouchableOpacity 
+                  style={styles.controlButton}
+                  onPress={skipBackward}
+                >
                   <Ionicons name="play-skip-back" size={28} color="hsl(0, 0%, 100%)" />
                 </TouchableOpacity>
                 
@@ -820,19 +907,29 @@ export default function App() {
                   style={styles.playPauseButton}
                   onPress={globalAudioState.isPlaying ? pauseGlobalAudio : resumeGlobalAudio}
                 >
-                  <Ionicons 
-                    name={globalAudioState.isPlaying ? "pause" : "play"} 
-                    size={40} 
-                    color="hsl(0, 0%, 0%)" 
+                  <Ionicons
+                    name={globalAudioState.isPlaying ? "pause" : "play"}
+                    size={40}
+                    color="hsl(0, 0%, 0%)"
                   />
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.controlButton}>
+                <TouchableOpacity 
+                  style={styles.controlButton}
+                  onPress={skipForward}
+                >
                   <Ionicons name="play-skip-forward" size={28} color="hsl(0, 0%, 100%)" />
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.controlButton}>
-                  <Ionicons name="repeat" size={24} color="hsl(0, 0%, 70%)" />
+                <TouchableOpacity 
+                  style={styles.controlButton}
+                  onPress={toggleRepeat}
+                >
+                  <Ionicons 
+                    name={globalAudioState.repeatMode === 'none' ? "repeat" : globalAudioState.repeatMode === 'one' ? "repeat" : "repeat"} 
+                    size={24} 
+                    color={globalAudioState.repeatMode === 'none' ? "hsl(0, 0%, 70%)" : "hsl(75, 100%, 60%)"} 
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -842,7 +939,10 @@ export default function App() {
                   <Ionicons name="heart-outline" size={20} color="hsl(0, 0%, 70%)" />
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.actionButton}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={shareTrack}
+                >
                   <Ionicons name="share-outline" size={20} color="hsl(0, 0%, 70%)" />
                 </TouchableOpacity>
                 
