@@ -10,6 +10,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -199,7 +200,6 @@ export default function MessagesScreen({ navigation, route }) {
 
   // CRUD Operations for Messages
   const createMessage = (text) => {
-    console.log('createMessage called with text:', text);
     const newMessage = {
       id: Date.now(), // Simple ID generation
       senderId: 'current',
@@ -208,9 +208,7 @@ export default function MessagesScreen({ navigation, route }) {
       isCurrentUser: true
     };
     
-    console.log('Created new message:', newMessage);
     const updatedMessages = [...messages, newMessage];
-    console.log('Updated messages array:', updatedMessages);
     setMessages(updatedMessages);
     saveMessages(updatedMessages);
     return newMessage;
@@ -362,28 +360,20 @@ export default function MessagesScreen({ navigation, route }) {
 
   // Event Handlers
   const handleSendMessage = () => {
-    console.log('handleSendMessage called, newMessage:', newMessage);
     if (!newMessage.trim()) {
-      console.log('Message is empty, not sending');
       return;
     }
-    console.log('Creating message:', newMessage);
     createMessage(newMessage);
     setNewMessage('');
-    console.log('Message sent and cleared');
+    Keyboard.dismiss(); // Dismiss keyboard after sending
   };
 
-  // Test function to verify basic functionality
-  const testSendMessage = () => {
-    console.log('Testing send message with hardcoded text');
-    const testMessage = 'Test message from debug';
-    createMessage(testMessage);
-  };
 
   const handlePostToForum = () => {
     if (!newPost.trim()) return;
     createPost(newPost);
     setNewPost('');
+    Keyboard.dismiss(); // Dismiss keyboard after posting
   };
 
   const handleLike = (postId) => {
@@ -658,15 +648,12 @@ export default function MessagesScreen({ navigation, route }) {
             autoFocus={false}
             returnKeyType="send"
             onSubmitEditing={(e) => {
-              console.log('onSubmitEditing triggered');
               if (e.nativeEvent.text.trim()) {
                 handleSendMessage();
               }
             }}
             onKeyPress={(e) => {
-              console.log('onKeyPress triggered:', e.nativeEvent.key);
               if (e.nativeEvent.key === 'Enter' && newMessage.trim()) {
-                console.log('Enter key pressed, sending message');
                 handleSendMessage();
               }
             }}
@@ -675,21 +662,10 @@ export default function MessagesScreen({ navigation, route }) {
           />
           <TouchableOpacity
             style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
-            onPress={() => {
-              console.log('Send button pressed, newMessage:', newMessage);
-              handleSendMessage();
-            }}
+            onPress={handleSendMessage}
             disabled={!newMessage.trim()}
           >
             <Ionicons name="send" size={20} color="hsl(0, 0%, 100%)" />
-          </TouchableOpacity>
-          
-          {/* Temporary test button */}
-          <TouchableOpacity
-            style={[styles.sendButton, { backgroundColor: 'hsl(0, 100%, 50%)', marginLeft: 8 }]}
-            onPress={testSendMessage}
-          >
-            <Text style={{ color: 'white', fontSize: 12 }}>TEST</Text>
           </TouchableOpacity>
         </View>
       </View>
