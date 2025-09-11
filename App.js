@@ -71,8 +71,7 @@ export default function App() {
         playsInSilentModeIOS: true,
         shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false,
-        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
-        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+        // Remove problematic interruption modes for better compatibility
       });
       console.log("Global audio configured for background playback");
     } catch (error) {
