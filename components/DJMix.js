@@ -119,11 +119,6 @@ const DJMix = ({
             <Text style={styles.statText}>{formatNumber(mix.plays)}</Text>
           </View>
 
-          <View style={styles.statItem}>
-            <Ionicons name="heart" size={14} color="hsl(0, 0%, 70%)" />
-            <Text style={styles.statText}>{formatNumber(mix.likes)}</Text>
-          </View>
-
           <Text style={styles.duration}>{mix.duration}</Text>
         </View>
 
