@@ -25,7 +25,9 @@ import ConnectionsScreen from "./components/ConnectionsScreen";
 import ListenScreen from "./components/ListenScreen";
 import MessagesScreen from "./components/MessagesScreen";
 import RhoodModal from "./components/RhoodModal";
-import { db } from "./lib/supabase";
+import { db, auth, supabase } from "./lib/supabase";
+import LoginScreen from "./components/LoginScreen";
+import SignupScreen from "./components/SignupScreen";
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -37,7 +39,13 @@ export default function App() {
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  
+
+  // Authentication state
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState("login"); // 'login' or 'signup'
+
   // Global audio state for persistent playback
   const [globalAudioState, setGlobalAudioState] = useState({
     isPlaying: false,
@@ -46,21 +54,22 @@ export default function App() {
     isLoading: false,
     sound: null,
     isShuffled: false,
-    repeatMode: 'none', // 'none', 'one', 'all'
+    repeatMode: "none", // 'none', 'one', 'all'
     positionMillis: 0,
     durationMillis: 0,
   });
 
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
-  
+
   // Application sent modal state
-  const [showApplicationSentModal, setShowApplicationSentModal] = useState(false);
+  const [showApplicationSentModal, setShowApplicationSentModal] =
+    useState(false);
   const [appliedOpportunity, setAppliedOpportunity] = useState(null);
-  
+
   // Global audio instance reference for cleanup
   const globalAudioRef = useRef(null);
-  
+
   const [djProfile, setDjProfile] = useState({
     djName: "",
     fullName: "",
@@ -71,20 +80,24 @@ export default function App() {
   });
 
   useEffect(() => {
+    initializeAuth();
     checkFirstTime();
     setupGlobalAudio();
-    
+
     // Handle app state changes for background audio
     const handleAppStateChange = (nextAppState) => {
-      if (nextAppState === 'background' && globalAudioState.isPlaying) {
-        console.log('App went to background, audio should continue playing');
-      } else if (nextAppState === 'active' && globalAudioState.isPlaying) {
-        console.log('App became active, audio is still playing');
+      if (nextAppState === "background" && globalAudioState.isPlaying) {
+        console.log("App went to background, audio should continue playing");
+      } else if (nextAppState === "active" && globalAudioState.isPlaying) {
+        console.log("App became active, audio is still playing");
       }
     };
 
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
+
     // Cleanup audio on unmount
     return () => {
       subscription?.remove();
@@ -94,6 +107,54 @@ export default function App() {
       }
     };
   }, []);
+
+  // Initialize authentication
+  const initializeAuth = async () => {
+    try {
+      // Get initial session
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+
+      // Listen for auth changes
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
+        setUser(session?.user ?? null);
+        setAuthLoading(false);
+
+        if (event === "SIGNED_IN" && session?.user) {
+          // User signed in, check if profile exists
+          try {
+            const profile = await db.getUserProfile(session.user.id);
+            if (profile) {
+              setDjProfile(profile);
+              setIsFirstTime(false);
+            }
+          } catch (error) {
+            console.log("No profile found, user needs to complete onboarding");
+          }
+        } else if (event === "SIGNED_OUT") {
+          // User signed out, reset state
+          setDjProfile({
+            djName: "",
+            fullName: "",
+            instagram: "",
+            soundcloud: "",
+            city: "",
+            genres: [],
+          });
+          setIsFirstTime(true);
+        }
+      });
+
+      return () => subscription.unsubscribe();
+    } catch (error) {
+      console.error("Auth initialization error:", error);
+      setAuthLoading(false);
+    }
+  };
 
   // Setup global audio configuration for background playback
   const setupGlobalAudio = async () => {
@@ -115,12 +176,55 @@ export default function App() {
     setShowSplash(false);
   };
 
+  // Authentication handlers
+  const handleLoginSuccess = async (user) => {
+    setUser(user);
+    setShowAuth(false);
+    try {
+      const profile = await db.getUserProfile(user.id);
+      if (profile) {
+        setDjProfile(profile);
+        setIsFirstTime(false);
+      }
+    } catch (error) {
+      console.log("No profile found, user needs to complete onboarding");
+    }
+  };
+
+  const handleSignupSuccess = async (user) => {
+    setUser(user);
+    setShowAuth(false);
+    // User will go through onboarding after signup
+  };
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      setUser(null);
+      setShowAuth(true);
+      setAuthMode("login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      Alert.alert("Error", "Failed to sign out");
+    }
+  };
+
+  const showLogin = () => {
+    setAuthMode("login");
+    setShowAuth(true);
+  };
+
+  const showSignup = () => {
+    setAuthMode("signup");
+    setShowAuth(true);
+  };
+
   // Format time helper function
   const formatTime = (millis) => {
     if (!millis) return "0:00";
     const minutes = Math.floor(millis / 60000);
     const seconds = Math.floor((millis % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   // Global audio control functions
@@ -128,7 +232,7 @@ export default function App() {
     try {
       console.log("🎵 Starting to play track:", track.title);
       console.log("🎵 Audio URL:", track.audioUrl);
-      
+
       // Stop current audio if playing
       if (globalAudioRef.current) {
         console.log("🛑 Stopping current audio before playing new track");
@@ -136,14 +240,14 @@ export default function App() {
         globalAudioRef.current = null;
       }
 
-      setGlobalAudioState(prev => ({ ...prev, isLoading: true }));
+      setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
 
       // Create and load new sound
       console.log("🔄 Creating new sound instance...");
       console.log("🔄 Audio file path:", track.audioUrl);
       const { sound: newSound } = await Audio.Sound.createAsync(
         track.audioUrl,
-        { 
+        {
           shouldPlay: false, // Don't auto-play, we'll call playAsync explicitly
           isLooping: false,
           progressUpdateIntervalMillis: 1000,
@@ -166,7 +270,7 @@ export default function App() {
       const status = await newSound.getStatusAsync();
       console.log("📊 Audio status after play:", status);
 
-      setGlobalAudioState(prev => ({
+      setGlobalAudioState((prev) => ({
         ...prev,
         sound: newSound,
         isPlaying: true,
@@ -177,21 +281,21 @@ export default function App() {
       console.log("🎉 Global audio started successfully:", track.title);
     } catch (error) {
       console.log("❌ Error playing global audio:", error);
-      setGlobalAudioState(prev => ({ ...prev, isLoading: false }));
+      setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
   const pauseGlobalAudio = async () => {
     if (globalAudioState.sound) {
       await globalAudioState.sound.pauseAsync();
-      setGlobalAudioState(prev => ({ ...prev, isPlaying: false }));
+      setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
     }
   };
 
   const resumeGlobalAudio = async () => {
     if (globalAudioState.sound) {
       await globalAudioState.sound.playAsync();
-      setGlobalAudioState(prev => ({ ...prev, isPlaying: true }));
+      setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
     }
   };
 
@@ -213,7 +317,7 @@ export default function App() {
     console.log("🎵 Playback status update:", status);
     if (status.isLoaded) {
       // Update playing state
-      setGlobalAudioState(prev => ({
+      setGlobalAudioState((prev) => ({
         ...prev,
         isPlaying: status.isPlaying,
         isLoading: false,
@@ -223,7 +327,7 @@ export default function App() {
         // Audio finished playing
         console.log("🎵 Audio finished playing");
         globalAudioRef.current = null;
-        setGlobalAudioState(prev => ({
+        setGlobalAudioState((prev) => ({
           ...prev,
           isPlaying: false,
           currentTrack: null,
@@ -232,12 +336,13 @@ export default function App() {
         }));
       } else if (status.positionMillis && status.durationMillis) {
         // Update progress
-        const progressPercent = (status.positionMillis / status.durationMillis) * 100;
-        setGlobalAudioState(prev => ({ 
-          ...prev, 
+        const progressPercent =
+          (status.positionMillis / status.durationMillis) * 100;
+        setGlobalAudioState((prev) => ({
+          ...prev,
           progress: progressPercent,
           positionMillis: status.positionMillis,
-          durationMillis: status.durationMillis
+          durationMillis: status.durationMillis,
         }));
       }
     } else {
@@ -247,9 +352,9 @@ export default function App() {
 
   // Shuffle functionality
   const toggleShuffle = () => {
-    setGlobalAudioState(prev => ({
+    setGlobalAudioState((prev) => ({
       ...prev,
-      isShuffled: !prev.isShuffled
+      isShuffled: !prev.isShuffled,
     }));
   };
 
@@ -291,13 +396,13 @@ export default function App() {
 
   // Repeat functionality
   const toggleRepeat = () => {
-    setGlobalAudioState(prev => {
-      const modes = ['none', 'one', 'all'];
+    setGlobalAudioState((prev) => {
+      const modes = ["none", "one", "all"];
       const currentIndex = modes.indexOf(prev.repeatMode);
       const nextIndex = (currentIndex + 1) % modes.length;
       return {
         ...prev,
-        repeatMode: modes[nextIndex]
+        repeatMode: modes[nextIndex],
       };
     });
   };
@@ -309,7 +414,7 @@ export default function App() {
         const shareMessage = `Check out this track: "${globalAudioState.currentTrack.title}" by ${globalAudioState.currentTrack.artist} on Rhood!`;
         await Share.share({
           message: shareMessage,
-          title: 'Share Track',
+          title: "Share Track",
         });
       } catch (error) {
         console.log("Error sharing track:", error);
@@ -359,12 +464,15 @@ export default function App() {
 
   const checkFirstTime = async () => {
     try {
-      const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
-      const profile = await AsyncStorage.getItem("djProfile");
+      // Only check AsyncStorage if user is not authenticated
+      if (!user) {
+        const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
+        const profile = await AsyncStorage.getItem("djProfile");
 
-      setIsFirstTime(!hasOnboarded);
-      if (profile) {
-        setDjProfile(JSON.parse(profile));
+        setIsFirstTime(!hasOnboarded);
+        if (profile) {
+          setDjProfile(JSON.parse(profile));
+        }
       }
     } catch (error) {
       console.error("Error checking onboarding status:", error);
@@ -387,7 +495,7 @@ export default function App() {
         useNativeDriver: true,
       }),
     ]).start();
-    
+
     setCurrentScreen(screen);
     setScreenParams(params);
     setShowMenu(false);
@@ -408,8 +516,9 @@ export default function App() {
     }
 
     try {
-      // Save to Supabase
+      // Save to Supabase with user ID
       const profileData = {
+        id: user.id, // Use authenticated user's ID
         dj_name: djProfile.djName,
         full_name: djProfile.fullName,
         instagram: djProfile.instagram || null,
@@ -419,6 +528,7 @@ export default function App() {
         bio: `DJ from ${djProfile.city} specializing in ${djProfile.genres.join(
           ", "
         )}`,
+        email: user.email,
       };
 
       const savedProfile = await db.createUserProfile(profileData);
@@ -426,7 +536,7 @@ export default function App() {
       // Also save to AsyncStorage for offline access
       await AsyncStorage.setItem("hasOnboarded", "true");
       await AsyncStorage.setItem("djProfile", JSON.stringify(djProfile));
-      await AsyncStorage.setItem("userId", savedProfile.id);
+      await AsyncStorage.setItem("userId", user.id);
 
       setIsFirstTime(false);
       Alert.alert(
@@ -447,7 +557,8 @@ export default function App() {
     return <SplashScreen onFinish={handleSplashFinish} />;
   }
 
-  if (isLoading) {
+  // Show loading screen while checking authentication
+  if (authLoading || isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.center}>
@@ -458,6 +569,26 @@ export default function App() {
     );
   }
 
+  // Show authentication screens if not logged in
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {authMode === "login" ? (
+          <LoginScreen
+            onLoginSuccess={handleLoginSuccess}
+            onSwitchToSignup={showSignup}
+          />
+        ) : (
+          <SignupScreen
+            onSignupSuccess={handleSignupSuccess}
+            onSwitchToLogin={showLogin}
+          />
+        )}
+      </SafeAreaView>
+    );
+  }
+
+  // Show onboarding if first time user
   if (isFirstTime) {
     return (
       <SafeAreaView style={styles.container}>
@@ -496,7 +627,7 @@ export default function App() {
 
       case "connections":
         return (
-          <ConnectionsScreen 
+          <ConnectionsScreen
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
@@ -506,7 +637,7 @@ export default function App() {
 
       case "listen":
         return (
-          <ListenScreen 
+          <ListenScreen
             globalAudioState={globalAudioState}
             onPlayAudio={playGlobalAudio}
             onPauseAudio={pauseGlobalAudio}
@@ -517,7 +648,7 @@ export default function App() {
 
       case "messages":
         return (
-          <MessagesScreen 
+          <MessagesScreen
             navigation={{ goBack: () => setCurrentScreen("home") }}
             route={{ params: screenParams }}
           />
@@ -652,6 +783,23 @@ export default function App() {
                 <Text style={styles.settingsArrow}>›</Text>
               </TouchableOpacity>
             </View>
+            <View style={styles.settingsCard}>
+              <Text style={styles.settingsTitle}>Account</Text>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={handleLogout}
+              >
+                <Text
+                  style={[
+                    styles.settingsItemText,
+                    { color: "hsl(0, 100%, 50%)" },
+                  ]}
+                >
+                  Sign Out
+                </Text>
+                <Text style={styles.settingsArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         );
 
@@ -704,7 +852,11 @@ export default function App() {
           <Ionicons
             name="briefcase-outline"
             size={20}
-            color={currentScreen === "opportunities" ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"}
+            color={
+              currentScreen === "opportunities"
+                ? "hsl(75, 100%, 60%)"
+                : "hsl(0, 0%, 70%)"
+            }
           />
           <Text
             style={[
@@ -717,13 +869,20 @@ export default function App() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, currentScreen === "connections" && styles.activeTab]}
+          style={[
+            styles.tab,
+            currentScreen === "connections" && styles.activeTab,
+          ]}
           onPress={() => handleMenuNavigation("connections")}
         >
           <Ionicons
             name="people-outline"
             size={20}
-            color={currentScreen === "connections" ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"}
+            color={
+              currentScreen === "connections"
+                ? "hsl(75, 100%, 60%)"
+                : "hsl(0, 0%, 70%)"
+            }
           />
           <Text
             style={[
@@ -742,7 +901,11 @@ export default function App() {
           <Ionicons
             name="musical-notes-outline"
             size={20}
-            color={currentScreen === "listen" ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"}
+            color={
+              currentScreen === "listen"
+                ? "hsl(75, 100%, 60%)"
+                : "hsl(0, 0%, 70%)"
+            }
           />
           <Text
             style={[
@@ -778,45 +941,65 @@ export default function App() {
                   <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.menuItems}>
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuNavigation("messages")}
                 >
-                  <Ionicons name="chatbubbles-outline" size={20} color="hsl(75, 100%, 60%)" />
+                  <Ionicons
+                    name="chatbubbles-outline"
+                    size={20}
+                    color="hsl(75, 100%, 60%)"
+                  />
                   <Text style={styles.menuItemText}>Messages</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuNavigation("notifications")}
                 >
-                  <Ionicons name="notifications-outline" size={20} color="hsl(75, 100%, 60%)" />
+                  <Ionicons
+                    name="notifications-outline"
+                    size={20}
+                    color="hsl(75, 100%, 60%)"
+                  />
                   <Text style={styles.menuItemText}>Notifications</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuNavigation("community")}
                 >
-                  <Ionicons name="people-outline" size={20} color="hsl(75, 100%, 60%)" />
+                  <Ionicons
+                    name="people-outline"
+                    size={20}
+                    color="hsl(75, 100%, 60%)"
+                  />
                   <Text style={styles.menuItemText}>Community</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuNavigation("profile")}
                 >
-                  <Ionicons name="person-outline" size={20} color="hsl(75, 100%, 60%)" />
+                  <Ionicons
+                    name="person-outline"
+                    size={20}
+                    color="hsl(75, 100%, 60%)"
+                  />
                   <Text style={styles.menuItemText}>Profile</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => handleMenuNavigation("settings")}
                 >
-                  <Ionicons name="settings-outline" size={20} color="hsl(75, 100%, 60%)" />
+                  <Ionicons
+                    name="settings-outline"
+                    size={20}
+                    color="hsl(75, 100%, 60%)"
+                  />
                   <Text style={styles.menuItemText}>Settings</Text>
                 </TouchableOpacity>
               </View>
@@ -827,7 +1010,7 @@ export default function App() {
 
       {/* Global Audio Player - shows on all screens when audio is playing */}
       {globalAudioState.isPlaying && globalAudioState.currentTrack && (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.globalAudioPlayer}
           onPress={() => setShowFullScreenPlayer(true)}
           activeOpacity={0.8}
@@ -841,22 +1024,24 @@ export default function App() {
                 {globalAudioState.currentTrack.artist}
               </Text>
             </View>
-            
+
             <View style={styles.audioControls}>
               <TouchableOpacity
                 style={styles.audioControlButton}
                 onPress={(e) => {
                   e.stopPropagation();
-                  globalAudioState.isPlaying ? pauseGlobalAudio() : resumeGlobalAudio();
+                  globalAudioState.isPlaying
+                    ? pauseGlobalAudio()
+                    : resumeGlobalAudio();
                 }}
               >
-                <Ionicons 
-                  name={globalAudioState.isPlaying ? "pause" : "play"} 
-                  size={20} 
-                  color="hsl(0, 0%, 100%)" 
+                <Ionicons
+                  name={globalAudioState.isPlaying ? "pause" : "play"}
+                  size={20}
+                  color="hsl(0, 0%, 100%)"
                 />
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={styles.audioControlButton}
                 onPress={(e) => {
@@ -868,14 +1053,14 @@ export default function App() {
               </TouchableOpacity>
             </View>
           </View>
-          
+
           {/* Progress Bar */}
           <View style={styles.audioProgressContainer}>
-            <View 
+            <View
               style={[
-                styles.audioProgressBar, 
-                { width: `${globalAudioState.progress}%` }
-              ]} 
+                styles.audioProgressBar,
+                { width: `${globalAudioState.progress}%` },
+              ]}
             />
           </View>
         </TouchableOpacity>
@@ -897,7 +1082,11 @@ export default function App() {
                   style={styles.closeButton}
                   onPress={() => setShowFullScreenPlayer(false)}
                 >
-                  <Ionicons name="chevron-down" size={24} color="hsl(0, 0%, 100%)" />
+                  <Ionicons
+                    name="chevron-down"
+                    size={24}
+                    color="hsl(0, 0%, 100%)"
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -926,41 +1115,54 @@ export default function App() {
               {/* Progress Section */}
               <View style={styles.fullScreenProgressSection}>
                 <View style={styles.fullScreenProgressContainer}>
-                  <View 
+                  <View
                     style={[
-                      styles.fullScreenProgressBar, 
-                      { width: `${globalAudioState.progress}%` }
-                    ]} 
+                      styles.fullScreenProgressBar,
+                      { width: `${globalAudioState.progress}%` },
+                    ]}
                   />
                 </View>
                 <Text style={styles.progressText}>
-                  {formatTime(globalAudioState.positionMillis)} / {formatTime(globalAudioState.durationMillis)}
+                  {formatTime(globalAudioState.positionMillis)} /{" "}
+                  {formatTime(globalAudioState.durationMillis)}
                 </Text>
               </View>
 
               {/* Control Buttons */}
               <View style={styles.fullScreenControls}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.controlButton}
                   onPress={toggleShuffle}
                 >
-                  <Ionicons 
-                    name="shuffle" 
-                    size={24} 
-                    color={globalAudioState.isShuffled ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"} 
+                  <Ionicons
+                    name="shuffle"
+                    size={24}
+                    color={
+                      globalAudioState.isShuffled
+                        ? "hsl(75, 100%, 60%)"
+                        : "hsl(0, 0%, 70%)"
+                    }
                   />
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.controlButton}
                   onPress={skipBackward}
                 >
-                  <Ionicons name="play-skip-back" size={28} color="hsl(0, 0%, 100%)" />
+                  <Ionicons
+                    name="play-skip-back"
+                    size={28}
+                    color="hsl(0, 0%, 100%)"
+                  />
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.playPauseButton}
-                  onPress={globalAudioState.isPlaying ? pauseGlobalAudio : resumeGlobalAudio}
+                  onPress={
+                    globalAudioState.isPlaying
+                      ? pauseGlobalAudio
+                      : resumeGlobalAudio
+                  }
                 >
                   <Ionicons
                     name={globalAudioState.isPlaying ? "pause" : "play"}
@@ -968,22 +1170,36 @@ export default function App() {
                     color="hsl(0, 0%, 0%)"
                   />
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.controlButton}
                   onPress={skipForward}
                 >
-                  <Ionicons name="play-skip-forward" size={28} color="hsl(0, 0%, 100%)" />
+                  <Ionicons
+                    name="play-skip-forward"
+                    size={28}
+                    color="hsl(0, 0%, 100%)"
+                  />
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.controlButton}
                   onPress={toggleRepeat}
                 >
-                  <Ionicons 
-                    name={globalAudioState.repeatMode === 'none' ? "repeat" : globalAudioState.repeatMode === 'one' ? "repeat" : "repeat"} 
-                    size={24} 
-                    color={globalAudioState.repeatMode === 'none' ? "hsl(0, 0%, 70%)" : "hsl(75, 100%, 60%)"} 
+                  <Ionicons
+                    name={
+                      globalAudioState.repeatMode === "none"
+                        ? "repeat"
+                        : globalAudioState.repeatMode === "one"
+                        ? "repeat"
+                        : "repeat"
+                    }
+                    size={24}
+                    color={
+                      globalAudioState.repeatMode === "none"
+                        ? "hsl(0, 0%, 70%)"
+                        : "hsl(75, 100%, 60%)"
+                    }
                   />
                 </TouchableOpacity>
               </View>
@@ -991,18 +1207,30 @@ export default function App() {
               {/* Additional Actions */}
               <View style={styles.fullScreenActions}>
                 <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="heart-outline" size={20} color="hsl(0, 0%, 70%)" />
+                  <Ionicons
+                    name="heart-outline"
+                    size={20}
+                    color="hsl(0, 0%, 70%)"
+                  />
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.actionButton}
                   onPress={shareTrack}
                 >
-                  <Ionicons name="share-outline" size={20} color="hsl(0, 0%, 70%)" />
+                  <Ionicons
+                    name="share-outline"
+                    size={20}
+                    color="hsl(0, 0%, 70%)"
+                  />
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="ellipsis-horizontal" size={20} color="hsl(0, 0%, 70%)" />
+                  <Ionicons
+                    name="ellipsis-horizontal"
+                    size={20}
+                    color="hsl(0, 0%, 70%)"
+                  />
                 </TouchableOpacity>
               </View>
             </View>
@@ -1015,7 +1243,11 @@ export default function App() {
         visible={showApplicationSentModal}
         onClose={() => setShowApplicationSentModal(false)}
         title="Application Sent!"
-        message={appliedOpportunity ? `You've applied to ${appliedOpportunity.name}!` : "Application sent successfully!"}
+        message={
+          appliedOpportunity
+            ? `You've applied to ${appliedOpportunity.name}!`
+            : "Application sent successfully!"
+        }
         type="success"
         primaryButtonText="OK"
       />
@@ -1030,7 +1262,7 @@ const styles = StyleSheet.create({
   },
   screenContainer: {
     flex: 1,
-    position: 'relative',
+    position: "relative",
   },
   onboarding: {
     backgroundColor: "hsl(0, 0%, 0%)", // Pure black background
@@ -1768,24 +2000,24 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontWeight: "500",
   },
-  
+
   // Global Audio Player Styles
   globalAudioPlayer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 80, // Above tab bar
     left: 0,
     right: 0,
-    backgroundColor: 'hsl(0, 0%, 8%)',
+    backgroundColor: "hsl(0, 0%, 8%)",
     borderTopWidth: 1,
-    borderTopColor: 'hsl(0, 0%, 15%)',
+    borderTopColor: "hsl(0, 0%, 15%)",
     paddingVertical: 12,
     paddingHorizontal: 16,
     zIndex: 1000,
   },
   audioPlayerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   audioTrackInfo: {
     flex: 1,
@@ -1793,46 +2025,46 @@ const styles = StyleSheet.create({
   },
   audioTrackTitle: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 100%)',
-    fontWeight: '600',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "600",
     marginBottom: 2,
   },
   audioTrackArtist: {
     fontSize: 12,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 70%)',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
   },
   audioControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   audioControlButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'hsl(75, 100%, 60%)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "hsl(75, 100%, 60%)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   audioProgressContainer: {
     height: 3,
-    backgroundColor: 'hsl(0, 0%, 15%)',
+    backgroundColor: "hsl(0, 0%, 15%)",
     borderRadius: 1.5,
     marginTop: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   audioProgressBar: {
-    height: '100%',
-    backgroundColor: 'hsl(75, 100%, 60%)',
+    height: "100%",
+    backgroundColor: "hsl(75, 100%, 60%)",
     borderRadius: 1.5,
   },
-  
+
   // Full-Screen Player Styles
   fullScreenPlayerOverlay: {
     flex: 1,
-    backgroundColor: 'hsl(0, 0%, 0%)',
+    backgroundColor: "hsl(0, 0%, 0%)",
   },
   fullScreenPlayer: {
     flex: 1,
@@ -1841,81 +2073,81 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   fullScreenHeader: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginBottom: 30,
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'hsl(0, 0%, 15%)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   albumArtContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 40,
   },
   albumArt: {
     width: 300,
     height: 300,
     borderRadius: 20,
-    shadowColor: 'hsl(75, 100%, 60%)',
+    shadowColor: "hsl(75, 100%, 60%)",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
     elevation: 10,
   },
   fullScreenTrackInfo: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 40,
   },
   fullScreenTrackTitle: {
     fontSize: 24,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 100%)',
-    fontWeight: '700',
-    textAlign: 'center',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "700",
+    textAlign: "center",
     marginBottom: 8,
   },
   fullScreenTrackArtist: {
     fontSize: 18,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 70%)',
-    textAlign: 'center',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
     marginBottom: 4,
   },
   fullScreenTrackGenre: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    color: 'hsl(75, 100%, 60%)',
-    textAlign: 'center',
+    fontFamily: "Arial",
+    color: "hsl(75, 100%, 60%)",
+    textAlign: "center",
   },
   fullScreenProgressSection: {
     marginBottom: 40,
   },
   fullScreenProgressContainer: {
     height: 4,
-    backgroundColor: 'hsl(0, 0%, 20%)',
+    backgroundColor: "hsl(0, 0%, 20%)",
     borderRadius: 2,
     marginBottom: 12,
   },
   fullScreenProgressBar: {
-    height: '100%',
-    backgroundColor: 'hsl(75, 100%, 60%)',
+    height: "100%",
+    backgroundColor: "hsl(75, 100%, 60%)",
     borderRadius: 2,
   },
   progressText: {
     fontSize: 12,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 50%)',
-    textAlign: 'center',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 50%)",
+    textAlign: "center",
   },
   fullScreenControls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 40,
     gap: 20,
   },
@@ -1923,34 +2155,34 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
   },
   playPauseButton: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'hsl(75, 100%, 60%)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: 'hsl(75, 100%, 60%)',
+    backgroundColor: "hsl(75, 100%, 60%)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "hsl(75, 100%, 60%)",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 5,
   },
   fullScreenActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: 30,
   },
   actionButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'hsl(0, 0%, 15%)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
