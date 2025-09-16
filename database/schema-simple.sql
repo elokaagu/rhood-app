@@ -4,6 +4,7 @@
 -- Step 1: Create user_profiles table
 CREATE TABLE user_profiles (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
   dj_name VARCHAR(50) NOT NULL,
   full_name VARCHAR(100) NOT NULL,
   instagram VARCHAR(100),

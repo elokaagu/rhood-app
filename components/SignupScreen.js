@@ -74,10 +74,11 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       if (user) {
         // Create user profile in database
         const profileData = {
+          id: user.id, // Use the authenticated user's ID
+          email: formData.email,
           dj_name: formData.djName,
           full_name: formData.fullName,
           city: formData.city,
-          email: formData.email,
           genres: [], // Will be set during onboarding
           bio: `DJ from ${formData.city}`,
         };
