@@ -12,10 +12,19 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "appleTeamId": "228556876"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "eloka@satellitelabs.xyz",
+        "ascAppId": "your-app-store-connect-app-id",
+        "appleTeamId": "228556876"
+      }
+    }
   }
 }
