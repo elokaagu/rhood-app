@@ -13,6 +13,7 @@ import {
   Image,
   Share,
   Linking,
+  Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +29,7 @@ import RhoodModal from "./components/RhoodModal";
 import { db, auth, supabase } from "./lib/supabase";
 import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";
+import EditProfileScreen from "./components/EditProfileScreen";
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -66,6 +68,9 @@ export default function App() {
   const [showApplicationSentModal, setShowApplicationSentModal] =
     useState(false);
   const [appliedOpportunity, setAppliedOpportunity] = useState(null);
+
+  // Edit profile modal state
+  const [showEditProfile, setShowEditProfile] = useState(false);
 
   // Global audio instance reference for cleanup
   const globalAudioRef = useRef(null);
@@ -207,6 +212,36 @@ export default function App() {
       console.error("Logout error:", error);
       Alert.alert("Error", "Failed to sign out");
     }
+  };
+
+  const handleEditProfile = () => {
+    setShowEditProfile(true);
+  };
+
+  const handleProfileSaved = (updatedProfile) => {
+    setShowEditProfile(false);
+    // Update the local djProfile state with the updated profile
+    setDjProfile({
+      djName: updatedProfile.dj_name,
+      fullName: updatedProfile.full_name,
+      instagram: updatedProfile.instagram || '',
+      soundcloud: updatedProfile.soundcloud || '',
+      city: updatedProfile.city,
+      genres: updatedProfile.genres,
+    });
+    // Also save to AsyncStorage for offline access
+    AsyncStorage.setItem("djProfile", JSON.stringify({
+      djName: updatedProfile.dj_name,
+      fullName: updatedProfile.full_name,
+      instagram: updatedProfile.instagram || '',
+      soundcloud: updatedProfile.soundcloud || '',
+      city: updatedProfile.city,
+      genres: updatedProfile.genres,
+    }));
+  };
+
+  const handleProfileCancel = () => {
+    setShowEditProfile(false);
   };
 
   const showLogin = () => {
@@ -753,7 +788,7 @@ export default function App() {
             <Text style={styles.screenTitle}>Settings</Text>
             <View style={styles.settingsCard}>
               <Text style={styles.settingsTitle}>Account</Text>
-              <TouchableOpacity style={styles.settingsItem}>
+              <TouchableOpacity style={styles.settingsItem} onPress={handleEditProfile}>
                 <Text style={styles.settingsItemText}>Edit Profile</Text>
                 <Text style={styles.settingsArrow}>›</Text>
               </TouchableOpacity>
@@ -1251,6 +1286,20 @@ export default function App() {
         type="success"
         primaryButtonText="OK"
       />
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={showEditProfile}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={handleProfileCancel}
+      >
+        <EditProfileScreen
+          user={user}
+          onSave={handleProfileSaved}
+          onCancel={handleProfileCancel}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }
