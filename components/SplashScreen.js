@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Animated, Dimensions } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Video } from "expo-av";
 import { useFonts } from "expo-font";
 
@@ -110,60 +109,57 @@ const SplashScreen = ({ onFinish }) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={["#1D1D1B", "#1D1D1B"]} style={styles.gradient}>
-        <Animated.View
-          style={[
-            styles.content,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
-          {/* Animated Logo Video */}
-          <View style={styles.logoContainer}>
-            <Video
-              source={require("../assets/RHOOD_Logo_Spinner.mov")}
-              style={styles.logoVideo}
-              shouldPlay={true}
-              isLooping={true}
-              resizeMode="contain"
-              isMuted={true}
-              useNativeControls={false}
-              usePoster={false}
+      {/* Full Screen Video Background */}
+      <Video
+        source={require("../assets/RHOOD_Logo_Spinner.mov")}
+        style={styles.fullScreenVideo}
+        shouldPlay={true}
+        isLooping={true}
+        resizeMode="cover"
+        isMuted={true}
+        useNativeControls={false}
+        usePoster={false}
+      />
+      
+      {/* Content Overlay */}
+      <Animated.View
+        style={[
+          styles.contentOverlay,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        <Text style={styles.logoTextWhite}>R/HOOD</Text>
+        <Text style={styles.tsBlockBoldSubtitle}>
+          UNDERGROUND{"\n"}MUSIC{"\n"}PLATFORM
+        </Text>
+
+        {/* Loading Progress Bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ["0%", "100%"],
+                  }),
+                },
+              ]}
             />
           </View>
+          <Text style={styles.loadingText}>{loadingText}</Text>
+        </View>
 
-          <Text style={styles.logoTextWhite}>R/HOOD</Text>
-          <Text style={styles.tsBlockBoldSubtitle}>
-            UNDERGROUND{"\n"}MUSIC{"\n"}PLATFORM
-          </Text>
-
-          {/* Loading Progress Bar */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <Animated.View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: progressAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ["0%", "100%"],
-                    }),
-                  },
-                ]}
-              />
-            </View>
-            <Text style={styles.loadingText}>{loadingText}</Text>
-          </View>
-
-          <View style={styles.loadingContainer}>
-            <Animated.View style={[styles.loadingDot, { opacity: dotAnim1 }]} />
-            <Animated.View style={[styles.loadingDot, { opacity: dotAnim2 }]} />
-            <Animated.View style={[styles.loadingDot, { opacity: dotAnim3 }]} />
-          </View>
-        </Animated.View>
-      </LinearGradient>
+        <View style={styles.loadingContainer}>
+          <Animated.View style={[styles.loadingDot, { opacity: dotAnim1 }]} />
+          <Animated.View style={[styles.loadingDot, { opacity: dotAnim2 }]} />
+          <Animated.View style={[styles.loadingDot, { opacity: dotAnim3 }]} />
+        </View>
+      </Animated.View>
     </View>
   );
 };
@@ -178,27 +174,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 9999,
   },
-  gradient: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  content: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoContainer: {
-    width: 200,
-    height: 200,
-    marginBottom: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent", // Ensure no background
-  },
-  logoVideo: {
+  fullScreenVideo: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: "100%",
     height: "100%",
-    backgroundColor: "transparent", // Remove video background
+  },
+  contentOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)", // Semi-transparent overlay for text readability
   },
   logoTextWhite: {
     color: "#FFFFFF", // White - matches the white logo
