@@ -116,19 +116,17 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 
       const { dx, dy } = gestureState;
       translateX.setValue(dx);
-      translateY.setValue(dy * 0.2); // Reduce vertical movement
+      translateY.setValue(dy * 0.15); // Reduce vertical movement further
 
-      // No rotation needed for smooth swipe experience
+      // Calculate opacity based on horizontal movement (smoother curve)
+      const opacityValue = 1 - Math.abs(dx) * 0.0008;
+      opacity.setValue(Math.max(0.4, opacityValue));
 
-      // Calculate opacity based on horizontal movement
-      const opacityValue = 1 - Math.abs(dx) * 0.001;
-      opacity.setValue(Math.max(0.3, opacityValue));
-
-      // Animate next card
-      const scaleValue = 0.9 + Math.abs(dx) * 0.0002;
-      const nextOpacityValue = 0.8 + Math.abs(dx) * 0.0005;
-      nextCardScale.setValue(scaleValue);
-      nextCardOpacity.setValue(nextOpacityValue);
+      // Animate next card (smoother scaling)
+      const scaleValue = 0.9 + Math.abs(dx) * 0.00015;
+      const nextOpacityValue = 0.8 + Math.abs(dx) * 0.0003;
+      nextCardScale.setValue(Math.min(1, scaleValue));
+      nextCardOpacity.setValue(Math.min(1, nextOpacityValue));
     },
     onPanResponderRelease: (evt, gestureState) => {
       if (isAnimating) return;
@@ -153,59 +151,66 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   });
 
   const snapBack = () => {
+    if (isAnimating) return;
+    
     setIsAnimating(true);
     Animated.parallel([
       Animated.spring(translateX, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
+        tension: 120,
+        friction: 10,
       }),
       Animated.spring(translateY, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
+        tension: 120,
+        friction: 10,
       }),
       Animated.spring(opacity, {
         toValue: 1,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
+        tension: 120,
+        friction: 10,
       }),
       Animated.spring(nextCardScale, {
         toValue: 0.9,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
+        tension: 120,
+        friction: 10,
       }),
       Animated.spring(nextCardOpacity, {
         toValue: 0.8,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
+        tension: 120,
+        friction: 10,
       }),
     ]).start(() => {
-      setIsAnimating(false);
+      // Small delay to prevent animation conflicts
+      setTimeout(() => {
+        setIsAnimating(false);
+      }, 50);
     });
   };
 
   const handleSwipeLeft = () => {
+    if (isAnimating) return;
+    
     setIsAnimating(true);
     Animated.parallel([
       Animated.timing(translateX, {
         toValue: -screenWidth,
-        duration: 300,
+        duration: 250,
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
-        toValue: -50,
-        duration: 300,
+        toValue: -30,
+        duration: 250,
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 300,
+        duration: 250,
         useNativeDriver: true,
       }),
     ]).start(() => {
@@ -219,28 +224,35 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       setCurrentGigIndex((prevIndex) =>
         prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
       );
-      setIsAnimating(false);
+      
+      // Small delay to prevent animation conflicts
+      setTimeout(() => {
+        setIsAnimating(false);
+      }, 50);
+      
       onPass && onPass(currentGig);
     });
   };
 
   const handleSwipeRight = () => {
+    if (isAnimating) return;
+    
     if (appliesLeft > 0) {
       setIsAnimating(true);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: screenWidth,
-          duration: 300,
+          duration: 250,
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
-          toValue: -50,
-          duration: 300,
+          toValue: -30,
+          duration: 250,
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 0,
-          duration: 300,
+          duration: 250,
           useNativeDriver: true,
         }),
       ]).start(() => {
@@ -251,8 +263,17 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         nextCardScale.setValue(0.9);
         nextCardOpacity.setValue(0.8);
 
+        setCurrentGigIndex((prevIndex) =>
+          prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
+        );
+        setAppliesLeft(appliesLeft - 1);
+        
+        // Small delay to prevent animation conflicts
+        setTimeout(() => {
+          setIsAnimating(false);
+        }, 50);
+        
         setShowApplication(true);
-        setIsAnimating(false);
       });
     } else {
       setShowNoApplicationsModal(true);
