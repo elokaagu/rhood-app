@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import ProgressiveImage from "./ProgressiveImage";
 import RhoodModal from "./RhoodModal";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -106,7 +105,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   const [showNoApplicationsModal, setShowNoApplicationsModal] = useState(false);
 
   // Fixed tab bar height for proper positioning (since we're not in a Bottom Tab Navigator)
-  const tabBarHeight = 80; // Approximate height of our floating tab bar
 
   // Create new animated values for each card to avoid conflicts
   const translateX = useRef(new Animated.Value(0)).current;
@@ -342,7 +340,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 
       {/* Card Stack Container */}
       <View
-        style={[styles.cardContainer, { paddingBottom: tabBarHeight + 100 }]}
+        style={styles.cardContainer}
       >
         {/* Next Card (underneath) */}
         <Animated.View
@@ -362,7 +360,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
           >
             <View style={styles.cardOverlay} />
             <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
+              colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)"]}
               locations={[0, 0.5, 1]}
               style={styles.cardGradientOverlay}
             />
@@ -392,7 +390,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
           >
             <View style={styles.cardOverlay} />
             <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
+              colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)"]}
               locations={[0, 0.5, 1]}
               style={styles.cardGradientOverlay}
             />
@@ -495,14 +493,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         </Animated.View>
       </View>
 
-      {/* Instructions - positioned above tab bar */}
-      <View
-        style={[styles.instructionsContainer, { bottom: tabBarHeight + 20 }]}
-      >
-        <Text style={styles.instructions}>
-          Swipe right to apply • Swipe left to pass
-        </Text>
-      </View>
 
       {/* Custom Modals */}
       <RhoodModal
@@ -719,19 +709,6 @@ const styles = StyleSheet.create({
     fontFamily: "Arial Black",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
-  },
-  instructionsContainer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    zIndex: 10,
-  },
-  instructions: {
-    fontSize: 12,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 70%)",
-    textAlign: "center",
   },
   applicationModal: {
     position: "absolute",
