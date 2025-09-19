@@ -1311,6 +1311,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-start",
     alignItems: "flex-start",
+    paddingLeft: 0, // Remove any left padding
   },
   headerRight: {
     flexDirection: "row",
@@ -1363,8 +1364,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   logoImage: {
-    height: 32,
-    width: 120, // More appropriate size for header with padding
+    height: 48,
+    width: 180, // Larger size for better visibility
     alignSelf: "flex-start", // Ensure left alignment
   },
   headerIcon: {
