@@ -10,7 +10,6 @@ import {
   PanResponder,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import ProgressiveImage from "./ProgressiveImage";
 import RhoodModal from "./RhoodModal";
 
@@ -104,8 +103,8 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   // Custom modal states
   const [showNoApplicationsModal, setShowNoApplicationsModal] = useState(false);
 
-  // Get tab bar height for proper positioning
-  const tabBarHeight = useBottomTabBarHeight();
+  // Fixed tab bar height for proper positioning (since we're not in a Bottom Tab Navigator)
+  const tabBarHeight = 80; // Approximate height of our floating tab bar
 
   // Create new animated values for each card to avoid conflicts
   const translateX = useRef(new Animated.Value(0)).current;
