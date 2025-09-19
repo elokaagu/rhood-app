@@ -265,7 +265,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 
         setShowApplication(true);
         setIsAnimating(false);
-        onApply && onApply(currentGig);
       });
     } else {
       setShowNoApplicationsModal(true);
@@ -278,6 +277,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
     setCurrentGigIndex((prevIndex) =>
       prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
     );
+    onApply && onApply(currentGig);
   };
 
   const handleApplyCancel = () => {
