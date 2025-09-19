@@ -335,10 +335,7 @@ export default function App() {
       console.log("🔄 Audio file path:", track.audioUrl);
       console.log("🔄 Audio file type:", typeof track.audioUrl);
 
-      const player = createAudioPlayer(track.audioUrl, {
-        updateInterval: 1000,
-        downloadFirst: true,
-      });
+      const player = createAudioPlayer(track.audioUrl);
 
       console.log("🔄 Player created:", player);
 
@@ -362,6 +359,10 @@ export default function App() {
 
       // Store reference for cleanup
       globalAudioRef.current = player;
+
+      // Wait a moment for the player to initialize
+      console.log("⏳ Waiting for player to initialize...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Start playing
       console.log("▶️ Starting playback...");
