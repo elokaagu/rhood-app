@@ -135,6 +135,8 @@ eas build --platform ios --profile production
 
 ### 2. Submit to TestFlight
 
+y
+
 ```bash
 eas submit --platform ios --profile production
 ```
