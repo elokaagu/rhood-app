@@ -22,6 +22,9 @@ prepare_react_native_project!
 
 target 'RhoodApp' do
   use_expo_modules!
+  
+  # Explicitly add expo-video for New Architecture
+  pod 'ExpoVideo', :path => '../node_modules/expo-video/ios'
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
