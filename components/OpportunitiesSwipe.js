@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   PanResponder,
+  ImageBackground,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
@@ -353,15 +354,17 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             },
           ]}
         >
-          <ProgressiveImage
+          <ImageBackground
             source={{ uri: nextGig.heroImage }}
-            style={styles.cardImage}
-          />
-          <View style={styles.cardOverlay} />
-          <View style={styles.cardContent}>
-            <Text style={styles.nextCardTitle}>{nextGig.name}</Text>
-            <Text style={styles.nextCardLocation}>{nextGig.location}</Text>
-          </View>
+            style={styles.cardImageBackground}
+            resizeMode="cover"
+          >
+            <View style={styles.cardOverlay} />
+            <View style={styles.nextCardContent}>
+              <Text style={styles.nextCardTitle}>{nextGig.name}</Text>
+              <Text style={styles.nextCardLocation}>{nextGig.location}</Text>
+            </View>
+          </ImageBackground>
         </Animated.View>
 
         {/* Current Card (draggable) */}
@@ -376,102 +379,105 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
           ]}
           {...panResponder.panHandlers}
         >
-          {/* Swipe indicators */}
-          <Animated.View
-            style={[
-              styles.swipeIndicator,
-              styles.applyIndicator,
-              {
-                opacity: translateX.interpolate({
-                  inputRange: [50, 100],
-                  outputRange: [0, 1],
-                  extrapolate: "clamp",
-                }),
-                transform: [{ rotate: "12deg" }], // Static rotation for indicator
-              },
-            ]}
-          >
-            <Text style={styles.swipeIndicatorText}>APPLY</Text>
-          </Animated.View>
-
-          <Animated.View
-            style={[
-              styles.swipeIndicator,
-              styles.passIndicator,
-              {
-                opacity: translateX.interpolate({
-                  inputRange: [-100, -50],
-                  outputRange: [1, 0],
-                  extrapolate: "clamp",
-                }),
-                transform: [{ rotate: "-12deg" }], // Static rotation for indicator
-              },
-            ]}
-          >
-            <Text style={styles.swipeIndicatorText}>PASS</Text>
-          </Animated.View>
-
-          <ProgressiveImage
+          <ImageBackground
             source={{ uri: currentGig.heroImage }}
-            style={styles.cardImage}
-          />
-          <View style={styles.cardOverlay} />
+            style={styles.cardImageBackground}
+            resizeMode="cover"
+          >
+            {/* Swipe indicators */}
+            <Animated.View
+              style={[
+                styles.swipeIndicator,
+                styles.applyIndicator,
+                {
+                  opacity: translateX.interpolate({
+                    inputRange: [50, 100],
+                    outputRange: [0, 1],
+                    extrapolate: "clamp",
+                  }),
+                  transform: [{ rotate: "12deg" }],
+                },
+              ]}
+            >
+              <Text style={styles.swipeIndicatorText}>APPLY</Text>
+            </Animated.View>
 
-          {/* Genre badge */}
-          <View style={styles.genreBadge}>
-            <Text style={styles.genreText}>{currentGig.genre}</Text>
-          </View>
+            <Animated.View
+              style={[
+                styles.swipeIndicator,
+                styles.passIndicator,
+                {
+                  opacity: translateX.interpolate({
+                    inputRange: [-100, -50],
+                    outputRange: [1, 0],
+                    extrapolate: "clamp",
+                  }),
+                  transform: [{ rotate: "-12deg" }],
+                },
+              ]}
+            >
+              <Text style={styles.swipeIndicatorText}>PASS</Text>
+            </Animated.View>
 
-          {/* Content overlay */}
-          <View style={styles.cardContent}>
-            <Text style={styles.gigTitle}>{currentGig.name}</Text>
-            <Text style={styles.gigDescription}>{currentGig.description}</Text>
+            {/* Dark overlay for text readability */}
+            <View style={styles.cardOverlay} />
 
-            <View style={styles.gigDetails}>
-              <View style={styles.detailRow}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={16}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.detailText}>
-                  {currentGig.date} at {currentGig.time}
-                </Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Ionicons
-                  name="location-outline"
-                  size={16}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.detailText}>{currentGig.location}</Text>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Ionicons
-                  name="cash-outline"
-                  size={16}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.detailText}>{currentGig.fee}</Text>
-              </View>
+            {/* Genre badge */}
+            <View style={styles.genreBadge}>
+              <Text style={styles.genreText}>{currentGig.genre}</Text>
             </View>
 
-            <View style={styles.gigFooter}>
-              <View style={styles.skillLevelContainer}>
-                <Text
-                  style={[
-                    styles.skillLevelText,
-                    { color: getSkillLevelColor(currentGig.skillLevel) },
-                  ]}
-                >
-                  {currentGig.skillLevel}
-                </Text>
+            {/* Content overlay */}
+            <View style={styles.cardContent}>
+              <Text style={styles.gigTitle}>{currentGig.name}</Text>
+              <Text style={styles.gigDescription}>{currentGig.description}</Text>
+
+              <View style={styles.gigDetails}>
+                <View style={styles.detailRow}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={16}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.detailText}>
+                    {currentGig.date} at {currentGig.time}
+                  </Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Ionicons
+                    name="location-outline"
+                    size={16}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.detailText}>{currentGig.location}</Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Ionicons
+                    name="cash-outline"
+                    size={16}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.detailText}>{currentGig.fee}</Text>
+                </View>
               </View>
-              <Text style={styles.organizerName}>{currentGig.organizer}</Text>
+
+              <View style={styles.gigFooter}>
+                <View style={styles.skillLevelContainer}>
+                  <Text
+                    style={[
+                      styles.skillLevelText,
+                      { color: getSkillLevelColor(currentGig.skillLevel) },
+                    ]}
+                  >
+                    {currentGig.skillLevel}
+                  </Text>
+                </View>
+                <Text style={styles.organizerName}>{currentGig.organizer}</Text>
+              </View>
             </View>
-          </View>
+          </ImageBackground>
         </Animated.View>
       </View>
 
@@ -543,9 +549,10 @@ const styles = StyleSheet.create({
   nextCard: {
     zIndex: 10,
   },
-  cardImage: {
+  cardImageBackground: {
     width: "100%",
     height: "100%",
+    justifyContent: "flex-end",
   },
   cardOverlay: {
     position: "absolute",
@@ -553,7 +560,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   genreBadge: {
     position: "absolute",
@@ -573,12 +580,10 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 60%)",
   },
   cardContent: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     padding: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   gigTitle: {
     fontSize: 24,
@@ -629,6 +634,12 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     fontWeight: "600",
     color: "hsl(75, 100%, 60%)",
+  },
+  nextCardContent: {
+    padding: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   nextCardTitle: {
     fontSize: 18,
