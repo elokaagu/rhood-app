@@ -519,6 +519,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    paddingBottom: 120, // Reduce bottom space to lift card
   },
   card: {
     position: "absolute",
@@ -659,7 +660,7 @@ const styles = StyleSheet.create({
   },
   instructionsContainer: {
     position: "absolute",
-    bottom: 100, // Position above the tab bar (tab bar is at bottom: 20, so this is 80px above it)
+    bottom: 80, // Move closer to tab bar for better visibility
     left: 0,
     right: 0,
     paddingHorizontal: 20,
