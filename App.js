@@ -754,38 +754,154 @@ export default function App() {
 
       case "profile":
         return (
-          <ScrollView style={styles.screen}>
-            <Text style={styles.tsBlockBoldHeading}>YOUR PROFILE</Text>
-            <View style={styles.profileCard}>
-              <Text style={styles.profileDJ}>
-                {djProfile.djName || "Your DJ Name"}
-              </Text>
-              <Text style={styles.profileName}>
-                {djProfile.fullName || "Your Full Name"}
-              </Text>
-              <Text style={styles.profileCity}>
-                {djProfile.city || "Your City"}
-              </Text>
-
-              <View style={styles.statsRow}>
-                <View style={styles.stat}>
-                  <Text style={styles.statNumber}>12</Text>
-                  <Text style={styles.statLabel}>Events</Text>
-                </View>
-                <View style={styles.stat}>
-                  <Text style={styles.statNumber}>156</Text>
-                  <Text style={styles.statLabel}>Followers</Text>
-                </View>
-                <View style={styles.stat}>
-                  <Text style={styles.statNumber}>89</Text>
-                  <Text style={styles.statLabel}>Following</Text>
+          <ScrollView style={styles.profileScreen}>
+            {/* Profile Header Card */}
+            <View style={styles.profileHeaderCard}>
+              <TouchableOpacity style={styles.editProfileButton}>
+                <Ionicons name="create-outline" size={20} color="hsl(0, 0%, 100%)" />
+              </TouchableOpacity>
+              
+              <View style={styles.profileImageContainer}>
+                <View style={styles.profileImagePlaceholder}>
+                  <Text style={styles.profileImageText}>
+                    {(djProfile.djName || "DJ").charAt(0).toUpperCase()}
+                  </Text>
                 </View>
               </View>
+              
+              <Text style={styles.profileDisplayName}>
+                {djProfile.djName || "Your DJ Name"}
+              </Text>
+              <Text style={styles.profileUsername}>
+                @{djProfile.djName?.toLowerCase().replace(/\s+/g, '') || "yourdjname"}
+              </Text>
+              
+              <View style={styles.profileRating}>
+                <Ionicons name="star" size={16} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.ratingText}>4.8 • 12 gigs</Text>
+              </View>
+              
+              <Text style={styles.profileBio}>
+                Underground techno enthusiast with 5 years of experience. Specializing in dark, industrial beats that make crowds move. Always looking for new opportunities to showcase my sound.
+              </Text>
+              
+              <View style={styles.profileLocation}>
+                <Ionicons name="location-outline" size={16} color="hsl(0, 0%, 70%)" />
+                <Text style={styles.locationText}>{djProfile.city || "Your City"}</Text>
+              </View>
+            </View>
 
-              <TouchableOpacity style={styles.editButton}>
-                <Text style={styles.editButtonText}>Edit Profile</Text>
+            {/* Stats Cards */}
+            <View style={styles.statsCardsContainer}>
+              <View style={styles.statCard}>
+                <Ionicons name="flash" size={24} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.statNumber}>156</Text>
+                <Text style={styles.statLabel}>Credits</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Ionicons name="people" size={24} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.statNumber}>12</Text>
+                <Text style={styles.statLabel}>Gigs Done</Text>
+              </View>
+            </View>
+
+            {/* Genres Card */}
+            <View style={styles.genresCard}>
+              <Text style={styles.cardTitle}>♫ Genres</Text>
+              <View style={styles.genresContainer}>
+                {["Techno", "House", "Industrial", "Drum & Bass"].map((genre, index) => (
+                  <View key={index} style={styles.genreTag}>
+                    <Text style={styles.genreTagText}>{genre}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Audio ID Card */}
+            <View style={styles.audioIdCard}>
+              <Text style={styles.cardTitle}>🔊 Audio ID</Text>
+              <View style={styles.audioPlayer}>
+                <View style={styles.audioInfo}>
+                  <Text style={styles.trackTitle}>Dark Industrial Mix #1</Text>
+                  <Text style={styles.trackDetails}>5:23 • Deep Techno</Text>
+                </View>
+                <TouchableOpacity style={styles.playButton}>
+                  <Ionicons name="play" size={20} color="hsl(0, 0%, 0%)" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.waveformContainer}>
+                {[3, 5, 2, 7, 4, 6, 3, 8, 5, 4, 6, 3, 5, 7, 4, 2].map((height, index) => (
+                  <View key={index} style={[styles.waveformBar, { height: height * 2 }]} />
+                ))}
+              </View>
+              <View style={styles.progressContainer}>
+                <Text style={styles.timeText}>1:23</Text>
+                <View style={styles.progressBar}>
+                  <View style={styles.progressFill} />
+                </View>
+                <Text style={styles.timeText}>5:23</Text>
+              </View>
+            </View>
+
+            {/* Social Links Card */}
+            <View style={styles.socialLinksCard}>
+              <Text style={styles.cardTitle}>Social Links</Text>
+              <TouchableOpacity style={styles.socialLink}>
+                <View style={styles.instagramIcon}>
+                  <Ionicons name="logo-instagram" size={20} color="hsl(0, 0%, 100%)" />
+                </View>
+                <Text style={styles.socialLinkText}>@alexbeats_official</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.socialLink}>
+                <View style={styles.soundcloudIcon}>
+                  <Ionicons name="musical-notes" size={20} color="hsl(0, 0%, 100%)" />
+                </View>
+                <Text style={styles.socialLinkText}>soundcloud.com/alexbeats</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Recent Gigs Card */}
+            <View style={styles.recentGigsCard}>
+              <Text style={styles.cardTitle}>📅 Recent Gigs</Text>
+              <View style={styles.gigItem}>
+                <View style={styles.gigInfo}>
+                  <Text style={styles.gigTitle}>Warehouse Sessions #12</Text>
+                  <Text style={styles.gigLocation}>East London Warehouse</Text>
+                  <Text style={styles.gigDate}>2024-07-20</Text>
+                </View>
+                <View style={styles.gigStats}>
+                  <Text style={styles.gigFee}>£300</Text>
+                  <Text style={styles.gigRating}>☆ 5</Text>
+                </View>
+              </View>
+              <View style={styles.gigSeparator} />
+              <View style={styles.gigItem}>
+                <View style={styles.gigInfo}>
+                  <Text style={styles.gigTitle}>Underground Collective</Text>
+                  <Text style={styles.gigLocation}>Secret Location</Text>
+                  <Text style={styles.gigDate}>2024-07-08</Text>
+                </View>
+                <View style={styles.gigStats}>
+                  <Text style={styles.gigFee}>£250</Text>
+                  <Text style={styles.gigRating}>☆ 4.5</Text>
+                </View>
+              </View>
+              <View style={styles.gigSeparator} />
+              <View style={styles.gigItem}>
+                <View style={styles.gigInfo}>
+                  <Text style={styles.gigTitle}>Basement Rave</Text>
+                  <Text style={styles.gigLocation}>Camden Club</Text>
+                  <Text style={styles.gigDate}>2024-06-25</Text>
+                </View>
+                <View style={styles.gigStats}>
+                  <Text style={styles.gigFee}>£400</Text>
+                  <Text style={styles.gigRating}>☆ 5</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Footer */}
+            <Text style={styles.memberSince}>Member since March 2024</Text>
           </ScrollView>
         );
 
@@ -2365,5 +2481,290 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "#000000",
     zIndex: 10000,
+  },
+
+  // New Profile Page Styles
+  profileScreen: {
+    flex: 1,
+    backgroundColor: "hsl(0, 0%, 0%)",
+    padding: 16,
+  },
+  profileHeaderCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+    position: "relative",
+  },
+  editProfileButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    padding: 8,
+  },
+  profileImageContainer: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  profileImagePlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  profileImageText: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 0%)",
+  },
+  profileDisplayName: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  profileUsername: {
+    fontSize: 16,
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  profileRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  ratingText: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 100%)",
+    marginLeft: 4,
+  },
+  profileBio: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 100%)",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  profileLocation: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  locationText: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    marginLeft: 4,
+  },
+  statsCardsContainer: {
+    flexDirection: "row",
+    marginBottom: 16,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+  },
+  genresCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 16,
+  },
+  genresContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  genreTag: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  genreTagText: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 100%)",
+  },
+  audioIdCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+  },
+  audioPlayer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  audioInfo: {
+    flex: 1,
+  },
+  trackTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  trackDetails: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+  },
+  playButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  waveformContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    height: 40,
+    marginBottom: 16,
+    gap: 2,
+  },
+  waveformBar: {
+    width: 3,
+    backgroundColor: "hsl(0, 0%, 100%)",
+    borderRadius: 1.5,
+  },
+  progressContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  timeText: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 70%)",
+  },
+  progressBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: "hsl(0, 0%, 20%)",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    width: "25%",
+    backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  socialLinksCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+  },
+  socialLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  instagramIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#E4405F",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  soundcloudIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#ff8800",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  socialLinkText: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 100%)",
+  },
+  recentGigsCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+  },
+  gigItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  gigInfo: {
+    flex: 1,
+  },
+  gigTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  gigLocation: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    marginBottom: 2,
+  },
+  gigDate: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 50%)",
+  },
+  gigStats: {
+    alignItems: "flex-end",
+  },
+  gigFee: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "hsl(75, 100%, 60%)",
+    marginBottom: 4,
+  },
+  gigRating: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+  },
+  gigSeparator: {
+    height: 1,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    marginVertical: 8,
+  },
+  memberSince: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 50%)",
+    textAlign: "center",
+    marginBottom: 20,
   },
 });
