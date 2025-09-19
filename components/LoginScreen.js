@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { auth } from "../lib/supabase";
@@ -90,7 +91,11 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.logoTextWhite}>R/HOOD</Text>
+          <Image
+            source={require("../assets/RHOOD_Lettering_White.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.subtitle}>Welcome back to the underground</Text>
         </View>
 
@@ -221,14 +226,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 10,
   },
-  logoTextWhite: {
-    color: "#FFFFFF", // White - matches the white logo
-    fontSize: 32,
-    fontFamily: "Arial Black",
-    fontWeight: "900",
-    letterSpacing: 1,
+  logoImage: {
+    height: 48,
+    width: 180,
     marginBottom: 10,
-    textTransform: "uppercase",
   },
   subtitle: {
     color: "hsl(0, 0%, 70%)",

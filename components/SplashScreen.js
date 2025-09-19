@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Animated, Dimensions } from "react-native";
+import { View, Text, StyleSheet, Animated, Dimensions, Image } from "react-native";
 import { Video } from "expo-av";
 import { useFonts } from "expo-font";
 
@@ -132,7 +132,11 @@ const SplashScreen = ({ onFinish }) => {
           },
         ]}
       >
-        <Text style={styles.logoTextWhite}>R/HOOD</Text>
+        <Image
+          source={require("../assets/RHOOD_Lettering_White.png")}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
         <Text style={styles.tsBlockBoldSubtitle}>
           UNDERGROUND{"\n"}MUSIC{"\n"}PLATFORM
         </Text>
@@ -195,15 +199,10 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Add padding from bottom
     backgroundColor: "rgba(0, 0, 0, 0.3)", // Semi-transparent overlay for text readability
   },
-  logoTextWhite: {
-    color: "#FFFFFF", // White - matches the white logo
-    fontSize: 28,
-    fontFamily: "Arial Black",
-    fontWeight: "900",
-    letterSpacing: 2,
-    textAlign: "center",
+  logoImage: {
+    height: 60,
+    width: 220,
     marginBottom: 20,
-    textTransform: "uppercase",
   },
   tsBlockBoldSubtitle: {
     fontFamily: "TS-Block-Bold",
