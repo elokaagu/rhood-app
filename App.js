@@ -1754,8 +1754,10 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 70%)", // Muted foreground
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   activeTabText: {
     color: "#C2CC06", // Brand lime green for active text

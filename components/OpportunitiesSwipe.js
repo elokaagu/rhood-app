@@ -470,10 +470,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontFamily: 'Arial Black',
-    fontWeight: '900',
+    fontFamily: 'TS-Block-Bold',
     color: 'hsl(0, 0%, 100%)',
     marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   appliesLeft: {
     fontSize: 14,
