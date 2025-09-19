@@ -9,13 +9,19 @@ import {
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { db } from "../lib/supabase";
+import { RH } from "../src/design/tokens";
 
 export default function OpportunitiesList({ onApply, onPass }) {
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [appliedOpportunities, setAppliedOpportunities] = useState(new Set());
+
+  // Calculate bottom padding for floating tab bar
+  const tabBarHeight = useBottomTabBarHeight();
+  const padBottom = tabBarHeight + RH.space.xl; // extra breathing room
 
   useEffect(() => {
     loadOpportunities();
@@ -265,6 +271,7 @@ export default function OpportunitiesList({ onApply, onPass }) {
   return (
     <ScrollView
       style={styles.container}
+      contentContainerStyle={{ paddingBottom: padBottom }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
