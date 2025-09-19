@@ -571,8 +571,8 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
   },
@@ -594,8 +594,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    paddingTop: 16,
-    marginTop: -20,
+    paddingTop: 8,
+    marginTop: -30,
   },
   card: {
     position: "absolute",
