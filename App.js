@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { AudioPlayer } from "expo-audio";
+import { Audio } from "expo-av";
 import { useFonts } from "expo-font";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
@@ -113,7 +113,7 @@ export default function App() {
     return () => {
       subscription?.remove();
       if (globalAudioRef.current) {
-        globalAudioRef.current.remove();
+        globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       }
     };
@@ -284,27 +284,17 @@ export default function App() {
       console.log("🔄 Creating new sound instance...");
       console.log("🔄 Audio file path:", track.audioUrl);
 
-      const player = new AudioPlayer(track.audioUrl);
+      const { sound } = await Audio.Sound.createAsync(track.audioUrl);
 
       // Set up event listeners
-      player.addListener("statusChange", (status) => {
+      sound.setOnPlaybackStatusUpdate((status) => {
         console.log("📊 Audio status:", status);
         if (status.isLoaded) {
           setGlobalAudioState((prev) => ({
             ...prev,
             isPlaying: status.isPlaying,
             isLoading: false,
-          }));
-        }
-      });
-
-      player.addListener("playbackStatusUpdate", (status) => {
-        if (status.isLoaded && status.durationMillis && status.positionMillis) {
-          const progressPercent =
-            (status.positionMillis / status.durationMillis) * 100;
-          setGlobalAudioState((prev) => ({
-            ...prev,
-            progress: progressPercent,
+            progress: status.positionMillis / status.durationMillis || 0,
             positionMillis: status.positionMillis,
             durationMillis: status.durationMillis,
           }));
@@ -312,15 +302,15 @@ export default function App() {
       });
 
       // Store reference for cleanup
-      globalAudioRef.current = player;
+      globalAudioRef.current = sound;
 
       // Start playing
       console.log("▶️ Starting playback...");
-      await player.play();
+      await sound.playAsync();
 
       setGlobalAudioState((prev) => ({
         ...prev,
-        sound: player,
+        sound: sound,
         isPlaying: true,
         currentTrack: track,
         isLoading: false,
@@ -335,21 +325,21 @@ export default function App() {
 
   const pauseGlobalAudio = async () => {
     if (globalAudioState.sound) {
-      await globalAudioState.sound.pause();
+      await globalAudioState.sound.pauseAsync();
       setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
     }
   };
 
   const resumeGlobalAudio = async () => {
     if (globalAudioState.sound) {
-      await globalAudioState.sound.play();
+      await globalAudioState.sound.playAsync();
       setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
     }
   };
 
   const stopGlobalAudio = async () => {
     if (globalAudioRef.current) {
-      globalAudioRef.current.remove();
+      await globalAudioRef.current.unloadAsync();
       globalAudioRef.current = null;
     }
     setGlobalAudioState({
