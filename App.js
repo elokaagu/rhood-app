@@ -46,7 +46,6 @@ export default function App() {
   const [opportunities, setOpportunities] = useState([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
   const [showFadeOverlay, setShowFadeOverlay] = useState(false);
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
 
@@ -583,58 +582,52 @@ export default function App() {
   // Show loading screen while checking authentication
   if (authLoading || isLoading) {
     return (
-      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-        <SafeAreaView style={styles.container}>
-          <View style={styles.center}>
-            <Text style={styles.title}>R/HOOD</Text>
-            <Text style={styles.subtitle}>Underground Music Platform</Text>
-          </View>
-        </SafeAreaView>
-      </Animated.View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.center}>
+          <Text style={styles.title}>R/HOOD</Text>
+          <Text style={styles.subtitle}>Underground Music Platform</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   // Show authentication screens if not logged in
   if (!user) {
     return (
-      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-        <SafeAreaView style={styles.container}>
-          {authMode === "login" ? (
-            <LoginScreen
-              onLoginSuccess={handleLoginSuccess}
-              onSwitchToSignup={showSignup}
-            />
-          ) : (
-            <SignupScreen
-              onSignupSuccess={handleSignupSuccess}
-              onSwitchToLogin={showLogin}
-            />
-          )}
-        </SafeAreaView>
-      </Animated.View>
+      <SafeAreaView style={styles.container}>
+        {authMode === "login" ? (
+          <LoginScreen
+            onLoginSuccess={handleLoginSuccess}
+            onSwitchToSignup={showSignup}
+          />
+        ) : (
+          <SignupScreen
+            onSignupSuccess={handleSignupSuccess}
+            onSwitchToLogin={showLogin}
+          />
+        )}
+      </SafeAreaView>
     );
   }
 
   // Show onboarding if first time user
   if (isFirstTime) {
     return (
-      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-        <SafeAreaView style={styles.container}>
-          <OnboardingForm
-            onComplete={completeOnboarding}
-            djProfile={djProfile}
-            setDjProfile={setDjProfile}
-          />
-        </SafeAreaView>
-      </Animated.View>
+      <SafeAreaView style={styles.container}>
+        <OnboardingForm
+          onComplete={completeOnboarding}
+          djProfile={djProfile}
+          setDjProfile={setDjProfile}
+        />
+      </SafeAreaView>
     );
   }
 
   const renderScreen = () => {
     return (
-      <Animated.View style={[styles.screenContainer, { opacity: fadeAnim }]}>
+      <View style={styles.screenContainer}>
         {renderScreenContent(currentScreen)}
-      </Animated.View>
+      </View>
     );
   };
 
@@ -854,8 +847,7 @@ export default function App() {
   };
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Image
@@ -1292,8 +1284,7 @@ export default function App() {
             onCancel={handleProfileCancel}
           />
         </Modal>
-      </SafeAreaView>
-
+      
       {/* Black fade overlay for splash screen transition */}
       {showFadeOverlay && (
         <Animated.View
@@ -1305,7 +1296,7 @@ export default function App() {
           ]}
         />
       )}
-    </Animated.View>
+    </SafeAreaView>
   );
 }
 
