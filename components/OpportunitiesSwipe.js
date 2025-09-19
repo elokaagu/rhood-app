@@ -10,6 +10,7 @@ import {
   PanResponder,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import ProgressiveImage from "./ProgressiveImage";
 import RhoodModal from "./RhoodModal";
 
@@ -102,6 +103,9 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 
   // Custom modal states
   const [showNoApplicationsModal, setShowNoApplicationsModal] = useState(false);
+
+  // Get tab bar height for proper positioning
+  const tabBarHeight = useBottomTabBarHeight();
 
   // Create new animated values for each card to avoid conflicts
   const translateX = useRef(new Animated.Value(0)).current;
@@ -336,7 +340,9 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       </View>
 
       {/* Card Stack Container */}
-      <View style={styles.cardContainer}>
+      <View
+        style={[styles.cardContainer, { paddingBottom: tabBarHeight + 100 }]}
+      >
         {/* Next Card (underneath) */}
         <Animated.View
           style={[
@@ -471,7 +477,9 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       </View>
 
       {/* Instructions - positioned above tab bar */}
-      <View style={styles.instructionsContainer}>
+      <View
+        style={[styles.instructionsContainer, { bottom: tabBarHeight + 20 }]}
+      >
         <Text style={styles.instructions}>
           Swipe right to apply • Swipe left to pass
         </Text>
@@ -519,12 +527,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    paddingBottom: 160, // Increase bottom space to prevent overlap with instructions
   },
   card: {
     position: "absolute",
     width: screenWidth - 40,
-    height: 480, // Slightly reduce height to prevent overlap
+    height: 500, // Restore full height since we have proper spacing now
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
@@ -660,7 +667,6 @@ const styles = StyleSheet.create({
   },
   instructionsContainer: {
     position: "absolute",
-    bottom: 100, // Move further from cards to prevent overlap
     left: 0,
     right: 0,
     paddingHorizontal: 20,

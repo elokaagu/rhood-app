@@ -889,7 +889,9 @@ export default function App() {
 
         {renderScreen()}
 
-        <View style={styles.tabBar}>
+        {/* Hide tab bar on messages screen */}
+        {currentScreen !== "messages" && (
+          <View style={styles.tabBar}>
           <TouchableOpacity
             style={[
               styles.tab,
@@ -965,6 +967,7 @@ export default function App() {
             </Text>
           </TouchableOpacity>
         </View>
+        )}
 
         {/* Hamburger Menu Modal */}
         <Modal

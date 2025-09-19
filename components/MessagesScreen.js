@@ -11,8 +11,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProgressiveImage from './ProgressiveImage';
 import RhoodModal from './RhoodModal';
@@ -115,6 +117,10 @@ const mockMessages = [
 
 export default function MessagesScreen({ navigation, route }) {
   const { isGroupChat = false, djId = 1 } = route.params || {};
+  
+  // Get safe area insets for proper positioning
+  const insets = useSafeAreaInsets();
+  const COMPOSER_HEIGHT = 56;
   
   // State for messages and posts
   const [newMessage, setNewMessage] = useState('');
@@ -498,11 +504,12 @@ export default function MessagesScreen({ navigation, route }) {
 
   // Direct Message Interface
   const renderDirectMessage = () => (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -564,6 +571,10 @@ export default function MessagesScreen({ navigation, route }) {
       {/* Messages */}
       <ScrollView 
         style={styles.messagesContainer} 
+        contentContainerStyle={{
+          paddingTop: 12,
+          paddingBottom: COMPOSER_HEIGHT + insets.bottom + 12,
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -617,8 +628,17 @@ export default function MessagesScreen({ navigation, route }) {
         ))}
       </ScrollView>
 
-      {/* Message Input */}
-      <View style={styles.inputContainer}>
+      {/* Message Input - Positioned absolutely above safe area */}
+      <View style={[
+        styles.inputContainer,
+        {
+          position: 'absolute',
+          left: 12,
+          right: 12,
+          bottom: insets.bottom + 12,
+          height: COMPOSER_HEIGHT,
+        }
+      ]}>
         <View style={styles.inputRow}>
           <TextInput
             style={styles.textInput}
@@ -651,7 +671,8 @@ export default function MessagesScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 
   // Edit Modal
@@ -1029,16 +1050,16 @@ const styles = StyleSheet.create({
     color: 'hsl(0, 0%, 0%, 0.7)',
   },
   inputContainer: {
-    backgroundColor: 'hsl(0, 0%, 5%)',
-    borderTopWidth: 1,
-    borderTopColor: 'hsl(0, 0%, 15%)',
-    padding: 16,
+    backgroundColor: 'rgba(20, 20, 20, 0.96)',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    padding: 12,
+    overflow: 'hidden',
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    maxWidth: 400,
-    alignSelf: 'center',
     width: '100%',
   },
   textInput: {
