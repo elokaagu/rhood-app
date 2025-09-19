@@ -16,7 +16,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import ProgressiveImage from "./ProgressiveImage";
 import RhoodModal from "./RhoodModal";
 
 // Mock DJ Data
@@ -29,7 +28,7 @@ const mockDJs = [
     genres: ["House", "Techno", "Progressive"],
     rating: 4.9,
     profileImage:
-      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
     isOnline: true,
   },
   {
@@ -40,7 +39,7 @@ const mockDJs = [
     genres: ["Drum & Bass", "Breakbeat", "Electronic"],
     rating: 4.7,
     profileImage:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
     isOnline: false,
   },
 ];
@@ -52,7 +51,7 @@ const mockForumPosts = [
     author: "Sofia Rodriguez",
     username: "@sofiavibes",
     avatar:
-      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
     content:
       "Just finished an incredible set at Fabric last night! The crowd was absolutely electric ⚡ Anyone else perform this weekend?",
@@ -66,7 +65,7 @@ const mockForumPosts = [
     author: "Alex Thompson",
     username: "@alexunderground",
     avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
     timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
     content:
       "Looking for a producer to collaborate on a new track. Hit me up if you're interested in deep house vibes!",
@@ -80,7 +79,7 @@ const mockForumPosts = [
     author: "Luna Martinez",
     username: "@lunabeats",
     avatar:
-      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
     timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
     content:
       "The new venue in Shoreditch is amazing! Perfect acoustics for electronic music. Highly recommend checking it out.",
@@ -271,7 +270,7 @@ export default function MessagesScreen({ navigation, route }) {
       author: "You",
       username: "@yourusername",
       avatar:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop",
+        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
       timestamp: new Date(),
       content: content.trim(),
       likes: 0,
@@ -470,9 +469,14 @@ export default function MessagesScreen({ navigation, route }) {
           <View key={post.id} style={styles.postCard}>
             {/* Post Header */}
             <View style={styles.postHeader}>
-              <ProgressiveImage
+              <Image
                 source={{ uri: post.avatar }}
                 style={styles.postAvatar}
+                resizeMode="cover"
+                onError={(error) => {
+                  console.log("Post avatar load error:", error);
+                  // Fallback to initials if image fails
+                }}
               />
 
               <View style={styles.postAuthor}>
@@ -613,9 +617,14 @@ export default function MessagesScreen({ navigation, route }) {
 
           <View style={styles.headerInfo}>
             <View style={styles.djImageContainer}>
-              <ProgressiveImage
+              <Image
                 source={{ uri: currentDJ.profileImage }}
                 style={styles.djImage}
+                resizeMode="cover"
+                onError={(error) => {
+                  console.log("Avatar load error:", error);
+                  // Fallback to initials if image fails
+                }}
               />
               {currentDJ.isOnline && <View style={styles.onlineIndicator} />}
             </View>
