@@ -1734,7 +1734,7 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     flexDirection: "row",
-    backgroundColor: "rgba(30, 30, 30, 0.8)", // Dark grey background closer to black
+    backgroundColor: "#1E1E1E", // Solid dark grey background with no transparency
     borderRadius: 25,
     paddingVertical: 8,
     paddingHorizontal: 16,
