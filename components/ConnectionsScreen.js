@@ -8,9 +8,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import ProgressiveImage from "./ProgressiveImage";
-import { RH } from "../src/design/tokens";
 
 // Mock connections data
 const mockConnections = [
@@ -101,10 +99,6 @@ const mockConnections = [
 ];
 
 export default function ConnectionsScreen({ onNavigate }) {
-  // Calculate bottom padding for floating tab bar
-  const tabBarHeight = useBottomTabBarHeight();
-  const padBottom = tabBarHeight + RH.space.xl; // extra breathing room
-
   const handleGroupChatPress = () => {
     onNavigate && onNavigate("messages", { isGroupChat: true });
   };
@@ -144,10 +138,13 @@ export default function ConnectionsScreen({ onNavigate }) {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: padBottom }}
-    >
+    <ScrollView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>CONNECTIONS</Text>
+        <Text style={styles.headerSubtitle}>Your DJ network and community</Text>
+      </View>
+
       {/* Pinned Group Chat Section */}
       <View style={styles.pinnedGroup}>
         <TouchableOpacity
@@ -268,6 +265,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "hsl(0, 0%, 0%)",
+  },
+  header: {
+    padding: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
   },
   pinnedGroup: {
     backgroundColor: "hsl(0, 0%, 5%)",

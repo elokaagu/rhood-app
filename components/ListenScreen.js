@@ -8,9 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import DJMix from "./DJMix";
-import { RH } from "../src/design/tokens";
 
 // Audio optimization utilities for handling large files
 const getAudioOptimization = (audioUrl) => {
@@ -144,9 +142,6 @@ export default function ListenScreen({
   onResumeAudio,
   onStopAudio,
 }) {
-  // Calculate bottom padding for floating tab bar
-  const tabBarHeight = useBottomTabBarHeight();
-  const padBottom = tabBarHeight + RH.space.xl; // extra breathing room
   const [mixes, setMixes] = useState(mockMixes);
   const [playingMixId, setPlayingMixId] = useState(null);
 
@@ -208,13 +203,10 @@ export default function ListenScreen({
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: padBottom }}
-    >
+    <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>DJ Mixes</Text>
+        <Text style={styles.headerTitle}>LISTEN</Text>
         <Text style={styles.headerSubtitle}>5-minute sets from top DJs</Text>
       </View>
 
@@ -273,10 +265,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontFamily: "Arial Black",
-    fontWeight: "900",
+    fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   headerSubtitle: {
     fontSize: 16,
