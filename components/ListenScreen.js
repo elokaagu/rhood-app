@@ -67,7 +67,7 @@ const mockMixes = [
     artist: "DJ Marcus Chen",
     genre: "Techno",
     duration: "5:00",
-    description: "Dark, pulsing techno perfect for late-night sessions",
+    description: "Dark, pulsing techno for late-night sessions",
     image:
       "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
     audioUrl: require("../assets/audio/unique-original-mix.mp3"),

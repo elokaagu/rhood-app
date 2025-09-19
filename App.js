@@ -71,6 +71,15 @@ export default function App() {
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
 
+  // Format time helper function
+  const formatTime = (milliseconds) => {
+    if (!milliseconds || isNaN(milliseconds)) return "0:00";
+    const seconds = Math.floor(milliseconds / 1000);
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
   // Application sent modal state
   const [showApplicationSentModal, setShowApplicationSentModal] =
     useState(false);
@@ -303,13 +312,6 @@ export default function App() {
     setShowAuth(true);
   };
 
-  // Format time helper function
-  const formatTime = (millis) => {
-    if (!millis) return "0:00";
-    const minutes = Math.floor(millis / 60000);
-    const seconds = Math.floor((millis % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
 
   // Global audio control functions
   const playGlobalAudio = async (track) => {
@@ -1277,22 +1279,33 @@ export default function App() {
                   style={styles.audioControlButton}
                   onPress={(e) => {
                     e.stopPropagation();
-                    stopGlobalAudio();
+                    // Skip forward 15 seconds
+                    // This would need to be implemented in the audio functions
                   }}
                 >
-                  <Ionicons name="stop" size={20} color="hsl(0, 0%, 100%)" />
+                  <Ionicons name="play-skip-forward" size={20} color="hsl(0, 0%, 100%)" />
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Progress Bar */}
             <View style={styles.audioProgressContainer}>
-              <View
-                style={[
-                  styles.audioProgressBar,
-                  { width: `${globalAudioState.progress}%` },
-                ]}
-              />
+              <View style={styles.audioProgressBar}>
+                <View
+                  style={[
+                    styles.audioProgressFill,
+                    { width: `${globalAudioState.progress || 0}%` },
+                  ]}
+                />
+              </View>
+              <View style={styles.audioTimeContainer}>
+                <Text style={styles.audioTimeText}>
+                  {formatTime(globalAudioState.positionMillis || 0)}
+                </Text>
+                <Text style={styles.audioTimeText}>
+                  {formatTime(globalAudioState.durationMillis || 0)}
+                </Text>
+              </View>
             </View>
           </TouchableOpacity>
         )}
@@ -2414,16 +2427,29 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   audioProgressContainer: {
-    height: 3,
-    backgroundColor: "hsl(0, 0%, 15%)",
-    borderRadius: 1.5,
-    marginTop: 8,
-    overflow: "hidden",
+    marginTop: 12,
   },
   audioProgressBar: {
+    height: 4,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    borderRadius: 2,
+    marginBottom: 8,
+  },
+  audioProgressFill: {
     height: "100%",
-    backgroundColor: "#C2CC06",
-    borderRadius: 1.5,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 2,
+  },
+  audioTimeContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  audioTimeText: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 60%)",
+    fontWeight: "500",
   },
 
   // Full-Screen Player Styles
