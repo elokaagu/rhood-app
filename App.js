@@ -17,7 +17,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
+import { AudioPlayer } from "expo-audio";
 import { useFonts } from "expo-font";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
@@ -114,7 +114,7 @@ export default function App() {
     return () => {
       subscription?.remove();
       if (globalAudioRef.current) {
-        globalAudioRef.current.unloadAsync();
+        globalAudioRef.current.remove();
         globalAudioRef.current = null;
       }
     };
@@ -302,20 +302,20 @@ export default function App() {
       // Stop current audio if playing
       if (globalAudioRef.current) {
         console.log("🛑 Stopping current audio before playing new track");
-        await globalAudioRef.current.unloadAsync();
+        globalAudioRef.current.remove();
         globalAudioRef.current = null;
       }
 
       setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
 
-      // Create and load new sound using expo-av
+      // Create and load new sound using expo-audio
       console.log("🔄 Creating new sound instance...");
       console.log("🔄 Audio file path:", track.audioUrl);
 
-      const { sound } = await Audio.Sound.createAsync(track.audioUrl);
+      const player = new AudioPlayer(track.audioUrl);
 
       // Set up event listeners
-      sound.setOnPlaybackStatusUpdate((status) => {
+      player.addListener("statusChange", (status) => {
         console.log("📊 Audio status:", status);
         if (status.isLoaded) {
           setGlobalAudioState((prev) => ({
@@ -330,15 +330,15 @@ export default function App() {
       });
 
       // Store reference for cleanup
-      globalAudioRef.current = sound;
+      globalAudioRef.current = player;
 
       // Start playing
       console.log("▶️ Starting playback...");
-      await sound.playAsync();
+      await player.play();
 
       setGlobalAudioState((prev) => ({
         ...prev,
-        sound: sound,
+        sound: player,
         isPlaying: true,
         currentTrack: track,
         isLoading: false,
@@ -353,21 +353,21 @@ export default function App() {
 
   const pauseGlobalAudio = async () => {
     if (globalAudioState.sound) {
-      await globalAudioState.sound.pauseAsync();
+      await globalAudioState.sound.pause();
       setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
     }
   };
 
   const resumeGlobalAudio = async () => {
     if (globalAudioState.sound) {
-      await globalAudioState.sound.playAsync();
+      await globalAudioState.sound.play();
       setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
     }
   };
 
   const stopGlobalAudio = async () => {
     if (globalAudioRef.current) {
-      await globalAudioRef.current.unloadAsync();
+      globalAudioRef.current.remove();
       globalAudioRef.current = null;
     }
     setGlobalAudioState({
