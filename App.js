@@ -1329,6 +1329,7 @@ const styles = StyleSheet.create({
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-start", // Ensure left alignment
   },
   logoText: {
     color: "#C2CC06", // Brand lime green
@@ -1362,8 +1363,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   logoImage: {
-    height: 40,
-    width: 140, // Much larger logo for better visibility
+    height: 80,
+    width: 280, // Twice as large again for maximum visibility
   },
   headerIcon: {
     width: 36,
