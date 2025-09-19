@@ -40,6 +40,8 @@ target 'RhoodApp' do
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/..",
     :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
+    :fabric_enabled => podfile_properties['newArchEnabled'] == 'true',
+    :new_arch_enabled => podfile_properties['newArchEnabled'] == 'true',
   )
 
   post_install do |installer|
