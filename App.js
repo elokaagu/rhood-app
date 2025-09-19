@@ -1728,7 +1728,7 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     flexDirection: "row",
-    backgroundColor: "#000000", // Pure black background to match container
+    backgroundColor: "rgba(255, 255, 255, 0.1)", // Slight grey background with transparency
     borderRadius: 25,
     paddingVertical: 8,
     paddingHorizontal: 16,
