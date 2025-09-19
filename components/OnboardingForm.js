@@ -9,6 +9,7 @@ import {
   Animated,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 
 // Music genres for selection
@@ -406,7 +407,11 @@ export default function OnboardingForm({
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.logoTextGreen}>R/HOOD</Text>
+          <Image
+            source={require("../assets/RHOOD_Lettering_Logo.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.subtitle}>
             Join the Underground Music Network
           </Text>
@@ -454,15 +459,11 @@ const styles = {
     textAlign: "center",
     marginBottom: 10,
   },
-  logoTextGreen: {
-    color: "#C2CC06", // Brand lime green - matches the green logo
-    fontSize: 32,
-    fontFamily: "Arial Black",
-    fontWeight: "900",
-    letterSpacing: 1.5,
-    textAlign: "center",
+  logoImage: {
+    height: 48,
+    width: 180,
     marginBottom: 10,
-    textTransform: "uppercase",
+    alignSelf: "center",
   },
   subtitle: {
     fontSize: 16,
