@@ -339,9 +339,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       </View>
 
       {/* Card Stack Container */}
-      <View
-        style={styles.cardContainer}
-      >
+      <View style={styles.cardContainer}>
         {/* Next Card (underneath) */}
         <Animated.View
           style={[
@@ -364,9 +362,61 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
               locations={[0, 0.5, 1]}
               style={styles.cardGradientOverlay}
             />
+            {/* Genre Badge */}
+            <View style={styles.genreBadge}>
+              <Text style={styles.genreText}>{nextGig.genre}</Text>
+            </View>
+
+            {/* Card Content */}
             <View style={styles.nextCardContent}>
               <Text style={styles.nextCardTitle}>{nextGig.name}</Text>
-              <Text style={styles.nextCardLocation}>{nextGig.location}</Text>
+              <Text style={styles.nextCardDescription}>{nextGig.description}</Text>
+              
+              {/* Event Details */}
+              <View style={styles.nextCardDetails}>
+                <View style={styles.detailRow}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={16}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.detailText}>
+                    {nextGig.date} at {nextGig.time}
+                  </Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Ionicons
+                    name="location-outline"
+                    size={16}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.detailText}>{nextGig.location}</Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Ionicons
+                    name="cash-outline"
+                    size={16}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.detailText}>{nextGig.fee}</Text>
+                </View>
+              </View>
+
+              <View style={styles.nextCardFooter}>
+                <View style={styles.skillLevelContainer}>
+                  <Text
+                    style={[
+                      styles.skillLevelText,
+                      { color: getSkillLevelColor(nextGig.skillLevel) },
+                    ]}
+                  >
+                    {nextGig.skillLevel}
+                  </Text>
+                </View>
+                <Text style={styles.organizerName}>{nextGig.organizer}</Text>
+              </View>
             </View>
           </ImageBackground>
         </Animated.View>
@@ -492,7 +542,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
           </ImageBackground>
         </Animated.View>
       </View>
-
 
       {/* Custom Modals */}
       <RhoodModal
@@ -679,13 +728,23 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  nextCardLocation: {
-    fontSize: 12,
+  nextCardDescription: {
+    fontSize: 14,
     fontFamily: "Arial",
     color: "hsl(0, 0%, 100%)",
+    lineHeight: 20,
+    marginBottom: 16,
     textShadowColor: "rgba(0, 0, 0, 0.8)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+  },
+  nextCardDetails: {
+    marginBottom: 16,
+  },
+  nextCardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   swipeIndicator: {
     position: "absolute",
