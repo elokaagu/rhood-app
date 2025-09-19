@@ -1731,8 +1731,6 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)", // Subtle border
     shadowColor: "#000000",
     shadowOffset: {
       width: 0,
