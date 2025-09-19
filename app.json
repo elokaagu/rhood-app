@@ -50,7 +50,7 @@
         "projectId": "499f2244-43f3-478d-8b88-85c2da9f1d52"
       }
     },
-    "plugins": ["expo-font", "expo-audio", "expo-web-browser", "expo-video"],
+    "plugins": ["expo-font", "expo-audio", "expo-av", "expo-web-browser", "expo-video"],
     "scheme": "rhoodapp",
     "owner": "elokaagu",
     "runtimeVersion": "1.0.0",
