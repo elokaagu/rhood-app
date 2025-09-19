@@ -1755,7 +1755,8 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 12,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     textTransform: "uppercase",
     letterSpacing: 0.5,
