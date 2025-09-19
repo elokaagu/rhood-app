@@ -1755,6 +1755,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     gap: 4,
     marginHorizontal: 2,
+    backgroundColor: "transparent", // Ensure 0 opacity for all tabs
   },
   activeTab: {
     backgroundColor: "transparent", // Remove background for active tab
