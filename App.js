@@ -758,36 +758,47 @@ export default function App() {
             {/* Profile Header Card */}
             <View style={styles.profileHeaderCard}>
               <TouchableOpacity style={styles.editProfileButton}>
-                <Ionicons name="create-outline" size={20} color="hsl(0, 0%, 100%)" />
+                <Ionicons
+                  name="create-outline"
+                  size={20}
+                  color="hsl(0, 0%, 100%)"
+                />
               </TouchableOpacity>
-              
+
               <View style={styles.profileImageContainer}>
-                <View style={styles.profileImagePlaceholder}>
-                  <Text style={styles.profileImageText}>
-                    {(djProfile.djName || "DJ").charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                <Image
+                  source={{ uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face" }}
+                  style={styles.profileImage}
+                />
               </View>
-              
+
               <Text style={styles.profileDisplayName}>
-                {djProfile.djName || "Your DJ Name"}
+                Eloka Agu
               </Text>
               <Text style={styles.profileUsername}>
-                @{djProfile.djName?.toLowerCase().replace(/\s+/g, '') || "yourdjname"}
+                @elokaagu
               </Text>
-              
+
               <View style={styles.profileRating}>
                 <Ionicons name="star" size={16} color="hsl(75, 100%, 60%)" />
                 <Text style={styles.ratingText}>4.8 • 12 gigs</Text>
               </View>
-              
+
               <Text style={styles.profileBio}>
-                Underground techno enthusiast with 5 years of experience. Specializing in dark, industrial beats that make crowds move. Always looking for new opportunities to showcase my sound.
+                Underground techno enthusiast with 5 years of experience.
+                Specializing in dark, industrial beats that make crowds move.
+                Always looking for new opportunities to showcase my sound.
               </Text>
-              
+
               <View style={styles.profileLocation}>
-                <Ionicons name="location-outline" size={16} color="hsl(0, 0%, 70%)" />
-                <Text style={styles.locationText}>{djProfile.city || "Your City"}</Text>
+                <Ionicons
+                  name="location-outline"
+                  size={16}
+                  color="hsl(0, 0%, 70%)"
+                />
+                <Text style={styles.locationText}>
+                  London
+                </Text>
               </View>
             </View>
 
@@ -809,11 +820,13 @@ export default function App() {
             <View style={styles.genresCard}>
               <Text style={styles.cardTitle}>♫ Genres</Text>
               <View style={styles.genresContainer}>
-                {["Techno", "House", "Industrial", "Drum & Bass"].map((genre, index) => (
-                  <View key={index} style={styles.genreTag}>
-                    <Text style={styles.genreTagText}>{genre}</Text>
-                  </View>
-                ))}
+                {["Techno", "House", "Industrial", "Drum & Bass"].map(
+                  (genre, index) => (
+                    <View key={index} style={styles.genreTag}>
+                      <Text style={styles.genreTagText}>{genre}</Text>
+                    </View>
+                  )
+                )}
               </View>
             </View>
 
@@ -830,9 +843,14 @@ export default function App() {
                 </TouchableOpacity>
               </View>
               <View style={styles.waveformContainer}>
-                {[3, 5, 2, 7, 4, 6, 3, 8, 5, 4, 6, 3, 5, 7, 4, 2].map((height, index) => (
-                  <View key={index} style={[styles.waveformBar, { height: height * 2 }]} />
-                ))}
+                {[3, 5, 2, 7, 4, 6, 3, 8, 5, 4, 6, 3, 5, 7, 4, 2].map(
+                  (height, index) => (
+                    <View
+                      key={index}
+                      style={[styles.waveformBar, { height: height * 2 }]}
+                    />
+                  )
+                )}
               </View>
               <View style={styles.progressContainer}>
                 <Text style={styles.timeText}>1:23</Text>
@@ -848,15 +866,25 @@ export default function App() {
               <Text style={styles.cardTitle}>Social Links</Text>
               <TouchableOpacity style={styles.socialLink}>
                 <View style={styles.instagramIcon}>
-                  <Ionicons name="logo-instagram" size={20} color="hsl(0, 0%, 100%)" />
+                  <Ionicons
+                    name="logo-instagram"
+                    size={20}
+                    color="hsl(0, 0%, 100%)"
+                  />
                 </View>
                 <Text style={styles.socialLinkText}>@alexbeats_official</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.socialLink}>
                 <View style={styles.soundcloudIcon}>
-                  <Ionicons name="musical-notes" size={20} color="hsl(0, 0%, 100%)" />
+                  <Ionicons
+                    name="musical-notes"
+                    size={20}
+                    color="hsl(0, 0%, 100%)"
+                  />
                 </View>
-                <Text style={styles.socialLinkText}>soundcloud.com/alexbeats</Text>
+                <Text style={styles.socialLinkText}>
+                  soundcloud.com/alexbeats
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -2507,6 +2535,11 @@ const styles = StyleSheet.create({
   profileImageContainer: {
     alignItems: "center",
     marginBottom: 16,
+  },
+  profileImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   profileImagePlaceholder: {
     width: 80,
