@@ -97,7 +97,6 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   const opacity = useRef(new Animated.Value(1)).current;
   const nextCardScale = useRef(new Animated.Value(0.9)).current;
   const nextCardOpacity = useRef(new Animated.Value(0.8)).current;
-  const cardTransition = useRef(new Animated.Value(0)).current;
 
   const currentGig = mockGigs[currentGigIndex];
   const nextGig = mockGigs[(currentGigIndex + 1) % mockGigs.length];
@@ -225,23 +224,34 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         velocity: 0,
       }),
     ]).start(() => {
-      // Smooth transition to next card
-      cardTransition.setValue(1);
-      Animated.timing(cardTransition, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        // Reset values and move to next gig
+      // Immediately transition to next card without reset animation
+      setCurrentGigIndex((prevIndex) =>
+        prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
+      );
+
+      // Smoothly animate next card into position
+      Animated.parallel([
+        Animated.spring(nextCardScale, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 120,
+          friction: 8,
+          velocity: 0,
+        }),
+        Animated.spring(nextCardOpacity, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 120,
+          friction: 8,
+          velocity: 0,
+        }),
+      ]).start(() => {
+        // Reset values for next interaction
         translateX.setValue(0);
         translateY.setValue(0);
         opacity.setValue(1);
         nextCardScale.setValue(0.9);
         nextCardOpacity.setValue(0.8);
-
-        setCurrentGigIndex((prevIndex) =>
-          prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
-        );
 
         setIsAnimating(false);
 
@@ -278,24 +288,35 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
           velocity: 0,
         }),
       ]).start(() => {
-        // Smooth transition to next card
-        cardTransition.setValue(1);
-        Animated.timing(cardTransition, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start(() => {
-          // Reset values
+        // Immediately transition to next card without reset animation
+        setCurrentGigIndex((prevIndex) =>
+          prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
+        );
+        setAppliesLeft(appliesLeft - 1);
+
+        // Smoothly animate next card into position
+        Animated.parallel([
+          Animated.spring(nextCardScale, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 120,
+            friction: 8,
+            velocity: 0,
+          }),
+          Animated.spring(nextCardOpacity, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 120,
+            friction: 8,
+            velocity: 0,
+          }),
+        ]).start(() => {
+          // Reset values for next interaction
           translateX.setValue(0);
           translateY.setValue(0);
           opacity.setValue(1);
           nextCardScale.setValue(0.9);
           nextCardOpacity.setValue(0.8);
-
-          setCurrentGigIndex((prevIndex) =>
-            prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
-          );
-          setAppliesLeft(appliesLeft - 1);
 
           setIsAnimating(false);
 
@@ -462,18 +483,8 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             styles.card,
             styles.currentCard,
             {
-              transform: [
-                { translateX },
-                { translateY },
-                { scale: cardTransition.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 0.95],
-                }) },
-              ],
-              opacity: Animated.multiply(opacity, cardTransition.interpolate({
-                inputRange: [0, 1],
-                outputRange: [1, 0.8],
-              })),
+              transform: [{ translateX }, { translateY }],
+              opacity,
             },
           ]}
           {...panResponder.panHandlers}
