@@ -277,7 +277,8 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
   },
   mixesContainer: {
-    padding: 16,
+    padding: 20,
+    paddingTop: 8,
   },
   uploadSection: {
     padding: 16,
