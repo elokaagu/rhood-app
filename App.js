@@ -842,8 +842,8 @@ export default function App() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.logoContainer}>
-            <Image 
-              source={require("./assets/RHOOD_Lettering_Logo.png")} 
+            <Image
+              source={require("./assets/RHOOD_Lettering_Logo.png")}
               style={styles.logoImage}
               resizeMode="contain"
             />
@@ -1362,8 +1362,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   logoImage: {
-    height: 24,
-    width: 80, // Adjust width as needed for the logo
+    height: 40,
+    width: 140, // Much larger logo for better visibility
   },
   headerIcon: {
     width: 36,
