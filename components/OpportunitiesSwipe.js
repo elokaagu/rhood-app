@@ -10,6 +10,7 @@ import {
   PanResponder,
   ImageBackground,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import RhoodModal from "./RhoodModal";
@@ -360,6 +361,11 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             resizeMode="cover"
           >
             <View style={styles.cardOverlay} />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
+              locations={[0, 0.5, 1]}
+              style={styles.cardGradientOverlay}
+            />
             <View style={styles.nextCardContent}>
               <Text style={styles.nextCardTitle}>{nextGig.name}</Text>
               <Text style={styles.nextCardLocation}>{nextGig.location}</Text>
@@ -384,6 +390,12 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             style={styles.cardImageBackground}
             resizeMode="cover"
           >
+            <View style={styles.cardOverlay} />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
+              locations={[0, 0.5, 1]}
+              style={styles.cardGradientOverlay}
+            />
             {/* Swipe indicators */}
             <Animated.View
               style={[
@@ -564,6 +576,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "transparent",
   },
+  cardGradientOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "60%",
+  },
   genreBadge: {
     position: "absolute",
     top: 20,
@@ -586,11 +605,10 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     position: "absolute",
-    top: 20,
+    bottom: 20,
     left: 20,
     right: 20,
-    bottom: 20,
-    justifyContent: "space-between",
+    zIndex: 10,
   },
   gigTitle: {
     fontSize: 28,
@@ -656,11 +674,10 @@ const styles = StyleSheet.create({
   },
   nextCardContent: {
     position: "absolute",
-    top: 20,
+    bottom: 20,
     left: 20,
     right: 20,
-    bottom: 20,
-    justifyContent: "flex-end",
+    zIndex: 10,
   },
   nextCardTitle: {
     fontSize: 20,
