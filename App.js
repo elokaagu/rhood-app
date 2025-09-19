@@ -841,13 +841,11 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require("./assets/RHOOD_Lettering_Logo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
+          <Image
+            source={require("./assets/Rhood_Lettering_Green.jpg")}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity
@@ -1311,6 +1309,8 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
   },
   headerRight: {
     flexDirection: "row",
@@ -1363,8 +1363,9 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   logoImage: {
-    height: 80,
-    width: 280, // Twice as large again for maximum visibility
+    height: 32,
+    width: 120, // Proper size for header, not floating
+    alignSelf: "flex-start", // Ensure left alignment
   },
   headerIcon: {
     width: 36,
