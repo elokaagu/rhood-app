@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Animated, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Video } from "expo-av";
 
 const { width, height } = Dimensions.get("window");
 
@@ -111,9 +112,18 @@ const SplashScreen = ({ onFinish }) => {
             },
           ]}
         >
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>R/HOOD</Text>
+          {/* Animated Logo Video */}
+          <View style={styles.logoContainer}>
+            <Video
+              source={require("../assets/RHOOD_Logo_Spinner.mov")}
+              style={styles.logoVideo}
+              shouldPlay={true}
+              isLooping={true}
+              resizeMode="contain"
+              isMuted={true}
+            />
           </View>
+
           <Text style={styles.subtitle}>Underground Music Platform</Text>
 
           {/* Loading Progress Bar */}
@@ -164,18 +174,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  titleContainer: {
-    // Removed glow effects
+  logoContainer: {
+    width: 200,
+    height: 200,
+    marginBottom: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  title: {
-    fontSize: 56,
-    fontFamily: "Arial Black",
-    fontWeight: "900",
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
-    textAlign: "center",
-    marginBottom: 16,
-    letterSpacing: 2,
-    // Removed glow effects
+  logoVideo: {
+    width: "100%",
+    height: "100%",
   },
   subtitle: {
     fontSize: 16,
@@ -183,14 +191,14 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)", // Pure white
     textAlign: "center",
     opacity: 0.9,
-    marginBottom: 64,
+    marginBottom: 30,
     letterSpacing: 1,
     textTransform: "uppercase",
   },
   progressContainer: {
     width: "80%",
     alignItems: "center",
-    marginTop: 40,
+    marginTop: 20,
     marginBottom: 20,
   },
   progressBar: {

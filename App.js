@@ -224,20 +224,23 @@ export default function App() {
     setDjProfile({
       djName: updatedProfile.dj_name,
       fullName: updatedProfile.full_name,
-      instagram: updatedProfile.instagram || '',
-      soundcloud: updatedProfile.soundcloud || '',
+      instagram: updatedProfile.instagram || "",
+      soundcloud: updatedProfile.soundcloud || "",
       city: updatedProfile.city,
       genres: updatedProfile.genres,
     });
     // Also save to AsyncStorage for offline access
-    AsyncStorage.setItem("djProfile", JSON.stringify({
-      djName: updatedProfile.dj_name,
-      fullName: updatedProfile.full_name,
-      instagram: updatedProfile.instagram || '',
-      soundcloud: updatedProfile.soundcloud || '',
-      city: updatedProfile.city,
-      genres: updatedProfile.genres,
-    }));
+    AsyncStorage.setItem(
+      "djProfile",
+      JSON.stringify({
+        djName: updatedProfile.dj_name,
+        fullName: updatedProfile.full_name,
+        instagram: updatedProfile.instagram || "",
+        soundcloud: updatedProfile.soundcloud || "",
+        city: updatedProfile.city,
+        genres: updatedProfile.genres,
+      })
+    );
   };
 
   const handleProfileCancel = () => {
@@ -788,7 +791,10 @@ export default function App() {
             <Text style={styles.screenTitle}>Settings</Text>
             <View style={styles.settingsCard}>
               <Text style={styles.settingsTitle}>Account</Text>
-              <TouchableOpacity style={styles.settingsItem} onPress={handleEditProfile}>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={handleEditProfile}
+              >
                 <Text style={styles.settingsItemText}>Edit Profile</Text>
                 <Text style={styles.settingsArrow}>›</Text>
               </TouchableOpacity>

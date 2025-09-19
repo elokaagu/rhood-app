@@ -14,6 +14,7 @@ Complete guide for setting up TestFlight distribution with your Apple Developer 
 ### 1. Apple Developer Console Setup
 
 #### A. Create App in App Store Connect
+
 1. Go to [App Store Connect](https://appstoreconnect.apple.com)
 2. Sign in with `eloka@satellitelabs.xyz`
 3. Click "My Apps" → "+" → "New App"
@@ -25,6 +26,7 @@ Complete guide for setting up TestFlight distribution with your Apple Developer 
    - **SKU**: `rhoodapp-ios-001`
 
 #### B. Configure App Information
+
 - **App Name**: R/HOOD
 - **Subtitle**: DJ Matchmaking Platform
 - **Category**: Music
@@ -34,6 +36,7 @@ Complete guide for setting up TestFlight distribution with your Apple Developer 
 ### 2. EAS Build Configuration
 
 Your `eas.json` is already configured with:
+
 ```json
 {
   "build": {
@@ -59,6 +62,7 @@ Your `eas.json` is already configured with:
 ### 3. Build for TestFlight
 
 #### A. Create Production Build
+
 ```bash
 # Build for iOS production
 eas build --platform ios --profile production
@@ -70,6 +74,7 @@ eas build --platform ios --profile production
 ```
 
 #### B. Submit to TestFlight
+
 ```bash
 # Submit the build to TestFlight
 eas submit --platform ios --profile production
@@ -83,6 +88,7 @@ eas submit --platform ios --profile production
 ### 4. TestFlight Configuration
 
 #### A. Internal Testing Setup
+
 1. In App Store Connect, go to your app
 2. Click "TestFlight" tab
 3. Click "Internal Testing"
@@ -91,6 +97,7 @@ eas submit --platform ios --profile production
    - Role: Admin
 
 #### B. External Testing Setup (Optional)
+
 1. Click "External Testing"
 2. Create a new group: "Beta Testers"
 3. Add external testers
@@ -103,6 +110,7 @@ eas submit --platform ios --profile production
 1. In App Store Connect, go to your app
 2. Look for the App ID (it's a number like `1234567890`)
 3. Update your `eas.json`:
+
 ```json
 {
   "submit": {
@@ -120,21 +128,25 @@ eas submit --platform ios --profile production
 ## 🔧 Commands to Run
 
 ### 1. Build Production iOS App
+
 ```bash
 eas build --platform ios --profile production
 ```
 
 ### 2. Submit to TestFlight
+
 ```bash
 eas submit --platform ios --profile production
 ```
 
 ### 3. Check Build Status
+
 ```bash
 eas build:list
 ```
 
 ### 4. Check Submission Status
+
 ```bash
 eas submit:list
 ```
@@ -142,6 +154,7 @@ eas submit:list
 ## 📱 TestFlight Features
 
 ### What TestFlight Provides:
+
 - **Internal Testing**: Up to 100 internal testers
 - **External Testing**: Up to 10,000 external testers
 - **Beta App Review**: Apple reviews external testing builds
@@ -150,6 +163,7 @@ eas submit:list
 - **Feedback**: Collect feedback from testers
 
 ### Testing Workflow:
+
 1. **Build** → Create production build
 2. **Submit** → Upload to App Store Connect
 3. **Test** → Distribute to TestFlight testers
@@ -159,18 +173,21 @@ eas submit:list
 ## 🚨 Important Notes
 
 ### Prerequisites:
+
 - ✅ Apple Developer Program membership ($99/year)
 - ✅ Valid Apple Developer certificate
 - ✅ App Store Connect access
 - ✅ EAS CLI installed and configured
 
 ### Common Issues:
+
 1. **Certificate Issues**: Run `eas credentials` to manage certificates
 2. **Bundle ID Mismatch**: Ensure bundle ID matches in app.json and App Store Connect
 3. **Team ID Issues**: Verify Team ID is correct in eas.json
 4. **App Store Connect App ID**: Must be updated in eas.json
 
 ### Security:
+
 - Never commit Apple Developer credentials to git
 - Use EAS credentials management
 - Keep certificates secure
@@ -178,12 +195,14 @@ eas submit:list
 ## 📊 Monitoring and Analytics
 
 ### TestFlight Analytics:
+
 - **Installation Rate**: How many testers install
 - **Crash Rate**: App stability metrics
 - **Session Duration**: How long testers use the app
 - **Feedback Quality**: Rating and comments
 
 ### EAS Dashboard:
+
 - Monitor build status
 - View submission history
 - Check for errors
@@ -201,6 +220,7 @@ eas submit:list
 ## 📞 Support
 
 If you encounter issues:
+
 - Check EAS documentation: https://docs.expo.dev/build/introduction/
 - Apple Developer Support: https://developer.apple.com/support/
 - EAS Support: https://expo.dev/support
