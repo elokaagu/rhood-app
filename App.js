@@ -1364,8 +1364,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   logoImage: {
-    height: 48,
-    width: 180, // Larger size for better visibility
+    height: 36,
+    width: 140, // Reduced size for better proportion
     alignSelf: "flex-start", // Ensure left alignment
   },
   headerIcon: {
