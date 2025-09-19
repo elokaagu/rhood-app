@@ -97,11 +97,13 @@ const SplashScreen = ({ onFinish }) => {
 
     // Auto-hide splash screen after 5 seconds
     const timer = setTimeout(() => {
+      console.log("🎬 SplashScreen: Starting fade out animation");
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 500,
         useNativeDriver: true,
       }).start(() => {
+        console.log("🎬 SplashScreen: Fade out complete, calling onFinish");
         if (onFinish) onFinish();
       });
     }, 5000);
@@ -115,8 +117,11 @@ const SplashScreen = ({ onFinish }) => {
 
   // Wait for fonts to load
   if (!fontsLoaded) {
+    console.log("⏳ SplashScreen: Waiting for fonts to load...");
     return null;
   }
+
+  console.log("✅ SplashScreen: Fonts loaded, rendering splash screen");
 
   // Removed glow opacity interpolation
 
