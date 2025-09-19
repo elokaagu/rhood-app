@@ -178,7 +178,21 @@ export default function App() {
   };
 
   const handleSplashFinish = () => {
-    setShowSplash(false);
+    // Start fade out animation
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 800,
+      useNativeDriver: true,
+    }).start(() => {
+      // Hide splash screen after fade completes
+      setShowSplash(false);
+      // Fade in the main app
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+    });
   };
 
   // Authentication handlers
@@ -563,44 +577,50 @@ export default function App() {
   // Show loading screen while checking authentication
   if (authLoading || isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.center}>
-          <Text style={styles.title}>R/HOOD</Text>
-          <Text style={styles.subtitle}>Underground Music Platform</Text>
-        </View>
-      </SafeAreaView>
+      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+        <SafeAreaView style={styles.container}>
+          <View style={styles.center}>
+            <Text style={styles.title}>R/HOOD</Text>
+            <Text style={styles.subtitle}>Underground Music Platform</Text>
+          </View>
+        </SafeAreaView>
+      </Animated.View>
     );
   }
 
   // Show authentication screens if not logged in
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
-        {authMode === "login" ? (
-          <LoginScreen
-            onLoginSuccess={handleLoginSuccess}
-            onSwitchToSignup={showSignup}
-          />
-        ) : (
-          <SignupScreen
-            onSignupSuccess={handleSignupSuccess}
-            onSwitchToLogin={showLogin}
-          />
-        )}
-      </SafeAreaView>
+      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+        <SafeAreaView style={styles.container}>
+          {authMode === "login" ? (
+            <LoginScreen
+              onLoginSuccess={handleLoginSuccess}
+              onSwitchToSignup={showSignup}
+            />
+          ) : (
+            <SignupScreen
+              onSignupSuccess={handleSignupSuccess}
+              onSwitchToLogin={showLogin}
+            />
+          )}
+        </SafeAreaView>
+      </Animated.View>
     );
   }
 
   // Show onboarding if first time user
   if (isFirstTime) {
     return (
-      <SafeAreaView style={styles.container}>
-        <OnboardingForm
-          onComplete={completeOnboarding}
-          djProfile={djProfile}
-          setDjProfile={setDjProfile}
-        />
-      </SafeAreaView>
+      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+        <SafeAreaView style={styles.container}>
+          <OnboardingForm
+            onComplete={completeOnboarding}
+            djProfile={djProfile}
+            setDjProfile={setDjProfile}
+          />
+        </SafeAreaView>
+      </Animated.View>
     );
   }
 
@@ -828,7 +848,8 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+      <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Image
@@ -1259,7 +1280,8 @@ export default function App() {
           onCancel={handleProfileCancel}
         />
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </Animated.View>
   );
 }
 
