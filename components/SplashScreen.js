@@ -19,10 +19,13 @@ const SplashScreen = ({ onFinish }) => {
   });
 
   // Initialize video player for New Architecture
-  const player = useVideoPlayer(require("../assets/RHOOD_Logo_Spinner.mov"), (player) => {
-    player.loop = true;
-    player.muted = true;
-  });
+  const player = useVideoPlayer(
+    require("../assets/RHOOD_Logo_Spinner.mov"),
+    (player) => {
+      player.loop = true;
+      player.muted = true;
+    }
+  );
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
@@ -35,7 +38,7 @@ const SplashScreen = ({ onFinish }) => {
   useEffect(() => {
     // Start video playback
     player.play();
-    
+
     // Start animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
