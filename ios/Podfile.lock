@@ -16,7 +16,7 @@ PODS:
   - EXJSONUtils (0.15.0)
   - EXManifests (1.0.8):
     - ExpoModulesCore
-  - Expo (54.0.6):
+  - Expo (54.0.9):
     - boost
     - DoubleConversion
     - ExpoModulesCore
@@ -254,7 +254,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - ExpoAsset (12.0.8):
+  - ExpoAsset (12.0.9):
     - ExpoModulesCore
   - ExpoAudio (1.0.13):
     - ExpoModulesCore
@@ -281,7 +281,7 @@ PODS:
     - ExpoModulesCore
   - ExpoLinking (8.0.8):
     - ExpoModulesCore
-  - ExpoModulesCore (3.0.15):
+  - ExpoModulesCore (3.0.17):
     - boost
     - DoubleConversion
     - fast_float
@@ -3152,12 +3152,12 @@ SPEC CHECKSUMS:
   EXImageLoader: 189e3476581efe3ad4d1d3fb4735b7179eb26f05
   EXJSONUtils: 1d3e4590438c3ee593684186007028a14b3686cd
   EXManifests: 224345a575fca389073c416297b6348163f28d1a
-  Expo: 071e5f51de740c5eb3fc2fafa69936bfb77bd4cc
+  Expo: 79ceceb7e6043d51ac42ecec8dcdc0eeb58a79f4
   expo-dev-client: f3434d6ca09ecb14ae48c2a3912bdbb07464cc85
   expo-dev-launcher: 746f60f75a8d229581710299e37a9db0c1baa360
   expo-dev-menu: 19de9e2b7a4c5d0ff2afe5d7f1d8913d4699b32d
   expo-dev-menu-interface: 600df12ea01efecdd822daaf13cc0ac091775533
-  ExpoAsset: 84810d6fed8179f04d4a7a4a6b37028bbd726e26
+  ExpoAsset: 9ba6fbd677fb8e241a3899ac00fa735bc911eadf
   ExpoAudio: f3ad69235f7e4c36cd09b7951b710fce3eef17fa
   ExpoBlur: 2dd8f64aa31f5d405652c21d3deb2d2588b1852f
   ExpoCrypto: c1fbce112d1b6b79652bbe380b4fd4cc91676595
@@ -3168,7 +3168,7 @@ SPEC CHECKSUMS:
   ExpoKeepAwake: 1a2e820692e933c94a565ec3fbbe38ac31658ffe
   ExpoLinearGradient: a464898cb95153125e3b81894fd479bcb1c7dd27
   ExpoLinking: f051f28e50ea9269ff539317c166adec81d9342d
-  ExpoModulesCore: 5d150c790fb491ab10fe431fb794014af841258f
+  ExpoModulesCore: 3a307ab1f73fc3399e33e2893d2652a2ab14b342
   ExpoVideo: 6ffaf450d18b2ca33bdf92acaea80271b4a06c92
   ExpoWebBrowser: 533bc2a1b188eec1c10e4926decf658f1687b5e5
   EXStructuredHeaders: c951e77f2d936f88637421e9588c976da5827368
