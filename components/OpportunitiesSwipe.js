@@ -20,21 +20,6 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const mockGigs = [
   {
     id: 1,
-    name: "Underground Warehouse Rave",
-    date: "Aug 15, 2024",
-    time: "22:00",
-    location: "East London, UK",
-    fee: "£300",
-    description:
-      "High-energy underground event. Looking for DJs who can bring the heat with hard techno and industrial beats.",
-    genre: "Techno",
-    skillLevel: "Intermediate",
-    organizer: "Darkside Collective",
-    heroImage:
-      "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=600&fit=crop",
-  },
-  {
-    id: 2,
     name: "Club Neon Resident DJ",
     date: "Jul 1, 2024",
     time: "22:00",
@@ -49,7 +34,7 @@ const mockGigs = [
       "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=600&fit=crop",
   },
   {
-    id: 3,
+    id: 2,
     name: "Berlin Underground Festival",
     date: "Aug 20, 2024",
     time: "20:00",
@@ -64,7 +49,7 @@ const mockGigs = [
       "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=600&fit=crop",
   },
   {
-    id: 4,
+    id: 3,
     name: "Ibiza Beach Party",
     date: "Sep 10, 2024",
     time: "18:00",
@@ -79,7 +64,7 @@ const mockGigs = [
       "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=600&fit=crop",
   },
   {
-    id: 5,
+    id: 4,
     name: "NYC Rooftop Sessions",
     date: "Jul 25, 2024",
     time: "19:00",
@@ -370,8 +355,10 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             {/* Card Content */}
             <View style={styles.nextCardContent}>
               <Text style={styles.nextCardTitle}>{nextGig.name}</Text>
-              <Text style={styles.nextCardDescription}>{nextGig.description}</Text>
-              
+              <Text style={styles.nextCardDescription}>
+                {nextGig.description}
+              </Text>
+
               {/* Event Details */}
               <View style={styles.nextCardDetails}>
                 <View style={styles.detailRow}>
