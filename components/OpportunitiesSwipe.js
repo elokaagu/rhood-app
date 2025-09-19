@@ -519,12 +519,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    paddingBottom: 120, // Reduce bottom space to lift card
+    paddingBottom: 160, // Increase bottom space to prevent overlap with instructions
   },
   card: {
     position: "absolute",
     width: screenWidth - 40,
-    height: 500,
+    height: 480, // Slightly reduce height to prevent overlap
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
   },
   instructionsContainer: {
     position: "absolute",
-    bottom: 80, // Move closer to tab bar for better visibility
+    bottom: 100, // Move further from cards to prevent overlap
     left: 0,
     right: 0,
     paddingHorizontal: 20,
