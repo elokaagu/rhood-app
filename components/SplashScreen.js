@@ -19,10 +19,13 @@ const SplashScreen = ({ onFinish }) => {
   });
 
   // Initialize video player for New Architecture
-  const player = useVideoPlayer(require("../assets/RHOOD_Logo_Spinner.mov"), (player) => {
-    player.loop = true;
-    player.muted = true;
-  });
+  const player = useVideoPlayer(
+    require("../assets/RHOOD_Logo_Spinner.mov"),
+    (player) => {
+      player.loop = true;
+      player.muted = true;
+    }
+  );
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
@@ -33,8 +36,14 @@ const SplashScreen = ({ onFinish }) => {
   const [loadingText, setLoadingText] = useState("Initializing...");
 
   useEffect(() => {
-    // Start video playback
-    player.play();
+    // Start video playback if player is available
+    try {
+      if (player && typeof player.play === 'function') {
+        player.play();
+      }
+    } catch (error) {
+      console.warn('Video player play error:', error);
+    }
 
     // Start animations
     Animated.parallel([
@@ -113,8 +122,14 @@ const SplashScreen = ({ onFinish }) => {
     return () => {
       clearTimeout(timer);
       clearInterval(textInterval);
-      // Pause video on cleanup
-      player.pause();
+      // Pause video on cleanup if player is available
+      try {
+        if (player && typeof player.pause === 'function') {
+          player.pause();
+        }
+      } catch (error) {
+        console.warn('Video player cleanup error:', error);
+      }
     };
   }, []);
 
