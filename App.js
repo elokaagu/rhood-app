@@ -842,7 +842,7 @@ export default function App() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Image
-            source={require("./assets/Rhood_Lettering_Green.jpg")}
+            source={require("./assets/RHOOD_Lettering_Logo.png")}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -1299,8 +1299,8 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: "#000000", // Pure black background
-    paddingVertical: 15,
-    paddingHorizontal: 20,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)", // Subtle border
     flexDirection: "row",
@@ -1363,8 +1363,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   logoImage: {
-    height: 32,
-    width: 120, // Proper size for header, not floating
+    height: 64,
+    width: 200, // Proportional width for 64px height
     alignSelf: "flex-start", // Ensure left alignment
   },
   headerIcon: {
