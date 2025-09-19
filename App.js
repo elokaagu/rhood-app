@@ -892,81 +892,88 @@ export default function App() {
         {/* Hide tab bar on messages screen */}
         {currentScreen !== "messages" && (
           <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              currentScreen === "opportunities" && styles.activeTab,
-            ]}
-            onPress={() => handleMenuNavigation("opportunities")}
-          >
-            <Ionicons
-              name="briefcase-outline"
-              size={20}
-              color={
-                currentScreen === "opportunities"
-                  ? "#C2CC06"
-                  : "hsl(0, 0%, 70%)"
-              }
-            />
-            <Text
+            <TouchableOpacity
               style={[
-                styles.tabText,
-                currentScreen === "opportunities" && styles.activeTabText,
+                styles.tab,
+                currentScreen === "opportunities" && styles.activeTab,
               ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit={true}
+              onPress={() => handleMenuNavigation("opportunities")}
             >
-              Opportunities
-            </Text>
-          </TouchableOpacity>
+              <Ionicons
+                name="briefcase-outline"
+                size={20}
+                color={
+                  currentScreen === "opportunities"
+                    ? "#C2CC06"
+                    : "hsl(0, 0%, 70%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  currentScreen === "opportunities" && styles.activeTabText,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+              >
+                Opportunities
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              currentScreen === "connections" && styles.activeTab,
-            ]}
-            onPress={() => handleMenuNavigation("connections")}
-          >
-            <Ionicons
-              name="people-outline"
-              size={20}
-              color={
-                currentScreen === "connections" ? "#C2CC06" : "hsl(0, 0%, 70%)"
-              }
-            />
-            <Text
+            <TouchableOpacity
               style={[
-                styles.tabText,
-                currentScreen === "connections" && styles.activeTabText,
+                styles.tab,
+                currentScreen === "connections" && styles.activeTab,
               ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit={true}
+              onPress={() => handleMenuNavigation("connections")}
             >
-              Connections
-            </Text>
-          </TouchableOpacity>
+              <Ionicons
+                name="people-outline"
+                size={20}
+                color={
+                  currentScreen === "connections"
+                    ? "#C2CC06"
+                    : "hsl(0, 0%, 70%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  currentScreen === "connections" && styles.activeTabText,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+              >
+                Connections
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.tab, currentScreen === "listen" && styles.activeTab]}
-            onPress={() => handleMenuNavigation("listen")}
-          >
-            <Ionicons
-              name="musical-notes-outline"
-              size={20}
-              color={currentScreen === "listen" ? "#C2CC06" : "hsl(0, 0%, 70%)"}
-            />
-            <Text
+            <TouchableOpacity
               style={[
-                styles.tabText,
-                currentScreen === "listen" && styles.activeTabText,
+                styles.tab,
+                currentScreen === "listen" && styles.activeTab,
               ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit={true}
+              onPress={() => handleMenuNavigation("listen")}
             >
-              Listen
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <Ionicons
+                name="musical-notes-outline"
+                size={20}
+                color={
+                  currentScreen === "listen" ? "#C2CC06" : "hsl(0, 0%, 70%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  currentScreen === "listen" && styles.activeTabText,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+              >
+                Listen
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Hamburger Menu Modal */}
