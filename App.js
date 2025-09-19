@@ -1273,14 +1273,14 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     position: "relative",
-    paddingBottom: 100, // Add bottom padding for floating tab bar
+    paddingBottom: 20, // Minimal bottom padding for floating tab bar
   },
   onboarding: {
     backgroundColor: "#1D1D1B", // Brand black background
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 100, // Add bottom padding for floating tab bar
+    paddingBottom: 20, // Minimal bottom padding for floating tab bar
   },
   center: {
     flex: 1,
@@ -1368,7 +1368,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     padding: 20,
-    paddingBottom: 100, // Add bottom padding for floating tab bar
+    paddingBottom: 20, // Minimal bottom padding for floating tab bar
     backgroundColor: "#1D1D1B", // Brand black background
   },
   screenTitle: {
