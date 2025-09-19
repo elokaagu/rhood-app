@@ -535,6 +535,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
+    opacity: 0,
   },
   currentCard: {
     zIndex: 20,
