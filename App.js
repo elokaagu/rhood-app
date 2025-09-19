@@ -99,7 +99,7 @@ export default function App() {
     console.log("TurboModules enabled:", global.RN$Bridgeless !== undefined);
     console.log(
       "React Native version:",
-      require("react-native/package.json").version
+      require("react-native").Platform.constants.reactNativeVersion
     );
     console.log("Expo SDK version:", require("expo/package.json").version);
     console.log(

@@ -7,8 +7,7 @@ import {
   Dimensions,
   Image,
 } from "react-native";
-// import { VideoView, useVideoPlayer } from "expo-video";
-import { Video } from "expo-av";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { useFonts } from "expo-font";
 
 const { width, height } = Dimensions.get("window");
@@ -19,8 +18,11 @@ const SplashScreen = ({ onFinish }) => {
     "TS-Block-Bold": require("../assets/TS Block Bold.ttf"),
   });
 
-  // Initialize video player for Legacy Architecture
-  const [videoStatus, setVideoStatus] = useState({});
+  // Initialize video player for New Architecture
+  const player = useVideoPlayer(require("../assets/RHOOD_Logo_Spinner.mov"), (player) => {
+    player.loop = true;
+    player.muted = true;
+  });
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
@@ -31,7 +33,8 @@ const SplashScreen = ({ onFinish }) => {
   const [loadingText, setLoadingText] = useState("Initializing...");
 
   useEffect(() => {
-    // Video will auto-play with shouldPlay={true}
+    // Start video playback
+    player.play();
 
     // Start animations
     Animated.parallel([
@@ -110,7 +113,8 @@ const SplashScreen = ({ onFinish }) => {
     return () => {
       clearTimeout(timer);
       clearInterval(textInterval);
-      // Video cleanup handled by component unmount
+      // Pause video on cleanup
+      player.pause();
     };
   }, []);
 
@@ -124,14 +128,11 @@ const SplashScreen = ({ onFinish }) => {
   return (
     <View style={styles.container}>
       {/* Full Screen Video Background */}
-      <Video
-        source={require("../assets/RHOOD_Logo_Spinner.mov")}
+      <VideoView
+        player={player}
         style={styles.fullScreenVideo}
-        shouldPlay={true}
-        isLooping={true}
-        isMuted={true}
-        resizeMode="cover"
-        onPlaybackStatusUpdate={setVideoStatus}
+        allowsFullscreen={false}
+        allowsPictureInPicture={false}
       />
 
       {/* Content Overlay */}

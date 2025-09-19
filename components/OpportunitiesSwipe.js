@@ -430,7 +430,9 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             {/* Content overlay */}
             <View style={styles.cardContent}>
               <Text style={styles.gigTitle}>{currentGig.name}</Text>
-              <Text style={styles.gigDescription}>{currentGig.description}</Text>
+              <Text style={styles.gigDescription}>
+                {currentGig.description}
+              </Text>
 
               <View style={styles.gigDetails}>
                 <View style={styles.detailRow}>
