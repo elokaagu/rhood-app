@@ -144,7 +144,7 @@ const SplashScreen = ({ onFinish }) => {
           resizeMode="contain"
         />
         <Text style={styles.tsBlockBoldSubtitle}>
-          UNDERGROUND{"\n"}MUSIC{"\n"}PLATFORM
+          WELCOME{"\n"}TO{"\n"}R/HOOD
         </Text>
 
         {/* Loading Progress Bar */}
