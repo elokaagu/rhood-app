@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   card: {
     position: "absolute",
     width: screenWidth - 40,
-    height: 500, // Restore full height since we have proper spacing now
+    height: 550, // Increased height for better presence
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
