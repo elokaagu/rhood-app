@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Animated, Dimensions, Image } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  Image,
+} from "react-native";
 import { Video } from "expo-av";
 import { useFonts } from "expo-font";
 
@@ -71,7 +78,6 @@ const SplashScreen = ({ onFinish }) => {
       "Loading R/HOOD...",
       "Connecting to underground...",
       "Preparing your experience...",
-      "Ready to rock!",
     ];
 
     let textIndex = 0;
