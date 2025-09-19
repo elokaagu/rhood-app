@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -15,6 +14,7 @@ import {
   Linking,
   Alert,
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
@@ -126,8 +126,17 @@ export default function App() {
       // Get initial session
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+      
+      if (sessionError) {
+        console.log("Session error:", sessionError.message);
+        // Clear invalid session
+        await supabase.auth.signOut();
+        setUser(null);
+      } else {
+        setUser(session?.user ?? null);
+      }
 
       // Listen for auth changes
       const {
@@ -833,7 +842,8 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Image
@@ -1276,7 +1286,8 @@ export default function App() {
           ]}
         />
       )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
