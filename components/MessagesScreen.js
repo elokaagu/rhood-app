@@ -412,13 +412,6 @@ export default function MessagesScreen({ navigation, route }) {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.moreButton}>
-            <Ionicons
-              name="ellipsis-vertical"
-              size={20}
-              color="hsl(0, 0%, 70%)"
-            />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -557,201 +550,188 @@ export default function MessagesScreen({ navigation, route }) {
 
   // Direct Message Interface
   const renderDirectMessage = () => (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
-            </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
+          </TouchableOpacity>
 
-            <View style={styles.headerInfo}>
-              <View style={styles.djImageContainer}>
-                <ProgressiveImage
-                  source={{ uri: currentDJ.profileImage }}
-                  style={styles.djImage}
-                />
-                {currentDJ.isOnline && <View style={styles.onlineIndicator} />}
-              </View>
-
-              <View style={styles.djDetails}>
-                <Text style={styles.djName}>{currentDJ.name}</Text>
-                <View style={styles.djLocation}>
-                  <Ionicons
-                    name="location-outline"
-                    size={12}
-                    color="hsl(0, 0%, 70%)"
-                  />
-                  <Text style={styles.djLocationText}>
-                    {currentDJ.location}
-                  </Text>
-                  <Ionicons name="star" size={12} color="hsl(75, 100%, 60%)" />
-                  <Text style={styles.djRating}>{currentDJ.rating}</Text>
-                </View>
-              </View>
+          <View style={styles.headerInfo}>
+            <View style={styles.djImageContainer}>
+              <ProgressiveImage
+                source={{ uri: currentDJ.profileImage }}
+                style={styles.djImage}
+              />
+              {currentDJ.isOnline && <View style={styles.onlineIndicator} />}
             </View>
 
-            <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.headerAction}>
+            <View style={styles.djDetails}>
+              <Text style={styles.djName}>{currentDJ.name}</Text>
+              <View style={styles.djLocation}>
                 <Ionicons
-                  name="ellipsis-vertical"
-                  size={20}
+                  name="location-outline"
+                  size={12}
                   color="hsl(0, 0%, 70%)"
                 />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* DJ Info Card */}
-        <View style={styles.djInfoContainer}>
-          <View style={styles.djInfoCard}>
-            <View style={styles.djInfoHeader}>
-              <View style={styles.djInfoTitle}>
-                <Ionicons
-                  name="musical-notes"
-                  size={16}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.djInfoTitleText}>DJ Profile</Text>
-              </View>
-              <View style={styles.connectedBadge}>
-                <Text style={styles.connectedText}>Connected</Text>
+                <Text style={styles.djLocationText}>{currentDJ.location}</Text>
+                <Ionicons name="star" size={12} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.djRating}>{currentDJ.rating}</Text>
               </View>
             </View>
+          </View>
 
-            <View style={styles.genresContainer}>
-              {currentDJ.genres.map((genre) => (
-                <View key={genre} style={styles.genreTag}>
-                  <Text style={styles.genreText}>{genre}</Text>
-                </View>
-              ))}
+        </View>
+      </View>
+
+      {/* DJ Info Card */}
+      <View style={styles.djInfoContainer}>
+        <View style={styles.djInfoCard}>
+          <View style={styles.djInfoHeader}>
+            <View style={styles.djInfoTitle}>
+              <Ionicons
+                name="musical-notes"
+                size={16}
+                color="hsl(75, 100%, 60%)"
+              />
+              <Text style={styles.djInfoTitleText}>DJ Profile</Text>
+            </View>
+            <View style={styles.connectedBadge}>
+              <Text style={styles.connectedText}>Connected</Text>
             </View>
           </View>
-        </View>
 
-         {/* Messages */}
-         <ScrollView 
-           style={styles.messagesContainer} 
-           showsVerticalScrollIndicator={false}
-           keyboardShouldPersistTaps="handled"
-         >
-          {messages.map((message) => (
+          <View style={styles.genresContainer}>
+            {currentDJ.genres.map((genre) => (
+              <View key={genre} style={styles.genreTag}>
+                <Text style={styles.genreText}>{genre}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      {/* Messages */}
+      <ScrollView
+        style={styles.messagesContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {messages.map((message) => (
+          <View
+            key={message.id}
+            style={[
+              styles.messageContainer,
+              message.isCurrentUser ? styles.messageRight : styles.messageLeft,
+            ]}
+          >
             <View
-              key={message.id}
               style={[
-                styles.messageContainer,
+                styles.messageBubble,
                 message.isCurrentUser
-                  ? styles.messageRight
-                  : styles.messageLeft,
+                  ? styles.messageBubbleRight
+                  : styles.messageBubbleLeft,
               ]}
             >
-              <View
+              <Text
                 style={[
-                  styles.messageBubble,
+                  styles.messageText,
                   message.isCurrentUser
-                    ? styles.messageBubbleRight
-                    : styles.messageBubbleLeft,
+                    ? styles.messageTextRight
+                    : styles.messageTextLeft,
                 ]}
               >
+                {message.text}
+              </Text>
+              <View style={styles.messageFooter}>
                 <Text
                   style={[
-                    styles.messageText,
+                    styles.messageTime,
                     message.isCurrentUser
-                      ? styles.messageTextRight
-                      : styles.messageTextLeft,
+                      ? styles.messageTimeRight
+                      : styles.messageTimeLeft,
                   ]}
                 >
-                  {message.text}
+                  {formatTime(message.timestamp)}
+                  {message.isEdited && " (edited)"}
                 </Text>
-                <View style={styles.messageFooter}>
-                  <Text
-                    style={[
-                      styles.messageTime,
-                      message.isCurrentUser
-                        ? styles.messageTimeRight
-                        : styles.messageTimeLeft,
-                    ]}
-                  >
-                    {formatTime(message.timestamp)}
-                    {message.isEdited && " (edited)"}
-                  </Text>
-                  {message.isCurrentUser && (
-                    <View style={styles.messageActions}>
-                      <TouchableOpacity
-                        style={styles.messageAction}
-                        onPress={() => openEditModal(message, "message")}
-                      >
-                        <Ionicons
-                          name="create-outline"
-                          size={14}
-                          color="hsl(0, 0%, 70%)"
-                        />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.messageAction}
-                        onPress={() => deleteMessage(message.id)}
-                      >
-                        <Ionicons
-                          name="trash-outline"
-                          size={14}
-                          color="hsl(0, 0%, 70%)"
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
+                {message.isCurrentUser && (
+                  <View style={styles.messageActions}>
+                    <TouchableOpacity
+                      style={styles.messageAction}
+                      onPress={() => openEditModal(message, "message")}
+                    >
+                      <Ionicons
+                        name="create-outline"
+                        size={14}
+                        color="hsl(0, 0%, 70%)"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.messageAction}
+                      onPress={() => deleteMessage(message.id)}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={14}
+                        color="hsl(0, 0%, 70%)"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             </View>
-          ))}
-        </ScrollView>
+          </View>
+        ))}
+      </ScrollView>
 
-         {/* Message Input */}
-         <View style={styles.inputContainer}>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.textInput}
-              value={newMessage}
-              onChangeText={setNewMessage}
-              placeholder="Type a message..."
-              placeholderTextColor="hsl(0, 0%, 50%)"
-              multiline
-              autoFocus={false}
-              returnKeyType="send"
-              onSubmitEditing={(e) => {
-                if (e.nativeEvent.text.trim()) {
-                  handleSendMessage();
-                }
-              }}
-              onKeyPress={(e) => {
-                if (e.nativeEvent.key === "Enter" && newMessage.trim()) {
-                  handleSendMessage();
-                }
-              }}
-              blurOnSubmit={false}
-              textAlignVertical="top"
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                !newMessage.trim() && styles.sendButtonDisabled,
-              ]}
-              onPress={handleSendMessage}
-              disabled={!newMessage.trim()}
-            >
-              <Ionicons name="send" size={20} color="hsl(0, 0%, 100%)" />
-            </TouchableOpacity>
-           </View>
-         </View>
-       </KeyboardAvoidingView>
-   );
+      {/* Message Input */}
+      <View style={styles.inputContainer}>
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.textInput}
+            value={newMessage}
+            onChangeText={setNewMessage}
+            placeholder="Type a message..."
+            placeholderTextColor="hsl(0, 0%, 50%)"
+            multiline
+            autoFocus={false}
+            returnKeyType="send"
+            onSubmitEditing={(e) => {
+              if (e.nativeEvent.text.trim()) {
+                handleSendMessage();
+              }
+            }}
+            onKeyPress={(e) => {
+              if (e.nativeEvent.key === "Enter" && newMessage.trim()) {
+                handleSendMessage();
+              }
+            }}
+            blurOnSubmit={false}
+            textAlignVertical="top"
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              !newMessage.trim() && styles.sendButtonDisabled,
+            ]}
+            onPress={handleSendMessage}
+            disabled={!newMessage.trim()}
+          >
+            <Ionicons name="send" size={20} color="hsl(0, 0%, 100%)" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  );
 
   // Edit Modal
   const renderEditModal = () => (
@@ -893,17 +873,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "hsl(0, 0%, 70%)",
     marginTop: 2,
-  },
-  moreButton: {
-    padding: 8,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerAction: {
-    padding: 8,
-    marginLeft: 8,
   },
   djImageContainer: {
     position: "relative",
