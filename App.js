@@ -571,50 +571,60 @@ export default function App() {
 
   // Show splash screen first
   if (showSplash) {
-    return <SplashScreen onFinish={handleSplashFinish} />;
+    return (
+      <SafeAreaProvider>
+        <SplashScreen onFinish={handleSplashFinish} />
+      </SafeAreaProvider>
+    );
   }
 
   // Show loading screen while checking authentication
   if (authLoading || isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.center}>
-          <Text style={styles.title}>R/HOOD</Text>
-          <Text style={styles.subtitle}>Underground Music Platform</Text>
-        </View>
-      </SafeAreaView>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <View style={styles.center}>
+            <Text style={styles.title}>R/HOOD</Text>
+            <Text style={styles.subtitle}>Underground Music Platform</Text>
+          </View>
+        </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   // Show authentication screens if not logged in
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
-        {authMode === "login" ? (
-          <LoginScreen
-            onLoginSuccess={handleLoginSuccess}
-            onSwitchToSignup={showSignup}
-          />
-        ) : (
-          <SignupScreen
-            onSignupSuccess={handleSignupSuccess}
-            onSwitchToLogin={showLogin}
-          />
-        )}
-      </SafeAreaView>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          {authMode === "login" ? (
+            <LoginScreen
+              onLoginSuccess={handleLoginSuccess}
+              onSwitchToSignup={showSignup}
+            />
+          ) : (
+            <SignupScreen
+              onSignupSuccess={handleSignupSuccess}
+              onSwitchToLogin={showLogin}
+            />
+          )}
+        </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   // Show onboarding if first time user
   if (isFirstTime) {
     return (
-      <SafeAreaView style={styles.container}>
-        <OnboardingForm
-          onComplete={completeOnboarding}
-          djProfile={djProfile}
-          setDjProfile={setDjProfile}
-        />
-      </SafeAreaView>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <OnboardingForm
+            onComplete={completeOnboarding}
+            djProfile={djProfile}
+            setDjProfile={setDjProfile}
+          />
+        </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
