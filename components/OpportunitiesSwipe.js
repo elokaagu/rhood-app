@@ -152,7 +152,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 
   const snapBack = () => {
     if (isAnimating) return;
-    
+
     setIsAnimating(true);
     Animated.parallel([
       Animated.spring(translateX, {
@@ -195,7 +195,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 
   const handleSwipeLeft = () => {
     if (isAnimating) return;
-    
+
     setIsAnimating(true);
     Animated.parallel([
       Animated.timing(translateX, {
@@ -224,19 +224,19 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       setCurrentGigIndex((prevIndex) =>
         prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
       );
-      
+
       // Small delay to prevent animation conflicts
       setTimeout(() => {
         setIsAnimating(false);
       }, 50);
-      
+
       onPass && onPass(currentGig);
     });
   };
 
   const handleSwipeRight = () => {
     if (isAnimating) return;
-    
+
     if (appliesLeft > 0) {
       setIsAnimating(true);
       Animated.parallel([
@@ -267,12 +267,12 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
           prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
         );
         setAppliesLeft(appliesLeft - 1);
-        
+
         // Small delay to prevent animation conflicts
         setTimeout(() => {
           setIsAnimating(false);
         }, 50);
-        
+
         setShowApplication(true);
       });
     } else {
@@ -571,7 +571,8 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
-    paddingBottom: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
   },
@@ -593,6 +594,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    paddingTop: 16,
+    marginTop: -20,
   },
   card: {
     position: "absolute",

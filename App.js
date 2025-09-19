@@ -1800,7 +1800,7 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     position: "absolute",
-    bottom: 20,
+    bottom: 30,
     left: 20,
     right: 20,
     flexDirection: "row",
@@ -2176,7 +2176,7 @@ const styles = StyleSheet.create({
   // Global Audio Player Styles
   globalAudioPlayer: {
     position: "absolute",
-    bottom: 80, // Above tab bar
+    bottom: 90, // Above tab bar
     left: 0,
     right: 0,
     backgroundColor: "#1D1D1B",
