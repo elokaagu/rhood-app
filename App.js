@@ -333,16 +333,20 @@ export default function App() {
       // Create and load new sound using expo-audio
       console.log("🔄 Creating new sound instance...");
       console.log("🔄 Audio file path:", track.audioUrl);
+      console.log("🔄 Audio file type:", typeof track.audioUrl);
 
       const player = createAudioPlayer(track.audioUrl, {
         updateInterval: 1000,
         downloadFirst: true,
       });
 
+      console.log("🔄 Player created:", player);
+
       // Set up event listeners
       player.addListener("statusChange", (status) => {
-        console.log("📊 Audio status:", status);
+        console.log("📊 Audio status change:", status);
         if (status.isLoaded) {
+          console.log("✅ Audio loaded successfully");
           setGlobalAudioState((prev) => ({
             ...prev,
             isPlaying: status.isPlaying,
@@ -351,6 +355,8 @@ export default function App() {
             positionMillis: status.positionMillis,
             durationMillis: status.durationMillis,
           }));
+        } else {
+          console.log("⏳ Audio still loading...");
         }
       });
 
