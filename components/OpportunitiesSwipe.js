@@ -97,6 +97,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   const opacity = useRef(new Animated.Value(1)).current;
   const nextCardScale = useRef(new Animated.Value(0.9)).current;
   const nextCardOpacity = useRef(new Animated.Value(0.8)).current;
+  const cardTransition = useRef(new Animated.Value(0)).current;
 
   const currentGig = mockGigs[currentGigIndex];
   const nextGig = mockGigs[(currentGigIndex + 1) % mockGigs.length];
@@ -116,15 +117,16 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 
       const { dx, dy } = gestureState;
       translateX.setValue(dx);
-      translateY.setValue(dy * 0.15); // Reduce vertical movement further
+      translateY.setValue(dy * 0.1); // Further reduce vertical movement
 
-      // Calculate opacity based on horizontal movement (smoother curve)
-      const opacityValue = 1 - Math.abs(dx) * 0.0008;
-      opacity.setValue(Math.max(0.4, opacityValue));
+      // Smoother opacity calculation with better curve
+      const progress = Math.min(Math.abs(dx) / screenWidth, 1);
+      const opacityValue = 1 - progress * 0.6; // More gradual fade
+      opacity.setValue(Math.max(0.3, opacityValue));
 
-      // Animate next card (smoother scaling)
-      const scaleValue = 0.9 + Math.abs(dx) * 0.00015;
-      const nextOpacityValue = 0.8 + Math.abs(dx) * 0.0003;
+      // Smoother next card animation with better interpolation
+      const scaleValue = 0.9 + progress * 0.1;
+      const nextOpacityValue = 0.8 + progress * 0.2;
       nextCardScale.setValue(Math.min(1, scaleValue));
       nextCardOpacity.setValue(Math.min(1, nextOpacityValue));
     },
@@ -135,9 +137,10 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       translateY.flattenOffset();
 
       const { dx, vx } = gestureState;
-      const threshold = 100;
+      const threshold = 80; // Lower threshold for more responsive swipes
+      const velocityThreshold = 0.3; // Lower velocity threshold
 
-      if (Math.abs(dx) > threshold || Math.abs(vx) > 0.5) {
+      if (Math.abs(dx) > threshold || Math.abs(vx) > velocityThreshold) {
         if (dx > 0) {
           handleSwipeRight();
         } else {
@@ -158,38 +161,40 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       Animated.spring(translateX, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 120,
-        friction: 10,
+        tension: 150,
+        friction: 8,
+        velocity: 0,
       }),
       Animated.spring(translateY, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 120,
-        friction: 10,
+        tension: 150,
+        friction: 8,
+        velocity: 0,
       }),
       Animated.spring(opacity, {
         toValue: 1,
         useNativeDriver: true,
-        tension: 120,
-        friction: 10,
+        tension: 150,
+        friction: 8,
+        velocity: 0,
       }),
       Animated.spring(nextCardScale, {
         toValue: 0.9,
         useNativeDriver: true,
-        tension: 120,
-        friction: 10,
+        tension: 150,
+        friction: 8,
+        velocity: 0,
       }),
       Animated.spring(nextCardOpacity, {
         toValue: 0.8,
         useNativeDriver: true,
-        tension: 120,
-        friction: 10,
+        tension: 150,
+        friction: 8,
+        velocity: 0,
       }),
     ]).start(() => {
-      // Small delay to prevent animation conflicts
-      setTimeout(() => {
-        setIsAnimating(false);
-      }, 50);
+      setIsAnimating(false);
     });
   };
 
@@ -198,65 +203,36 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 
     setIsAnimating(true);
     Animated.parallel([
-      Animated.timing(translateX, {
-        toValue: -screenWidth,
-        duration: 250,
+      Animated.spring(translateX, {
+        toValue: -screenWidth * 1.2,
         useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+        velocity: 0,
       }),
-      Animated.timing(translateY, {
-        toValue: -30,
-        duration: 250,
+      Animated.spring(translateY, {
+        toValue: -40,
         useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+        velocity: 0,
       }),
-      Animated.timing(opacity, {
+      Animated.spring(opacity, {
         toValue: 0,
-        duration: 250,
         useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+        velocity: 0,
       }),
     ]).start(() => {
-      // Reset values and move to next gig
-      translateX.setValue(0);
-      translateY.setValue(0);
-      opacity.setValue(1);
-      nextCardScale.setValue(0.9);
-      nextCardOpacity.setValue(0.8);
-
-      setCurrentGigIndex((prevIndex) =>
-        prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
-      );
-
-      // Small delay to prevent animation conflicts
-      setTimeout(() => {
-        setIsAnimating(false);
-      }, 50);
-
-      onPass && onPass(currentGig);
-    });
-  };
-
-  const handleSwipeRight = () => {
-    if (isAnimating) return;
-
-    if (appliesLeft > 0) {
-      setIsAnimating(true);
-      Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: screenWidth,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: -30,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        // Reset values
+      // Smooth transition to next card
+      cardTransition.setValue(1);
+      Animated.timing(cardTransition, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        // Reset values and move to next gig
         translateX.setValue(0);
         translateY.setValue(0);
         opacity.setValue(1);
@@ -266,14 +242,65 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         setCurrentGigIndex((prevIndex) =>
           prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
         );
-        setAppliesLeft(appliesLeft - 1);
 
-        // Small delay to prevent animation conflicts
-        setTimeout(() => {
+        setIsAnimating(false);
+
+        onPass && onPass(currentGig);
+      });
+    });
+  };
+
+  const handleSwipeRight = () => {
+    if (isAnimating) return;
+
+    if (appliesLeft > 0) {
+      setIsAnimating(true);
+      Animated.parallel([
+        Animated.spring(translateX, {
+          toValue: screenWidth * 1.2,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+          velocity: 0,
+        }),
+        Animated.spring(translateY, {
+          toValue: -40,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+          velocity: 0,
+        }),
+        Animated.spring(opacity, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+          velocity: 0,
+        }),
+      ]).start(() => {
+        // Smooth transition to next card
+        cardTransition.setValue(1);
+        Animated.timing(cardTransition, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          // Reset values
+          translateX.setValue(0);
+          translateY.setValue(0);
+          opacity.setValue(1);
+          nextCardScale.setValue(0.9);
+          nextCardOpacity.setValue(0.8);
+
+          setCurrentGigIndex((prevIndex) =>
+            prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
+          );
+          setAppliesLeft(appliesLeft - 1);
+
           setIsAnimating(false);
-        }, 50);
 
-        setShowApplication(true);
+          setShowApplication(true);
+        });
       });
     } else {
       setShowNoApplicationsModal(true);
@@ -435,8 +462,18 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             styles.card,
             styles.currentCard,
             {
-              transform: [{ translateX }, { translateY }],
-              opacity,
+              transform: [
+                { translateX },
+                { translateY },
+                { scale: cardTransition.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1, 0.95],
+                }) },
+              ],
+              opacity: Animated.multiply(opacity, cardTransition.interpolate({
+                inputRange: [0, 1],
+                outputRange: [1, 0.8],
+              })),
             },
           ]}
           {...panResponder.panHandlers}
