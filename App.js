@@ -17,7 +17,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { AudioPlayer } from "expo-audio";
+import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { useFonts } from "expo-font";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
@@ -150,7 +150,7 @@ export default function App() {
         await supabase.auth.signOut();
         setUser(null);
       } else {
-        setUser(session?.user ?? null);
+      setUser(session?.user ?? null);
       }
 
       // Listen for auth changes
@@ -211,7 +211,7 @@ export default function App() {
       useNativeDriver: true,
     }).start(() => {
       // Hide splash screen after black overlay is complete
-      setShowSplash(false);
+    setShowSplash(false);
       // Fade out the black overlay to reveal main app
       Animated.timing(fadeOverlayAnim, {
         toValue: 0,
@@ -276,12 +276,12 @@ export default function App() {
     AsyncStorage.setItem(
       "djProfile",
       JSON.stringify({
-        djName: updatedProfile.dj_name,
-        fullName: updatedProfile.full_name,
+      djName: updatedProfile.dj_name,
+      fullName: updatedProfile.full_name,
         instagram: updatedProfile.instagram || "",
         soundcloud: updatedProfile.soundcloud || "",
-        city: updatedProfile.city,
-        genres: updatedProfile.genres,
+      city: updatedProfile.city,
+      genres: updatedProfile.genres,
       })
     );
   };
@@ -323,11 +323,21 @@ export default function App() {
 
       setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
 
+      // Configure audio mode for playback
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: 'mixWithOthers'
+      });
+
       // Create and load new sound using expo-audio
       console.log("🔄 Creating new sound instance...");
       console.log("🔄 Audio file path:", track.audioUrl);
 
-      const player = new AudioPlayer(track.audioUrl);
+      const player = createAudioPlayer(track.audioUrl, {
+        updateInterval: 1000,
+        downloadFirst: true,
+      });
 
       // Set up event listeners
       player.addListener("statusChange", (status) => {
@@ -368,22 +378,35 @@ export default function App() {
 
   const pauseGlobalAudio = async () => {
     if (globalAudioState.sound) {
-      await globalAudioState.sound.pause();
-      setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
+      try {
+        await globalAudioState.sound.pause();
+        setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
+      } catch (error) {
+        console.log("❌ Error pausing audio:", error);
+      }
     }
   };
 
   const resumeGlobalAudio = async () => {
     if (globalAudioState.sound) {
-      await globalAudioState.sound.play();
-      setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
+      try {
+        await globalAudioState.sound.play();
+        setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
+      } catch (error) {
+        console.log("❌ Error resuming audio:", error);
+      }
     }
   };
 
   const stopGlobalAudio = async () => {
     if (globalAudioRef.current) {
-      globalAudioRef.current.remove();
-      globalAudioRef.current = null;
+      try {
+        await globalAudioRef.current.pause();
+        globalAudioRef.current.remove();
+        globalAudioRef.current = null;
+      } catch (error) {
+        console.log("❌ Error stopping audio:", error);
+      }
     }
     setGlobalAudioState({
       isPlaying: false,
@@ -391,6 +414,10 @@ export default function App() {
       progress: 0,
       isLoading: false,
       sound: null,
+      isShuffled: false,
+      repeatMode: "none",
+      positionMillis: 0,
+      durationMillis: 0,
     });
   };
 
@@ -408,10 +435,10 @@ export default function App() {
       try {
         const currentPosition = globalAudioState.positionMillis || 0;
         const duration = globalAudioState.durationMillis || 0;
-        const newPosition = Math.min(
+          const newPosition = Math.min(
           currentPosition + 10000, // Skip 10 seconds
           duration
-        );
+          );
         await globalAudioState.sound.seekTo(newPosition);
       } catch (error) {
         console.log("Error skipping forward:", error);
@@ -424,10 +451,10 @@ export default function App() {
     if (globalAudioState.sound) {
       try {
         const currentPosition = globalAudioState.positionMillis || 0;
-        const newPosition = Math.max(
+          const newPosition = Math.max(
           currentPosition - 10000, // Skip back 10 seconds
-          0
-        );
+            0
+          );
         await globalAudioState.sound.seekTo(newPosition);
       } catch (error) {
         console.log("Error skipping backward:", error);
@@ -597,12 +624,12 @@ export default function App() {
   if (authLoading || isLoading) {
     return (
       <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          <View style={styles.center}>
-            <Text style={styles.title}>R/HOOD</Text>
-            <Text style={styles.subtitle}>Underground Music Platform</Text>
-          </View>
-        </SafeAreaView>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.center}>
+          <Text style={styles.title}>R/HOOD</Text>
+          <Text style={styles.subtitle}>Underground Music Platform</Text>
+        </View>
+      </SafeAreaView>
       </SafeAreaProvider>
     );
   }
@@ -611,19 +638,19 @@ export default function App() {
   if (!user) {
     return (
       <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          {authMode === "login" ? (
-            <LoginScreen
-              onLoginSuccess={handleLoginSuccess}
-              onSwitchToSignup={showSignup}
-            />
-          ) : (
-            <SignupScreen
-              onSignupSuccess={handleSignupSuccess}
-              onSwitchToLogin={showLogin}
-            />
-          )}
-        </SafeAreaView>
+      <SafeAreaView style={styles.container}>
+        {authMode === "login" ? (
+          <LoginScreen
+            onLoginSuccess={handleLoginSuccess}
+            onSwitchToSignup={showSignup}
+          />
+        ) : (
+          <SignupScreen
+            onSignupSuccess={handleSignupSuccess}
+            onSwitchToLogin={showLogin}
+          />
+        )}
+      </SafeAreaView>
       </SafeAreaProvider>
     );
   }
@@ -632,13 +659,13 @@ export default function App() {
   if (isFirstTime) {
     return (
       <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          <OnboardingForm
-            onComplete={completeOnboarding}
-            djProfile={djProfile}
-            setDjProfile={setDjProfile}
-          />
-        </SafeAreaView>
+      <SafeAreaView style={styles.container}>
+        <OnboardingForm
+          onComplete={completeOnboarding}
+          djProfile={djProfile}
+          setDjProfile={setDjProfile}
+        />
+      </SafeAreaView>
       </SafeAreaProvider>
     );
   }
@@ -767,17 +794,15 @@ export default function App() {
 
               <View style={styles.profileImageContainer}>
                 <Image
-                  source={{ uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face" }}
+                  source={{
+                    uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
+                  }}
                   style={styles.profileImage}
                 />
               </View>
 
-              <Text style={styles.profileDisplayName}>
-                Eloka Agu
-              </Text>
-              <Text style={styles.profileUsername}>
-                @elokaagu
-              </Text>
+              <Text style={styles.profileDisplayName}>Eloka Agu</Text>
+              <Text style={styles.profileUsername}>@elokaagu</Text>
 
               <View style={styles.profileRating}>
                 <Ionicons name="star" size={16} color="hsl(75, 100%, 60%)" />
@@ -796,25 +821,23 @@ export default function App() {
                   size={16}
                   color="hsl(0, 0%, 70%)"
                 />
-                <Text style={styles.locationText}>
-                  London
-                </Text>
-              </View>
+                <Text style={styles.locationText}>London</Text>
+                </View>
             </View>
 
             {/* Stats Cards */}
             <View style={styles.statsCardsContainer}>
               <View style={styles.statCard}>
                 <Ionicons name="flash" size={24} color="hsl(75, 100%, 60%)" />
-                <Text style={styles.statNumber}>156</Text>
+                  <Text style={styles.statNumber}>156</Text>
                 <Text style={styles.statLabel}>Credits</Text>
-              </View>
+                </View>
               <View style={styles.statCard}>
                 <Ionicons name="people" size={24} color="hsl(75, 100%, 60%)" />
                 <Text style={styles.statNumber}>12</Text>
                 <Text style={styles.statLabel}>Gigs Done</Text>
+                </View>
               </View>
-            </View>
 
             {/* Genres Card */}
             <View style={styles.genresCard}>
@@ -840,8 +863,8 @@ export default function App() {
                 </View>
                 <TouchableOpacity style={styles.playButton}>
                   <Ionicons name="play" size={20} color="hsl(0, 0%, 0%)" />
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
+            </View>
               <View style={styles.waveformContainer}>
                 {[3, 5, 2, 7, 4, 6, 3, 8, 5, 4, 6, 3, 5, 7, 4, 2].map(
                   (height, index) => (
@@ -1012,453 +1035,453 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
             <Image
               source={require("./assets/RHOOD_Lettering_Logo.png")}
               style={styles.logoImage}
               resizeMode="contain"
             />
-          </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={styles.menuButton}
-              onPress={() => setShowMenu(true)}
-            >
-              <Ionicons name="menu" size={24} color="hsl(0, 0%, 100%)" />
-            </TouchableOpacity>
-          </View>
         </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => setShowMenu(true)}
+          >
+            <Ionicons name="menu" size={24} color="hsl(0, 0%, 100%)" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-        {renderScreen()}
+      {renderScreen()}
 
         {/* Hide tab bar on messages screen */}
         {currentScreen !== "messages" && (
-          <View style={styles.tabBar}>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                currentScreen === "opportunities" && styles.activeTab,
-              ]}
-              onPress={() => handleMenuNavigation("opportunities")}
-            >
-              <Ionicons
-                name="briefcase-outline"
-                size={20}
-                color={
-                  currentScreen === "opportunities"
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            currentScreen === "opportunities" && styles.activeTab,
+          ]}
+          onPress={() => handleMenuNavigation("opportunities")}
+        >
+          <Ionicons
+            name="briefcase-outline"
+            size={20}
+            color={
+              currentScreen === "opportunities"
                     ? "#C2CC06"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  currentScreen === "opportunities" && styles.activeTabText,
-                ]}
+                : "hsl(0, 0%, 70%)"
+            }
+          />
+          <Text
+            style={[
+              styles.tabText,
+              currentScreen === "opportunities" && styles.activeTabText,
+            ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit={true}
-              >
-                Opportunities
-              </Text>
-            </TouchableOpacity>
+          >
+            Opportunities
+          </Text>
+        </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                currentScreen === "connections" && styles.activeTab,
-              ]}
-              onPress={() => handleMenuNavigation("connections")}
-            >
-              <Ionicons
-                name="people-outline"
-                size={20}
-                color={
-                  currentScreen === "connections"
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            currentScreen === "connections" && styles.activeTab,
+          ]}
+          onPress={() => handleMenuNavigation("connections")}
+        >
+          <Ionicons
+            name="people-outline"
+            size={20}
+            color={
+              currentScreen === "connections"
                     ? "#C2CC06"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  currentScreen === "connections" && styles.activeTabText,
-                ]}
+                : "hsl(0, 0%, 70%)"
+            }
+          />
+          <Text
+            style={[
+              styles.tabText,
+              currentScreen === "connections" && styles.activeTabText,
+            ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit={true}
-              >
-                Connections
-              </Text>
-            </TouchableOpacity>
+          >
+            Connections
+          </Text>
+        </TouchableOpacity>
 
-            <TouchableOpacity
+        <TouchableOpacity
               style={[
                 styles.tab,
                 currentScreen === "listen" && styles.activeTab,
               ]}
-              onPress={() => handleMenuNavigation("listen")}
-            >
-              <Ionicons
-                name="musical-notes-outline"
-                size={20}
-                color={
+          onPress={() => handleMenuNavigation("listen")}
+        >
+          <Ionicons
+            name="musical-notes-outline"
+            size={20}
+            color={
                   currentScreen === "listen" ? "#C2CC06" : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  currentScreen === "listen" && styles.activeTabText,
-                ]}
+            }
+          />
+          <Text
+            style={[
+              styles.tabText,
+              currentScreen === "listen" && styles.activeTabText,
+            ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit={true}
-              >
-                Listen
-              </Text>
-            </TouchableOpacity>
-          </View>
+          >
+            Listen
+          </Text>
+        </TouchableOpacity>
+      </View>
         )}
 
-        {/* Hamburger Menu Modal */}
-        <Modal
-          visible={showMenu}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowMenu(false)}
+      {/* Hamburger Menu Modal */}
+      <Modal
+        visible={showMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
         >
-          <TouchableOpacity
-            style={styles.menuOverlay}
-            activeOpacity={1}
-            onPress={() => setShowMenu(false)}
-          >
-            <View style={styles.menuContainer}>
-              <View style={styles.menuContent}>
-                <View style={styles.menuHeader}>
+          <View style={styles.menuContainer}>
+            <View style={styles.menuContent}>
+              <View style={styles.menuHeader}>
                   <Text style={styles.tsBlockBoldHeading}>MENU</Text>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={() => setShowMenu(false)}
-                  >
-                    <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.menuItems}>
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => handleMenuNavigation("messages")}
-                  >
-                    <Ionicons
-                      name="chatbubbles-outline"
-                      size={20}
-                      color="#C2CC06"
-                    />
-                    <Text style={styles.menuItemText}>Messages</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => handleMenuNavigation("notifications")}
-                  >
-                    <Ionicons
-                      name="notifications-outline"
-                      size={20}
-                      color="#C2CC06"
-                    />
-                    <Text style={styles.menuItemText}>Notifications</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => handleMenuNavigation("community")}
-                  >
-                    <Ionicons name="people-outline" size={20} color="#C2CC06" />
-                    <Text style={styles.menuItemText}>Community</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => handleMenuNavigation("profile")}
-                  >
-                    <Ionicons name="person-outline" size={20} color="#C2CC06" />
-                    <Text style={styles.menuItemText}>Profile</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => handleMenuNavigation("settings")}
-                  >
-                    <Ionicons
-                      name="settings-outline"
-                      size={20}
-                      color="#C2CC06"
-                    />
-                    <Text style={styles.menuItemText}>Settings</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        {/* Global Audio Player - shows on all screens when audio is playing */}
-        {globalAudioState.isPlaying && globalAudioState.currentTrack && (
-          <TouchableOpacity
-            style={styles.globalAudioPlayer}
-            onPress={() => setShowFullScreenPlayer(true)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.audioPlayerContent}>
-              <View style={styles.audioTrackInfo}>
-                <Text style={styles.audioTrackTitle} numberOfLines={1}>
-                  {globalAudioState.currentTrack.title}
-                </Text>
-                <Text style={styles.audioTrackArtist} numberOfLines={1}>
-                  {globalAudioState.currentTrack.artist}
-                </Text>
-              </View>
-
-              <View style={styles.audioControls}>
                 <TouchableOpacity
-                  style={styles.audioControlButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    globalAudioState.isPlaying
-                      ? pauseGlobalAudio()
-                      : resumeGlobalAudio();
-                  }}
+                  style={styles.closeButton}
+                  onPress={() => setShowMenu(false)}
+                >
+                  <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.menuItems}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigation("messages")}
                 >
                   <Ionicons
-                    name={globalAudioState.isPlaying ? "pause" : "play"}
+                    name="chatbubbles-outline"
                     size={20}
+                      color="#C2CC06"
+                  />
+                  <Text style={styles.menuItemText}>Messages</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigation("notifications")}
+                >
+                  <Ionicons
+                    name="notifications-outline"
+                    size={20}
+                      color="#C2CC06"
+                  />
+                  <Text style={styles.menuItemText}>Notifications</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigation("community")}
+                >
+                    <Ionicons name="people-outline" size={20} color="#C2CC06" />
+                  <Text style={styles.menuItemText}>Community</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigation("profile")}
+                >
+                    <Ionicons name="person-outline" size={20} color="#C2CC06" />
+                  <Text style={styles.menuItemText}>Profile</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => handleMenuNavigation("settings")}
+                >
+                  <Ionicons
+                    name="settings-outline"
+                    size={20}
+                      color="#C2CC06"
+                  />
+                  <Text style={styles.menuItemText}>Settings</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Global Audio Player - shows on all screens when audio is playing */}
+      {globalAudioState.isPlaying && globalAudioState.currentTrack && (
+        <TouchableOpacity
+          style={styles.globalAudioPlayer}
+          onPress={() => setShowFullScreenPlayer(true)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.audioPlayerContent}>
+            <View style={styles.audioTrackInfo}>
+              <Text style={styles.audioTrackTitle} numberOfLines={1}>
+                {globalAudioState.currentTrack.title}
+              </Text>
+              <Text style={styles.audioTrackArtist} numberOfLines={1}>
+                {globalAudioState.currentTrack.artist}
+              </Text>
+            </View>
+
+            <View style={styles.audioControls}>
+              <TouchableOpacity
+                style={styles.audioControlButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  globalAudioState.isPlaying
+                    ? pauseGlobalAudio()
+                    : resumeGlobalAudio();
+                }}
+              >
+                <Ionicons
+                  name={globalAudioState.isPlaying ? "pause" : "play"}
+                  size={20}
+                  color="hsl(0, 0%, 100%)"
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.audioControlButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  stopGlobalAudio();
+                }}
+              >
+                <Ionicons name="stop" size={20} color="hsl(0, 0%, 100%)" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Progress Bar */}
+          <View style={styles.audioProgressContainer}>
+            <View
+              style={[
+                styles.audioProgressBar,
+                { width: `${globalAudioState.progress}%` },
+              ]}
+            />
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Full-Screen Audio Player Modal */}
+      {showFullScreenPlayer && globalAudioState.currentTrack && (
+        <Modal
+          visible={showFullScreenPlayer}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowFullScreenPlayer(false)}
+        >
+          <View style={styles.fullScreenPlayerOverlay}>
+            <View style={styles.fullScreenPlayer}>
+              {/* Header with close button */}
+              <View style={styles.fullScreenHeader}>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setShowFullScreenPlayer(false)}
+                >
+                  <Ionicons
+                    name="chevron-down"
+                    size={24}
+                    color="hsl(0, 0%, 100%)"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Album Artwork */}
+              <View style={styles.albumArtContainer}>
+                <Image
+                  source={{ uri: globalAudioState.currentTrack.image }}
+                  style={styles.albumArt}
+                  resizeMode="cover"
+                />
+              </View>
+
+              {/* Track Info */}
+              <View style={styles.fullScreenTrackInfo}>
+                <Text style={styles.fullScreenTrackTitle}>
+                  {globalAudioState.currentTrack.title}
+                </Text>
+                <Text style={styles.fullScreenTrackArtist}>
+                  {globalAudioState.currentTrack.artist}
+                </Text>
+                <Text style={styles.fullScreenTrackGenre}>
+                  {globalAudioState.currentTrack.genre}
+                </Text>
+              </View>
+
+              {/* Progress Section */}
+              <View style={styles.fullScreenProgressSection}>
+                <View style={styles.fullScreenProgressContainer}>
+                  <View
+                    style={[
+                      styles.fullScreenProgressBar,
+                      { width: `${globalAudioState.progress}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressText}>
+                  {formatTime(globalAudioState.positionMillis)} /{" "}
+                  {formatTime(globalAudioState.durationMillis)}
+                </Text>
+              </View>
+
+              {/* Control Buttons */}
+              <View style={styles.fullScreenControls}>
+                <TouchableOpacity
+                  style={styles.controlButton}
+                  onPress={toggleShuffle}
+                >
+                  <Ionicons
+                    name="shuffle"
+                    size={24}
+                    color={
+                      globalAudioState.isShuffled
+                          ? "#C2CC06"
+                        : "hsl(0, 0%, 70%)"
+                    }
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.controlButton}
+                  onPress={skipBackward}
+                >
+                  <Ionicons
+                    name="play-skip-back"
+                    size={28}
                     color="hsl(0, 0%, 100%)"
                   />
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.audioControlButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    stopGlobalAudio();
-                  }}
+                  style={styles.playPauseButton}
+                  onPress={
+                    globalAudioState.isPlaying
+                      ? pauseGlobalAudio
+                      : resumeGlobalAudio
+                  }
                 >
-                  <Ionicons name="stop" size={20} color="hsl(0, 0%, 100%)" />
+                  <Ionicons
+                    name={globalAudioState.isPlaying ? "pause" : "play"}
+                    size={40}
+                    color="hsl(0, 0%, 0%)"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.controlButton}
+                  onPress={skipForward}
+                >
+                  <Ionicons
+                    name="play-skip-forward"
+                    size={28}
+                    color="hsl(0, 0%, 100%)"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.controlButton}
+                  onPress={toggleRepeat}
+                >
+                  <Ionicons
+                    name={
+                      globalAudioState.repeatMode === "none"
+                        ? "repeat"
+                        : globalAudioState.repeatMode === "one"
+                        ? "repeat"
+                        : "repeat"
+                    }
+                    size={24}
+                    color={
+                      globalAudioState.repeatMode === "none"
+                        ? "hsl(0, 0%, 70%)"
+                        : "hsl(75, 100%, 60%)"
+                    }
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Additional Actions */}
+              <View style={styles.fullScreenActions}>
+                <TouchableOpacity style={styles.actionButton}>
+                  <Ionicons
+                    name="heart-outline"
+                    size={20}
+                    color="hsl(0, 0%, 70%)"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={shareTrack}
+                >
+                  <Ionicons
+                    name="share-outline"
+                    size={20}
+                    color="hsl(0, 0%, 70%)"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.actionButton}>
+                  <Ionicons
+                    name="ellipsis-horizontal"
+                    size={20}
+                    color="hsl(0, 0%, 70%)"
+                  />
                 </TouchableOpacity>
               </View>
             </View>
-
-            {/* Progress Bar */}
-            <View style={styles.audioProgressContainer}>
-              <View
-                style={[
-                  styles.audioProgressBar,
-                  { width: `${globalAudioState.progress}%` },
-                ]}
-              />
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Full-Screen Audio Player Modal */}
-        {showFullScreenPlayer && globalAudioState.currentTrack && (
-          <Modal
-            visible={showFullScreenPlayer}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={() => setShowFullScreenPlayer(false)}
-          >
-            <View style={styles.fullScreenPlayerOverlay}>
-              <View style={styles.fullScreenPlayer}>
-                {/* Header with close button */}
-                <View style={styles.fullScreenHeader}>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={() => setShowFullScreenPlayer(false)}
-                  >
-                    <Ionicons
-                      name="chevron-down"
-                      size={24}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Album Artwork */}
-                <View style={styles.albumArtContainer}>
-                  <Image
-                    source={{ uri: globalAudioState.currentTrack.image }}
-                    style={styles.albumArt}
-                    resizeMode="cover"
-                  />
-                </View>
-
-                {/* Track Info */}
-                <View style={styles.fullScreenTrackInfo}>
-                  <Text style={styles.fullScreenTrackTitle}>
-                    {globalAudioState.currentTrack.title}
-                  </Text>
-                  <Text style={styles.fullScreenTrackArtist}>
-                    {globalAudioState.currentTrack.artist}
-                  </Text>
-                  <Text style={styles.fullScreenTrackGenre}>
-                    {globalAudioState.currentTrack.genre}
-                  </Text>
-                </View>
-
-                {/* Progress Section */}
-                <View style={styles.fullScreenProgressSection}>
-                  <View style={styles.fullScreenProgressContainer}>
-                    <View
-                      style={[
-                        styles.fullScreenProgressBar,
-                        { width: `${globalAudioState.progress}%` },
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.progressText}>
-                    {formatTime(globalAudioState.positionMillis)} /{" "}
-                    {formatTime(globalAudioState.durationMillis)}
-                  </Text>
-                </View>
-
-                {/* Control Buttons */}
-                <View style={styles.fullScreenControls}>
-                  <TouchableOpacity
-                    style={styles.controlButton}
-                    onPress={toggleShuffle}
-                  >
-                    <Ionicons
-                      name="shuffle"
-                      size={24}
-                      color={
-                        globalAudioState.isShuffled
-                          ? "#C2CC06"
-                          : "hsl(0, 0%, 70%)"
-                      }
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.controlButton}
-                    onPress={skipBackward}
-                  >
-                    <Ionicons
-                      name="play-skip-back"
-                      size={28}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.playPauseButton}
-                    onPress={
-                      globalAudioState.isPlaying
-                        ? pauseGlobalAudio
-                        : resumeGlobalAudio
-                    }
-                  >
-                    <Ionicons
-                      name={globalAudioState.isPlaying ? "pause" : "play"}
-                      size={40}
-                      color="hsl(0, 0%, 0%)"
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.controlButton}
-                    onPress={skipForward}
-                  >
-                    <Ionicons
-                      name="play-skip-forward"
-                      size={28}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.controlButton}
-                    onPress={toggleRepeat}
-                  >
-                    <Ionicons
-                      name={
-                        globalAudioState.repeatMode === "none"
-                          ? "repeat"
-                          : globalAudioState.repeatMode === "one"
-                          ? "repeat"
-                          : "repeat"
-                      }
-                      size={24}
-                      color={
-                        globalAudioState.repeatMode === "none"
-                          ? "hsl(0, 0%, 70%)"
-                          : "hsl(75, 100%, 60%)"
-                      }
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Additional Actions */}
-                <View style={styles.fullScreenActions}>
-                  <TouchableOpacity style={styles.actionButton}>
-                    <Ionicons
-                      name="heart-outline"
-                      size={20}
-                      color="hsl(0, 0%, 70%)"
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={shareTrack}
-                  >
-                    <Ionicons
-                      name="share-outline"
-                      size={20}
-                      color="hsl(0, 0%, 70%)"
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.actionButton}>
-                    <Ionicons
-                      name="ellipsis-horizontal"
-                      size={20}
-                      color="hsl(0, 0%, 70%)"
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
-        )}
-
-        {/* Application Sent Modal */}
-        <RhoodModal
-          visible={showApplicationSentModal}
-          onClose={() => setShowApplicationSentModal(false)}
-          title="Application Sent!"
-          message={
-            appliedOpportunity
-              ? `You've applied to ${appliedOpportunity.name}!`
-              : "Application sent successfully!"
-          }
-          type="success"
-          primaryButtonText="OK"
-        />
-
-        {/* Edit Profile Modal */}
-        <Modal
-          visible={showEditProfile}
-          animationType="slide"
-          presentationStyle="fullScreen"
-          onRequestClose={handleProfileCancel}
-        >
-          <EditProfileScreen
-            user={user}
-            onSave={handleProfileSaved}
-            onCancel={handleProfileCancel}
-          />
+          </View>
         </Modal>
+      )}
+
+      {/* Application Sent Modal */}
+      <RhoodModal
+        visible={showApplicationSentModal}
+        onClose={() => setShowApplicationSentModal(false)}
+        title="Application Sent!"
+        message={
+          appliedOpportunity
+            ? `You've applied to ${appliedOpportunity.name}!`
+            : "Application sent successfully!"
+        }
+        type="success"
+        primaryButtonText="OK"
+      />
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={showEditProfile}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={handleProfileCancel}
+      >
+        <EditProfileScreen
+          user={user}
+          onSave={handleProfileSaved}
+          onCancel={handleProfileCancel}
+        />
+      </Modal>
 
         {/* Black fade overlay for splash screen transition */}
         {showFadeOverlay && (
@@ -1471,7 +1494,7 @@ export default function App() {
             ]}
           />
         )}
-      </SafeAreaView>
+    </SafeAreaView>
     </SafeAreaProvider>
   );
 }
