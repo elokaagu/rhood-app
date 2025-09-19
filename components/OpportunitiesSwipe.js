@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -8,12 +8,12 @@ import {
   Animated,
   Dimensions,
   PanResponder,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import ProgressiveImage from './ProgressiveImage';
-import RhoodModal from './RhoodModal';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import ProgressiveImage from "./ProgressiveImage";
+import RhoodModal from "./RhoodModal";
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 // Mock gigs data
 const mockGigs = [
@@ -24,11 +24,13 @@ const mockGigs = [
     time: "22:00",
     location: "East London, UK",
     fee: "£300",
-    description: "High-energy underground event. Looking for DJs who can bring the heat with hard techno and industrial beats.",
+    description:
+      "High-energy underground event. Looking for DJs who can bring the heat with hard techno and industrial beats.",
     genre: "Techno",
     skillLevel: "Intermediate",
     organizer: "Darkside Collective",
-    heroImage: "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=600&fit=crop",
+    heroImage:
+      "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=600&fit=crop",
   },
   {
     id: 2,
@@ -37,11 +39,13 @@ const mockGigs = [
     time: "22:00",
     location: "Miami, FL",
     fee: "£200",
-    description: "Weekly resident DJ position at Club Neon. House music focus with a vibrant crowd.",
+    description:
+      "Weekly resident DJ position at Club Neon. House music focus with a vibrant crowd.",
     genre: "House",
     skillLevel: "Beginner",
     organizer: "Club Neon",
-    heroImage: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=600&fit=crop",
+    heroImage:
+      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=600&fit=crop",
   },
   {
     id: 3,
@@ -50,11 +54,13 @@ const mockGigs = [
     time: "20:00",
     location: "Berlin, Germany",
     fee: "£500",
-    description: "Summer festival lineup. Electronic music showcase with international artists.",
+    description:
+      "Summer festival lineup. Electronic music showcase with international artists.",
     genre: "Electronic",
     skillLevel: "Advanced",
     organizer: "Berlin Underground",
-    heroImage: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=600&fit=crop",
+    heroImage:
+      "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=600&fit=crop",
   },
   {
     id: 4,
@@ -63,11 +69,13 @@ const mockGigs = [
     time: "18:00",
     location: "Ibiza, Spain",
     fee: "£400",
-    description: "Sunset beach party with world-class sound system. Progressive house and trance focus.",
+    description:
+      "Sunset beach party with world-class sound system. Progressive house and trance focus.",
     genre: "Progressive",
     skillLevel: "Intermediate",
     organizer: "Ibiza Events",
-    heroImage: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=600&fit=crop",
+    heroImage:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=600&fit=crop",
   },
   {
     id: 5,
@@ -76,11 +84,13 @@ const mockGigs = [
     time: "19:00",
     location: "New York, NY",
     fee: "£250",
-    description: "Intimate rooftop DJ sessions in Manhattan. Deep house and minimal techno.",
+    description:
+      "Intimate rooftop DJ sessions in Manhattan. Deep house and minimal techno.",
     genre: "Deep House",
     skillLevel: "Intermediate",
     organizer: "NYC Underground",
-    heroImage: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=600&fit=crop",
+    heroImage:
+      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=600&fit=crop",
   },
 ];
 
@@ -89,7 +99,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   const [appliesLeft, setAppliesLeft] = useState(3);
   const [showApplication, setShowApplication] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  
+
   // Custom modal states
   const [showNoApplicationsModal, setShowNoApplicationsModal] = useState(false);
 
@@ -115,17 +125,17 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
     },
     onPanResponderMove: (evt, gestureState) => {
       if (isAnimating) return;
-      
+
       const { dx, dy } = gestureState;
       translateX.setValue(dx);
       translateY.setValue(dy * 0.2); // Reduce vertical movement
-      
+
       // No rotation needed for smooth swipe experience
-      
+
       // Calculate opacity based on horizontal movement
       const opacityValue = 1 - Math.abs(dx) * 0.001;
       opacity.setValue(Math.max(0.3, opacityValue));
-      
+
       // Animate next card
       const scaleValue = 0.9 + Math.abs(dx) * 0.0002;
       const nextOpacityValue = 0.8 + Math.abs(dx) * 0.0005;
@@ -134,13 +144,13 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
     },
     onPanResponderRelease: (evt, gestureState) => {
       if (isAnimating) return;
-      
+
       translateX.flattenOffset();
       translateY.flattenOffset();
-      
+
       const { dx, vx } = gestureState;
       const threshold = 100;
-      
+
       if (Math.abs(dx) > threshold || Math.abs(vx) > 0.5) {
         if (dx > 0) {
           handleSwipeRight();
@@ -217,8 +227,8 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       opacity.setValue(1);
       nextCardScale.setValue(0.9);
       nextCardOpacity.setValue(0.8);
-      
-      setCurrentGigIndex((prevIndex) => 
+
+      setCurrentGigIndex((prevIndex) =>
         prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
       );
       setIsAnimating(false);
@@ -252,7 +262,7 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         opacity.setValue(1);
         nextCardScale.setValue(0.9);
         nextCardOpacity.setValue(0.8);
-        
+
         setShowApplication(true);
         setIsAnimating(false);
         onApply && onApply(currentGig);
@@ -263,9 +273,9 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
   };
 
   const handleApplyConfirm = () => {
-    setAppliesLeft(prev => prev - 1);
+    setAppliesLeft((prev) => prev - 1);
     setShowApplication(false);
-    setCurrentGigIndex((prevIndex) => 
+    setCurrentGigIndex((prevIndex) =>
       prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
     );
   };
@@ -276,10 +286,14 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 
   const getSkillLevelColor = (level) => {
     switch (level) {
-      case 'Beginner': return 'hsl(120, 100%, 50%)';
-      case 'Intermediate': return 'hsl(45, 100%, 50%)';
-      case 'Advanced': return 'hsl(0, 100%, 50%)';
-      default: return 'hsl(0, 0%, 70%)';
+      case "Beginner":
+        return "hsl(120, 100%, 50%)";
+      case "Intermediate":
+        return "hsl(45, 100%, 50%)";
+      case "Advanced":
+        return "hsl(0, 100%, 50%)";
+      default:
+        return "hsl(0, 0%, 70%)";
     }
   };
 
@@ -293,15 +307,15 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             {currentGig.date} at {currentGig.time} • {currentGig.location}
           </Text>
           <Text style={styles.applicationFee}>{currentGig.fee}</Text>
-          
+
           <View style={styles.applicationButtons}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.cancelButton}
               onPress={handleApplyCancel}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.confirmButton}
               onPress={handleApplyConfirm}
             >
@@ -324,20 +338,20 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       {/* Card Stack Container */}
       <View style={styles.cardContainer}>
         {/* Next Card (underneath) */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.card,
             styles.nextCard,
             {
-              transform: [
-                { scale: nextCardScale },
-                { translateY: 10 }
-              ],
+              transform: [{ scale: nextCardScale }, { translateY: 10 }],
               opacity: nextCardOpacity,
-            }
+            },
           ]}
         >
-          <ProgressiveImage source={{ uri: nextGig.heroImage }} style={styles.cardImage} />
+          <ProgressiveImage
+            source={{ uri: nextGig.heroImage }}
+            style={styles.cardImage}
+          />
           <View style={styles.cardOverlay} />
           <View style={styles.cardContent}>
             <Text style={styles.nextCardTitle}>{nextGig.name}</Text>
@@ -351,17 +365,14 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
             styles.card,
             styles.currentCard,
             {
-              transform: [
-                { translateX },
-                { translateY },
-              ],
+              transform: [{ translateX }, { translateY }],
               opacity,
-            }
+            },
           ]}
           {...panResponder.panHandlers}
         >
           {/* Swipe indicators */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.swipeIndicator,
               styles.applyIndicator,
@@ -369,16 +380,16 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
                 opacity: translateX.interpolate({
                   inputRange: [50, 100],
                   outputRange: [0, 1],
-                  extrapolate: 'clamp',
+                  extrapolate: "clamp",
                 }),
-                transform: [{ rotate: '12deg' }], // Static rotation for indicator
-              }
+                transform: [{ rotate: "12deg" }], // Static rotation for indicator
+              },
             ]}
           >
             <Text style={styles.swipeIndicatorText}>APPLY</Text>
           </Animated.View>
-          
-          <Animated.View 
+
+          <Animated.View
             style={[
               styles.swipeIndicator,
               styles.passIndicator,
@@ -386,18 +397,21 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
                 opacity: translateX.interpolate({
                   inputRange: [-100, -50],
                   outputRange: [1, 0],
-                  extrapolate: 'clamp',
+                  extrapolate: "clamp",
                 }),
-                transform: [{ rotate: '-12deg' }], // Static rotation for indicator
-              }
+                transform: [{ rotate: "-12deg" }], // Static rotation for indicator
+              },
             ]}
           >
             <Text style={styles.swipeIndicatorText}>PASS</Text>
           </Animated.View>
 
-          <ProgressiveImage source={{ uri: currentGig.heroImage }} style={styles.cardImage} />
+          <ProgressiveImage
+            source={{ uri: currentGig.heroImage }}
+            style={styles.cardImage}
+          />
           <View style={styles.cardOverlay} />
-          
+
           {/* Genre badge */}
           <View style={styles.genreBadge}>
             <Text style={styles.genreText}>{currentGig.genre}</Text>
@@ -407,29 +421,46 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
           <View style={styles.cardContent}>
             <Text style={styles.gigTitle}>{currentGig.name}</Text>
             <Text style={styles.gigDescription}>{currentGig.description}</Text>
-            
+
             <View style={styles.gigDetails}>
               <View style={styles.detailRow}>
-                <Ionicons name="calendar-outline" size={16} color="hsl(75, 100%, 60%)" />
+                <Ionicons
+                  name="calendar-outline"
+                  size={16}
+                  color="hsl(75, 100%, 60%)"
+                />
                 <Text style={styles.detailText}>
                   {currentGig.date} at {currentGig.time}
                 </Text>
               </View>
-              
+
               <View style={styles.detailRow}>
-                <Ionicons name="location-outline" size={16} color="hsl(75, 100%, 60%)" />
+                <Ionicons
+                  name="location-outline"
+                  size={16}
+                  color="hsl(75, 100%, 60%)"
+                />
                 <Text style={styles.detailText}>{currentGig.location}</Text>
               </View>
-              
+
               <View style={styles.detailRow}>
-                <Ionicons name="cash-outline" size={16} color="hsl(75, 100%, 60%)" />
+                <Ionicons
+                  name="cash-outline"
+                  size={16}
+                  color="hsl(75, 100%, 60%)"
+                />
                 <Text style={styles.detailText}>{currentGig.fee}</Text>
               </View>
             </View>
 
             <View style={styles.gigFooter}>
               <View style={styles.skillLevelContainer}>
-                <Text style={[styles.skillLevelText, { color: getSkillLevelColor(currentGig.skillLevel) }]}>
+                <Text
+                  style={[
+                    styles.skillLevelText,
+                    { color: getSkillLevelColor(currentGig.skillLevel) },
+                  ]}
+                >
                   {currentGig.skillLevel}
                 </Text>
               </View>
@@ -439,10 +470,12 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         </Animated.View>
       </View>
 
-      {/* Instructions */}
-      <Text style={styles.instructions}>
-        Swipe right to apply • Swipe left to pass
-      </Text>
+      {/* Instructions - positioned above tab bar */}
+      <View style={styles.instructionsContainer}>
+        <Text style={styles.instructions}>
+          Swipe right to apply • Swipe left to pass
+        </Text>
+      </View>
 
       {/* Custom Modals */}
       <RhoodModal
@@ -460,41 +493,41 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'hsl(0, 0%, 0%)',
+    backgroundColor: "hsl(0, 0%, 0%)",
   },
   header: {
     padding: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'hsl(0, 0%, 15%)',
+    borderBottomColor: "hsl(0, 0%, 15%)",
   },
   headerTitle: {
     fontSize: 28,
-    fontFamily: 'TS-Block-Bold',
-    color: 'hsl(0, 0%, 100%)',
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
   },
   appliesLeft: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    color: 'hsl(75, 100%, 60%)',
+    fontFamily: "Arial",
+    color: "hsl(75, 100%, 60%)",
   },
   cardContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   card: {
-    position: 'absolute',
+    position: "absolute",
     width: screenWidth - 40,
     height: 500,
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 15%)',
+    borderColor: "hsl(0, 0%, 15%)",
   },
   currentCard: {
     zIndex: 20,
@@ -503,53 +536,53 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   cardImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   cardOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
   genreBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: 16,
     right: 16,
-    backgroundColor: 'hsla(0, 0%, 0%, 0.6)',
+    backgroundColor: "hsla(0, 0%, 0%, 0.6)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'hsl(75, 100%, 60%)',
+    borderColor: "hsl(75, 100%, 60%)",
   },
   genreText: {
     fontSize: 12,
-    fontFamily: 'Arial',
-    fontWeight: '600',
-    color: 'hsl(75, 100%, 60%)',
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
   },
   cardContent: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
   },
   gigTitle: {
     fontSize: 24,
-    fontFamily: 'Arial Black',
-    fontWeight: '900',
-    color: 'hsl(0, 0%, 100%)',
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
     marginBottom: 8,
   },
   gigDescription: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 80%)',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 80%)",
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -557,54 +590,54 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   detailText: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 100%)',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)",
     marginLeft: 8,
   },
   gigFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   skillLevelContainer: {
-    backgroundColor: 'hsl(0, 0%, 15%)',
+    backgroundColor: "hsl(0, 0%, 15%)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   skillLevelText: {
     fontSize: 10,
-    fontFamily: 'Arial',
-    fontWeight: '600',
+    fontFamily: "Arial",
+    fontWeight: "600",
   },
   organizerName: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    fontWeight: '600',
-    color: 'hsl(75, 100%, 60%)',
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
   },
   nextCardTitle: {
     fontSize: 18,
-    fontFamily: 'Arial Black',
-    fontWeight: '900',
-    color: 'hsl(0, 0%, 100%)',
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
   },
   nextCardLocation: {
     fontSize: 12,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 70%)',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
   },
   swipeIndicator: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
+    position: "absolute",
+    top: "50%",
+    left: "50%",
     marginTop: -20,
     marginLeft: -50,
     paddingHorizontal: 24,
@@ -613,101 +646,107 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   applyIndicator: {
-    backgroundColor: 'hsla(120, 100%, 50%, 0.9)',
+    backgroundColor: "hsla(120, 100%, 50%, 0.9)",
   },
   passIndicator: {
-    backgroundColor: 'hsla(0, 100%, 50%, 0.9)',
+    backgroundColor: "hsla(0, 100%, 50%, 0.9)",
   },
   swipeIndicatorText: {
     fontSize: 18,
-    fontFamily: 'Arial Black',
-    fontWeight: '900',
-    color: 'hsl(0, 0%, 100%)',
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
+  },
+  instructionsContainer: {
+    position: "absolute",
+    bottom: 100, // Position above the tab bar (tab bar is at bottom: 20, so this is 80px above it)
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    zIndex: 10,
   },
   instructions: {
     fontSize: 12,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 70%)',
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 20,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
   },
   applicationModal: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 100,
   },
   applicationCard: {
-    backgroundColor: 'hsl(0, 0%, 5%)',
+    backgroundColor: "hsl(0, 0%, 5%)",
     borderRadius: 16,
     padding: 24,
     margin: 20,
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 15%)',
-    alignItems: 'center',
+    borderColor: "hsl(0, 0%, 15%)",
+    alignItems: "center",
   },
   applicationTitle: {
     fontSize: 20,
-    fontFamily: 'Arial Black',
-    fontWeight: '900',
-    color: 'hsl(0, 0%, 100%)',
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
     marginBottom: 8,
   },
   applicationGigName: {
     fontSize: 16,
-    fontFamily: 'Arial',
-    color: 'hsl(75, 100%, 60%)',
+    fontFamily: "Arial",
+    color: "hsl(75, 100%, 60%)",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   applicationDetails: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 70%)',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   applicationFee: {
     fontSize: 18,
-    fontFamily: 'Arial Black',
-    fontWeight: '900',
-    color: 'hsl(75, 100%, 60%)',
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    color: "hsl(75, 100%, 60%)",
     marginBottom: 24,
   },
   applicationButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
   },
   cancelButton: {
-    backgroundColor: 'hsl(0, 0%, 15%)',
+    backgroundColor: "hsl(0, 0%, 15%)",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 25%)',
+    borderColor: "hsl(0, 0%, 25%)",
   },
   cancelButtonText: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    fontWeight: '600',
-    color: 'hsl(0, 0%, 100%)',
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
   },
   confirmButton: {
-    backgroundColor: 'hsl(75, 100%, 60%)',
+    backgroundColor: "hsl(75, 100%, 60%)",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   confirmButtonText: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    fontWeight: '600',
-    color: 'hsl(0, 0%, 0%)',
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
   },
 });
