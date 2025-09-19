@@ -11,6 +11,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  PanResponder,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -386,6 +388,51 @@ export default function MessagesScreen({ navigation, route }) {
     likePost(postId);
   };
 
+  // Gesture handling for messages
+  const handleMessagePress = (message) => {
+    if (message.isCurrentUser) {
+      // Long press to show edit/delete options
+      Alert.alert(
+        "Message Options",
+        "What would you like to do with this message?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Edit", onPress: () => openEditModal(message, "message") },
+          { 
+            text: "Delete", 
+            style: "destructive",
+            onPress: () => deleteMessage(message.id)
+          },
+        ]
+      );
+    }
+  };
+
+  const handleMessageSwipeLeft = (message) => {
+    if (message.isCurrentUser) {
+      // Swipe left to delete
+      Alert.alert(
+        "Delete Message",
+        "Are you sure you want to delete this message?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Delete", 
+            style: "destructive",
+            onPress: () => deleteMessage(message.id)
+          },
+        ]
+      );
+    }
+  };
+
+  const handleMessageSwipeRight = (message) => {
+    if (message.isCurrentUser) {
+      // Swipe right to edit
+      openEditModal(message, "message");
+    }
+  };
+
   // Group Forum Interface
   const renderGroupForum = () => (
     <View style={styles.container}>
@@ -411,7 +458,6 @@ export default function MessagesScreen({ navigation, route }) {
               </Text>
             </View>
           </View>
-
         </View>
       </View>
 
@@ -588,7 +634,6 @@ export default function MessagesScreen({ navigation, route }) {
               </View>
             </View>
           </View>
-
         </View>
       </View>
 
@@ -625,72 +670,79 @@ export default function MessagesScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {messages.map((message) => (
-          <View
-            key={message.id}
-            style={[
-              styles.messageContainer,
-              message.isCurrentUser ? styles.messageRight : styles.messageLeft,
-            ]}
-          >
+        {messages.map((message) => {
+          const panResponder = PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+              return Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
+            },
+            onPanResponderRelease: (_, gestureState) => {
+              if (gestureState.dx > 50) {
+                // Swipe right - edit
+                handleMessageSwipeRight(message);
+              } else if (gestureState.dx < -50) {
+                // Swipe left - delete
+                handleMessageSwipeLeft(message);
+              }
+            },
+          });
+
+          return (
             <View
+              key={message.id}
               style={[
-                styles.messageBubble,
-                message.isCurrentUser
-                  ? styles.messageBubbleRight
-                  : styles.messageBubbleLeft,
+                styles.messageContainer,
+                message.isCurrentUser ? styles.messageRight : styles.messageLeft,
               ]}
             >
-              <Text
+              <View
                 style={[
-                  styles.messageText,
+                  styles.messageBubble,
                   message.isCurrentUser
-                    ? styles.messageTextRight
-                    : styles.messageTextLeft,
+                    ? styles.messageBubbleRight
+                    : styles.messageBubbleLeft,
                 ]}
+                {...panResponder.panHandlers}
               >
-                {message.text}
-              </Text>
-              <View style={styles.messageFooter}>
-                <Text
-                  style={[
-                    styles.messageTime,
-                    message.isCurrentUser
-                      ? styles.messageTimeRight
-                      : styles.messageTimeLeft,
-                  ]}
+                <TouchableOpacity
+                  onPress={() => handleMessagePress(message)}
+                  onLongPress={() => handleMessagePress(message)}
+                  activeOpacity={0.7}
+                  style={styles.messageTouchable}
                 >
-                  {formatTime(message.timestamp)}
-                  {message.isEdited && " (edited)"}
-                </Text>
-                {message.isCurrentUser && (
-                  <View style={styles.messageActions}>
-                    <TouchableOpacity
-                      style={styles.messageAction}
-                      onPress={() => openEditModal(message, "message")}
+                  <Text
+                    style={[
+                      styles.messageText,
+                      message.isCurrentUser
+                        ? styles.messageTextRight
+                        : styles.messageTextLeft,
+                    ]}
+                  >
+                    {message.text}
+                  </Text>
+                  <View style={styles.messageFooter}>
+                    <Text
+                      style={[
+                        styles.messageTime,
+                        message.isCurrentUser
+                          ? styles.messageTimeRight
+                          : styles.messageTimeLeft,
+                      ]}
                     >
-                      <Ionicons
-                        name="create-outline"
-                        size={14}
-                        color="hsl(0, 0%, 70%)"
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.messageAction}
-                      onPress={() => deleteMessage(message.id)}
-                    >
-                      <Ionicons
-                        name="trash-outline"
-                        size={14}
-                        color="hsl(0, 0%, 70%)"
-                      />
-                    </TouchableOpacity>
+                      {formatTime(message.timestamp)}
+                      {message.isEdited && " (edited)"}
+                    </Text>
+                    {message.isCurrentUser && (
+                      <Text style={styles.gestureHint}>
+                        Tap for options • Swipe left to delete • Swipe right to edit
+                      </Text>
+                    )}
                   </View>
-                )}
+                </TouchableOpacity>
               </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
 
       {/* Message Input */}
@@ -1136,17 +1188,19 @@ const styles = StyleSheet.create({
 
   // CRUD Message Styles
   messageFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: "column",
+    alignItems: "flex-start",
     marginTop: 4,
   },
-  messageActions: {
-    flexDirection: "row",
-    gap: 8,
+  messageTouchable: {
+    width: "100%",
   },
-  messageAction: {
-    padding: 4,
+  gestureHint: {
+    fontSize: 10,
+    color: "hsl(0, 0%, 50%)",
+    fontStyle: "italic",
+    marginTop: 2,
+    opacity: 0.7,
   },
   editedText: {
     fontSize: 12,
