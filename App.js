@@ -877,6 +877,8 @@ export default function App() {
               styles.tabText,
               currentScreen === "opportunities" && styles.activeTabText,
             ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={true}
           >
             Opportunities
           </Text>
@@ -901,6 +903,8 @@ export default function App() {
               styles.tabText,
               currentScreen === "connections" && styles.activeTabText,
             ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={true}
           >
             Connections
           </Text>
@@ -920,6 +924,8 @@ export default function App() {
               styles.tabText,
               currentScreen === "listen" && styles.activeTabText,
             ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={true}
           >
             Listen
           </Text>
@@ -1728,7 +1734,7 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.1)", // Slight grey background with transparency
+    backgroundColor: "rgba(255, 255, 255, 0.2)", // Darker grey background with more opacity
     borderRadius: 25,
     paddingVertical: 8,
     paddingHorizontal: 16,
