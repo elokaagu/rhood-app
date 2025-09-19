@@ -70,6 +70,7 @@ const SplashScreen = ({ onFinish }) => {
       "Initializing...",
       "Loading R/HOOD...",
       "Connecting to underground...",
+      "Preparing your experience...",
       "Ready to rock!",
     ];
 
@@ -81,9 +82,9 @@ const SplashScreen = ({ onFinish }) => {
       } else {
         clearInterval(textInterval);
       }
-    }, 600);
+    }, 800);
 
-    // Auto-hide splash screen after 3 seconds
+    // Auto-hide splash screen after 5 seconds
     const timer = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -92,7 +93,7 @@ const SplashScreen = ({ onFinish }) => {
       }).start(() => {
         if (onFinish) onFinish();
       });
-    }, 3000);
+    }, 5000);
 
     return () => {
       clearTimeout(timer);
@@ -120,7 +121,7 @@ const SplashScreen = ({ onFinish }) => {
         useNativeControls={false}
         usePoster={false}
       />
-      
+
       {/* Content Overlay */}
       <Animated.View
         style={[
@@ -190,7 +191,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 100, // Add padding from bottom
     backgroundColor: "rgba(0, 0, 0, 0.3)", // Semi-transparent overlay for text readability
   },
   logoTextWhite: {
