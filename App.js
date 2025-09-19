@@ -92,6 +92,15 @@ export default function App() {
   });
 
   useEffect(() => {
+    // Check if New Architecture is enabled
+    console.log('🏗️ New Architecture Check:');
+    console.log('RCT_NEW_ARCH_ENABLED:', global.RCT_NEW_ARCH_ENABLED);
+    console.log('Fabric enabled:', global.nativeFabricUIManager !== undefined);
+    console.log('TurboModules enabled:', global.RN$Bridgeless !== undefined);
+    console.log('React Native version:', require('react-native/package.json').version);
+    console.log('Expo SDK version:', require('expo/package.json').version);
+    console.log('New Architecture status:', global.RCT_NEW_ARCH_ENABLED === '1' ? '✅ ENABLED' : '❌ DISABLED');
+    
     initializeAuth();
     checkFirstTime();
     setupGlobalAudio();
