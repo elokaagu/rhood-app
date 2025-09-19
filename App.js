@@ -172,7 +172,7 @@ export default function App() {
   // Setup global audio configuration for background playback
   const setupGlobalAudio = async () => {
     try {
-      // expo-audio handles background playback automatically
+      // expo-av handles background playback automatically
       console.log("✅ Global audio configured for background playback");
     } catch (error) {
       console.log("❌ Error setting up global audio:", error);
@@ -294,13 +294,13 @@ export default function App() {
       // Stop current audio if playing
       if (globalAudioRef.current) {
         console.log("🛑 Stopping current audio before playing new track");
-        globalAudioRef.current.remove();
+        await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       }
 
       setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
 
-      // Create and load new sound using expo-audio
+      // Create and load new sound using expo-av
       console.log("🔄 Creating new sound instance...");
       console.log("🔄 Audio file path:", track.audioUrl);
 
@@ -1293,7 +1293,7 @@ export default function App() {
           />
         </Modal>
       </SafeAreaView>
-      
+
       {/* Black fade overlay for splash screen transition */}
       {showFadeOverlay && (
         <Animated.View
