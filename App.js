@@ -1749,11 +1749,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "column",
     gap: 4,
-    borderRadius: 20,
     marginHorizontal: 2,
   },
   activeTab: {
-    backgroundColor: "hsl(0, 0%, 15%)", // Slightly lighter background for active tab
+    backgroundColor: "transparent", // Remove background for active tab
   },
   tabText: {
     fontSize: 12,
