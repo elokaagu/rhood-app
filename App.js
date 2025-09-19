@@ -1301,6 +1301,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000", // Pure black background
     paddingVertical: 0,
     paddingHorizontal: 0,
+    marginHorizontal: -20, // Counteract SafeAreaView padding
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)", // Subtle border
     flexDirection: "row",
