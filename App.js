@@ -842,7 +842,11 @@ export default function App() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoTextGreen}>R/HOOD</Text>
+            <Image 
+              source={require("./assets/RHOOD_Lettering_Logo.png")} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
         </View>
         <View style={styles.headerRight}>
@@ -1356,6 +1360,10 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 1.5,
     textTransform: "uppercase",
+  },
+  logoImage: {
+    height: 24,
+    width: 80, // Adjust width as needed for the logo
   },
   headerIcon: {
     width: 36,
