@@ -125,7 +125,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.logoText}>R/HOOD</Text>
+          <Text style={styles.logoTextWhite}>R/HOOD</Text>
           <Text style={styles.subtitle}>
             Join the underground music community
           </Text>
@@ -318,6 +318,15 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 10,
   },
+  logoTextWhite: {
+    color: "#FFFFFF", // White - matches the white logo
+    fontSize: 32,
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: 10,
+    textTransform: "uppercase",
+  },
   subtitle: {
     color: "hsl(0, 0%, 70%)",
     fontSize: 16,
@@ -448,4 +457,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-

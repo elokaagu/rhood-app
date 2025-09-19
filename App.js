@@ -17,7 +17,8 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
+import { AudioPlayer } from "expo-audio";
+import { useFonts } from "expo-font";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
 import OpportunitiesList from "./components/OpportunitiesList";
@@ -32,6 +33,11 @@ import SignupScreen from "./components/SignupScreen";
 import EditProfileScreen from "./components/EditProfileScreen";
 
 export default function App() {
+  // Load custom fonts
+  const [fontsLoaded] = useFonts({
+    "TS-Block-Bold": require("./assets/TS Block Bold.ttf"),
+  });
+
   const [showSplash, setShowSplash] = useState(true);
   const [isFirstTime, setIsFirstTime] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,7 +113,7 @@ export default function App() {
     return () => {
       subscription?.remove();
       if (globalAudioRef.current) {
-        globalAudioRef.current.unloadAsync();
+        globalAudioRef.current.remove();
         globalAudioRef.current = null;
       }
     };
@@ -164,13 +170,7 @@ export default function App() {
   // Setup global audio configuration for background playback
   const setupGlobalAudio = async () => {
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
+      // expo-audio handles background playback automatically
       console.log("✅ Global audio configured for background playback");
     } catch (error) {
       console.log("❌ Error setting up global audio:", error);
@@ -274,43 +274,53 @@ export default function App() {
       // Stop current audio if playing
       if (globalAudioRef.current) {
         console.log("🛑 Stopping current audio before playing new track");
-        await globalAudioRef.current.unloadAsync();
+        globalAudioRef.current.remove();
         globalAudioRef.current = null;
       }
 
       setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
 
-      // Create and load new sound
+      // Create and load new sound using expo-audio
       console.log("🔄 Creating new sound instance...");
       console.log("🔄 Audio file path:", track.audioUrl);
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        track.audioUrl,
-        {
-          shouldPlay: false, // Don't auto-play, we'll call playAsync explicitly
-          isLooping: false,
-          progressUpdateIntervalMillis: 1000,
-          positionMillis: 0,
-        },
-        onGlobalPlaybackStatusUpdate
-      );
 
-      console.log("✅ Sound created successfully");
+      const player = new AudioPlayer(track.audioUrl);
+
+      // Set up event listeners
+      player.addListener("statusChange", (status) => {
+        console.log("📊 Audio status:", status);
+        if (status.isLoaded) {
+          setGlobalAudioState((prev) => ({
+            ...prev,
+            isPlaying: status.isPlaying,
+            isLoading: false,
+          }));
+        }
+      });
+
+      player.addListener("playbackStatusUpdate", (status) => {
+        if (status.isLoaded && status.durationMillis && status.positionMillis) {
+          const progressPercent =
+            (status.positionMillis / status.durationMillis) * 100;
+          setGlobalAudioState((prev) => ({
+            ...prev,
+            progress: progressPercent,
+            positionMillis: status.positionMillis,
+            durationMillis: status.durationMillis,
+          }));
+        }
+      });
 
       // Store reference for cleanup
-      globalAudioRef.current = newSound;
+      globalAudioRef.current = player;
 
-      // Explicitly play the sound to ensure it starts
+      // Start playing
       console.log("▶️ Starting playback...");
-      const playResult = await newSound.playAsync();
-      console.log("▶️ Play result:", playResult);
-
-      // Check status after playing
-      const status = await newSound.getStatusAsync();
-      console.log("📊 Audio status after play:", status);
+      await player.play();
 
       setGlobalAudioState((prev) => ({
         ...prev,
-        sound: newSound,
+        sound: player,
         isPlaying: true,
         currentTrack: track,
         isLoading: false,
@@ -325,21 +335,21 @@ export default function App() {
 
   const pauseGlobalAudio = async () => {
     if (globalAudioState.sound) {
-      await globalAudioState.sound.pauseAsync();
+      await globalAudioState.sound.pause();
       setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
     }
   };
 
   const resumeGlobalAudio = async () => {
     if (globalAudioState.sound) {
-      await globalAudioState.sound.playAsync();
+      await globalAudioState.sound.play();
       setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
     }
   };
 
   const stopGlobalAudio = async () => {
     if (globalAudioRef.current) {
-      await globalAudioRef.current.unloadAsync();
+      globalAudioRef.current.remove();
       globalAudioRef.current = null;
     }
     setGlobalAudioState({
@@ -349,43 +359,6 @@ export default function App() {
       isLoading: false,
       sound: null,
     });
-  };
-
-  const onGlobalPlaybackStatusUpdate = (status) => {
-    console.log("🎵 Playback status update:", status);
-    if (status.isLoaded) {
-      // Update playing state
-      setGlobalAudioState((prev) => ({
-        ...prev,
-        isPlaying: status.isPlaying,
-        isLoading: false,
-      }));
-
-      if (status.didJustFinish) {
-        // Audio finished playing
-        console.log("🎵 Audio finished playing");
-        globalAudioRef.current = null;
-        setGlobalAudioState((prev) => ({
-          ...prev,
-          isPlaying: false,
-          currentTrack: null,
-          progress: 0,
-          sound: null,
-        }));
-      } else if (status.positionMillis && status.durationMillis) {
-        // Update progress
-        const progressPercent =
-          (status.positionMillis / status.durationMillis) * 100;
-        setGlobalAudioState((prev) => ({
-          ...prev,
-          progress: progressPercent,
-          positionMillis: status.positionMillis,
-          durationMillis: status.durationMillis,
-        }));
-      }
-    } else {
-      console.log("🎵 Audio not loaded yet");
-    }
   };
 
   // Shuffle functionality
@@ -400,14 +373,13 @@ export default function App() {
   const skipForward = async () => {
     if (globalAudioState.sound) {
       try {
-        const status = await globalAudioState.sound.getStatusAsync();
-        if (status.isLoaded) {
-          const newPosition = Math.min(
-            status.positionMillis + 10000, // Skip 10 seconds
-            status.durationMillis
-          );
-          await globalAudioState.sound.setPositionAsync(newPosition);
-        }
+        const currentPosition = globalAudioState.positionMillis || 0;
+        const duration = globalAudioState.durationMillis || 0;
+        const newPosition = Math.min(
+          currentPosition + 10000, // Skip 10 seconds
+          duration
+        );
+        await globalAudioState.sound.seekTo(newPosition);
       } catch (error) {
         console.log("Error skipping forward:", error);
       }
@@ -418,14 +390,12 @@ export default function App() {
   const skipBackward = async () => {
     if (globalAudioState.sound) {
       try {
-        const status = await globalAudioState.sound.getStatusAsync();
-        if (status.isLoaded) {
-          const newPosition = Math.max(
-            status.positionMillis - 10000, // Skip back 10 seconds
-            0
-          );
-          await globalAudioState.sound.setPositionAsync(newPosition);
-        }
+        const currentPosition = globalAudioState.positionMillis || 0;
+        const newPosition = Math.max(
+          currentPosition - 10000, // Skip back 10 seconds
+          0
+        );
+        await globalAudioState.sound.seekTo(newPosition);
       } catch (error) {
         console.log("Error skipping backward:", error);
       }
@@ -590,6 +560,11 @@ export default function App() {
     }
   };
 
+  // Wait for fonts to load
+  if (!fontsLoaded) {
+    return null; // or a loading screen
+  }
+
   // Show splash screen first
   if (showSplash) {
     return <SplashScreen onFinish={handleSplashFinish} />;
@@ -695,7 +670,7 @@ export default function App() {
       case "notifications":
         return (
           <ScrollView style={styles.screen}>
-            <Text style={styles.screenTitle}>Notifications</Text>
+            <Text style={styles.tsBlockBoldHeading}>NOTIFICATIONS</Text>
             <View style={styles.notificationCard}>
               <Text style={styles.notificationTitle}>New Opportunity</Text>
               <Text style={styles.notificationText}>
@@ -723,7 +698,7 @@ export default function App() {
       case "community":
         return (
           <ScrollView style={styles.screen}>
-            <Text style={styles.screenTitle}>Community</Text>
+            <Text style={styles.tsBlockBoldHeading}>COMMUNITY</Text>
             <View style={styles.communityCard}>
               <Text style={styles.communityTitle}>Underground DJs</Text>
               <Text style={styles.communityMembers}>1,234 members</Text>
@@ -751,7 +726,7 @@ export default function App() {
       case "profile":
         return (
           <ScrollView style={styles.screen}>
-            <Text style={styles.screenTitle}>Your Profile</Text>
+            <Text style={styles.tsBlockBoldHeading}>YOUR PROFILE</Text>
             <View style={styles.profileCard}>
               <Text style={styles.profileDJ}>
                 {djProfile.djName || "Your DJ Name"}
@@ -788,7 +763,7 @@ export default function App() {
       case "settings":
         return (
           <ScrollView style={styles.screen}>
-            <Text style={styles.screenTitle}>Settings</Text>
+            <Text style={styles.tsBlockBoldHeading}>SETTINGS</Text>
             <View style={styles.settingsCard}>
               <Text style={styles.settingsTitle}>Account</Text>
               <TouchableOpacity
@@ -867,7 +842,7 @@ export default function App() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>R/HOOD</Text>
+            <Text style={styles.logoTextGreen}>R/HOOD</Text>
           </View>
         </View>
         <View style={styles.headerRight}>
@@ -894,9 +869,7 @@ export default function App() {
             name="briefcase-outline"
             size={20}
             color={
-              currentScreen === "opportunities"
-                ? "hsl(75, 100%, 60%)"
-                : "hsl(0, 0%, 70%)"
+              currentScreen === "opportunities" ? "#C2CC06" : "hsl(0, 0%, 70%)"
             }
           />
           <Text
@@ -920,9 +893,7 @@ export default function App() {
             name="people-outline"
             size={20}
             color={
-              currentScreen === "connections"
-                ? "hsl(75, 100%, 60%)"
-                : "hsl(0, 0%, 70%)"
+              currentScreen === "connections" ? "#C2CC06" : "hsl(0, 0%, 70%)"
             }
           />
           <Text
@@ -942,11 +913,7 @@ export default function App() {
           <Ionicons
             name="musical-notes-outline"
             size={20}
-            color={
-              currentScreen === "listen"
-                ? "hsl(75, 100%, 60%)"
-                : "hsl(0, 0%, 70%)"
-            }
+            color={currentScreen === "listen" ? "#C2CC06" : "hsl(0, 0%, 70%)"}
           />
           <Text
             style={[
@@ -974,7 +941,7 @@ export default function App() {
           <View style={styles.menuContainer}>
             <View style={styles.menuContent}>
               <View style={styles.menuHeader}>
-                <Text style={styles.menuTitle}>Menu</Text>
+                <Text style={styles.tsBlockBoldHeading}>MENU</Text>
                 <TouchableOpacity
                   style={styles.closeButton}
                   onPress={() => setShowMenu(false)}
@@ -991,7 +958,7 @@ export default function App() {
                   <Ionicons
                     name="chatbubbles-outline"
                     size={20}
-                    color="hsl(75, 100%, 60%)"
+                    color="#C2CC06"
                   />
                   <Text style={styles.menuItemText}>Messages</Text>
                 </TouchableOpacity>
@@ -1003,7 +970,7 @@ export default function App() {
                   <Ionicons
                     name="notifications-outline"
                     size={20}
-                    color="hsl(75, 100%, 60%)"
+                    color="#C2CC06"
                   />
                   <Text style={styles.menuItemText}>Notifications</Text>
                 </TouchableOpacity>
@@ -1012,11 +979,7 @@ export default function App() {
                   style={styles.menuItem}
                   onPress={() => handleMenuNavigation("community")}
                 >
-                  <Ionicons
-                    name="people-outline"
-                    size={20}
-                    color="hsl(75, 100%, 60%)"
-                  />
+                  <Ionicons name="people-outline" size={20} color="#C2CC06" />
                   <Text style={styles.menuItemText}>Community</Text>
                 </TouchableOpacity>
 
@@ -1024,11 +987,7 @@ export default function App() {
                   style={styles.menuItem}
                   onPress={() => handleMenuNavigation("profile")}
                 >
-                  <Ionicons
-                    name="person-outline"
-                    size={20}
-                    color="hsl(75, 100%, 60%)"
-                  />
+                  <Ionicons name="person-outline" size={20} color="#C2CC06" />
                   <Text style={styles.menuItemText}>Profile</Text>
                 </TouchableOpacity>
 
@@ -1036,11 +995,7 @@ export default function App() {
                   style={styles.menuItem}
                   onPress={() => handleMenuNavigation("settings")}
                 >
-                  <Ionicons
-                    name="settings-outline"
-                    size={20}
-                    color="hsl(75, 100%, 60%)"
-                  />
+                  <Ionicons name="settings-outline" size={20} color="#C2CC06" />
                   <Text style={styles.menuItemText}>Settings</Text>
                 </TouchableOpacity>
               </View>
@@ -1180,7 +1135,7 @@ export default function App() {
                     size={24}
                     color={
                       globalAudioState.isShuffled
-                        ? "hsl(75, 100%, 60%)"
+                        ? "#C2CC06"
                         : "hsl(0, 0%, 70%)"
                     }
                   />
@@ -1313,14 +1268,14 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 0%)", // Pure black background
+    backgroundColor: "#1D1D1B", // Brand black background
   },
   screenContainer: {
     flex: 1,
     position: "relative",
   },
   onboarding: {
-    backgroundColor: "hsl(0, 0%, 0%)", // Pure black background
+    backgroundColor: "#1D1D1B", // Brand black background
   },
   scrollContent: {
     flexGrow: 1,
@@ -1332,7 +1287,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     paddingVertical: 15,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
@@ -1363,11 +1318,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logoText: {
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    color: "#C2CC06", // Brand lime green
     fontSize: 18,
     fontFamily: "Arial Black",
     fontWeight: "900",
     letterSpacing: 1,
+  },
+  logoTextGreen: {
+    color: "#C2CC06", // Brand lime green - matches the green logo
+    fontSize: 20,
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  logoTextWhite: {
+    color: "#FFFFFF", // White - matches the white logo
+    fontSize: 20,
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  logoTextBlack: {
+    color: "#000000", // Black - matches the black logo
+    fontSize: 20,
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
   },
   headerIcon: {
     width: 36,
@@ -1381,44 +1360,59 @@ const styles = StyleSheet.create({
   },
   headerIconText: {
     fontSize: 16,
-    color: "hsl(0, 0%, 100%)", // Pure white
+    color: "#FFFFFF", // Brand white
     fontWeight: "300",
   },
   screen: {
     flex: 1,
     padding: 20,
-    backgroundColor: "hsl(0, 0%, 0%)", // Pure black background
+    backgroundColor: "#1D1D1B", // Brand black background
   },
   screenTitle: {
     fontSize: 24,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     marginBottom: 20,
     textAlign: "center",
+    lineHeight: 28.8, // 120% of 24pt
+    letterSpacing: 0, // Tracking set to 0
   },
   title: {
     fontSize: 32,
-    fontFamily: "Arial Black",
-    fontWeight: "900",
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    fontFamily: "Helvetica Neue",
+    fontWeight: "bold",
+    color: "#C2CC06", // Brand lime green
     textAlign: "center",
     marginBottom: 10,
-    letterSpacing: 1,
-    // Removed glow effects
+    letterSpacing: 0, // Tracking set to 0
+    lineHeight: 38.4, // 120% of 32pt
+  },
+  // TS Block Bold for impactful headings
+  tsBlockBoldHeading: {
+    fontFamily: "TS-Block-Bold",
+    fontSize: 28,
+    color: "#FFFFFF", // Brand white
+    textAlign: "left", // Left aligned as per guidelines
+    textTransform: "uppercase", // Always uppercase
+    lineHeight: 32, // Tight line height for stacked effect
+    letterSpacing: 1, // Slight spacing for impact
+    marginBottom: 16,
   },
   subtitle: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "300", // Light weight
     color: "hsl(0, 0%, 70%)", // Muted foreground
     textAlign: "center",
     marginBottom: 30,
-    letterSpacing: 0.5,
+    letterSpacing: 0, // Tracking set to 0
+    lineHeight: 19.2, // 120% of 16pt
   },
   form: {
     width: "100%",
     marginBottom: 30,
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderRadius: 8,
     padding: 20,
     borderWidth: 1,
@@ -1426,29 +1420,36 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontSize: 20,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     textAlign: "center",
     marginBottom: 20,
+    lineHeight: 24, // 120% of 20pt
+    letterSpacing: 0, // Tracking set to 0
   },
   label: {
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     marginBottom: 5,
     marginTop: 15,
+    lineHeight: 19.2, // 120% of 16pt
+    letterSpacing: 0, // Tracking set to 0
   },
   input: {
     backgroundColor: "hsl(0, 0%, 10%)", // Input background
     borderRadius: 8,
     padding: 15,
     fontSize: 16,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    fontFamily: "Helvetica Neue",
+    fontWeight: "300", // Light weight
+    color: "#FFFFFF", // Brand white text
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)", // Subtle border
+    lineHeight: 19.2, // 120% of 16pt
+    letterSpacing: 0, // Tracking set to 0
   },
   dropdownButton: {
     backgroundColor: "hsl(0, 0%, 10%)", // Input background
@@ -1462,9 +1463,12 @@ const styles = StyleSheet.create({
   },
   dropdownText: {
     fontSize: 16,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    fontFamily: "Helvetica Neue",
+    fontWeight: "300", // Light weight
+    color: "#FFFFFF", // Brand white text
     flex: 1,
+    lineHeight: 19.2, // 120% of 16pt
+    letterSpacing: 0, // Tracking set to 0
   },
   placeholderText: {
     color: "hsl(0, 0%, 50%)", // Muted text for placeholder
@@ -1492,8 +1496,11 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: {
     fontSize: 16,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    fontFamily: "Helvetica Neue",
+    fontWeight: "300", // Light weight
+    color: "#FFFFFF", // Brand white text
+    lineHeight: 19.2, // 120% of 16pt
+    letterSpacing: 0, // Tracking set to 0
   },
   genreContainer: {
     flexDirection: "row",
@@ -1511,19 +1518,22 @@ const styles = StyleSheet.create({
     borderColor: "hsl(0, 0%, 20%)",
   },
   genreTagSelected: {
-    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
-    borderColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "#C2CC06", // Brand lime green
+    borderColor: "#C2CC06",
   },
   genreTagText: {
     fontSize: 12,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    fontFamily: "Helvetica Neue",
+    fontWeight: "300", // Light weight
+    color: "#FFFFFF", // Brand white text
+    lineHeight: 14.4, // 120% of 12pt
+    letterSpacing: 0, // Tracking set to 0
   },
   genreTagTextSelected: {
     color: "hsl(0, 0%, 0%)", // Black text on selected
   },
   button: {
-    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    backgroundColor: "#C2CC06", // Brand lime green
     borderRadius: 8,
     paddingHorizontal: 40,
     paddingVertical: 15,
@@ -1532,20 +1542,24 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "hsl(0, 0%, 0%)", // Black text on primary
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     textAlign: "center",
+    lineHeight: 19.2, // 120% of 16pt
+    letterSpacing: 0, // Tracking set to 0
   },
   welcomeText: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "300", // Light weight
     color: "hsl(0, 0%, 70%)", // Muted foreground
     textAlign: "center",
-    lineHeight: 24,
+    lineHeight: 19.2, // 120% of 16pt
     marginBottom: 20,
+    letterSpacing: 0, // Tracking set to 0
   },
   featuresCard: {
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderRadius: 8,
     padding: 20,
     marginTop: 10,
@@ -1554,20 +1568,24 @@ const styles = StyleSheet.create({
   },
   featuresTitle: {
     fontSize: 18,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     marginBottom: 15,
+    lineHeight: 21.6, // 120% of 18pt
+    letterSpacing: 0, // Tracking set to 0
   },
   featureItem: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "300", // Light weight
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 8,
-    lineHeight: 20,
+    lineHeight: 16.8, // 120% of 14pt
+    letterSpacing: 0, // Tracking set to 0
   },
   eventCard: {
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderRadius: 8,
     padding: 15,
     marginBottom: 15,
@@ -1579,14 +1597,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Arial",
     fontWeight: "bold",
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    color: "#C2CC06", // Brand lime green
     marginBottom: 5,
   },
   eventTitle: {
     fontSize: 18,
     fontFamily: "Arial",
     fontWeight: "bold",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     marginBottom: 8,
   },
   eventInfo: {
@@ -1611,10 +1629,10 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 12,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
   },
   messageCard: {
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderRadius: 8,
     padding: 15,
     marginBottom: 10,
@@ -1625,7 +1643,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Arial",
     fontWeight: "bold",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     marginBottom: 5,
   },
   messagePreview: {
@@ -1640,7 +1658,7 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 50%)", // More muted text
   },
   profileCard: {
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderRadius: 8,
     padding: 20,
     alignItems: "center",
@@ -1651,7 +1669,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: "Arial Black",
     fontWeight: "900",
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    color: "#C2CC06", // Brand lime green
     marginBottom: 5,
     // Removed glow effects
   },
@@ -1680,7 +1698,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: "Arial",
     fontWeight: "bold",
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    color: "#C2CC06", // Brand lime green
   },
   statLabel: {
     fontSize: 12,
@@ -1688,7 +1706,7 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)", // Muted foreground
   },
   editButton: {
-    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    backgroundColor: "#C2CC06", // Brand lime green
     borderRadius: 8,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -1702,7 +1720,7 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: "row",
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderTopWidth: 1,
     borderTopColor: "hsl(0, 0%, 15%)", // Subtle border
   },
@@ -1722,12 +1740,12 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)", // Muted foreground
   },
   activeTabText: {
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color for active text
+    color: "#C2CC06", // Brand lime green for active text
     fontWeight: "600",
   },
   // Opportunities Screen Styles
   featuredOpportunityCard: {
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderRadius: 12,
     marginBottom: 20,
     overflow: "hidden",
@@ -1751,7 +1769,7 @@ const styles = StyleSheet.create({
   },
   opportunityImageText: {
     fontSize: 40,
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    color: "#C2CC06", // Brand lime green
   },
   genreTag: {
     position: "absolute",
@@ -1765,7 +1783,7 @@ const styles = StyleSheet.create({
   genreTagText: {
     fontSize: 12,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     fontWeight: "bold",
   },
   opportunityContent: {
@@ -1775,7 +1793,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: "Arial",
     fontWeight: "bold",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     marginBottom: 10,
   },
   opportunityDescription: {
@@ -1791,7 +1809,7 @@ const styles = StyleSheet.create({
   opportunityDetail: {
     fontSize: 14,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     marginBottom: 5,
   },
   opportunityFooter: {
@@ -1808,7 +1826,7 @@ const styles = StyleSheet.create({
   skillLevelText: {
     fontSize: 12,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     fontWeight: "bold",
   },
   organizerName: {
@@ -1836,14 +1854,14 @@ const styles = StyleSheet.create({
   },
   passButtonText: {
     fontSize: 24,
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     fontWeight: "bold",
   },
   applyButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    backgroundColor: "#C2CC06", // Brand lime green
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1860,7 +1878,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   opportunityCard: {
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderRadius: 8,
     padding: 15,
     marginBottom: 15,
@@ -1871,7 +1889,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Arial",
     fontWeight: "bold",
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    color: "#C2CC06", // Brand lime green
     marginBottom: 5,
   },
   opportunityInfo: {
@@ -1882,7 +1900,7 @@ const styles = StyleSheet.create({
   },
   // Notifications Screen Styles
   notificationCard: {
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderRadius: 8,
     padding: 15,
     marginBottom: 15,
@@ -1893,7 +1911,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Arial",
     fontWeight: "bold",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     marginBottom: 5,
   },
   notificationText: {
@@ -1910,7 +1928,7 @@ const styles = StyleSheet.create({
   },
   // Community Screen Styles
   communityCard: {
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderRadius: 8,
     padding: 20,
     marginBottom: 15,
@@ -1921,7 +1939,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "Arial",
     fontWeight: "bold",
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    color: "#C2CC06", // Brand lime green
     marginBottom: 5,
   },
   communityMembers: {
@@ -1933,12 +1951,12 @@ const styles = StyleSheet.create({
   communityDescription: {
     fontSize: 14,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
     lineHeight: 20,
   },
   // Settings Screen Styles
   settingsCard: {
-    backgroundColor: "hsl(0, 0%, 5%)", // Dark card background
+    backgroundColor: "#1D1D1B", // Brand black background
     borderRadius: 8,
     marginBottom: 20,
     borderWidth: 1,
@@ -1948,7 +1966,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Arial",
     fontWeight: "bold",
-    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    color: "#C2CC06", // Brand lime green
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)", // Subtle border
@@ -1964,7 +1982,7 @@ const styles = StyleSheet.create({
   settingsItemText: {
     fontSize: 16,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white text
+    color: "#FFFFFF", // Brand white text
   },
   settingsArrow: {
     fontSize: 18,
@@ -2062,7 +2080,7 @@ const styles = StyleSheet.create({
     bottom: 80, // Above tab bar
     left: 0,
     right: 0,
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: "#1D1D1B",
     borderTopWidth: 1,
     borderTopColor: "hsl(0, 0%, 15%)",
     paddingVertical: 12,
@@ -2099,7 +2117,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "#C2CC06",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2112,7 +2130,7 @@ const styles = StyleSheet.create({
   },
   audioProgressBar: {
     height: "100%",
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "#C2CC06",
     borderRadius: 1.5,
   },
 
@@ -2148,7 +2166,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 20,
-    shadowColor: "hsl(75, 100%, 60%)",
+    shadowColor: "#C2CC06",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -2176,7 +2194,7 @@ const styles = StyleSheet.create({
   fullScreenTrackGenre: {
     fontSize: 14,
     fontFamily: "Arial",
-    color: "hsl(75, 100%, 60%)",
+    color: "#C2CC06",
     textAlign: "center",
   },
   fullScreenProgressSection: {
@@ -2190,7 +2208,7 @@ const styles = StyleSheet.create({
   },
   fullScreenProgressBar: {
     height: "100%",
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "#C2CC06",
     borderRadius: 2,
   },
   progressText: {
@@ -2218,10 +2236,10 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "#C2CC06",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "hsl(75, 100%, 60%)",
+    shadowColor: "#C2CC06",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
     shadowRadius: 10,

@@ -90,7 +90,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.logoText}>R/HOOD</Text>
+          <Text style={styles.logoTextWhite}>R/HOOD</Text>
           <Text style={styles.subtitle}>Welcome back to the underground</Text>
         </View>
 
@@ -220,6 +220,15 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 1,
     marginBottom: 10,
+  },
+  logoTextWhite: {
+    color: "#FFFFFF", // White - matches the white logo
+    fontSize: 32,
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: 10,
+    textTransform: "uppercase",
   },
   subtitle: {
     color: "hsl(0, 0%, 70%)",
@@ -360,4 +369,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-

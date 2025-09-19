@@ -2,10 +2,16 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Animated, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Video } from "expo-av";
+import { useFonts } from "expo-font";
 
 const { width, height } = Dimensions.get("window");
 
 const SplashScreen = ({ onFinish }) => {
+  // Load custom fonts
+  const [fontsLoaded] = useFonts({
+    "TS-Block-Bold": require("../assets/TS Block Bold.ttf"),
+  });
+
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
   const [progressAnim] = useState(new Animated.Value(0));
@@ -95,14 +101,16 @@ const SplashScreen = ({ onFinish }) => {
     };
   }, []);
 
+  // Wait for fonts to load
+  if (!fontsLoaded) {
+    return null;
+  }
+
   // Removed glow opacity interpolation
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={["hsl(0, 0%, 0%)", "hsl(0, 0%, 5%)"]}
-        style={styles.gradient}
-      >
+      <LinearGradient colors={["#1D1D1B", "#1D1D1B"]} style={styles.gradient}>
         <Animated.View
           style={[
             styles.content,
@@ -121,10 +129,15 @@ const SplashScreen = ({ onFinish }) => {
               isLooping={true}
               resizeMode="contain"
               isMuted={true}
+              useNativeControls={false}
+              usePoster={false}
             />
           </View>
 
-          <Text style={styles.subtitle}>Underground Music Platform</Text>
+          <Text style={styles.logoTextWhite}>R/HOOD</Text>
+          <Text style={styles.tsBlockBoldSubtitle}>
+            UNDERGROUND{"\n"}MUSIC{"\n"}PLATFORM
+          </Text>
 
           {/* Loading Progress Bar */}
           <View style={styles.progressContainer}>
@@ -180,19 +193,43 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "transparent", // Ensure no background
   },
   logoVideo: {
     width: "100%",
     height: "100%",
+    backgroundColor: "transparent", // Remove video background
+  },
+  logoTextWhite: {
+    color: "#FFFFFF", // White - matches the white logo
+    fontSize: 28,
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    letterSpacing: 2,
+    textAlign: "center",
+    marginBottom: 20,
+    textTransform: "uppercase",
+  },
+  tsBlockBoldSubtitle: {
+    fontFamily: "TS-Block-Bold",
+    fontSize: 24,
+    color: "#FFFFFF", // Brand white
+    textAlign: "center", // Center aligned for splash screen
+    textTransform: "uppercase", // Always uppercase
+    lineHeight: 28, // Tight line height for stacked effect
+    letterSpacing: 1, // Slight spacing for impact
+    marginBottom: 30,
   },
   subtitle: {
     fontSize: 16,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)", // Pure white
+    fontFamily: "Helvetica Neue",
+    fontWeight: "300", // Light weight
+    color: "#FFFFFF", // Brand white
     textAlign: "center",
     opacity: 0.9,
     marginBottom: 30,
-    letterSpacing: 1,
+    letterSpacing: 0, // Tracking set to 0
+    lineHeight: 19.2, // 120% of 16pt
     textTransform: "uppercase",
   },
   progressContainer: {
@@ -211,15 +248,17 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    backgroundColor: "#C2CC06", // Brand lime green
     borderRadius: 2,
   },
   loadingText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "300", // Light weight
     color: "hsl(0, 0%, 70%)", // Muted foreground
     textAlign: "center",
-    letterSpacing: 0.5,
+    letterSpacing: 0, // Tracking set to 0
+    lineHeight: 16.8, // 120% of 14pt
   },
   loadingContainer: {
     flexDirection: "row",
@@ -231,7 +270,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    backgroundColor: "#C2CC06", // Brand lime green
     marginHorizontal: 6,
   },
 });

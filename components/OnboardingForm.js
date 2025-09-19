@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,27 +9,75 @@ import {
   Animated,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
+} from "react-native";
 
 // Music genres for selection
 const MUSIC_GENRES = [
-  "House", "Techno", "Trance", "Dubstep", "Drum & Bass", "Ambient",
-  "Progressive", "Minimal", "Deep House", "Tech House", "Hardstyle",
-  "Trap", "Future Bass", "Breakbeat", "Garage", "Jungle", "Industrial",
-  "Electro", "Synthwave", "Downtempo", "Psytrance", "Hardcore"
+  "House",
+  "Techno",
+  "Trance",
+  "Dubstep",
+  "Drum & Bass",
+  "Ambient",
+  "Progressive",
+  "Minimal",
+  "Deep House",
+  "Tech House",
+  "Hardstyle",
+  "Trap",
+  "Future Bass",
+  "Breakbeat",
+  "Garage",
+  "Jungle",
+  "Industrial",
+  "Electro",
+  "Synthwave",
+  "Downtempo",
+  "Psytrance",
+  "Hardcore",
 ];
 
 // Major cities for selection
 const MAJOR_CITIES = [
-  "New York", "Los Angeles", "Chicago", "Miami", "San Francisco",
-  "London", "Berlin", "Amsterdam", "Paris", "Barcelona", "Madrid",
-  "Rome", "Milan", "Vienna", "Prague", "Warsaw", "Moscow",
-  "Tokyo", "Seoul", "Shanghai", "Hong Kong", "Singapore",
-  "Sydney", "Melbourne", "Toronto", "Montreal", "Vancouver",
-  "Mexico City", "São Paulo", "Buenos Aires", "Lima", "Bogotá"
+  "New York",
+  "Los Angeles",
+  "Chicago",
+  "Miami",
+  "San Francisco",
+  "London",
+  "Berlin",
+  "Amsterdam",
+  "Paris",
+  "Barcelona",
+  "Madrid",
+  "Rome",
+  "Milan",
+  "Vienna",
+  "Prague",
+  "Warsaw",
+  "Moscow",
+  "Tokyo",
+  "Seoul",
+  "Shanghai",
+  "Hong Kong",
+  "Singapore",
+  "Sydney",
+  "Melbourne",
+  "Toronto",
+  "Montreal",
+  "Vancouver",
+  "Mexico City",
+  "São Paulo",
+  "Buenos Aires",
+  "Lima",
+  "Bogotá",
 ];
 
-export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) {
+export default function OnboardingForm({
+  onComplete,
+  djProfile,
+  setDjProfile,
+}) {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -55,7 +103,7 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
 
   const validateStep = (step) => {
     const newErrors = {};
-    
+
     switch (step) {
       case 1:
         if (!djProfile.fullName.trim()) {
@@ -85,18 +133,20 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
         }
         break;
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const isValidInstagram = (handle) => {
-    const instagramRegex = /^@?[a-zA-Z0-9._]+$|^https?:\/\/(www\.)?instagram\.com\/[a-zA-Z0-9._]+\/?$/;
+    const instagramRegex =
+      /^@?[a-zA-Z0-9._]+$|^https?:\/\/(www\.)?instagram\.com\/[a-zA-Z0-9._]+\/?$/;
     return instagramRegex.test(handle);
   };
 
   const isValidSoundCloud = (url) => {
-    const soundcloudRegex = /^https?:\/\/(www\.)?soundcloud\.com\/[a-zA-Z0-9._-]+\/?$/;
+    const soundcloudRegex =
+      /^https?:\/\/(www\.)?soundcloud\.com\/[a-zA-Z0-9._-]+\/?$/;
     return soundcloudRegex.test(url);
   };
 
@@ -170,7 +220,9 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
             }
           }}
         />
-        {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
+        {errors.fullName && (
+          <Text style={styles.errorText}>{errors.fullName}</Text>
+        )}
       </View>
 
       <View style={styles.inputGroup}>
@@ -220,7 +272,7 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
           </Text>
           <Text style={styles.dropdownArrow}>▼</Text>
         </TouchableOpacity>
-        
+
         {showCityDropdown && (
           <View style={styles.dropdown}>
             {MAJOR_CITIES.map((city) => (
@@ -267,7 +319,8 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
               <Text
                 style={[
                   styles.genreTagText,
-                  djProfile.genres.includes(genre) && styles.genreTagTextSelected,
+                  djProfile.genres.includes(genre) &&
+                    styles.genreTagTextSelected,
                 ]}
               >
                 {genre}
@@ -306,7 +359,9 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
             }
           }}
         />
-        {errors.instagram && <Text style={styles.errorText}>{errors.instagram}</Text>}
+        {errors.instagram && (
+          <Text style={styles.errorText}>{errors.instagram}</Text>
+        )}
       </View>
 
       <View style={styles.inputGroup}>
@@ -322,7 +377,9 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
             }
           }}
         />
-        {errors.soundcloud && <Text style={styles.errorText}>{errors.soundcloud}</Text>}
+        {errors.soundcloud && (
+          <Text style={styles.errorText}>{errors.soundcloud}</Text>
+        )}
       </View>
     </Animated.View>
   );
@@ -345,18 +402,18 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome to R/HOOD!</Text>
-          <Text style={styles.subtitle}>Join the Underground Music Network</Text>
+          <Text style={styles.logoTextGreen}>R/HOOD</Text>
+          <Text style={styles.subtitle}>
+            Join the Underground Music Network
+          </Text>
           {renderStepIndicator()}
         </View>
 
-        <View style={styles.form}>
-          {renderCurrentStep()}
-        </View>
+        <View style={styles.form}>{renderCurrentStep()}</View>
 
         <View style={styles.buttonContainer}>
           {currentStep > 1 && (
@@ -364,10 +421,10 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
               <Text style={styles.secondaryButtonText}>Back</Text>
             </TouchableOpacity>
           )}
-          
+
           <TouchableOpacity style={styles.primaryButton} onPress={nextStep}>
             <Text style={styles.primaryButtonText}>
-              {currentStep === totalSteps ? 'Complete Setup' : 'Next'}
+              {currentStep === totalSteps ? "Complete Setup" : "Next"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -379,45 +436,55 @@ export default function OnboardingForm({ onComplete, djProfile, setDjProfile }) 
 const styles = {
   container: {
     flex: 1,
-    backgroundColor: 'hsl(0, 0%, 0%)', // Pure black background
+    backgroundColor: "hsl(0, 0%, 0%)", // Pure black background
   },
   scrollContent: {
     flexGrow: 1,
     padding: 20,
   },
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 30,
   },
   title: {
     fontSize: 32,
-    fontFamily: 'Arial Black',
-    fontWeight: '900',
-    color: 'hsl(75, 100%, 60%)', // R/HOOD signature lime color
-    textAlign: 'center',
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    textAlign: "center",
     marginBottom: 10,
+  },
+  logoTextGreen: {
+    color: "#C2CC06", // Brand lime green - matches the green logo
+    fontSize: 32,
+    fontFamily: "Arial Black",
+    fontWeight: "900",
+    letterSpacing: 1.5,
+    textAlign: "center",
+    marginBottom: 10,
+    textTransform: "uppercase",
   },
   subtitle: {
     fontSize: 16,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 70%)', // Muted foreground
-    textAlign: 'center',
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)", // Muted foreground
+    textAlign: "center",
     marginBottom: 20,
   },
   stepIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
   stepDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: 'hsl(0, 0%, 20%)', // Muted background
+    backgroundColor: "hsl(0, 0%, 20%)", // Muted background
     marginHorizontal: 4,
   },
   stepDotActive: {
-    backgroundColor: 'hsl(75, 100%, 60%)', // R/HOOD signature lime color
+    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
   },
   form: {
     flex: 1,
@@ -427,15 +494,15 @@ const styles = {
   },
   stepTitle: {
     fontSize: 24,
-    fontFamily: 'Arial',
-    fontWeight: 'bold',
-    color: 'hsl(0, 0%, 100%)', // Pure white text
+    fontFamily: "Arial",
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)", // Pure white text
     marginBottom: 8,
   },
   stepSubtitle: {
     fontSize: 16,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 70%)', // Muted foreground
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 30,
   },
   inputGroup: {
@@ -443,112 +510,112 @@ const styles = {
   },
   label: {
     fontSize: 16,
-    fontFamily: 'Arial',
-    fontWeight: '600',
-    color: 'hsl(0, 0%, 100%)', // Pure white text
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)", // Pure white text
     marginBottom: 8,
   },
   input: {
-    backgroundColor: 'hsl(0, 0%, 10%)', // Dark background
+    backgroundColor: "hsl(0, 0%, 10%)", // Dark background
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 15%)', // Subtle border
+    borderColor: "hsl(0, 0%, 15%)", // Subtle border
     borderRadius: 8,
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 16,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 100%)', // Pure white text
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)", // Pure white text
   },
   inputError: {
-    borderColor: 'hsl(0, 100%, 60%)', // Error red
+    borderColor: "hsl(0, 100%, 60%)", // Error red
   },
   errorText: {
     fontSize: 14,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 100%, 60%)', // Error red
+    fontFamily: "Arial",
+    color: "hsl(0, 100%, 60%)", // Error red
     marginTop: 5,
   },
   dropdownButton: {
-    backgroundColor: 'hsl(0, 0%, 10%)', // Dark background
+    backgroundColor: "hsl(0, 0%, 10%)", // Dark background
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 15%)', // Subtle border
+    borderColor: "hsl(0, 0%, 15%)", // Subtle border
     borderRadius: 8,
     paddingHorizontal: 15,
     paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   dropdownText: {
     fontSize: 16,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 100%)', // Pure white text
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)", // Pure white text
     flex: 1,
   },
   placeholderText: {
-    color: 'hsl(0, 0%, 50%)', // Muted text for placeholder
+    color: "hsl(0, 0%, 50%)", // Muted text for placeholder
   },
   dropdownArrow: {
     fontSize: 12,
-    color: 'hsl(0, 0%, 70%)', // Muted foreground
+    color: "hsl(0, 0%, 70%)", // Muted foreground
   },
   dropdown: {
-    position: 'absolute',
+    position: "absolute",
     top: 60,
     left: 0,
     right: 0,
-    backgroundColor: 'hsl(0, 0%, 10%)', // Dark background
+    backgroundColor: "hsl(0, 0%, 10%)", // Dark background
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 15%)', // Subtle border
+    borderColor: "hsl(0, 0%, 15%)", // Subtle border
     maxHeight: 200,
     zIndex: 1000,
   },
   dropdownItem: {
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: 'hsl(0, 0%, 15%)', // Subtle border
+    borderBottomColor: "hsl(0, 0%, 15%)", // Subtle border
   },
   dropdownItemText: {
     fontSize: 16,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 100%)', // Pure white text
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)", // Pure white text
   },
   genreContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginTop: 10,
   },
   genreTag: {
-    backgroundColor: 'hsl(0, 0%, 15%)', // Muted background
+    backgroundColor: "hsl(0, 0%, 15%)", // Muted background
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 20%)',
+    borderColor: "hsl(0, 0%, 20%)",
   },
   genreTagSelected: {
-    backgroundColor: 'hsl(75, 100%, 60%)', // R/HOOD signature lime color
-    borderColor: 'hsl(75, 100%, 60%)',
+    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    borderColor: "hsl(75, 100%, 60%)",
   },
   genreTagText: {
     fontSize: 12,
-    fontFamily: 'Arial',
-    color: 'hsl(0, 0%, 100%)', // Pure white text
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)", // Pure white text
   },
   genreTagTextSelected: {
-    color: 'hsl(0, 0%, 0%)', // Black text on selected
+    color: "hsl(0, 0%, 0%)", // Black text on selected
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 30,
   },
   primaryButton: {
-    backgroundColor: 'hsl(75, 100%, 60%)', // R/HOOD signature lime color
+    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
     borderRadius: 8,
     paddingHorizontal: 30,
     paddingVertical: 15,
@@ -556,25 +623,25 @@ const styles = {
     marginLeft: 10,
   },
   primaryButtonText: {
-    color: 'hsl(0, 0%, 0%)', // Black text on primary
+    color: "hsl(0, 0%, 0%)", // Black text on primary
     fontSize: 16,
-    fontFamily: 'Arial',
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontFamily: "Arial",
+    fontWeight: "bold",
+    textAlign: "center",
   },
   secondaryButton: {
-    backgroundColor: 'hsl(0, 0%, 15%)', // Muted background
+    backgroundColor: "hsl(0, 0%, 15%)", // Muted background
     borderRadius: 8,
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 25%)',
+    borderColor: "hsl(0, 0%, 25%)",
   },
   secondaryButtonText: {
-    color: 'hsl(0, 0%, 100%)', // Pure white text
+    color: "hsl(0, 0%, 100%)", // Pure white text
     fontSize: 16,
-    fontFamily: 'Arial',
-    fontWeight: '600',
-    textAlign: 'center',
+    fontFamily: "Arial",
+    fontWeight: "600",
+    textAlign: "center",
   },
 };
