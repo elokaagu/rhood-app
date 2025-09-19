@@ -398,10 +398,10 @@ export default function MessagesScreen({ navigation, route }) {
         [
           { text: "Cancel", style: "cancel" },
           { text: "Edit", onPress: () => openEditModal(message, "message") },
-          { 
-            text: "Delete", 
+          {
+            text: "Delete",
             style: "destructive",
-            onPress: () => deleteMessage(message.id)
+            onPress: () => deleteMessage(message.id),
           },
         ]
       );
@@ -416,10 +416,10 @@ export default function MessagesScreen({ navigation, route }) {
         "Are you sure you want to delete this message?",
         [
           { text: "Cancel", style: "cancel" },
-          { 
-            text: "Delete", 
+          {
+            text: "Delete",
             style: "destructive",
-            onPress: () => deleteMessage(message.id)
+            onPress: () => deleteMessage(message.id),
           },
         ]
       );
@@ -674,7 +674,9 @@ export default function MessagesScreen({ navigation, route }) {
           const panResponder = PanResponder.create({
             onStartShouldSetPanResponder: () => true,
             onMoveShouldSetPanResponder: (_, gestureState) => {
-              return Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
+              return (
+                Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10
+              );
             },
             onPanResponderRelease: (_, gestureState) => {
               if (gestureState.dx > 50) {
@@ -692,7 +694,9 @@ export default function MessagesScreen({ navigation, route }) {
               key={message.id}
               style={[
                 styles.messageContainer,
-                message.isCurrentUser ? styles.messageRight : styles.messageLeft,
+                message.isCurrentUser
+                  ? styles.messageRight
+                  : styles.messageLeft,
               ]}
             >
               <View
@@ -732,11 +736,6 @@ export default function MessagesScreen({ navigation, route }) {
                       {formatTime(message.timestamp)}
                       {message.isEdited && " (edited)"}
                     </Text>
-                    {message.isCurrentUser && (
-                      <Text style={styles.gestureHint}>
-                        Tap for options • Swipe left to delete • Swipe right to edit
-                      </Text>
-                    )}
                   </View>
                 </TouchableOpacity>
               </View>
@@ -1194,13 +1193,6 @@ const styles = StyleSheet.create({
   },
   messageTouchable: {
     width: "100%",
-  },
-  gestureHint: {
-    fontSize: 10,
-    color: "hsl(0, 0%, 50%)",
-    fontStyle: "italic",
-    marginTop: 2,
-    opacity: 0.7,
   },
   editedText: {
     fontSize: 12,
