@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   currentCard: {
-    zIndex: 20,
+    zIndex: 100,
   },
   nextCard: {
     zIndex: 10,
