@@ -1268,15 +1268,16 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1D1D1B", // Brand black background
+    backgroundColor: "#000000", // Pure black background to match tab bar
   },
   screenContainer: {
     flex: 1,
     position: "relative",
     paddingBottom: 20, // Minimal bottom padding for floating tab bar
+    backgroundColor: "#000000", // Pure black background
   },
   onboarding: {
-    backgroundColor: "#1D1D1B", // Brand black background
+    backgroundColor: "#000000", // Pure black background
   },
   scrollContent: {
     flexGrow: 1,
@@ -1289,7 +1290,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    backgroundColor: "#1D1D1B", // Brand black background
+    backgroundColor: "#000000", // Pure black background
     paddingVertical: 15,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
@@ -1369,7 +1370,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     paddingBottom: 20, // Minimal bottom padding for floating tab bar
-    backgroundColor: "#1D1D1B", // Brand black background
+    backgroundColor: "#000000", // Pure black background
   },
   screenTitle: {
     fontSize: 24,
@@ -1727,7 +1728,7 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     flexDirection: "row",
-    backgroundColor: "#1D1D1B", // Brand black background
+    backgroundColor: "#000000", // Pure black background to match container
     borderRadius: 25,
     paddingVertical: 8,
     paddingHorizontal: 16,
