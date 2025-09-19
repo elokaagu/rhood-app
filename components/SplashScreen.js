@@ -7,7 +7,7 @@ import {
   Dimensions,
   Image,
 } from "react-native";
-import { VideoView } from "expo-video";
+// import { VideoView } from "expo-video"; // Temporarily disabled for testing
 import { useFonts } from "expo-font";
 
 const { width, height } = Dimensions.get("window");
@@ -116,16 +116,11 @@ const SplashScreen = ({ onFinish }) => {
 
   return (
     <View style={styles.container}>
-      {/* Full Screen Video Background */}
-      <VideoView
-        source={require("../assets/RHOOD_Logo_Spinner.mov")}
+      {/* Full Screen Video Background - Temporarily using Image for testing */}
+      <Image
+        source={require("../assets/splash.png")}
         style={styles.fullScreenVideo}
-        allowsFullscreen={false}
-        allowsPictureInPicture={false}
-        contentFit="cover"
-        nativeControls={false}
-        loop={true}
-        muted={true}
+        resizeMode="cover"
       />
 
       {/* Content Overlay */}
