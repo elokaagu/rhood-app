@@ -50,12 +50,6 @@
     "plugins": [
       "expo-font",
       "expo-audio",
-      [
-        "expo-av",
-        {
-          "microphonePermission": false
-        }
-      ],
       "expo-video"
     ],
     "owner": "elokaagu",

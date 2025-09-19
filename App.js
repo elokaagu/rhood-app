@@ -180,7 +180,7 @@ export default function App() {
   // Setup global audio configuration for background playback
   const setupGlobalAudio = async () => {
     try {
-      // expo-av handles background playback automatically
+      // expo-audio handles background playback automatically
       console.log("✅ Global audio configured for background playback");
     } catch (error) {
       console.log("❌ Error setting up global audio:", error);
