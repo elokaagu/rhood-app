@@ -1240,8 +1240,8 @@ export default function App() {
           </TouchableOpacity>
         </Modal>
 
-        {/* Global Audio Player - shows on all screens when audio is playing */}
-        {globalAudioState.isPlaying && globalAudioState.currentTrack && (
+        {/* Global Audio Player - shows when there's a current track */}
+        {globalAudioState.currentTrack && (
           <TouchableOpacity
             style={styles.globalAudioPlayer}
             onPress={() => setShowFullScreenPlayer(true)}
@@ -1260,11 +1260,12 @@ export default function App() {
               <View style={styles.audioControls}>
                 <TouchableOpacity
                   style={styles.audioControlButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    globalAudioState.isPlaying
-                      ? pauseGlobalAudio()
-                      : resumeGlobalAudio();
+                  onPress={() => {
+                    if (globalAudioState.isPlaying) {
+                      pauseGlobalAudio();
+                    } else {
+                      resumeGlobalAudio();
+                    }
                   }}
                 >
                   <Ionicons
@@ -1276,8 +1277,7 @@ export default function App() {
 
                 <TouchableOpacity
                   style={styles.audioControlButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
+                  onPress={() => {
                     // Skip forward 15 seconds
                     // This would need to be implemented in the audio functions
                   }}
@@ -1286,6 +1286,19 @@ export default function App() {
                     name="play-skip-forward"
                     size={20}
                     color="hsl(0, 0%, 100%)"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.audioCloseButton}
+                  onPress={() => {
+                    stopGlobalAudio();
+                  }}
+                >
+                  <Ionicons
+                    name="close"
+                    size={20}
+                    color="hsl(0, 0%, 60%)"
                   />
                 </TouchableOpacity>
               </View>
@@ -2373,21 +2386,21 @@ const styles = StyleSheet.create({
   // Global Audio Player Styles
   globalAudioPlayer: {
     position: "absolute",
-    bottom: 100, // Above tab bar
+    bottom: 120, // Above floating tab bar
     left: 16,
     right: 16,
-    backgroundColor: "rgba(29, 29, 27, 0.95)",
+    backgroundColor: "hsl(0, 0%, 8%)", // Fully opaque
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 20,
-    zIndex: 1000,
+    zIndex: 1001, // Higher than tab bar
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 12,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+    borderColor: "hsl(75, 100%, 60%)", // Brand color border
   },
   audioPlayerContent: {
     flexDirection: "row",
@@ -2428,6 +2441,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
+    marginLeft: 8,
+  },
+  audioCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
   },
   audioProgressContainer: {
     marginTop: 12,
