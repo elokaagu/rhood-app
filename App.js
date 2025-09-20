@@ -2524,6 +2524,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 40,
+    backgroundColor: "hsl(0, 0%, 0%)", // Pure black background
   },
   fullScreenHeader: {
     flexDirection: "row",
@@ -2534,9 +2535,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "hsl(0, 0%, 15%)",
+    backgroundColor: "hsl(0, 0%, 8%)", // Brand backgroundSecondary
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)", // Brand border
   },
   albumArtContainer: {
     alignItems: "center",
@@ -2557,10 +2560,10 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   fullScreenTrackTitle: {
-    fontSize: 24,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)",
-    fontWeight: "700",
+    fontSize: 28,
+    fontFamily: "Arial Black",
+    color: "hsl(0, 0%, 100%)", // Brand textPrimary
+    fontWeight: "900",
     textAlign: "center",
     marginBottom: 8,
   },
@@ -2572,10 +2575,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   fullScreenTrackGenre: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: "Arial",
-    color: "#C2CC06",
+    color: "#C2CC06", // Brand primary color
     textAlign: "center",
+    fontWeight: "600",
   },
   fullScreenProgressSection: {
     marginBottom: 40,
@@ -2592,10 +2596,11 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   progressText: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 50%)",
+    color: "hsl(0, 0%, 70%)", // Brand textSecondary
     textAlign: "center",
+    marginTop: 8,
   },
   fullScreenControls: {
     flexDirection: "row",
@@ -2608,9 +2613,11 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "transparent",
+    backgroundColor: "hsl(0, 0%, 8%)", // Brand backgroundSecondary
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)", // Brand border
   },
   playPauseButton: {
     width: 70,
@@ -2634,9 +2641,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "hsl(0, 0%, 15%)",
+    backgroundColor: "hsl(0, 0%, 8%)", // Brand backgroundSecondary
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)", // Brand border
   },
   fadeOverlay: {
     position: "absolute",

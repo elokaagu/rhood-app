@@ -15,6 +15,7 @@ ALTER TABLE IF EXISTS public.community_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.messages ENABLE ROW LEVEL SECURITY;
 
 -- Enable RLS on any additional tables that might exist
+
 ALTER TABLE IF EXISTS public.ai_matching_summary ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.ai_feedback_analysis ENABLE ROW LEVEL SECURITY;
 
