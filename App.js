@@ -1304,6 +1304,16 @@ export default function App() {
                 </Text>
               </View>
 
+              {/* Timer in the middle */}
+              <View style={styles.audioTimeContainer}>
+                <Text style={styles.audioTimeText}>
+                  {formatTime(globalAudioState.positionMillis || 0)}
+                </Text>
+                <Text style={styles.audioTimeText}>
+                  {formatTime(globalAudioState.durationMillis || 0)}
+                </Text>
+              </View>
+
               <View style={styles.audioControls}>
                 <TouchableOpacity
                   style={styles.audioControlButton}
@@ -1335,15 +1345,6 @@ export default function App() {
                     color="hsl(0, 0%, 100%)"
                   />
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.audioCloseButton}
-                  onPress={() => {
-                    stopGlobalAudio();
-                  }}
-                >
-                  <Ionicons name="close" size={20} color="hsl(0, 0%, 60%)" />
-                </TouchableOpacity>
               </View>
 
               {/* Progress Bar */}
@@ -1355,14 +1356,6 @@ export default function App() {
                       { width: `${globalAudioState.progress || 0}%` },
                     ]}
                   />
-                </View>
-                <View style={styles.audioTimeContainer}>
-                  <Text style={styles.audioTimeText}>
-                    {formatTime(globalAudioState.positionMillis || 0)}
-                  </Text>
-                  <Text style={styles.audioTimeText}>
-                    {formatTime(globalAudioState.durationMillis || 0)}
-                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
