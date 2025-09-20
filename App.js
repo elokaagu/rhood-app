@@ -71,6 +71,10 @@ export default function App() {
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
 
+  // Audio player animation values
+  const [audioPlayerOpacity] = useState(new Animated.Value(0));
+  const [audioPlayerTranslateY] = useState(new Animated.Value(50));
+
   // Format time helper function
   const formatTime = (milliseconds) => {
     if (!milliseconds || isNaN(milliseconds)) return "0:00";
@@ -79,6 +83,41 @@ export default function App() {
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
+
+  // Audio player animation effects
+  useEffect(() => {
+    if (globalAudioState.currentTrack) {
+      // Animate in when track is loaded - smooth ease-in
+      Animated.parallel([
+        Animated.timing(audioPlayerOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.spring(audioPlayerTranslateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }),
+      ]).start();
+    } else {
+      // Animate out when no track - smooth ease-out
+      Animated.parallel([
+        Animated.timing(audioPlayerOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(audioPlayerTranslateY, {
+          toValue: 50,
+          useNativeDriver: true,
+          tension: 120,
+          friction: 9,
+        }),
+      ]).start();
+    }
+  }, [globalAudioState.currentTrack]);
 
   // Application sent modal state
   const [showApplicationSentModal, setShowApplicationSentModal] =
@@ -1242,12 +1281,20 @@ export default function App() {
 
         {/* Global Audio Player - shows when there's a current track */}
         {globalAudioState.currentTrack && (
-          <TouchableOpacity
-            style={styles.globalAudioPlayer}
-            onPress={() => setShowFullScreenPlayer(true)}
-            activeOpacity={0.8}
+          <Animated.View
+            style={[
+              styles.globalAudioPlayer,
+              {
+                opacity: audioPlayerOpacity,
+                transform: [{ translateY: audioPlayerTranslateY }],
+              },
+            ]}
           >
-            <View style={styles.audioPlayerContent}>
+            <TouchableOpacity
+              style={styles.audioPlayerContent}
+              onPress={() => setShowFullScreenPlayer(true)}
+              activeOpacity={0.8}
+            >
               <View style={styles.audioTrackInfo}>
                 <Text style={styles.audioTrackTitle} numberOfLines={1}>
                   {globalAudioState.currentTrack.title}
@@ -1319,7 +1366,8 @@ export default function App() {
                 </Text>
               </View>
             </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
         {/* Full-Screen Audio Player Modal */}
