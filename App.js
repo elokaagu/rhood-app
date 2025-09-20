@@ -1295,11 +1295,7 @@ export default function App() {
                     stopGlobalAudio();
                   }}
                 >
-                  <Ionicons
-                    name="close"
-                    size={20}
-                    color="hsl(0, 0%, 60%)"
-                  />
+                  <Ionicons name="close" size={20} color="hsl(0, 0%, 60%)" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -2400,7 +2396,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 12,
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%)", // Brand color border
+    borderColor: "#C2CC06", // Brand color border
   },
   audioPlayerContent: {
     flexDirection: "row",
@@ -2421,7 +2417,7 @@ const styles = StyleSheet.create({
   audioTrackArtist: {
     fontSize: 14,
     fontFamily: "Arial",
-    color: "hsl(75, 100%, 60%)",
+    color: "#C2CC06",
     fontWeight: "600",
   },
   audioControls: {
@@ -2433,10 +2429,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "#C2CC06",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "hsl(75, 100%, 60%)",
+    shadowColor: "#C2CC06",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -2463,7 +2459,7 @@ const styles = StyleSheet.create({
   },
   audioProgressFill: {
     height: "100%",
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "#C2CC06",
     borderRadius: 2,
   },
   audioTimeContainer: {
