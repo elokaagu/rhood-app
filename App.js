@@ -1345,27 +1345,26 @@ export default function App() {
                   <Ionicons name="close" size={20} color="hsl(0, 0%, 60%)" />
                 </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Progress Bar */}
-            <View style={styles.audioProgressContainer}>
-              <View style={styles.audioProgressBar}>
-                <View
-                  style={[
-                    styles.audioProgressFill,
-                    { width: `${globalAudioState.progress || 0}%` },
-                  ]}
-                />
+              {/* Progress Bar */}
+              <View style={styles.audioProgressContainer}>
+                <View style={styles.audioProgressBar}>
+                  <View
+                    style={[
+                      styles.audioProgressFill,
+                      { width: `${globalAudioState.progress || 0}%` },
+                    ]}
+                  />
+                </View>
+                <View style={styles.audioTimeContainer}>
+                  <Text style={styles.audioTimeText}>
+                    {formatTime(globalAudioState.positionMillis || 0)}
+                  </Text>
+                  <Text style={styles.audioTimeText}>
+                    {formatTime(globalAudioState.durationMillis || 0)}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.audioTimeContainer}>
-                <Text style={styles.audioTimeText}>
-                  {formatTime(globalAudioState.positionMillis || 0)}
-                </Text>
-                <Text style={styles.audioTimeText}>
-                  {formatTime(globalAudioState.durationMillis || 0)}
-                </Text>
-              </View>
-            </View>
             </TouchableOpacity>
           </Animated.View>
         )}
