@@ -312,7 +312,6 @@ export default function App() {
     setShowAuth(true);
   };
 
-
   // Global audio control functions
   const playGlobalAudio = async (track) => {
     try {
@@ -857,7 +856,7 @@ export default function App() {
 
             {/* Genres Card */}
             <View style={styles.genresCard}>
-              <Text style={styles.cardTitle}>♫ Genres</Text>
+              <Text style={styles.cardTitle}>Genres</Text>
               <View style={styles.genresContainer}>
                 {["Techno", "House", "Industrial", "Drum & Bass"].map(
                   (genre, index) => (
@@ -871,7 +870,7 @@ export default function App() {
 
             {/* Audio ID Card */}
             <View style={styles.audioIdCard}>
-              <Text style={styles.cardTitle}>🔊 Audio ID</Text>
+              <Text style={styles.cardTitle}>Audio ID</Text>
               <View style={styles.audioPlayer}>
                 <View style={styles.audioInfo}>
                   <Text style={styles.trackTitle}>Dark Industrial Mix #1</Text>
@@ -1283,7 +1282,11 @@ export default function App() {
                     // This would need to be implemented in the audio functions
                   }}
                 >
-                  <Ionicons name="play-skip-forward" size={20} color="hsl(0, 0%, 100%)" />
+                  <Ionicons
+                    name="play-skip-forward"
+                    size={20}
+                    color="hsl(0, 0%, 100%)"
+                  />
                 </TouchableOpacity>
               </View>
             </View>

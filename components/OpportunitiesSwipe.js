@@ -116,16 +116,19 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
 
       const { dx, dy } = gestureState;
       translateX.setValue(dx);
-      translateY.setValue(dy * 0.1); // Further reduce vertical movement
+      translateY.setValue(dy * 0.05); // Minimal vertical movement
 
-      // Smoother opacity calculation with better curve
-      const progress = Math.min(Math.abs(dx) / screenWidth, 1);
-      const opacityValue = 1 - progress * 0.6; // More gradual fade
-      opacity.setValue(Math.max(0.3, opacityValue));
+      // Ultra-smooth progress calculation
+      const progress = Math.min(Math.abs(dx) / (screenWidth * 0.8), 1);
+      const smoothProgress = progress * progress * (3 - 2 * progress); // Smooth step function
 
-      // Smoother next card animation with better interpolation
-      const scaleValue = 0.9 + progress * 0.1;
-      const nextOpacityValue = 0.8 + progress * 0.2;
+      // Gradual opacity fade
+      const opacityValue = 1 - smoothProgress * 0.7;
+      opacity.setValue(Math.max(0.2, opacityValue));
+
+      // Seamless next card reveal
+      const scaleValue = 0.9 + smoothProgress * 0.1;
+      const nextOpacityValue = 0.8 + smoothProgress * 0.2;
       nextCardScale.setValue(Math.min(1, scaleValue));
       nextCardOpacity.setValue(Math.min(1, nextOpacityValue));
     },
@@ -160,36 +163,36 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
       Animated.spring(translateX, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 150,
-        friction: 8,
+        tension: 200,
+        friction: 10,
         velocity: 0,
       }),
       Animated.spring(translateY, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 150,
-        friction: 8,
+        tension: 200,
+        friction: 10,
         velocity: 0,
       }),
       Animated.spring(opacity, {
         toValue: 1,
         useNativeDriver: true,
-        tension: 150,
-        friction: 8,
+        tension: 200,
+        friction: 10,
         velocity: 0,
       }),
       Animated.spring(nextCardScale, {
         toValue: 0.9,
         useNativeDriver: true,
-        tension: 150,
-        friction: 8,
+        tension: 200,
+        friction: 10,
         velocity: 0,
       }),
       Animated.spring(nextCardOpacity, {
         toValue: 0.8,
         useNativeDriver: true,
-        tension: 150,
-        friction: 8,
+        tension: 200,
+        friction: 10,
         velocity: 0,
       }),
     ]).start(() => {
@@ -201,60 +204,62 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
     if (isAnimating) return;
 
     setIsAnimating(true);
+
+    // Animate current card out
     Animated.parallel([
       Animated.spring(translateX, {
         toValue: -screenWidth * 1.2,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
+        tension: 120,
+        friction: 9,
         velocity: 0,
       }),
       Animated.spring(translateY, {
         toValue: -40,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
+        tension: 120,
+        friction: 9,
         velocity: 0,
       }),
       Animated.spring(opacity, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
+        tension: 120,
+        friction: 9,
         velocity: 0,
       }),
     ]).start(() => {
-      // Immediately transition to next card without reset animation
+      // Update to next card
       setCurrentGigIndex((prevIndex) =>
         prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
       );
 
-      // Smoothly animate next card into position
+      // Immediately reset current card values (invisible reset)
+      translateX.setValue(0);
+      translateY.setValue(0);
+      opacity.setValue(1);
+
+      // Animate next card in seamlessly
       Animated.parallel([
         Animated.spring(nextCardScale, {
           toValue: 1,
           useNativeDriver: true,
-          tension: 120,
+          tension: 140,
           friction: 8,
           velocity: 0,
         }),
         Animated.spring(nextCardOpacity, {
           toValue: 1,
           useNativeDriver: true,
-          tension: 120,
+          tension: 140,
           friction: 8,
           velocity: 0,
         }),
       ]).start(() => {
-        // Reset values for next interaction
-        translateX.setValue(0);
-        translateY.setValue(0);
-        opacity.setValue(1);
+        // Prepare next card for future interaction
         nextCardScale.setValue(0.9);
         nextCardOpacity.setValue(0.8);
-
         setIsAnimating(false);
-
         onPass && onPass(currentGig);
       });
     });
@@ -269,57 +274,57 @@ export default function OpportunitiesSwipe({ onApply, onPass }) {
         Animated.spring(translateX, {
           toValue: screenWidth * 1.2,
           useNativeDriver: true,
-          tension: 100,
-          friction: 8,
+          tension: 120,
+          friction: 9,
           velocity: 0,
         }),
         Animated.spring(translateY, {
           toValue: -40,
           useNativeDriver: true,
-          tension: 100,
-          friction: 8,
+          tension: 120,
+          friction: 9,
           velocity: 0,
         }),
         Animated.spring(opacity, {
           toValue: 0,
           useNativeDriver: true,
-          tension: 100,
-          friction: 8,
+          tension: 120,
+          friction: 9,
           velocity: 0,
         }),
       ]).start(() => {
-        // Immediately transition to next card without reset animation
+        // Update to next card
         setCurrentGigIndex((prevIndex) =>
           prevIndex === mockGigs.length - 1 ? 0 : prevIndex + 1
         );
         setAppliesLeft(appliesLeft - 1);
 
-        // Smoothly animate next card into position
+        // Immediately reset current card values (invisible reset)
+        translateX.setValue(0);
+        translateY.setValue(0);
+        opacity.setValue(1);
+
+        // Animate next card in seamlessly
         Animated.parallel([
           Animated.spring(nextCardScale, {
             toValue: 1,
             useNativeDriver: true,
-            tension: 120,
+            tension: 140,
             friction: 8,
             velocity: 0,
           }),
           Animated.spring(nextCardOpacity, {
             toValue: 1,
             useNativeDriver: true,
-            tension: 120,
+            tension: 140,
             friction: 8,
             velocity: 0,
           }),
         ]).start(() => {
-          // Reset values for next interaction
-          translateX.setValue(0);
-          translateY.setValue(0);
-          opacity.setValue(1);
+          // Prepare next card for future interaction
           nextCardScale.setValue(0.9);
           nextCardOpacity.setValue(0.8);
-
           setIsAnimating(false);
-
           setShowApplication(true);
         });
       });
