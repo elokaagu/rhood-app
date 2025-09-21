@@ -69,7 +69,7 @@ const mockMixes = [
     duration: "5:00",
     description: "Dark, pulsing techno for late-night sessions",
     image:
-      "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
     audioUrl: require("../assets/audio/unique-original-mix.mp3"),
     plays: 1240,
   },
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
   },
   mixesContainer: {
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   },
   uploadTitle: {
     fontSize: 18,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginTop: 12,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   },
   uploadDescription: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
     textAlign: "center",
     lineHeight: 20,
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   },
   uploadButtonText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
   },

@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
   },
   appliesLeft: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(75, 100%, 60%)",
   },
   cardContainer: {
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
   },
   genreText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     textShadowColor: "rgba(0, 0, 0, 0.8)",
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
   },
   gigTitle: {
     fontSize: 28,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 8,
@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
   },
   gigDescription: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     lineHeight: 22,
     marginBottom: 16,
@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     marginLeft: 8,
     textShadowColor: "rgba(0, 0, 0, 0.8)",
@@ -763,12 +763,12 @@ const styles = StyleSheet.create({
   },
   skillLevelText: {
     fontSize: 10,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
   },
   organizerName: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     textShadowColor: "rgba(0, 0, 0, 0.8)",
@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
   },
   nextCardTitle: {
     fontSize: 20,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
@@ -794,7 +794,7 @@ const styles = StyleSheet.create({
   },
   nextCardDescription: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     lineHeight: 20,
     marginBottom: 16,
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
   },
   swipeIndicatorText: {
     fontSize: 18,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
   },
@@ -855,28 +855,28 @@ const styles = StyleSheet.create({
   },
   applicationTitle: {
     fontSize: 20,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 8,
   },
   applicationGigName: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(75, 100%, 60%)",
     marginBottom: 8,
     textAlign: "center",
   },
   applicationDetails: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
     marginBottom: 8,
     textAlign: "center",
   },
   applicationFee: {
     fontSize: 18,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(75, 100%, 60%)",
     marginBottom: 24,
@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
   },
@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
   },

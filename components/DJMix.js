@@ -21,6 +21,7 @@ const DJMix = ({
   progress = 0,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -63,11 +64,23 @@ const DJMix = ({
           onPress={onPlayPause}
           activeOpacity={0.8}
         >
-          <Image
-            source={{ uri: mix.image }}
-            style={styles.mixImage}
-            resizeMode="cover"
-          />
+          {!imageError ? (
+            <Image
+              source={{ uri: mix.image }}
+              style={styles.mixImage}
+              resizeMode="cover"
+              onError={() => setImageError(true)}
+              onLoad={() => setImageError(false)}
+            />
+          ) : (
+            <View style={styles.fallbackImage}>
+              <Ionicons
+                name="musical-notes"
+                size={24}
+                color="hsl(0, 0%, 60%)"
+              />
+            </View>
+          )}
           <View style={styles.playButtonOverlay}>
             <Animated.View
               style={[
@@ -76,11 +89,11 @@ const DJMix = ({
               ]}
             >
               {isLoading ? (
-                <Ionicons name="hourglass" size={24} color="hsl(0, 0%, 100%)" />
+                <Ionicons name="hourglass" size={18} color="hsl(0, 0%, 100%)" />
               ) : (
                 <Ionicons
                   name={isPlaying ? "pause" : "play"}
-                  size={24}
+                  size={18}
                   color="hsl(0, 0%, 100%)"
                 />
               )}
@@ -156,15 +169,22 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: "relative",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 8,
     overflow: "hidden",
     marginBottom: 12,
   },
   mixImage: {
     width: "100%",
     height: "100%",
+  },
+  fallbackImage: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   playButtonOverlay: {
     position: "absolute",
@@ -177,9 +197,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   playButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "hsla(0, 0%, 0%, 0.8)",
     justifyContent: "center",
     alignItems: "center",
@@ -196,7 +216,7 @@ const styles = StyleSheet.create({
   },
   genreText: {
     fontSize: 11,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(75, 100%, 60%)",
   },
@@ -208,8 +228,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mixTitle: {
-    fontSize: 18,
-    fontFamily: "Arial Black",
+    fontSize: 14,
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 6,
@@ -219,13 +239,13 @@ const styles = StyleSheet.create({
   },
   artistName: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(75, 100%, 60%)",
   },
   mixDescription: {
     fontSize: 13,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 60%)",
     lineHeight: 16,
     marginBottom: 8,
@@ -243,13 +263,13 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 13,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 80%)",
     fontWeight: "500",
   },
   duration: {
-    fontSize: 14,
-    fontFamily: "Arial Black",
+    fontSize: 10,
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(75, 100%, 60%)",
   },

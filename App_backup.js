@@ -1320,14 +1320,14 @@ const styles = StyleSheet.create({
   logoText: {
     color: "#C2CC06", // Brand lime green
     fontSize: 18,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     letterSpacing: 1,
   },
   logoTextGreen: {
     color: "#C2CC06", // Brand lime green - matches the green logo
     fontSize: 20,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     letterSpacing: 1.5,
     textTransform: "uppercase",
@@ -1335,7 +1335,7 @@ const styles = StyleSheet.create({
   logoTextWhite: {
     color: "#FFFFFF", // White - matches the white logo
     fontSize: 20,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     letterSpacing: 1.5,
     textTransform: "uppercase",
@@ -1343,7 +1343,7 @@ const styles = StyleSheet.create({
   logoTextBlack: {
     color: "#000000", // Black - matches the black logo
     fontSize: 20,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     letterSpacing: 1.5,
     textTransform: "uppercase",
@@ -1595,21 +1595,21 @@ const styles = StyleSheet.create({
   },
   eventDJ: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
     marginBottom: 5,
   },
   eventTitle: {
     fontSize: 18,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#FFFFFF", // Brand white text
     marginBottom: 8,
   },
   eventInfo: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 4,
   },
@@ -1628,7 +1628,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
   },
   messageCard: {
@@ -1641,20 +1641,20 @@ const styles = StyleSheet.create({
   },
   messageName: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#FFFFFF", // Brand white text
     marginBottom: 5,
   },
   messagePreview: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 5,
   },
   messageTime: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 50%)", // More muted text
   },
   profileCard: {
@@ -1667,7 +1667,7 @@ const styles = StyleSheet.create({
   },
   profileDJ: {
     fontSize: 24,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "#C2CC06", // Brand lime green
     marginBottom: 5,
@@ -1675,13 +1675,13 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 5,
   },
   profileCity: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 20,
   },
@@ -1696,13 +1696,13 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 20,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
   },
   editButton: {
@@ -1715,7 +1715,7 @@ const styles = StyleSheet.create({
   editButtonText: {
     color: "hsl(0, 0%, 0%)", // Black text on primary
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
   },
   tabBar: {
@@ -1736,7 +1736,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
   },
   activeTabText: {
@@ -1782,7 +1782,7 @@ const styles = StyleSheet.create({
   },
   genreTagText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
     fontWeight: "bold",
   },
@@ -1791,14 +1791,14 @@ const styles = StyleSheet.create({
   },
   opportunityTitle: {
     fontSize: 20,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#FFFFFF", // Brand white text
     marginBottom: 10,
   },
   opportunityDescription: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     lineHeight: 20,
     marginBottom: 15,
@@ -1808,7 +1808,7 @@ const styles = StyleSheet.create({
   },
   opportunityDetail: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
     marginBottom: 5,
   },
@@ -1825,13 +1825,13 @@ const styles = StyleSheet.create({
   },
   skillLevelText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
     fontWeight: "bold",
   },
   organizerName: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     fontWeight: "bold",
   },
@@ -1872,7 +1872,7 @@ const styles = StyleSheet.create({
   },
   actionHint: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 50%)", // Muted text
     textAlign: "center",
     marginBottom: 30,
@@ -1887,14 +1887,14 @@ const styles = StyleSheet.create({
   },
   opportunityDJ: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
     marginBottom: 5,
   },
   opportunityInfo: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 4,
   },
@@ -1909,21 +1909,21 @@ const styles = StyleSheet.create({
   },
   notificationTitle: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#FFFFFF", // Brand white text
     marginBottom: 5,
   },
   notificationText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 8,
     lineHeight: 20,
   },
   notificationTime: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 50%)", // More muted text
   },
   // Community Screen Styles
@@ -1937,20 +1937,20 @@ const styles = StyleSheet.create({
   },
   communityTitle: {
     fontSize: 18,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
     marginBottom: 5,
   },
   communityMembers: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 8,
   },
   communityDescription: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
     lineHeight: 20,
   },
@@ -1964,7 +1964,7 @@ const styles = StyleSheet.create({
   },
   settingsTitle: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
     padding: 15,
@@ -1981,7 +1981,7 @@ const styles = StyleSheet.create({
   },
   settingsItemText: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
   },
   settingsArrow: {
@@ -1995,7 +1995,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: "hsl(0, 0%, 70%)",
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
   emptyState: {
     padding: 40,
@@ -2006,12 +2006,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 8,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
   emptyStateSubtext: {
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
   // Hamburger Menu Styles
   menuOverlay: {
@@ -2041,7 +2041,7 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 20,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
   },
@@ -2068,7 +2068,7 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     marginLeft: 12,
     fontWeight: "500",
@@ -2098,14 +2098,14 @@ const styles = StyleSheet.create({
   },
   audioTrackTitle: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
     marginBottom: 2,
   },
   audioTrackArtist: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
   },
   audioControls: {
@@ -2178,7 +2178,7 @@ const styles = StyleSheet.create({
   },
   fullScreenTrackTitle: {
     fontSize: 24,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "700",
     textAlign: "center",
@@ -2186,14 +2186,14 @@ const styles = StyleSheet.create({
   },
   fullScreenTrackArtist: {
     fontSize: 18,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
     textAlign: "center",
     marginBottom: 4,
   },
   fullScreenTrackGenre: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#C2CC06",
     textAlign: "center",
   },
@@ -2213,7 +2213,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 50%)",
     textAlign: "center",
   },

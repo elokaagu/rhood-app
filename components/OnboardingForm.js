@@ -453,7 +453,7 @@ const styles = {
   },
   title: {
     fontSize: 32,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
     textAlign: "center",
@@ -467,7 +467,7 @@ const styles = {
   },
   subtitle: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     textAlign: "center",
     marginBottom: 20,
@@ -495,14 +495,14 @@ const styles = {
   },
   stepTitle: {
     fontSize: 24,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "hsl(0, 0%, 100%)", // Pure white text
     marginBottom: 8,
   },
   stepSubtitle: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 30,
   },
@@ -511,7 +511,7 @@ const styles = {
   },
   label: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)", // Pure white text
     marginBottom: 8,
@@ -524,7 +524,7 @@ const styles = {
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)", // Pure white text
   },
   inputError: {
@@ -532,7 +532,7 @@ const styles = {
   },
   errorText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 100%, 60%)", // Error red
     marginTop: 5,
   },
@@ -549,7 +549,7 @@ const styles = {
   },
   dropdownText: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)", // Pure white text
     flex: 1,
   },
@@ -579,7 +579,7 @@ const styles = {
   },
   dropdownItemText: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)", // Pure white text
   },
   genreContainer: {
@@ -603,7 +603,7 @@ const styles = {
   },
   genreTagText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)", // Pure white text
   },
   genreTagTextSelected: {
@@ -626,7 +626,7 @@ const styles = {
   primaryButtonText: {
     color: "hsl(0, 0%, 0%)", // Black text on primary
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -641,7 +641,7 @@ const styles = {
   secondaryButtonText: {
     color: "hsl(0, 0%, 100%)", // Pure white text
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     textAlign: "center",
   },

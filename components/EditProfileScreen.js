@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
     fontSize: 16,
     marginTop: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
   scrollView: {
     flex: 1,
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "hsl(0, 0%, 100%)",
   },
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: "hsl(0, 0%, 0%)",
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
   },
   content: {
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   },
   imageLabel: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
   },
   formSection: {
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 8,
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
@@ -670,13 +670,13 @@ const styles = StyleSheet.create({
   errorText: {
     color: "hsl(0, 100%, 50%)",
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     marginTop: 4,
   },
   charCount: {
     color: "hsl(0, 0%, 50%)",
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     textAlign: "right",
     marginTop: 4,
   },
@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
   },
   genreSelectorText: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
   },
   genreSelectorPlaceholder: {
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
   genreTagText: {
     color: "hsl(0, 0%, 0%)",
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "500",
   },
   genreTagRemove: {
@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "hsl(0, 0%, 100%)",
   },
@@ -774,7 +774,7 @@ const styles = StyleSheet.create({
   },
   genreText: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
   },
   genreTextSelected: {
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
   doneButtonText: {
     color: "hsl(0, 0%, 0%)",
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
   },
 });

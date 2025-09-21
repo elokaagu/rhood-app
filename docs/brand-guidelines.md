@@ -106,17 +106,17 @@ R/HOOD is an underground music platform with a **dark, premium aesthetic** inspi
 
 ```css
 font-family: {
-  'display': ['Arial', 'Helvetica', 'sans-serif'],
-  'body': ['Arial', 'Helvetica', 'sans-serif'],
-  'brand': ['Arial Black', 'Arial', 'sans-serif']
+  'display': ['TS-Block-Bold', 'Helvetica Neue', 'sans-serif'],
+  'body': ['Helvetica Neue', 'Helvetica', 'sans-serif'],
+  'brand': ['TS-Block-Bold', 'Helvetica Neue', 'sans-serif']
 }
 ```
 
 ### Typography Hierarchy
 
-- **Brand Text**: Arial Black for logos and main headings
-- **Display Text**: Arial for section headings
-- **Body Text**: Arial for content and UI text
+- **Brand Text**: TS-Block-Bold for logos and main headings (smaller sizes)
+- **Display Text**: TS-Block-Bold for section headings
+- **Body Text**: Helvetica Neue for content and UI text
 
 ---
 

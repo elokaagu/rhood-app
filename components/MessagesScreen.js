@@ -1246,7 +1246,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
   },
@@ -1256,7 +1256,7 @@ const styles = StyleSheet.create({
     padding: 12,
     color: "hsl(0, 0%, 100%)",
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     minHeight: 100,
     textAlignVertical: "top",
     borderWidth: 1,
@@ -1283,7 +1283,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: "hsl(0, 0%, 70%)",
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "500",
   },
   saveButton: {
@@ -1292,7 +1292,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: "hsl(0, 0%, 0%)",
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
   },
 });

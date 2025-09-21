@@ -293,14 +293,14 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
   },
   opportunityCard: {
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   },
   genreText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
   },
@@ -338,19 +338,19 @@ const styles = StyleSheet.create({
   },
   skillLevelText: {
     fontSize: 10,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
   },
   opportunityTitle: {
     fontSize: 20,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 8,
   },
   opportunityDescription: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 80%)",
     lineHeight: 20,
     marginBottom: 16,
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     marginLeft: 8,
   },
@@ -377,13 +377,13 @@ const styles = StyleSheet.create({
   },
   organizerLabel: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
     marginBottom: 4,
   },
   organizerName: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(75, 100%, 60%)",
   },
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     marginLeft: 6,
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
   },
   emptyContainer: {
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginTop: 16,
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
     textAlign: "center",
     marginBottom: 24,
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   },
   refreshButtonText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
   },

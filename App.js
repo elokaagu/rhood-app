@@ -18,7 +18,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
+import { Audio } from "expo-av";
 import { useFonts } from "expo-font";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
@@ -366,60 +366,63 @@ export default function App() {
       // Stop current audio if playing
       if (globalAudioRef.current) {
         console.log("🛑 Stopping current audio before playing new track");
-        globalAudioRef.current.remove();
+        await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       }
 
       setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
 
       // Configure audio mode for playback
-      await setAudioModeAsync({
-        playsInSilentMode: true,
-        shouldPlayInBackground: true,
-        interruptionMode: "mixWithOthers",
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+        allowsRecordingIOS: false,
+        staysActiveInBackground: true,
+        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_MIX_WITH_OTHERS,
+        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
       });
 
-      // Create and load new sound using expo-audio
+      // Create and load new sound using expo-av
       console.log("🔄 Creating new sound instance...");
       console.log("🔄 Audio file path:", track.audioUrl);
       console.log("🔄 Audio file type:", typeof track.audioUrl);
 
-      const player = createAudioPlayer(track.audioUrl);
+      const { sound } = await Audio.createAsync(track.audioUrl, {
+        shouldPlay: false,
+        isLooping: false,
+      });
 
-      console.log("🔄 Player created:", player);
+      console.log("🔄 Sound created:", sound);
 
-      // Set up event listeners
-      player.addListener("statusChange", (status) => {
-        console.log("📊 Audio status change:", status);
+      // Set up status update listener
+      sound.setOnPlaybackStatusUpdate((status) => {
+        console.log("📊 Audio status update:", status);
         if (status.isLoaded) {
-          console.log("✅ Audio loaded successfully");
           setGlobalAudioState((prev) => ({
             ...prev,
             isPlaying: status.isPlaying,
             isLoading: false,
             progress: status.positionMillis / status.durationMillis || 0,
-            positionMillis: status.positionMillis,
-            durationMillis: status.durationMillis,
+            positionMillis: status.positionMillis || 0,
+            durationMillis: status.durationMillis || 0,
           }));
-        } else {
-          console.log("⏳ Audio still loading...");
+        } else if (status.error) {
+          console.error("❌ Audio error:", status.error);
+          setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
         }
       });
 
       // Store reference for cleanup
-      globalAudioRef.current = player;
-
-      // Wait a moment for the player to initialize
-      console.log("⏳ Waiting for player to initialize...");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      globalAudioRef.current = sound;
 
       // Start playing
       console.log("▶️ Starting playback...");
-      await player.play();
+      await sound.playAsync();
 
       setGlobalAudioState((prev) => ({
         ...prev,
-        sound: player,
+        sound: sound,
         isPlaying: true,
         currentTrack: track,
         isLoading: false,
@@ -435,7 +438,7 @@ export default function App() {
   const pauseGlobalAudio = async () => {
     if (globalAudioState.sound) {
       try {
-        await globalAudioState.sound.pause();
+        await globalAudioState.sound.pauseAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
       } catch (error) {
         console.log("❌ Error pausing audio:", error);
@@ -446,7 +449,7 @@ export default function App() {
   const resumeGlobalAudio = async () => {
     if (globalAudioState.sound) {
       try {
-        await globalAudioState.sound.play();
+        await globalAudioState.sound.playAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
       } catch (error) {
         console.log("❌ Error resuming audio:", error);
@@ -457,8 +460,7 @@ export default function App() {
   const stopGlobalAudio = async () => {
     if (globalAudioRef.current) {
       try {
-        await globalAudioRef.current.pause();
-        globalAudioRef.current.remove();
+        await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       } catch (error) {
         console.log("❌ Error stopping audio:", error);
@@ -1795,30 +1797,30 @@ const styles = StyleSheet.create({
   logoText: {
     color: "#C2CC06", // Brand lime green
     fontSize: 18,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     letterSpacing: 1,
   },
   logoTextGreen: {
     color: "#C2CC06", // Brand lime green - matches the green logo
-    fontSize: 20,
-    fontFamily: "Arial Black",
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
   logoTextWhite: {
     color: "#FFFFFF", // White - matches the white logo
-    fontSize: 20,
-    fontFamily: "Arial Black",
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
   logoTextBlack: {
     color: "#000000", // Black - matches the black logo
-    fontSize: 20,
-    fontFamily: "Arial Black",
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     letterSpacing: 1.5,
     textTransform: "uppercase",
@@ -1850,45 +1852,47 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000", // Pure black background
   },
   screenTitle: {
-    fontSize: 24,
-    fontFamily: "Helvetica Neue",
+    fontSize: 20,
+    fontFamily: "TS-Block-Bold",
     fontWeight: "bold",
     color: "#FFFFFF", // Brand white text
     marginBottom: 20,
     textAlign: "center",
-    lineHeight: 28.8, // 120% of 24pt
+    lineHeight: 24, // 120% of 20pt
     letterSpacing: 0, // Tracking set to 0
+    textTransform: "uppercase",
   },
   title: {
-    fontSize: 32,
-    fontFamily: "Helvetica Neue",
+    fontSize: 24,
+    fontFamily: "TS-Block-Bold",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
     textAlign: "center",
     marginBottom: 10,
     letterSpacing: 0, // Tracking set to 0
-    lineHeight: 38.4, // 120% of 32pt
+    lineHeight: 28.8, // 120% of 24pt
+    textTransform: "uppercase",
   },
   // TS Block Bold for impactful headings
   tsBlockBoldHeading: {
     fontFamily: "TS-Block-Bold",
-    fontSize: 28,
+    fontSize: 22,
     color: "#FFFFFF", // Brand white
     textAlign: "left", // Left aligned as per guidelines
     textTransform: "uppercase", // Always uppercase
-    lineHeight: 32, // Tight line height for stacked effect
+    lineHeight: 26, // Tight line height for stacked effect
     letterSpacing: 1, // Slight spacing for impact
     marginBottom: 16,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "Helvetica Neue",
     fontWeight: "300", // Light weight
     color: "hsl(0, 0%, 70%)", // Muted foreground
     textAlign: "center",
     marginBottom: 30,
     letterSpacing: 0, // Tracking set to 0
-    lineHeight: 19.2, // 120% of 16pt
+    lineHeight: 19.6, // 140% of 14pt for better readability
   },
   form: {
     width: "100%",
@@ -2076,21 +2080,21 @@ const styles = StyleSheet.create({
   },
   eventDJ: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
     marginBottom: 5,
   },
   eventTitle: {
     fontSize: 18,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#FFFFFF", // Brand white text
     marginBottom: 8,
   },
   eventInfo: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 4,
   },
@@ -2109,7 +2113,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
   },
   messageCard: {
@@ -2122,20 +2126,20 @@ const styles = StyleSheet.create({
   },
   messageName: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#FFFFFF", // Brand white text
     marginBottom: 5,
   },
   messagePreview: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 5,
   },
   messageTime: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 50%)", // More muted text
   },
   profileCard: {
@@ -2148,7 +2152,7 @@ const styles = StyleSheet.create({
   },
   profileDJ: {
     fontSize: 24,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "#C2CC06", // Brand lime green
     marginBottom: 5,
@@ -2156,13 +2160,13 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 5,
   },
   profileCity: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 20,
   },
@@ -2177,13 +2181,13 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 20,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
   },
   editButton: {
@@ -2196,7 +2200,7 @@ const styles = StyleSheet.create({
   editButtonText: {
     color: "hsl(0, 0%, 0%)", // Black text on primary
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
   },
   tabBar: {
@@ -2282,7 +2286,7 @@ const styles = StyleSheet.create({
   },
   genreTagText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
     fontWeight: "bold",
   },
@@ -2291,14 +2295,14 @@ const styles = StyleSheet.create({
   },
   opportunityTitle: {
     fontSize: 20,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#FFFFFF", // Brand white text
     marginBottom: 10,
   },
   opportunityDescription: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     lineHeight: 20,
     marginBottom: 15,
@@ -2308,7 +2312,7 @@ const styles = StyleSheet.create({
   },
   opportunityDetail: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
     marginBottom: 5,
   },
@@ -2325,13 +2329,13 @@ const styles = StyleSheet.create({
   },
   skillLevelText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
     fontWeight: "bold",
   },
   organizerName: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     fontWeight: "bold",
   },
@@ -2372,7 +2376,7 @@ const styles = StyleSheet.create({
   },
   actionHint: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 50%)", // Muted text
     textAlign: "center",
     marginBottom: 30,
@@ -2387,14 +2391,14 @@ const styles = StyleSheet.create({
   },
   opportunityDJ: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
     marginBottom: 5,
   },
   opportunityInfo: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 4,
   },
@@ -2409,21 +2413,21 @@ const styles = StyleSheet.create({
   },
   notificationTitle: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#FFFFFF", // Brand white text
     marginBottom: 5,
   },
   notificationText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 8,
     lineHeight: 20,
   },
   notificationTime: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 50%)", // More muted text
   },
   // Community Screen Styles
@@ -2437,20 +2441,20 @@ const styles = StyleSheet.create({
   },
   communityTitle: {
     fontSize: 18,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
     marginBottom: 5,
   },
   communityMembers: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Muted foreground
     marginBottom: 8,
   },
   communityDescription: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
     lineHeight: 20,
   },
@@ -2464,7 +2468,7 @@ const styles = StyleSheet.create({
   },
   settingsTitle: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "#C2CC06", // Brand lime green
     padding: 15,
@@ -2481,7 +2485,7 @@ const styles = StyleSheet.create({
   },
   settingsItemText: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#FFFFFF", // Brand white text
   },
   settingsArrow: {
@@ -2495,7 +2499,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: "hsl(0, 0%, 70%)",
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
   emptyState: {
     padding: 40,
@@ -2506,12 +2510,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 8,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
   emptyStateSubtext: {
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
   // Hamburger Menu Styles
   menuOverlay: {
@@ -2541,7 +2545,7 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 20,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
   },
@@ -2568,7 +2572,7 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     marginLeft: 12,
     fontWeight: "500",
@@ -2605,14 +2609,14 @@ const styles = StyleSheet.create({
   },
   audioTrackTitle: {
     fontSize: 16,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
   },
   audioTrackArtist: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#C2CC06",
     fontWeight: "600",
   },
@@ -2665,7 +2669,7 @@ const styles = StyleSheet.create({
   },
   audioTimeText: {
     fontSize: 12,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 60%)",
     fontWeight: "500",
   },
@@ -2717,7 +2721,7 @@ const styles = StyleSheet.create({
   },
   fullScreenTrackTitle: {
     fontSize: 28,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)", // Brand textPrimary
     fontWeight: "900",
     textAlign: "center",
@@ -2725,14 +2729,14 @@ const styles = StyleSheet.create({
   },
   fullScreenTrackArtist: {
     fontSize: 18,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
     textAlign: "center",
     marginBottom: 4,
   },
   fullScreenTrackGenre: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "#C2CC06", // Brand primary color
     textAlign: "center",
     fontWeight: "600",
@@ -2753,7 +2757,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Brand textSecondary
     textAlign: "center",
     marginTop: 8,
@@ -3112,6 +3116,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#C2CC06",
     marginHorizontal: 4,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
 });

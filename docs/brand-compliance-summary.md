@@ -24,9 +24,9 @@
 
 ### ✅ Typography Implementation
 
-- **Brand Text**: Arial Black for logos and main headings ✅
-- **Display Text**: Arial for section headings ✅
-- **Body Text**: Arial for content and UI text ✅
+- **Brand Text**: TS-Block-Bold for logos and main headings (smaller sizes) ✅
+- **Display Text**: TS-Block-Bold for section headings ✅
+- **Body Text**: Helvetica Neue for content and UI text ✅
 - **Font Weight**: 900 for brand elements, bold for headings ✅
 
 ### ✅ Visual Effects Implementation
@@ -50,8 +50,8 @@
 ### SplashScreen Component
 
 - **Background**: Dark gradient from pure black to dark gray
-- **Title**: "R/HOOD" in Arial Black with lime color and glow effect
-- **Subtitle**: "Underground Music Platform" in Arial
+- **Title**: "R/HOOD" in TS-Block-Bold with lime color and glow effect
+- **Subtitle**: "Underground Music Platform" in Helvetica Neue
 - **Loading Dots**: Lime-colored with pulsing glow animation
 - **Typography**: Full brand compliance with proper font families
 

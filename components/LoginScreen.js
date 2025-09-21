@@ -42,30 +42,6 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      setLoading(true);
-      await auth.signInWithGoogle();
-    } catch (error) {
-      console.error("Google login error:", error);
-      Alert.alert("Login Failed", "Google sign-in failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAppleLogin = async () => {
-    try {
-      setLoading(true);
-      await auth.signInWithApple();
-    } catch (error) {
-      console.error("Apple login error:", error);
-      Alert.alert("Login Failed", "Apple sign-in failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleForgotPassword = async () => {
     if (!email) {
       Alert.alert("Email Required", "Please enter your email address first");
@@ -165,32 +141,6 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Social Login Buttons */}
-          <TouchableOpacity
-            style={styles.socialButton}
-            onPress={handleGoogleLogin}
-            disabled={loading}
-          >
-            <Ionicons name="logo-google" size={20} color="hsl(0, 0%, 100%)" />
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.socialButton}
-            onPress={handleAppleLogin}
-            disabled={loading}
-          >
-            <Ionicons name="logo-apple" size={20} color="hsl(0, 0%, 100%)" />
-            <Text style={styles.socialButtonText}>Continue with Apple</Text>
-          </TouchableOpacity>
-
           {/* Switch to Signup */}
           <View style={styles.switchContainer}>
             <Text style={styles.switchText}>Don't have an account? </Text>
@@ -221,7 +171,7 @@ const styles = StyleSheet.create({
   logoText: {
     color: "hsl(75, 100%, 60%)",
     fontSize: 32,
-    fontFamily: "Arial Black",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     letterSpacing: 1,
     marginBottom: 10,
@@ -234,7 +184,7 @@ const styles = StyleSheet.create({
   subtitle: {
     color: "hsl(0, 0%, 70%)",
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     textAlign: "center",
   },
   form: {
@@ -246,7 +196,7 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontSize: 24,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "hsl(0, 0%, 100%)",
     textAlign: "center",
@@ -258,7 +208,7 @@ const styles = StyleSheet.create({
   label: {
     color: "hsl(0, 0%, 100%)",
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
     marginBottom: 8,
   },
@@ -267,7 +217,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
@@ -284,7 +234,7 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingRight: 50,
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
@@ -301,7 +251,7 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     color: "hsl(75, 100%, 60%)",
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
   button: {
     backgroundColor: "hsl(75, 100%, 60%)",
@@ -316,42 +266,8 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "hsl(0, 0%, 0%)",
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "bold",
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "hsl(0, 0%, 15%)",
-  },
-  dividerText: {
-    color: "hsl(0, 0%, 50%)",
-    fontSize: 14,
-    fontFamily: "Arial",
-    marginHorizontal: 16,
-  },
-  socialButton: {
-    backgroundColor: "hsl(0, 0%, 10%)",
-    borderRadius: 8,
-    paddingVertical: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  socialButtonText: {
-    color: "hsl(0, 0%, 100%)",
-    fontSize: 16,
-    fontFamily: "Arial",
-    fontWeight: "600",
-    marginLeft: 12,
   },
   switchContainer: {
     flexDirection: "row",
@@ -361,12 +277,12 @@ const styles = StyleSheet.create({
   switchText: {
     color: "hsl(0, 0%, 70%)",
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
   switchLink: {
     color: "hsl(75, 100%, 60%)",
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     fontWeight: "600",
   },
 });
