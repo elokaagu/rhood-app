@@ -13,6 +13,7 @@ import {
   Share,
   Linking,
   Alert,
+  PanResponder,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -74,6 +75,11 @@ export default function App() {
   // Audio player animation values
   const [audioPlayerOpacity] = useState(new Animated.Value(0));
   const [audioPlayerTranslateY] = useState(new Animated.Value(50));
+
+  // Audio player swipe state
+  const [audioPlayerSwipeTranslateY] = useState(new Animated.Value(0));
+  const [audioPlayerSwipeOpacity] = useState(new Animated.Value(1));
+  const [isAudioPlayerSwiping, setIsAudioPlayerSwiping] = useState(false);
 
   // Format time helper function
   const formatTime = (milliseconds) => {
@@ -471,6 +477,112 @@ export default function App() {
     });
   };
 
+  // Audio Player PanResponder for swipe gestures
+  const audioPlayerPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      // More responsive - respond to smaller movements
+      return Math.abs(gestureState.dy) > 5 || Math.abs(gestureState.dx) > 30;
+    },
+    onPanResponderGrant: () => {
+      setIsAudioPlayerSwiping(true);
+      audioPlayerSwipeTranslateY.setOffset(audioPlayerSwipeTranslateY._value);
+      audioPlayerSwipeTranslateY.setValue(0);
+    },
+    onPanResponderMove: (_, gestureState) => {
+      const { dy, dx } = gestureState;
+
+      // Handle vertical swipes (up/down)
+      if (Math.abs(dy) > Math.abs(dx)) {
+        audioPlayerSwipeTranslateY.setValue(dy);
+
+        // Fade out when swiping down
+        if (dy > 0) {
+          const opacity = Math.max(0.3, 1 - dy / 150);
+          audioPlayerSwipeOpacity.setValue(opacity);
+        }
+      }
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      setIsAudioPlayerSwiping(false);
+      audioPlayerSwipeTranslateY.flattenOffset();
+
+      const { dy, dx, vy, vx } = gestureState;
+
+      // Handle vertical swipes
+      if (Math.abs(dy) > Math.abs(dx)) {
+        const swipeThreshold = 60; // Lower threshold for easier swiping
+        const velocityThreshold = 0.3; // Lower velocity threshold
+
+        if (dy > swipeThreshold || vy > velocityThreshold) {
+          // Swipe down - dismiss player
+          Animated.parallel([
+            Animated.timing(audioPlayerSwipeTranslateY, {
+              toValue: 200,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(audioPlayerSwipeOpacity, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            stopGlobalAudio();
+            audioPlayerSwipeTranslateY.setValue(0);
+            audioPlayerSwipeOpacity.setValue(1);
+          });
+        } else if (dy < -swipeThreshold || vy < -velocityThreshold) {
+          // Swipe up - open full screen player
+          setShowFullScreenPlayer(true);
+          // Reset position
+          Animated.parallel([
+            Animated.spring(audioPlayerSwipeTranslateY, {
+              toValue: 0,
+              useNativeDriver: true,
+            }),
+            Animated.timing(audioPlayerSwipeOpacity, {
+              toValue: 1,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        } else {
+          // Snap back to original position
+          Animated.parallel([
+            Animated.spring(audioPlayerSwipeTranslateY, {
+              toValue: 0,
+              useNativeDriver: true,
+            }),
+            Animated.timing(audioPlayerSwipeOpacity, {
+              toValue: 1,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
+      } else {
+        // Handle horizontal swipes for track navigation
+        const swipeThreshold = 80; // Lower threshold for easier swiping
+        const velocityThreshold = 0.6; // Lower velocity threshold
+
+        if (dx > swipeThreshold || vx > velocityThreshold) {
+          // Swipe right - previous track (if implemented)
+          console.log("Swipe right - previous track");
+        } else if (dx < -swipeThreshold || vx < -velocityThreshold) {
+          // Swipe left - next track (if implemented)
+          console.log("Swipe left - next track");
+        }
+
+        // Reset position for horizontal swipes
+        Animated.spring(audioPlayerSwipeTranslateY, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
+      }
+    },
+  });
+
   // Shuffle functionality
   const toggleShuffle = () => {
     setGlobalAudioState((prev) => ({
@@ -620,22 +732,40 @@ export default function App() {
     }
 
     try {
-      // Save to Supabase with user ID
-      const profileData = {
-        id: user.id, // Use authenticated user's ID
-        dj_name: djProfile.djName,
-        full_name: djProfile.fullName,
-        instagram: djProfile.instagram || null,
-        soundcloud: djProfile.soundcloud || null,
-        city: djProfile.city,
-        genres: djProfile.genres,
-        bio: `DJ from ${djProfile.city} specializing in ${djProfile.genres.join(
-          ", "
-        )}`,
-        email: user.email,
-      };
+      // Check if profile already exists
+      let savedProfile;
+      try {
+        savedProfile = await db.getUserProfile(user.id);
+        // If profile exists, update it instead of creating new one
+        savedProfile = await db.updateUserProfile(user.id, {
+          dj_name: djProfile.djName,
+          full_name: djProfile.fullName,
+          instagram: djProfile.instagram || null,
+          soundcloud: djProfile.soundcloud || null,
+          city: djProfile.city,
+          genres: djProfile.genres,
+          bio: `DJ from ${
+            djProfile.city
+          } specializing in ${djProfile.genres.join(", ")}`,
+        });
+      } catch (error) {
+        // Profile doesn't exist, create new one
+        const profileData = {
+          id: user.id, // Use authenticated user's ID
+          dj_name: djProfile.djName,
+          full_name: djProfile.fullName,
+          instagram: djProfile.instagram || null,
+          soundcloud: djProfile.soundcloud || null,
+          city: djProfile.city,
+          genres: djProfile.genres,
+          bio: `DJ from ${
+            djProfile.city
+          } specializing in ${djProfile.genres.join(", ")}`,
+          email: user.email,
+        };
 
-      const savedProfile = await db.createUserProfile(profileData);
+        savedProfile = await db.createUserProfile(profileData);
+      }
 
       // Also save to AsyncStorage for offline access
       await AsyncStorage.setItem("hasOnboarded", "true");
@@ -1285,15 +1415,27 @@ export default function App() {
             style={[
               styles.globalAudioPlayer,
               {
-                opacity: audioPlayerOpacity,
-                transform: [{ translateY: audioPlayerTranslateY }],
+                opacity: Animated.multiply(
+                  audioPlayerOpacity,
+                  audioPlayerSwipeOpacity
+                ),
+                transform: [
+                  {
+                    translateY: Animated.add(
+                      audioPlayerTranslateY,
+                      audioPlayerSwipeTranslateY
+                    ),
+                  },
+                ],
               },
             ]}
+            {...audioPlayerPanResponder.panHandlers}
           >
             <TouchableOpacity
               style={styles.audioPlayerContent}
               onPress={() => setShowFullScreenPlayer(true)}
               activeOpacity={0.8}
+              disabled={isAudioPlayerSwiping}
             >
               <View style={styles.audioTrackInfo}>
                 <Text style={styles.audioTrackTitle} numberOfLines={1}>
@@ -1302,6 +1444,19 @@ export default function App() {
                 <Text style={styles.audioTrackArtist} numberOfLines={1}>
                   {globalAudioState.currentTrack.artist}
                 </Text>
+                {/* Swipe hint indicator */}
+                {!isAudioPlayerSwiping && (
+                  <View style={styles.swipeHint}>
+                    <Ionicons name="chevron-up" size={12} color="#C2CC06" />
+                    <Text style={styles.swipeHintText}>
+                      Swipe up for full player
+                    </Text>
+                    <Ionicons name="chevron-down" size={12} color="#C2CC06" />
+                    <Text style={styles.swipeHintText}>
+                      Swipe down to dismiss
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* Timer in the middle */}
@@ -2427,7 +2582,7 @@ const styles = StyleSheet.create({
     right: 16,
     backgroundColor: "hsl(0, 0%, 8%)", // Fully opaque
     borderRadius: 16,
-    paddingVertical: 16,
+    paddingVertical: 20, // Increased padding for larger swipe area
     paddingHorizontal: 20,
     zIndex: 1001, // Higher than tab bar
     shadowColor: "#000",
@@ -2437,6 +2592,7 @@ const styles = StyleSheet.create({
     elevation: 12,
     borderWidth: 1,
     borderColor: "#C2CC06", // Brand color border
+    minHeight: 80, // Minimum height for easier swiping
   },
   audioPlayerContent: {
     flexDirection: "row",
@@ -2945,5 +3101,17 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 50%)",
     textAlign: "center",
     marginBottom: 20,
+  },
+  swipeHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    opacity: 0.7,
+  },
+  swipeHintText: {
+    fontSize: 10,
+    color: "#C2CC06",
+    marginHorizontal: 4,
+    fontFamily: "Arial",
   },
 });

@@ -73,7 +73,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       });
 
       if (user) {
-        // Create user profile in database
+        // Create user profile in database (using upsert to handle duplicates)
         const profileData = {
           id: user.id, // Use the authenticated user's ID
           email: formData.email,
