@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginTop: 8,
+    marginTop: -12,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
