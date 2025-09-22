@@ -94,7 +94,7 @@ export default function App() {
   const [audioPlayerTranslateY] = useState(new Animated.Value(50));
 
   // Next card fade animation
-  const [nextCardOpacity] = useState(new Animated.Value(0));
+  const [nextCardOpacity] = useState(new Animated.Value(1));
 
   // Audio player swipe state
   const [audioPlayerSwipeTranslateY] = useState(new Animated.Value(0));
@@ -1174,6 +1174,7 @@ export default function App() {
 
               {/* Swipeable Card Stack */}
               <View style={styles.opportunitiesCardContainer}>
+                {console.log("Debug - Index:", currentOpportunityIndex, "Length:", mockOpportunities.length, "Opacity:", nextCardOpacity._value)}
                 {currentOpportunityIndex < mockOpportunities.length &&
                 mockOpportunities[currentOpportunityIndex] ? (
                   <Animated.View style={{ opacity: nextCardOpacity }}>
