@@ -271,7 +271,6 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                   </TouchableOpacity>
                 )}
               </View>
-
             </>
           )}
         </View>

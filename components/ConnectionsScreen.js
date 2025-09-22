@@ -170,10 +170,6 @@ export default function ConnectionsScreen({ onNavigate }) {
       <ScrollView style={styles.scrollView}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>CONNECTIONS</Text>
-          <Text style={styles.headerSubtitle}>
-            Your DJ network and community
-          </Text>
 
           {/* Search Bar */}
           <View style={styles.searchContainer}>
