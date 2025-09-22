@@ -7,10 +7,13 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  Animated,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
+import * as Haptics from "expo-haptics";
 
 // Mock connections data
 const mockConnections = [
@@ -102,6 +105,8 @@ const mockConnections = [
 
 export default function ConnectionsScreen({ onNavigate }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedConnection, setSelectedConnection] = useState(null);
 
   const handleGroupChatPress = () => {
     onNavigate && onNavigate("messages", { isGroupChat: true });

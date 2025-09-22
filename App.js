@@ -83,6 +83,11 @@ export default function App() {
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
 
+  // Opportunities screen state
+  const [opportunitiesSearchQuery, setOpportunitiesSearchQuery] = useState("");
+  const [opportunitiesFilter, setOpportunitiesFilter] = useState("all"); // all, hot, new, closing
+  const [opportunitiesRefreshing, setOpportunitiesRefreshing] = useState(false);
+
   // Audio player animation values
   const [audioPlayerOpacity] = useState(new Animated.Value(0));
   const [audioPlayerTranslateY] = useState(new Animated.Value(50));
@@ -155,23 +160,60 @@ export default function App() {
   // Global audio instance reference for cleanup
   const globalAudioRef = useRef(null);
 
-  // Mock opportunity data
-  const mockOpportunity = {
-    id: 1,
-    venue: "Underground Warehouse",
-    title: "Friday Night Rave",
-    location: "Brooklyn, NY",
-    date: "March 15, 2024",
-    time: "10:00 PM - 6:00 AM",
-    audienceSize: "500+ people",
-    description:
-      "Join us for an electrifying night of underground electronic music. We're looking for DJs who can bring high-energy sets and keep the crowd moving all night long. This is a premier venue with state-of-the-art sound system and lighting.",
-    genres: ["Techno", "House", "Trance"],
-    compensation: "$300 - $500",
-    applicationsLeft: 3,
-    image:
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-  };
+  // Mock opportunities data
+  const mockOpportunities = [
+    {
+      id: 1,
+      venue: "Underground Warehouse",
+      title: "Friday Night Rave",
+      location: "Brooklyn, NY",
+      date: "March 15, 2024",
+      time: "10:00 PM - 6:00 AM",
+      audienceSize: "500+ people",
+      description:
+        "Join us for an electrifying night of underground electronic music. We're looking for DJs who can bring high-energy sets and keep the crowd moving all night long. This is a premier venue with state-of-the-art sound system and lighting.",
+      genres: ["Techno", "House", "Trance"],
+      compensation: "$300 - $500",
+      applicationsLeft: 3,
+      status: "hot", // hot, new, closing
+      image:
+        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+    },
+    {
+      id: 2,
+      venue: "The Loft",
+      title: "Sunset Sessions",
+      location: "Los Angeles, CA",
+      date: "March 20, 2024",
+      time: "6:00 PM - 12:00 AM",
+      audienceSize: "200+ people",
+      description:
+        "Chill vibes and deep house for our sunset rooftop sessions. Perfect for DJs who love to create intimate, atmospheric experiences.",
+      genres: ["Deep House", "Chillout", "Ambient"],
+      compensation: "$200 - $350",
+      applicationsLeft: 7,
+      status: "new",
+      image:
+        "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop",
+    },
+    {
+      id: 3,
+      venue: "Bass Station",
+      title: "Bass Night",
+      location: "Miami, FL",
+      date: "March 25, 2024",
+      time: "9:00 PM - 4:00 AM",
+      audienceSize: "800+ people",
+      description:
+        "Heavy bass and high energy for our biggest night of the month. Looking for DJs who can handle the intensity and keep the crowd hyped.",
+      genres: ["Drum & Bass", "Dubstep", "Bass"],
+      compensation: "$400 - $600",
+      applicationsLeft: 1,
+      status: "closing",
+      image:
+        "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
+    },
+  ];
 
   // Helper function to show custom modal
   const showCustomModal = (config) => {
@@ -787,7 +829,32 @@ export default function App() {
     closeMenu();
   };
 
+  // Filter and search opportunities
+  const filteredOpportunities = useMemo(() => {
+    let filtered = mockOpportunities;
+
+    // Apply search filter
+    if (opportunitiesSearchQuery.trim()) {
+      const query = opportunitiesSearchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (opportunity) =>
+          opportunity.title.toLowerCase().includes(query) ||
+          opportunity.venue.toLowerCase().includes(query) ||
+          opportunity.location.toLowerCase().includes(query) ||
+          opportunity.genres.some((genre) => genre.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply status filter
+    if (opportunitiesFilter !== "all") {
+      filtered = filtered.filter((opportunity) => opportunity.status === opportunitiesFilter);
+    }
+
+    return filtered;
+  }, [opportunitiesSearchQuery, opportunitiesFilter]);
+
   const handleOpportunityPress = (opportunity) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     showCustomModal({
       type: "info",
       title: opportunity.title,
@@ -803,6 +870,14 @@ export default function App() {
         });
       },
     });
+  };
+
+  const handleOpportunitiesRefresh = async () => {
+    setOpportunitiesRefreshing(true);
+    // Simulate refresh delay
+    setTimeout(() => {
+      setOpportunitiesRefreshing(false);
+    }, 1000);
   };
 
   // Menu animation functions
@@ -1010,10 +1085,90 @@ export default function App() {
                   Find your next DJ gig
                 </Text>
               </View>
-              <OpportunityCard
-                opportunity={mockOpportunity}
-                onPress={() => handleOpportunityPress(mockOpportunity)}
-              />
+
+              {/* Search Bar */}
+              <View style={styles.opportunitiesSearchContainer}>
+                <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
+                <TextInput
+                  style={styles.opportunitiesSearchInput}
+                  placeholder="Search opportunities..."
+                  placeholderTextColor="hsl(0, 0%, 50%)"
+                  value={opportunitiesSearchQuery}
+                  onChangeText={setOpportunitiesSearchQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {opportunitiesSearchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setOpportunitiesSearchQuery("")}
+                    style={styles.opportunitiesClearButton}
+                  >
+                    <Ionicons name="close-circle" size={20} color="hsl(0, 0%, 50%)" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Filter Chips */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.opportunitiesFilterContainer}
+                contentContainerStyle={styles.opportunitiesFilterContent}
+              >
+                {["all", "hot", "new", "closing"].map((filter) => (
+                  <TouchableOpacity
+                    key={filter}
+                    style={[
+                      styles.opportunitiesFilterChip,
+                      opportunitiesFilter === filter && styles.opportunitiesFilterChipActive,
+                    ]}
+                    onPress={() => setOpportunitiesFilter(filter)}
+                  >
+                    <Text
+                      style={[
+                        styles.opportunitiesFilterChipText,
+                        opportunitiesFilter === filter && styles.opportunitiesFilterChipTextActive,
+                      ]}
+                    >
+                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Opportunities List */}
+              <ScrollView
+                style={styles.opportunitiesList}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={opportunitiesRefreshing}
+                    onRefresh={handleOpportunitiesRefresh}
+                    tintColor="hsl(75, 100%, 60%)"
+                  />
+                }
+                showsVerticalScrollIndicator={false}
+              >
+                {filteredOpportunities.length === 0 ? (
+                  <View style={styles.opportunitiesEmptyState}>
+                    <Ionicons name="briefcase-outline" size={48} color="hsl(0, 0%, 30%)" />
+                    <Text style={styles.opportunitiesEmptyTitle}>No opportunities found</Text>
+                    <Text style={styles.opportunitiesEmptySubtitle}>
+                      {opportunitiesSearchQuery.trim()
+                        ? `No results for "${opportunitiesSearchQuery}"`
+                        : "Try adjusting your filters"
+                      }
+                    </Text>
+                  </View>
+                ) : (
+                  filteredOpportunities.map((opportunity) => (
+                    <OpportunityCard
+                      key={opportunity.id}
+                      opportunity={opportunity}
+                      onPress={() => handleOpportunityPress(opportunity)}
+                    />
+                  ))
+                )}
+              </ScrollView>
             </View>
           </View>
         );
@@ -2554,6 +2709,81 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
+  },
+  opportunitiesSearchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  opportunitiesSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    marginLeft: 12,
+  },
+  opportunitiesClearButton: {
+    padding: 4,
+  },
+  opportunitiesFilterContainer: {
+    marginBottom: 16,
+  },
+  opportunitiesFilterContent: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  opportunitiesFilterChip: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  opportunitiesFilterChipActive: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  opportunitiesFilterChipText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    fontWeight: "500",
+  },
+  opportunitiesFilterChipTextActive: {
+    color: "hsl(0, 0%, 0%)",
+  },
+  opportunitiesList: {
+    flex: 1,
+  },
+  opportunitiesEmptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  opportunitiesEmptyTitle: {
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  opportunitiesEmptySubtitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
+    lineHeight: 20,
   },
 
   // Opportunities Screen Styles

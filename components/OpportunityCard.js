@@ -15,7 +15,24 @@ export default function OpportunityCard({ opportunity, onPress }) {
       <View style={styles.imageContainer}>
         <Image source={{ uri: opportunity.image }} style={styles.featuredImage} />
         <View style={styles.imageOverlay}>
-          <Text style={styles.venueName}>{opportunity.venue}</Text>
+          <View style={styles.overlayHeader}>
+            <Text style={styles.venueName}>{opportunity.venue}</Text>
+            {opportunity.status === "hot" && (
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusBadgeText}>HOT</Text>
+              </View>
+            )}
+            {opportunity.status === "new" && (
+              <View style={[styles.statusBadge, styles.newBadge]}>
+                <Text style={styles.statusBadgeText}>NEW</Text>
+              </View>
+            )}
+            {opportunity.status === "closing" && (
+              <View style={[styles.statusBadge, styles.closingBadge]}>
+                <Text style={styles.statusBadgeText}>CLOSING</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.eventTitle}>{opportunity.title}</Text>
           <Text style={styles.applicationsLeft}>
             {opportunity.applicationsLeft} applications left
@@ -97,12 +114,36 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.7)",
     padding: 16,
   },
+  overlayHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
   venueName: {
     fontSize: 14,
     fontFamily: "Helvetica Neue",
     color: "hsl(75, 100%, 60%)",
-    marginBottom: 4,
     fontWeight: "600",
+    flex: 1,
+  },
+  statusBadge: {
+    backgroundColor: "hsl(0, 100%, 50%)",
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  newBadge: {
+    backgroundColor: "hsl(120, 100%, 50%)",
+  },
+  closingBadge: {
+    backgroundColor: "hsl(30, 100%, 50%)",
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "700",
   },
   eventTitle: {
     fontSize: 20,
