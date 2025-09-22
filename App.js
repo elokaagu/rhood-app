@@ -851,16 +851,22 @@ export default function App() {
   const handleSwipeLeft = () => {
     // Pass on opportunity
     const currentOpportunity = mockOpportunities[currentOpportunityIndex];
-    setSwipedOpportunities([...swipedOpportunities, { ...currentOpportunity, action: "pass" }]);
+    setSwipedOpportunities([
+      ...swipedOpportunities,
+      { ...currentOpportunity, action: "pass" },
+    ]);
     setCurrentOpportunityIndex(currentOpportunityIndex + 1);
   };
 
   const handleSwipeRight = () => {
     // Like/Apply to opportunity
     const currentOpportunity = mockOpportunities[currentOpportunityIndex];
-    setSwipedOpportunities([...swipedOpportunities, { ...currentOpportunity, action: "like" }]);
+    setSwipedOpportunities([
+      ...swipedOpportunities,
+      { ...currentOpportunity, action: "like" },
+    ]);
     setCurrentOpportunityIndex(currentOpportunityIndex + 1);
-    
+
     // Show application modal
     showCustomModal({
       type: "success",
@@ -1089,17 +1095,27 @@ export default function App() {
                     {currentOpportunityIndex + 1 < mockOpportunities.length && (
                       <View style={styles.nextCard}>
                         <SwipeableOpportunityCard
-                          opportunity={mockOpportunities[currentOpportunityIndex + 1]}
-                          onPress={() => handleOpportunityPress(mockOpportunities[currentOpportunityIndex + 1])}
+                          opportunity={
+                            mockOpportunities[currentOpportunityIndex + 1]
+                          }
+                          onPress={() =>
+                            handleOpportunityPress(
+                              mockOpportunities[currentOpportunityIndex + 1]
+                            )
+                          }
                           isTopCard={false}
                         />
                       </View>
                     )}
-                    
+
                     {/* Current card (top) */}
                     <SwipeableOpportunityCard
                       opportunity={mockOpportunities[currentOpportunityIndex]}
-                      onPress={() => handleOpportunityPress(mockOpportunities[currentOpportunityIndex])}
+                      onPress={() =>
+                        handleOpportunityPress(
+                          mockOpportunities[currentOpportunityIndex]
+                        )
+                      }
                       onSwipeLeft={handleSwipeLeft}
                       onSwipeRight={handleSwipeRight}
                       isTopCard={true}
@@ -1108,12 +1124,20 @@ export default function App() {
                 ) : (
                   /* No more opportunities */
                   <View style={styles.noMoreOpportunities}>
-                    <Ionicons name="checkmark-circle" size={64} color="hsl(75, 100%, 60%)" />
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={64}
+                      color="hsl(75, 100%, 60%)"
+                    />
                     <Text style={styles.noMoreTitle}>All Caught Up!</Text>
                     <Text style={styles.noMoreSubtitle}>
-                      You've seen all available opportunities. Check back later for new gigs!
+                      You've seen all available opportunities. Check back later
+                      for new gigs!
                     </Text>
-                    <TouchableOpacity style={styles.resetButton} onPress={resetOpportunities}>
+                    <TouchableOpacity
+                      style={styles.resetButton}
+                      onPress={resetOpportunities}
+                    >
                       <Text style={styles.resetButtonText}>Start Over</Text>
                     </TouchableOpacity>
                   </View>
@@ -2665,14 +2689,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     position: "relative",
+    justifyContent: "center",
+    alignItems: "center",
   },
   nextCard: {
     position: "absolute",
-    top: 10,
+    top: "50%",
     left: 20,
     right: 20,
-    bottom: 20,
-    transform: [{ scale: 0.95 }],
+    transform: [{ translateY: -200 }, { scale: 0.95 }],
     opacity: 0.8,
   },
   noMoreOpportunities: {

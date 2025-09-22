@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     overflow: "hidden",
-    flex: 1,
+    height: 400, // Fixed height instead of flex: 1
   },
   imageContainer: {
     position: "relative",
