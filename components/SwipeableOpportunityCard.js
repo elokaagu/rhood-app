@@ -286,30 +286,30 @@ export default function SwipeableOpportunityCard({
         </Animated.View>
       </View>
 
-        {/* Action buttons */}
-        {showActions && (
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.passButton} onPress={handlePass}>
-              <Ionicons name="close" size={24} color="#F44336" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.likeButton} onPress={handleLike}>
-              <Ionicons name="heart" size={24} color="#4CAF50" />
-            </TouchableOpacity>
-          </View>
-        )}
+      {/* Action buttons */}
+      {showActions && (
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.passButton} onPress={handlePass}>
+            <Ionicons name="close" size={24} color="#F44336" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.likeButton} onPress={handleLike}>
+            <Ionicons name="heart" size={24} color="#4CAF50" />
+          </TouchableOpacity>
+        </View>
+      )}
 
-        {/* Dark fade overlay */}
-        <Animated.View
-          style={[
-            styles.fadeOverlay,
-            {
-              opacity: fadeOverlay,
-            },
-          ]}
-        />
-      </Animated.View>
-    );
-  }
+      {/* Dark fade overlay */}
+      <Animated.View
+        style={[
+          styles.fadeOverlay,
+          {
+            opacity: fadeOverlay,
+          },
+        ]}
+      />
+    </Animated.View>
+  );
+}
 
 const styles = StyleSheet.create({
   card: {

@@ -1140,10 +1140,11 @@ export default function App() {
 
               {/* Swipeable Card Stack */}
               <View style={styles.opportunitiesCardContainer}>
+                {console.log("Debug - Current index:", currentOpportunityIndex, "Total:", mockOpportunities.length)}
                 {currentOpportunityIndex < mockOpportunities.length &&
                 mockOpportunities[currentOpportunityIndex] ? (
                   <>
-                    {/* Next card (background) */}
+                    {/* Background cards stack */}
                     {currentOpportunityIndex + 1 < mockOpportunities.length && (
                       <View style={styles.nextCard}>
                         <SwipeableOpportunityCard
@@ -1153,6 +1154,24 @@ export default function App() {
                           onPress={() =>
                             handleOpportunityPress(
                               mockOpportunities[currentOpportunityIndex + 1]
+                            )
+                          }
+                          isTopCard={false}
+                          isNextCard={true}
+                        />
+                      </View>
+                    )}
+                    
+                    {/* Third card (if available) */}
+                    {currentOpportunityIndex + 2 < mockOpportunities.length && (
+                      <View style={styles.thirdCard}>
+                        <SwipeableOpportunityCard
+                          opportunity={
+                            mockOpportunities[currentOpportunityIndex + 2]
+                          }
+                          onPress={() =>
+                            handleOpportunityPress(
+                              mockOpportunities[currentOpportunityIndex + 2]
                             )
                           }
                           isTopCard={false}
@@ -2752,6 +2771,14 @@ const styles = StyleSheet.create({
     right: 20,
     transform: [{ scale: 0.95 }],
     opacity: 0.8,
+  },
+  thirdCard: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    right: 20,
+    transform: [{ scale: 0.9 }],
+    opacity: 0.6,
   },
   noMoreOpportunities: {
     flex: 1,
