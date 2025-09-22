@@ -26,6 +26,10 @@ import OnboardingForm from "./components/OnboardingForm";
 import ConnectionsScreen from "./components/ConnectionsScreen";
 import ListenScreen from "./components/ListenScreen";
 import MessagesScreen from "./components/MessagesScreen";
+import NotificationsScreen from "./components/NotificationsScreen";
+import CommunityScreen from "./components/CommunityScreen";
+import ProfileScreen from "./components/ProfileScreen";
+import SettingsScreen from "./components/SettingsScreen";
 import RhoodModal from "./components/RhoodModal";
 import { db, auth, supabase } from "./lib/supabase";
 import LoginScreen from "./components/LoginScreen";
@@ -918,6 +922,61 @@ export default function App() {
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
+            }}
+          />
+        );
+
+      case "notifications":
+        return (
+          <NotificationsScreen
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
+          />
+        );
+
+      case "community":
+        return (
+          <CommunityScreen
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
+          />
+        );
+
+      case "profile":
+        return (
+          <ProfileScreen
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
+          />
+        );
+
+      case "settings":
+        return (
+          <SettingsScreen
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
+            onSignOut={() => {
+              // Handle sign out
+              setUser(null);
+              setIsFirstTime(true);
+              setDjProfile({
+                djName: "",
+                firstName: "",
+                lastName: "",
+                instagram: "",
+                soundcloud: "",
+                city: "",
+                genres: [],
+              });
+              setCurrentScreen("login");
             }}
           />
         );
