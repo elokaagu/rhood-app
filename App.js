@@ -2747,7 +2747,6 @@ const styles = StyleSheet.create({
     right: 20,
     transform: [{ scale: 0.95 }],
     opacity: 0.8,
-    zIndex: 1,
   },
   noMoreOpportunities: {
     flex: 1,
