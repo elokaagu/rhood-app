@@ -74,10 +74,10 @@ export default function SwipeableOpportunityCard({
           if (shouldSwipeLeft) {
             // Swipe left (pass)
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            
+
             // Call swipe handler immediately to show next card
             onSwipeLeft && onSwipeLeft();
-            
+
             Animated.parallel([
               Animated.timing(position, {
                 toValue: { x: -screenWidth * 1.5, y: dx * 0.5 },
@@ -98,10 +98,10 @@ export default function SwipeableOpportunityCard({
           } else if (shouldSwipeRight) {
             // Swipe right (like/apply)
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            
+
             // Call swipe handler immediately to show next card
             onSwipeRight && onSwipeRight();
-            
+
             Animated.parallel([
               Animated.timing(position, {
                 toValue: { x: screenWidth * 1.5, y: dx * 0.5 },
@@ -150,10 +150,10 @@ export default function SwipeableOpportunityCard({
   const handleLike = () => {
     if (isTopCard) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
+
       // Call swipe handler immediately to show next card
       onSwipeRight && onSwipeRight();
-      
+
       Animated.parallel([
         Animated.timing(position, {
           toValue: { x: screenWidth * 1.5, y: 0 },
@@ -177,10 +177,10 @@ export default function SwipeableOpportunityCard({
   const handlePass = () => {
     if (isTopCard) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
+
       // Call swipe handler immediately to show next card
       onSwipeLeft && onSwipeLeft();
-      
+
       Animated.parallel([
         Animated.timing(position, {
           toValue: { x: -screenWidth * 1.5, y: 0 },

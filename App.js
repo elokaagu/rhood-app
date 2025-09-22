@@ -1149,8 +1149,8 @@ export default function App() {
                     />
                     <Text style={styles.noMoreTitle}>All Caught Up!</Text>
                     <Text style={styles.noMoreSubtitle}>
-                      You've seen all available opportunities. Check back
-                      later for new gigs!
+                      You've seen all available opportunities. Check back later
+                      for new gigs!
                     </Text>
                     <TouchableOpacity
                       style={styles.resetButton}
