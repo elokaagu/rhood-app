@@ -167,8 +167,8 @@ const mockMessages = [
 ];
 
 export default function MessagesScreen({ navigation, route }) {
-  const { isGroupChat = false, djId = 1 } = route.params || {};
-  console.log("📱 MessagesScreen loaded with params:", { isGroupChat, djId });
+  const { isGroupChat = false, djId = 1, communityId, communityName } = route.params || {};
+  console.log("📱 MessagesScreen loaded with params:", { isGroupChat, djId, communityId, communityName });
 
   // State for messages and posts
   const [newMessage, setNewMessage] = useState("");
@@ -500,9 +500,11 @@ export default function MessagesScreen({ navigation, route }) {
             </View>
 
             <View style={styles.groupDetails}>
-              <Text style={styles.groupTitle}>RHOOD Group</Text>
+              <Text style={styles.groupTitle}>
+                {communityName || "RHOOD Group"}
+              </Text>
               <Text style={styles.groupSubtitle}>
-                12 members • Community Forum
+                12 members • {communityId ? "Community Chat" : "Community Forum"}
               </Text>
             </View>
           </View>

@@ -129,7 +129,12 @@ export default function CommunityScreen({ onNavigate }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const handleCommunityPress = (community) => {
-    onNavigate && onNavigate("community-detail", { communityId: community.id });
+    // Navigate to community group chat
+    onNavigate && onNavigate("messages", { 
+      communityId: community.id,
+      communityName: community.name,
+      isGroupChat: true 
+    });
   };
 
   const handleJoinCommunity = (communityId) => {
