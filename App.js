@@ -403,8 +403,8 @@ export default function App() {
         playThroughEarpieceAndroid: false,
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
-        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_MIX_WITH_OTHERS,
-        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+        interruptionModeIOS: Audio.InterruptionModeIOS.MixWithOthers,
+        interruptionModeAndroid: Audio.InterruptionModeAndroid.DoNotMix,
       });
 
       // Create and load new sound using expo-av
@@ -457,7 +457,10 @@ export default function App() {
     } catch (error) {
       console.log("❌ Error playing global audio:", error);
       setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
-      Alert.alert("Audio Error", `Failed to play ${track.title}. Please try again.`);
+      Alert.alert(
+        "Audio Error",
+        `Failed to play ${track.title}. Please try again.`
+      );
     }
   };
 
