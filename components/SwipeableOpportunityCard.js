@@ -74,6 +74,10 @@ export default function SwipeableOpportunityCard({
           if (shouldSwipeLeft) {
             // Swipe left (pass)
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            
+            // Call swipe handler immediately to show next card
+            onSwipeLeft && onSwipeLeft();
+            
             Animated.parallel([
               Animated.timing(position, {
                 toValue: { x: -screenWidth * 1.5, y: dx * 0.5 },
@@ -90,12 +94,14 @@ export default function SwipeableOpportunityCard({
                 duration: SWIPE_OUT_DURATION * 0.7,
                 useNativeDriver: true,
               }),
-            ]).start(() => {
-              onSwipeLeft && onSwipeLeft();
-            });
+            ]).start();
           } else if (shouldSwipeRight) {
             // Swipe right (like/apply)
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            
+            // Call swipe handler immediately to show next card
+            onSwipeRight && onSwipeRight();
+            
             Animated.parallel([
               Animated.timing(position, {
                 toValue: { x: screenWidth * 1.5, y: dx * 0.5 },
@@ -112,9 +118,7 @@ export default function SwipeableOpportunityCard({
                 duration: SWIPE_OUT_DURATION * 0.7,
                 useNativeDriver: true,
               }),
-            ]).start(() => {
-              onSwipeRight && onSwipeRight();
-            });
+            ]).start();
           } else {
             // Return to center
             Animated.parallel([
@@ -138,7 +142,6 @@ export default function SwipeableOpportunityCard({
               }),
             ]).start();
           }
-
         }
       },
     })
@@ -147,6 +150,10 @@ export default function SwipeableOpportunityCard({
   const handleLike = () => {
     if (isTopCard) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Call swipe handler immediately to show next card
+      onSwipeRight && onSwipeRight();
+      
       Animated.parallel([
         Animated.timing(position, {
           toValue: { x: screenWidth * 1.5, y: 0 },
@@ -163,15 +170,17 @@ export default function SwipeableOpportunityCard({
           duration: SWIPE_OUT_DURATION * 0.7,
           useNativeDriver: true,
         }),
-      ]).start(() => {
-        onSwipeRight && onSwipeRight();
-      });
+      ]).start();
     }
   };
 
   const handlePass = () => {
     if (isTopCard) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Call swipe handler immediately to show next card
+      onSwipeLeft && onSwipeLeft();
+      
       Animated.parallel([
         Animated.timing(position, {
           toValue: { x: -screenWidth * 1.5, y: 0 },
@@ -188,9 +197,7 @@ export default function SwipeableOpportunityCard({
           duration: SWIPE_OUT_DURATION * 0.7,
           useNativeDriver: true,
         }),
-      ]).start(() => {
-        onSwipeLeft && onSwipeLeft();
-      });
+      ]).start();
     }
   };
 
@@ -198,7 +205,6 @@ export default function SwipeableOpportunityCard({
     inputRange: [-1, 0, 1],
     outputRange: ["-15deg", "0deg", "15deg"],
   });
-
 
   return (
     <Animated.View
@@ -225,7 +231,7 @@ export default function SwipeableOpportunityCard({
 
         {/* Dark fade gradient overlay */}
         <LinearGradient
-          colors={['transparent', 'rgba(0, 0, 0, 0.3)', 'rgba(0, 0, 0, 0.8)']}
+          colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)"]}
           locations={[0, 0.6, 1]}
           style={styles.gradientOverlay}
         >
@@ -254,9 +260,7 @@ export default function SwipeableOpportunityCard({
             </Text>
           </View>
         </LinearGradient>
-
       </View>
-
 
       {/* Dark fade overlay */}
       <Animated.View
