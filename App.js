@@ -230,6 +230,40 @@ export default function App() {
       image:
         "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop",
     },
+    {
+      id: 5,
+      venue: "Sky Lounge",
+      title: "Cloud Nine",
+      location: "Chicago, IL",
+      date: "April 5, 2024",
+      time: "7:00 PM - 1:00 AM",
+      audienceSize: "150+ people",
+      description:
+        "Elevated vibes at our rooftop lounge with panoramic city views. Perfect for DJs who specialize in ambient, chill, and progressive house music.",
+      genres: ["Progressive House", "Ambient", "Chill"],
+      compensation: "$180 - $300",
+      applicationsLeft: 8,
+      status: "hot",
+      image:
+        "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&h=400&fit=crop",
+    },
+    {
+      id: 6,
+      venue: "The Underground",
+      title: "Midnight Sessions",
+      location: "Seattle, WA",
+      date: "April 10, 2024",
+      time: "11:00 PM - 5:00 AM",
+      audienceSize: "400+ people",
+      description:
+        "Deep underground venue with state-of-the-art sound system. We're looking for DJs who can deliver immersive techno and minimal sets that take the crowd on a journey.",
+      genres: ["Minimal Techno", "Deep Techno", "Industrial"],
+      compensation: "$350 - $500",
+      applicationsLeft: 2,
+      status: "closing",
+      image:
+        "https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=400&h=400&fit=crop",
+    },
   ];
 
   // Helper function to show custom modal
