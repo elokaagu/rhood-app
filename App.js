@@ -26,6 +26,7 @@ import * as Haptics from "expo-haptics";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
 import ConnectionsScreen from "./components/ConnectionsScreen";
+import ConnectionsDiscoveryScreen from "./components/ConnectionsDiscoveryScreen";
 import ListenScreen from "./components/ListenScreen";
 import MessagesScreen from "./components/MessagesScreen";
 import NotificationsScreen from "./components/NotificationsScreen";
@@ -1167,9 +1168,19 @@ export default function App() {
           </View>
         );
 
-      case "connections":
+      case "messages":
         return (
           <ConnectionsScreen
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
+          />
+        );
+
+      case "connections":
+        return (
+          <ConnectionsDiscoveryScreen
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
@@ -1609,6 +1620,34 @@ export default function App() {
                 adjustsFontSizeToFit={true}
               >
                 Opportunities
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                currentScreen === "messages" && styles.activeTab,
+              ]}
+              onPress={() => handleMenuNavigation("messages")}
+            >
+              <Ionicons
+                name="chatbubbles-outline"
+                size={20}
+                color={
+                  currentScreen === "messages"
+                    ? "#C2CC06"
+                    : "hsl(0, 0%, 70%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  currentScreen === "messages" && styles.activeTabText,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+              >
+                Messages
               </Text>
             </TouchableOpacity>
 
