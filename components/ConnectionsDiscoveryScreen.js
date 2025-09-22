@@ -197,15 +197,11 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <Text style={styles.headerTitle}>CONNECTIONS</Text>
-            <View style={styles.statsContainer}>
-              <Text style={styles.statsText}>
-                {djs.filter((dj) => dj.isConnected).length} connected •{" "}
-                {djs.length} total
-              </Text>
-            </View>
           </View>
           <Text style={styles.headerSubtitle}>
-            {activeTab === "discover" ? "Discover and connect with DJs worldwide" : "Your message conversations"}
+            {activeTab === "discover"
+              ? "Discover and connect with DJs worldwide"
+              : "Your message conversations"}
           </Text>
 
           {/* Tab Switcher */}
@@ -318,7 +314,8 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                   <Text
                     style={[
                       styles.filterButtonText,
-                      activeFilter === "online" && styles.filterButtonTextActive,
+                      activeFilter === "online" &&
+                        styles.filterButtonTextActive,
                     ]}
                   >
                     Online
@@ -334,7 +331,8 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                   <Text
                     style={[
                       styles.filterButtonText,
-                      activeFilter === "nearby" && styles.filterButtonTextActive,
+                      activeFilter === "nearby" &&
+                        styles.filterButtonTextActive,
                     ]}
                   >
                     Nearby
@@ -350,7 +348,8 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                   <Text
                     style={[
                       styles.filterButtonText,
-                      activeFilter === "mutual" && styles.filterButtonTextActive,
+                      activeFilter === "mutual" &&
+                        styles.filterButtonTextActive,
                     ]}
                   >
                     Mutual
@@ -365,100 +364,102 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
         {activeTab === "discover" ? (
           /* DJs List */
           <View style={styles.djsList}>
-          {filteredDJs.length === 0 ? (
-            <View style={styles.noResultsContainer}>
-              <Ionicons
-                name="people-outline"
-                size={48}
-                color="hsl(0, 0%, 30%)"
-              />
-              <Text style={styles.noResultsTitle}>No DJs found</Text>
-              <Text style={styles.noResultsSubtitle}>
-                {searchQuery.trim()
-                  ? `No results for "${searchQuery}"`
-                  : "Try adjusting your filters"}
-              </Text>
-            </View>
-          ) : (
-            filteredDJs.map((dj) => (
-              <View key={dj.id} style={styles.djCard}>
-                {/* DJ Header */}
-                <View style={styles.djHeader}>
-                  <View style={styles.djInfo}>
-                    <ProgressiveImage
-                      source={{ uri: dj.profileImage }}
-                      style={styles.djAvatar}
-                    />
-                    <View style={styles.djDetails}>
-                      <View style={styles.djNameRow}>
-                        <Text style={styles.djName}>{dj.name}</Text>
-                        {dj.isOnline && <View style={styles.onlineIndicator} />}
-                      </View>
-                      <Text style={styles.djUsername}>{dj.username}</Text>
-                      <Text style={styles.djLocation}>{dj.location}</Text>
-                      {dj.mutualConnections > 0 && (
-                        <Text style={styles.mutualConnections}>
-                          {dj.mutualConnections} mutual connection
-                          {dj.mutualConnections > 1 ? "s" : ""}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                  <View style={styles.djActions}>
-                    <View style={styles.ratingContainer}>
-                      <Ionicons
-                        name="star"
-                        size={14}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                      <Text style={styles.ratingText}>{dj.rating}</Text>
-                    </View>
-                    <Text style={styles.lastActive}>{dj.lastActive}</Text>
-                  </View>
-                </View>
-
-                {/* DJ Bio */}
-                <Text style={styles.djBio}>{dj.bio}</Text>
-
-                {/* Genres */}
-                <View style={styles.genresContainer}>
-                  {dj.genres.map((genre, index) => (
-                    <View key={index} style={styles.genreTag}>
-                      <Ionicons
-                        name={getGenreIcon(genre)}
-                        size={12}
-                        color="hsl(75, 100%, 60%)"
-                        style={styles.genreIcon}
-                      />
-                      <Text style={styles.genreText}>{genre}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                {/* Action Buttons */}
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity
-                    style={styles.viewProfileButton}
-                    onPress={() => handleViewProfile(dj)}
-                  >
-                    <Ionicons
-                      name="person-outline"
-                      size={16}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                    <Text style={styles.viewProfileText}>View Profile</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.connectButton}
-                    onPress={() => handleConnect(dj.id)}
-                  >
-                    <Ionicons name="add" size={16} color="hsl(0, 0%, 0%)" />
-                    <Text style={styles.connectText}>Connect</Text>
-                  </TouchableOpacity>
-                </View>
+            {filteredDJs.length === 0 ? (
+              <View style={styles.noResultsContainer}>
+                <Ionicons
+                  name="people-outline"
+                  size={48}
+                  color="hsl(0, 0%, 30%)"
+                />
+                <Text style={styles.noResultsTitle}>No DJs found</Text>
+                <Text style={styles.noResultsSubtitle}>
+                  {searchQuery.trim()
+                    ? `No results for "${searchQuery}"`
+                    : "Try adjusting your filters"}
+                </Text>
               </View>
-            ))
-          )}
+            ) : (
+              filteredDJs.map((dj) => (
+                <View key={dj.id} style={styles.djCard}>
+                  {/* DJ Header */}
+                  <View style={styles.djHeader}>
+                    <View style={styles.djInfo}>
+                      <ProgressiveImage
+                        source={{ uri: dj.profileImage }}
+                        style={styles.djAvatar}
+                      />
+                      <View style={styles.djDetails}>
+                        <View style={styles.djNameRow}>
+                          <Text style={styles.djName}>{dj.name}</Text>
+                          {dj.isOnline && (
+                            <View style={styles.onlineIndicator} />
+                          )}
+                        </View>
+                        <Text style={styles.djUsername}>{dj.username}</Text>
+                        <Text style={styles.djLocation}>{dj.location}</Text>
+                        {dj.mutualConnections > 0 && (
+                          <Text style={styles.mutualConnections}>
+                            {dj.mutualConnections} mutual connection
+                            {dj.mutualConnections > 1 ? "s" : ""}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <View style={styles.djActions}>
+                      <View style={styles.ratingContainer}>
+                        <Ionicons
+                          name="star"
+                          size={14}
+                          color="hsl(75, 100%, 60%)"
+                        />
+                        <Text style={styles.ratingText}>{dj.rating}</Text>
+                      </View>
+                      <Text style={styles.lastActive}>{dj.lastActive}</Text>
+                    </View>
+                  </View>
+
+                  {/* DJ Bio */}
+                  <Text style={styles.djBio}>{dj.bio}</Text>
+
+                  {/* Genres */}
+                  <View style={styles.genresContainer}>
+                    {dj.genres.map((genre, index) => (
+                      <View key={index} style={styles.genreTag}>
+                        <Ionicons
+                          name={getGenreIcon(genre)}
+                          size={12}
+                          color="hsl(75, 100%, 60%)"
+                          style={styles.genreIcon}
+                        />
+                        <Text style={styles.genreText}>{genre}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Action Buttons */}
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      style={styles.viewProfileButton}
+                      onPress={() => handleViewProfile(dj)}
+                    >
+                      <Ionicons
+                        name="person-outline"
+                        size={16}
+                        color="hsl(0, 0%, 100%)"
+                      />
+                      <Text style={styles.viewProfileText}>View Profile</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.connectButton}
+                      onPress={() => handleConnect(dj.id)}
+                    >
+                      <Ionicons name="add" size={16} color="hsl(0, 0%, 0%)" />
+                      <Text style={styles.connectText}>Connect</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         ) : (
           /* Messages Section */
@@ -486,9 +487,6 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: 8,
   },
   headerTitle: {
@@ -496,18 +494,6 @@ const styles = StyleSheet.create({
     fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "900",
-  },
-  statsContainer: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statsText: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)",
-    fontWeight: "600",
   },
   headerSubtitle: {
     fontSize: 16,
