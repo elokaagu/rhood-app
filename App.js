@@ -1089,7 +1089,8 @@ export default function App() {
 
               {/* Swipeable Card Stack */}
               <View style={styles.opportunitiesCardContainer}>
-                {currentOpportunityIndex < mockOpportunities.length ? (
+                {console.log("Current index:", currentOpportunityIndex, "Total opportunities:", mockOpportunities.length)}
+                {currentOpportunityIndex < mockOpportunities.length && mockOpportunities[currentOpportunityIndex] ? (
                   <>
                     {/* Next card (background) */}
                     {currentOpportunityIndex + 1 < mockOpportunities.length && (
@@ -2687,17 +2688,17 @@ const styles = StyleSheet.create({
   opportunitiesCardContainer: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingVertical: 20,
     position: "relative",
     justifyContent: "center",
     alignItems: "center",
   },
   nextCard: {
     position: "absolute",
-    top: "50%",
+    top: 30,
     left: 20,
     right: 20,
-    transform: [{ translateY: -200 }, { scale: 0.95 }],
+    transform: [{ scale: 0.95 }],
     opacity: 0.8,
   },
   noMoreOpportunities: {

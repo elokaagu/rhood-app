@@ -278,6 +278,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     overflow: "hidden",
     height: 400, // Fixed height instead of flex: 1
+    width: "100%", // Ensure full width
   },
   imageContainer: {
     position: "relative",
