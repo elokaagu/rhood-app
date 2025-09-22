@@ -111,7 +111,6 @@ const mockDJs = [
 export default function ConnectionsDiscoveryScreen({ onNavigate }) {
   const [djs, setDjs] = useState(mockDJs);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all"); // all, online, nearby, mutual
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("discover"); // discover, messages
 
@@ -129,21 +128,8 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
       );
     }
 
-    if (activeFilter === "online") {
-      filtered = filtered.filter((dj) => dj.isOnline);
-    } else if (activeFilter === "nearby") {
-      // Filter by location (simplified - in real app would use actual location)
-      filtered = filtered.filter(
-        (dj) =>
-          dj.location.toLowerCase().includes("london") ||
-          dj.location.toLowerCase().includes("uk")
-      );
-    } else if (activeFilter === "mutual") {
-      filtered = filtered.filter((dj) => dj.mutualConnections > 0);
-    }
-
     return filtered;
-  }, [djs, searchQuery, activeFilter]);
+  }, [djs, searchQuery]);
 
   const handleConnect = (djId) => {
     setDjs((prev) =>
@@ -286,76 +272,6 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                 )}
               </View>
 
-              {/* Filter Options */}
-              <View style={styles.filterContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.filterButton,
-                    activeFilter === "all" && styles.filterButtonActive,
-                  ]}
-                  onPress={() => setActiveFilter("all")}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      activeFilter === "all" && styles.filterButtonTextActive,
-                    ]}
-                  >
-                    All
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.filterButton,
-                    activeFilter === "online" && styles.filterButtonActive,
-                  ]}
-                  onPress={() => setActiveFilter("online")}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      activeFilter === "online" &&
-                        styles.filterButtonTextActive,
-                    ]}
-                  >
-                    Online
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.filterButton,
-                    activeFilter === "nearby" && styles.filterButtonActive,
-                  ]}
-                  onPress={() => setActiveFilter("nearby")}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      activeFilter === "nearby" &&
-                        styles.filterButtonTextActive,
-                    ]}
-                  >
-                    Nearby
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.filterButton,
-                    activeFilter === "mutual" && styles.filterButtonActive,
-                  ]}
-                  onPress={() => setActiveFilter("mutual")}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      activeFilter === "mutual" &&
-                        styles.filterButtonTextActive,
-                    ]}
-                  >
-                    Mutual
-                  </Text>
-                </TouchableOpacity>
-              </View>
             </>
           )}
         </View>
@@ -552,31 +468,6 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
-  },
-  filterContainer: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  filterButton: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  filterButtonActive: {
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderColor: "hsl(75, 100%, 60%)",
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    fontWeight: "500",
-  },
-  filterButtonTextActive: {
-    color: "hsl(0, 0%, 0%)",
   },
   djsList: {
     paddingHorizontal: 20,
