@@ -2719,9 +2719,10 @@ const styles = StyleSheet.create({
   opportunitiesCardContainer: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingTop: 40,
+    paddingBottom: 20,
     position: "relative",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
   },
   noMoreOpportunities: {

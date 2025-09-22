@@ -10,6 +10,7 @@ import {
   Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -236,31 +237,37 @@ export default function SwipeableOpportunityCard({
           style={styles.featuredImage}
         />
 
-        {/* Image overlay with content */}
-        <View style={styles.imageOverlay}>
-          <View style={styles.overlayHeader}>
-            <Text style={styles.venueName}>{opportunity.venue}</Text>
-            {opportunity.status === "hot" && (
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusBadgeText}>HOT</Text>
-              </View>
-            )}
-            {opportunity.status === "new" && (
-              <View style={[styles.statusBadge, styles.newBadge]}>
-                <Text style={styles.statusBadgeText}>NEW</Text>
-              </View>
-            )}
-            {opportunity.status === "closing" && (
-              <View style={[styles.statusBadge, styles.closingBadge]}>
-                <Text style={styles.statusBadgeText}>CLOSING</Text>
-              </View>
-            )}
+        {/* Dark fade gradient overlay */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0, 0, 0, 0.3)', 'rgba(0, 0, 0, 0.8)']}
+          locations={[0, 0.6, 1]}
+          style={styles.gradientOverlay}
+        >
+          <View style={styles.overlayContent}>
+            <View style={styles.overlayHeader}>
+              <Text style={styles.venueName}>{opportunity.venue}</Text>
+              {opportunity.status === "hot" && (
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusBadgeText}>HOT</Text>
+                </View>
+              )}
+              {opportunity.status === "new" && (
+                <View style={[styles.statusBadge, styles.newBadge]}>
+                  <Text style={styles.statusBadgeText}>NEW</Text>
+                </View>
+              )}
+              {opportunity.status === "closing" && (
+                <View style={[styles.statusBadge, styles.closingBadge]}>
+                  <Text style={styles.statusBadgeText}>CLOSING</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.eventTitle}>{opportunity.title}</Text>
+            <Text style={styles.applicationsLeft}>
+              {opportunity.applicationsLeft} applications left
+            </Text>
           </View>
-          <Text style={styles.eventTitle}>{opportunity.title}</Text>
-          <Text style={styles.applicationsLeft}>
-            {opportunity.applicationsLeft} applications left
-          </Text>
-        </View>
+        </LinearGradient>
 
         {/* Swipe indicators */}
         <Animated.View
@@ -340,12 +347,18 @@ const styles = StyleSheet.create({
     height: "100%",
     resizeMode: "cover",
   },
-  imageOverlay: {
+  gradientOverlay: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    height: "50%",
+  },
+  overlayContent: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     padding: 16,
   },
   overlayHeader: {
