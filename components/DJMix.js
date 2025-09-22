@@ -48,123 +48,123 @@ const DJMix = ({
     }
   }, [isPlaying, pulseAnim]);
 
-
   return (
-    <View style={styles.mixCard}>
-      {/* Left Column - Image and Genre Badge */}
-      <View style={styles.leftColumn}>
-        <TouchableOpacity
-          style={styles.imageContainer}
-          onPress={onPlayPause}
-          activeOpacity={0.8}
-        >
-          {!imageError ? (
-            <Image
-              source={{ uri: mix.image }}
-              style={styles.mixImage}
-              resizeMode="cover"
-              onError={() => setImageError(true)}
-              onLoad={() => setImageError(false)}
-            />
-          ) : (
-            <View style={styles.fallbackImage}>
-              <Ionicons
-                name="musical-notes"
-                size={24}
-                color="hsl(0, 0%, 60%)"
-              />
-            </View>
-          )}
-          <View style={styles.playButtonOverlay}>
-            <Animated.View
-              style={[
-                styles.playButton,
-                isPlaying && { transform: [{ scale: pulseAnim }] },
-              ]}
-            >
-              {isLoading ? (
-                <Ionicons name="hourglass" size={20} color="hsl(0, 0%, 100%)" />
-              ) : (
-                <Ionicons
-                  name={isPlaying ? "pause" : "play"}
-                  size={20}
-                  color="hsl(0, 0%, 100%)"
-                />
-              )}
-            </Animated.View>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.genreBadge}>
-          <Text style={styles.genreText}>{mix.genre}</Text>
-        </View>
+    <TouchableOpacity 
+      style={styles.mixCard}
+      onPress={onPlayPause}
+      activeOpacity={0.7}
+    >
+      {/* Track Number */}
+      <View style={styles.trackNumber}>
+        <Text style={styles.trackNumberText}>{mix.id}</Text>
       </View>
 
-      {/* Right Column - Mix Info */}
-      <View style={styles.rightColumn}>
-        <View style={styles.mixInfo}>
-          <Text style={styles.mixTitle} numberOfLines={1}>
-            {mix.title}
-          </Text>
-
-          <TouchableOpacity
-            onPress={() => onArtistPress(mix.artist)}
-            style={styles.artistContainer}
-          >
-            <Text style={styles.artistName}>{mix.artist}</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.mixDescription} numberOfLines={2}>
-            {mix.description}
-          </Text>
-        </View>
-
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <Text style={styles.duration}>{mix.duration}</Text>
-        </View>
-
-        {/* Progress Bar - Only show when playing */}
-        {isPlaying && (
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${progress}%` }]} />
-            </View>
+      {/* Album Art */}
+      <View style={styles.albumArtContainer}>
+        {!imageError ? (
+          <Image
+            source={{ uri: mix.image }}
+            style={styles.albumArt}
+            resizeMode="cover"
+            onError={() => setImageError(true)}
+            onLoad={() => setImageError(false)}
+          />
+        ) : (
+          <View style={styles.fallbackImage}>
+            <Ionicons
+              name="musical-notes"
+              size={24}
+              color="hsl(0, 0%, 60%)"
+            />
           </View>
         )}
+        {/* Play Button Overlay */}
+        <View style={styles.playButtonOverlay}>
+          <Animated.View
+            style={[
+              styles.playButton,
+              isPlaying && { transform: [{ scale: pulseAnim }] },
+            ]}
+          >
+            {isLoading ? (
+              <Ionicons name="hourglass" size={16} color="hsl(0, 0%, 100%)" />
+            ) : (
+              <Ionicons
+                name={isPlaying ? "pause" : "play"}
+                size={16}
+                color="hsl(0, 0%, 100%)"
+              />
+            )}
+          </Animated.View>
+        </View>
       </View>
-    </View>
+
+      {/* Track Info */}
+      <View style={styles.trackInfo}>
+        <Text style={styles.trackTitle} numberOfLines={1}>
+          {mix.title}
+        </Text>
+        <Text style={styles.trackArtist} numberOfLines={1}>
+          {mix.artist}
+        </Text>
+        <Text style={styles.trackDescription} numberOfLines={1}>
+          {mix.description}
+        </Text>
+        <View style={styles.trackMeta}>
+          <Text style={styles.trackDuration}>{mix.duration}</Text>
+          <View style={styles.genreBadge}>
+            <Text style={styles.genreText}>{mix.genre}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Options Menu */}
+      <TouchableOpacity style={styles.optionsButton} activeOpacity={0.7}>
+        <Ionicons name="ellipsis-vertical" size={20} color="hsl(0, 0%, 70%)" />
+      </TouchableOpacity>
+
+      {/* Progress Bar - Only show when playing */}
+      {isPlaying && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${progress}%` }]} />
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   mixCard: {
     flexDirection: "row",
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-    shadowColor: "hsl(0, 0%, 0%)",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 0%)",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 8%)",
   },
-  leftColumn: {
+  trackNumber: {
+    width: 32,
     alignItems: "center",
     marginRight: 16,
   },
-  imageContainer: {
-    position: "relative",
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    overflow: "hidden",
-    marginBottom: 12,
+  trackNumberText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
   },
-  mixImage: {
+  albumArtContainer: {
+    position: "relative",
+    width: 50,
+    height: 50,
+    borderRadius: 4,
+    overflow: "hidden",
+    marginRight: 12,
+  },
+  albumArt: {
     width: "100%",
     height: "100%",
   },
@@ -181,99 +181,85 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "hsla(0, 0%, 0%, 0.4)",
+    backgroundColor: "hsla(0, 0%, 0%, 0.6)",
     justifyContent: "center",
     alignItems: "center",
   },
   playButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "hsla(0, 0%, 0%, 0.9)",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "hsla(0, 0%, 0%, 0.8)",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "hsla(255, 255, 255, 0.4)",
-    shadowColor: "hsl(75, 100%, 60%)",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: "hsla(255, 255, 255, 0.3)",
+  },
+  trackInfo: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  trackTitle: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 2,
+  },
+  trackArtist: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    marginBottom: 2,
+  },
+  trackDescription: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+    marginBottom: 4,
+  },
+  trackMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  trackDuration: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
   },
   genreBadge: {
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: "hsl(75, 100%, 60%)",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   genreText: {
-    fontSize: 11,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    color: "hsl(75, 100%, 60%)",
-  },
-  rightColumn: {
-    flex: 1,
-    justifyContent: "space-between",
-  },
-  mixInfo: {
-    flex: 1,
-  },
-  mixTitle: {
-    fontSize: 14,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 6,
-  },
-  artistContainer: {
-    marginBottom: 6,
-  },
-  artistName: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    color: "hsl(75, 100%, 60%)",
-  },
-  mixDescription: {
-    fontSize: 13,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-    lineHeight: 16,
-    marginBottom: 8,
-  },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    marginTop: 8,
-  },
-  duration: {
     fontSize: 10,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
     color: "hsl(75, 100%, 60%)",
+  },
+  optionsButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   progressContainer: {
-    marginTop: 8,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
   },
   progressBar: {
-    height: 4,
+    height: 2,
     backgroundColor: "hsl(0, 0%, 15%)",
-    borderRadius: 2,
-    overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 2,
-    shadowColor: "hsl(75, 100%, 60%)",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 2,
-    elevation: 2,
   },
 });
 
