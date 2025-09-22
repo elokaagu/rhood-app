@@ -154,13 +154,14 @@ export default function ListenScreen({
   const [loading, setLoading] = useState(false);
 
   // Get unique genres for filter
-  const genres = ["All", ...new Set(mockMixes.map(mix => mix.genre))];
+  const genres = ["All", ...new Set(mockMixes.map((mix) => mix.genre))];
 
   // Filter mixes
-  const filteredMixes = mixes.filter(mix => {
-    const matchesSearch = mix.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         mix.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         mix.description.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredMixes = mixes.filter((mix) => {
+    const matchesSearch =
+      mix.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      mix.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      mix.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesGenre = selectedGenre === "All" || mix.genre === selectedGenre;
     return matchesSearch && matchesGenre;
   });
@@ -240,7 +241,9 @@ export default function ListenScreen({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>LISTEN</Text>
-        <Text style={styles.headerSubtitle}>5 minute sets from DJs in R/HOOD</Text>
+        <Text style={styles.headerSubtitle}>
+          5 minute sets from DJs in R/HOOD
+        </Text>
       </View>
 
       {/* Search Bar */}
@@ -266,8 +269,8 @@ export default function ListenScreen({
       </View>
 
       {/* Genre Filter Chips */}
-      <ScrollView 
-        horizontal 
+      <ScrollView
+        horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.genreFilterContainer}
         contentContainerStyle={styles.genreFilterContent}
@@ -277,14 +280,16 @@ export default function ListenScreen({
             key={genre}
             style={[
               styles.genreChip,
-              selectedGenre === genre && styles.genreChipActive
+              selectedGenre === genre && styles.genreChipActive,
             ]}
             onPress={() => handleGenreFilter(genre)}
           >
-            <Text style={[
-              styles.genreChipText,
-              selectedGenre === genre && styles.genreChipTextActive
-            ]}>
+            <Text
+              style={[
+                styles.genreChipText,
+                selectedGenre === genre && styles.genreChipTextActive,
+              ]}
+            >
               {genre}
             </Text>
           </TouchableOpacity>
@@ -344,10 +349,9 @@ export default function ListenScreen({
             <Ionicons name="musical-notes" size={48} color="hsl(0, 0%, 30%)" />
             <Text style={styles.emptyStateTitle}>No mixes found</Text>
             <Text style={styles.emptyStateSubtitle}>
-              {searchQuery.trim() 
+              {searchQuery.trim()
                 ? `No results for "${searchQuery}"`
-                : "Try adjusting your filters"
-              }
+                : "Try adjusting your filters"}
             </Text>
           </View>
         )}

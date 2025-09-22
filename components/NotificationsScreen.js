@@ -96,34 +96,13 @@ export default function NotificationsScreen({ onNavigate }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const handleNotificationPress = (notification) => {
-    // Mark as read
+    // Mark as read (remove green border)
     if (!notification.isRead) {
       setNotifications((prev) =>
         prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
       );
     }
-
-    // Navigate based on type
-    switch (notification.type) {
-      case "opportunity":
-        onNavigate &&
-          onNavigate("opportunity", { id: notification.opportunityId });
-        break;
-      case "application":
-        onNavigate &&
-          onNavigate("application", { id: notification.applicationId });
-        break;
-      case "message":
-        onNavigate && onNavigate("messages", { djId: notification.messageId });
-        break;
-      case "connection":
-        onNavigate &&
-          onNavigate("connection", { id: notification.connectionId });
-        break;
-      default:
-        // System notifications don't navigate
-        break;
-    }
+    // No navigation - notifications are just for reading
   };
 
   const handleMarkAsRead = (notificationId) => {
