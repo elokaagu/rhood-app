@@ -17,6 +17,9 @@ export default function OpportunityCard({ opportunity, onPress }) {
         <View style={styles.imageOverlay}>
           <Text style={styles.venueName}>{opportunity.venue}</Text>
           <Text style={styles.eventTitle}>{opportunity.title}</Text>
+          <Text style={styles.applicationsLeft}>
+            {opportunity.applicationsLeft} applications left
+          </Text>
         </View>
       </View>
 
@@ -84,6 +87,7 @@ const styles = StyleSheet.create({
   featuredImage: {
     width: "100%",
     height: "100%",
+    resizeMode: "cover",
   },
   imageOverlay: {
     position: "absolute",
@@ -105,6 +109,13 @@ const styles = StyleSheet.create({
     fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
     lineHeight: 26,
+  },
+  applicationsLeft: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    marginTop: 4,
+    fontWeight: "600",
   },
   details: {
     padding: 16,
