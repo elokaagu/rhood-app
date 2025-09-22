@@ -11,39 +11,30 @@ import { Ionicons } from "@expo/vector-icons";
 export default function OpportunityCard({ opportunity, onPress }) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
-      {/* Header with venue image and basic info */}
-      <View style={styles.header}>
-        <Image source={{ uri: opportunity.image }} style={styles.venueImage} />
-        <View style={styles.headerContent}>
+      {/* Large featured image */}
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: opportunity.image }} style={styles.featuredImage} />
+        <View style={styles.imageOverlay}>
           <Text style={styles.venueName}>{opportunity.venue}</Text>
           <Text style={styles.eventTitle}>{opportunity.title}</Text>
-          <View style={styles.locationContainer}>
-            <Ionicons name="location-outline" size={14} color="hsl(0, 0%, 60%)" />
-            <Text style={styles.location}>{opportunity.location}</Text>
-          </View>
         </View>
       </View>
 
-      {/* Event details */}
+      {/* Event details - compact */}
       <View style={styles.details}>
+        <View style={styles.detailRow}>
+          <Ionicons name="location-outline" size={16} color="hsl(75, 100%, 60%)" />
+          <Text style={styles.detailText}>{opportunity.location}</Text>
+        </View>
         <View style={styles.detailRow}>
           <Ionicons name="calendar-outline" size={16} color="hsl(75, 100%, 60%)" />
           <Text style={styles.detailText}>{opportunity.date}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Ionicons name="time-outline" size={16} color="hsl(75, 100%, 60%)" />
-          <Text style={styles.detailText}>{opportunity.time}</Text>
         </View>
         <View style={styles.detailRow}>
           <Ionicons name="people-outline" size={16} color="hsl(75, 100%, 60%)" />
           <Text style={styles.detailText}>{opportunity.audienceSize}</Text>
         </View>
       </View>
-
-      {/* Description */}
-      <Text style={styles.description} numberOfLines={3}>
-        {opportunity.description}
-      </Text>
 
       {/* Genres */}
       <View style={styles.genresContainer}>
@@ -72,7 +63,6 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 16,
-    padding: 20,
     marginHorizontal: 20,
     marginVertical: 10,
     borderWidth: 1,
@@ -85,20 +75,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    overflow: "hidden",
   },
-  header: {
-    flexDirection: "row",
-    marginBottom: 16,
+  imageContainer: {
+    position: "relative",
+    height: 200,
   },
-  venueImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    marginRight: 16,
+  featuredImage: {
+    width: "100%",
+    height: "100%",
   },
-  headerContent: {
-    flex: 1,
-    justifyContent: "center",
+  imageOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    padding: 16,
   },
   venueName: {
     fontSize: 14,
@@ -108,29 +101,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   eventTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
-    marginBottom: 8,
-    lineHeight: 24,
-  },
-  locationContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  location: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-    marginLeft: 4,
+    lineHeight: 26,
   },
   details: {
-    marginBottom: 16,
+    padding: 16,
+    paddingBottom: 12,
   },
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   detailText: {
     fontSize: 14,
@@ -138,17 +121,11 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 80%)",
     marginLeft: 8,
   },
-  description: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    lineHeight: 20,
-    marginBottom: 16,
-  },
   genresContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   genreTag: {
     backgroundColor: "hsl(75, 100%, 60%)",
@@ -168,6 +145,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   compensationContainer: {
     flex: 1,

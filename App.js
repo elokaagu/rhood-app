@@ -164,10 +164,12 @@ export default function App() {
     date: "March 15, 2024",
     time: "10:00 PM - 6:00 AM",
     audienceSize: "500+ people",
-    description: "Join us for an electrifying night of underground electronic music. We're looking for DJs who can bring high-energy sets and keep the crowd moving all night long. This is a premier venue with state-of-the-art sound system and lighting.",
+    description:
+      "Join us for an electrifying night of underground electronic music. We're looking for DJs who can bring high-energy sets and keep the crowd moving all night long. This is a premier venue with state-of-the-art sound system and lighting.",
     genres: ["Techno", "House", "Trance"],
     compensation: "$300 - $500",
-    image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
   };
 
   // Helper function to show custom modal
@@ -2542,7 +2544,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   opportunitiesTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 8,
