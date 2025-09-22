@@ -235,7 +235,7 @@ export default function ProfileScreen({ onNavigate }) {
         <View style={styles.profileCard}>
           <View style={styles.profileHeader}>
             <ProgressiveImage
-              source={{ uri: profile.profileImage }}
+              source={profile.profileImage}
               style={styles.profileImage}
             />
             {profile.isVerified && (
