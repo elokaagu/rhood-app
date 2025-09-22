@@ -4,7 +4,7 @@
     "slug": "rhoodapp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/rhood_logo.webp",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -30,7 +30,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/rhood_logo.webp",
         "backgroundColor": "#000000"
       },
       "package": "com.rhoodapp.mobile",
@@ -44,7 +44,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/rhood_logo.webp"
     },
     "extra": {
       "eas": {

@@ -72,7 +72,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <Text style={styles.subtitle}>Welcome back to the underground</Text>
+          <Text style={styles.subtitle}>Welcome back to R/HOOD</Text>
         </View>
 
         <View style={styles.form}>

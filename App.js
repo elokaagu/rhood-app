@@ -127,8 +127,34 @@ export default function App() {
   // Edit profile modal state
   const [showEditProfile, setShowEditProfile] = useState(false);
 
+  // Custom modal state
+  const [showModal, setShowModal] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    type: "info",
+    title: "",
+    message: "",
+    primaryButtonText: "OK",
+    secondaryButtonText: null,
+    onPrimaryPress: null,
+    onSecondaryPress: null,
+  });
+
   // Global audio instance reference for cleanup
   const globalAudioRef = useRef(null);
+
+  // Helper function to show custom modal
+  const showCustomModal = (config) => {
+    setModalConfig({
+      type: config.type || "info",
+      title: config.title || "",
+      message: config.message || "",
+      primaryButtonText: config.primaryButtonText || "OK",
+      secondaryButtonText: config.secondaryButtonText || null,
+      onPrimaryPress: config.onPrimaryPress || null,
+      onSecondaryPress: config.onSecondaryPress || null,
+    });
+    setShowModal(true);
+  };
 
   const [djProfile, setDjProfile] = useState({
     djName: "",
@@ -157,7 +183,6 @@ export default function App() {
     );
 
     initializeAuth();
-    checkFirstTime();
     setupGlobalAudio();
 
     // Handle app state changes for background audio
@@ -198,8 +223,10 @@ export default function App() {
         // Clear invalid session
         await supabase.auth.signOut();
         setUser(null);
+        await checkFirstTime(null);
       } else {
         setUser(session?.user ?? null);
+        await checkFirstTime(session?.user ?? null);
       }
 
       // Listen for auth changes
@@ -210,16 +237,9 @@ export default function App() {
         setAuthLoading(false);
 
         if (event === "SIGNED_IN" && session?.user) {
-          // User signed in, check if profile exists
-          try {
-            const profile = await db.getUserProfile(session.user.id);
-            if (profile) {
-              setDjProfile(profile);
-              setIsFirstTime(false);
-            }
-          } catch (error) {
-            console.log("No profile found, user needs to complete onboarding");
-          }
+          // User signed in, check their profile status
+          setUser(session.user);
+          await checkFirstTime(session.user);
         } else if (event === "SIGNED_OUT") {
           // User signed out, reset state
           setDjProfile({
@@ -669,10 +689,30 @@ export default function App() {
     }
   };
 
-  const checkFirstTime = async () => {
+  const checkFirstTime = async (currentUser = null) => {
     try {
-      // Only check AsyncStorage if user is not authenticated
-      if (!user) {
+      const userToCheck = currentUser || user;
+
+      // If user is authenticated, they should go straight to home
+      // Only show onboarding for unauthenticated users or if no profile exists
+      if (userToCheck) {
+        // User is signed in, check if they have a profile
+        try {
+          const profile = await db.getUserProfile(userToCheck.id);
+          if (profile) {
+            setDjProfile(profile);
+            setIsFirstTime(false); // User has profile, go to home
+          } else {
+            setIsFirstTime(true); // User signed in but no profile, needs onboarding
+          }
+        } catch (error) {
+          console.log(
+            "No profile found for authenticated user, needs onboarding"
+          );
+          setIsFirstTime(true);
+        }
+      } else {
+        // No user, check local storage for offline access
         const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
         const profile = await AsyncStorage.getItem("djProfile");
 
@@ -689,6 +729,7 @@ export default function App() {
   };
 
   const handleMenuNavigation = (screen, params = {}) => {
+    console.log("🎯 Navigating to screen:", screen);
     setCurrentScreen(screen);
     setScreenParams(params);
     setShowMenu(false);
@@ -702,10 +743,14 @@ export default function App() {
       !djProfile.city ||
       djProfile.genres.length === 0
     ) {
-      Alert.alert(
-        "Error",
-        "Please fill in all required fields: DJ name, first name, last name, city, and at least one genre"
-      );
+      showCustomModal({
+        type: "error",
+        title: "Error",
+        message:
+          "Please fill in all required fields: DJ name, first name, last name, city, and at least one genre",
+        primaryButtonText: "OK",
+        onPrimaryPress: () => setShowModal(false),
+      });
       return;
     }
 
@@ -751,16 +796,23 @@ export default function App() {
       await AsyncStorage.setItem("userId", user.id);
 
       setIsFirstTime(false);
-      Alert.alert(
-        "Success",
-        "Welcome to R/HOOD! Your profile has been saved to the cloud."
-      );
+      showCustomModal({
+        type: "success",
+        title: "Success",
+        message: "Welcome to R/HOOD! Your profile has been saved to the cloud.",
+        primaryButtonText: "OK",
+        onPrimaryPress: () => setShowModal(false),
+      });
     } catch (error) {
       console.error("Error saving profile:", error);
-      Alert.alert(
-        "Error",
-        "Failed to save profile. Please check your internet connection and try again."
-      );
+      showCustomModal({
+        type: "error",
+        title: "Error",
+        message:
+          "Failed to save profile. Please check your internet connection and try again.",
+        primaryButtonText: "OK",
+        onPrimaryPress: () => setShowModal(false),
+      });
     }
   };
 
@@ -841,6 +893,7 @@ export default function App() {
   };
 
   const renderScreenContent = (screen) => {
+    console.log("🎬 Rendering screen:", screen);
     switch (screen) {
       case "opportunities":
         return (
@@ -883,7 +936,7 @@ export default function App() {
       case "messages":
         return (
           <MessagesScreen
-            navigation={{ goBack: () => setCurrentScreen("home") }}
+            navigation={{ goBack: () => setCurrentScreen("connections") }}
             route={{ params: screenParams }}
           />
         );
@@ -1335,7 +1388,7 @@ export default function App() {
                 <View style={styles.menuItems}>
                   <TouchableOpacity
                     style={styles.menuItem}
-                    onPress={() => handleMenuNavigation("messages")}
+                    onPress={() => handleMenuNavigation("connections")}
                   >
                     <Ionicons
                       name="chatbubbles-outline"
@@ -1697,6 +1750,19 @@ export default function App() {
             ]}
           />
         )}
+
+        {/* Custom RHOOD Modal */}
+        <RhoodModal
+          visible={showModal}
+          onClose={() => setShowModal(false)}
+          type={modalConfig.type}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          primaryButtonText={modalConfig.primaryButtonText}
+          secondaryButtonText={modalConfig.secondaryButtonText}
+          onPrimaryPress={modalConfig.onPrimaryPress}
+          onSecondaryPress={modalConfig.onSecondaryPress}
+        />
       </SafeAreaView>
     </SafeAreaProvider>
   );

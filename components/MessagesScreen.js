@@ -124,6 +124,7 @@ const mockMessages = [
 
 export default function MessagesScreen({ navigation, route }) {
   const { isGroupChat = false, djId = 1 } = route.params || {};
+  console.log("📱 MessagesScreen loaded with params:", { isGroupChat, djId });
 
   // State for messages and posts
   const [newMessage, setNewMessage] = useState("");
@@ -447,11 +448,15 @@ export default function MessagesScreen({ navigation, route }) {
 
           <View style={styles.headerInfo}>
             <View style={styles.groupIcon}>
-              <Ionicons name="people" size={20} color="hsl(75, 100%, 60%)" />
+              <Image
+                source={require("../assets/rhood_logo.webp")}
+                style={styles.groupLogo}
+                resizeMode="contain"
+              />
             </View>
 
             <View style={styles.groupDetails}>
-              <Text style={styles.groupTitle}>Rhood Group</Text>
+              <Text style={styles.groupTitle}>RHOOD Group</Text>
               <Text style={styles.groupSubtitle}>
                 12 members • Community Forum
               </Text>
@@ -916,9 +921,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
+  },
+  groupLogo: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
   },
   groupDetails: {
     marginLeft: 12,

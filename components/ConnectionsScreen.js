@@ -158,7 +158,11 @@ export default function ConnectionsScreen({ onNavigate }) {
             {/* Group Avatar */}
             <View style={styles.groupAvatarContainer}>
               <View style={styles.groupAvatar}>
-                <Ionicons name="people" size={24} color="hsl(0, 0%, 0%)" />
+                <Image
+                  source={require("../assets/rhood_logo.webp")}
+                  style={styles.groupLogo}
+                  resizeMode="contain"
+                />
               </View>
               {/* Online Status Indicator */}
               <View style={styles.onlineIndicator} />
@@ -167,7 +171,7 @@ export default function ConnectionsScreen({ onNavigate }) {
             {/* Group Chat Info */}
             <View style={styles.groupInfo}>
               <View style={styles.groupHeader}>
-                <Text style={styles.groupName}>Rhood Group</Text>
+                <Text style={styles.groupName}>RHOOD Group</Text>
                 <Text style={styles.groupTime}>2m</Text>
               </View>
               <Text style={styles.groupMessage} numberOfLines={1}>
@@ -329,10 +333,15 @@ const styles = StyleSheet.create({
   groupAvatar: {
     width: 48,
     height: 48,
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "transparent",
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
+  },
+  groupLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   onlineIndicator: {
     position: "absolute",
