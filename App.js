@@ -84,10 +84,6 @@ export default function App() {
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
 
-  // Opportunities screen state
-  const [opportunitiesSearchQuery, setOpportunitiesSearchQuery] = useState("");
-  const [opportunitiesFilter, setOpportunitiesFilter] = useState("all"); // all, hot, new, closing
-  const [opportunitiesRefreshing, setOpportunitiesRefreshing] = useState(false);
 
   // Audio player animation values
   const [audioPlayerOpacity] = useState(new Animated.Value(0));
@@ -830,33 +826,6 @@ export default function App() {
     closeMenu();
   };
 
-  // Filter and search opportunities
-  const filteredOpportunities = useMemo(() => {
-    let filtered = mockOpportunities;
-
-    // Apply search filter
-    if (opportunitiesSearchQuery.trim()) {
-      const query = opportunitiesSearchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (opportunity) =>
-          opportunity.title.toLowerCase().includes(query) ||
-          opportunity.venue.toLowerCase().includes(query) ||
-          opportunity.location.toLowerCase().includes(query) ||
-          opportunity.genres.some((genre) =>
-            genre.toLowerCase().includes(query)
-          )
-      );
-    }
-
-    // Apply status filter
-    if (opportunitiesFilter !== "all") {
-      filtered = filtered.filter(
-        (opportunity) => opportunity.status === opportunitiesFilter
-      );
-    }
-
-    return filtered;
-  }, [opportunitiesSearchQuery, opportunitiesFilter]);
 
   const handleOpportunityPress = (opportunity) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -877,13 +846,6 @@ export default function App() {
     });
   };
 
-  const handleOpportunitiesRefresh = async () => {
-    setOpportunitiesRefreshing(true);
-    // Simulate refresh delay
-    setTimeout(() => {
-      setOpportunitiesRefreshing(false);
-    }, 1000);
-  };
 
   // Menu animation functions
   const openMenu = () => {
@@ -1091,100 +1053,13 @@ export default function App() {
                 </Text>
               </View>
 
-              {/* Search Bar */}
-              <View style={styles.opportunitiesSearchContainer}>
-                <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
-                <TextInput
-                  style={styles.opportunitiesSearchInput}
-                  placeholder="Search opportunities..."
-                  placeholderTextColor="hsl(0, 0%, 50%)"
-                  value={opportunitiesSearchQuery}
-                  onChangeText={setOpportunitiesSearchQuery}
-                  autoCapitalize="none"
-                  autoCorrect={false}
+              {/* Single Opportunity Card */}
+              <View style={styles.opportunitiesCardContainer}>
+                <OpportunityCard
+                  opportunity={mockOpportunities[0]}
+                  onPress={() => handleOpportunityPress(mockOpportunities[0])}
                 />
-                {opportunitiesSearchQuery.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => setOpportunitiesSearchQuery("")}
-                    style={styles.opportunitiesClearButton}
-                  >
-                    <Ionicons
-                      name="close-circle"
-                      size={20}
-                      color="hsl(0, 0%, 50%)"
-                    />
-                  </TouchableOpacity>
-                )}
               </View>
-
-              {/* Filter Chips */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.opportunitiesFilterContainer}
-                contentContainerStyle={styles.opportunitiesFilterContent}
-              >
-                {["all", "hot", "new", "closing"].map((filter) => (
-                  <TouchableOpacity
-                    key={filter}
-                    style={[
-                      styles.opportunitiesFilterChip,
-                      opportunitiesFilter === filter &&
-                        styles.opportunitiesFilterChipActive,
-                    ]}
-                    onPress={() => setOpportunitiesFilter(filter)}
-                  >
-                    <Text
-                      style={[
-                        styles.opportunitiesFilterChipText,
-                        opportunitiesFilter === filter &&
-                          styles.opportunitiesFilterChipTextActive,
-                      ]}
-                    >
-                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {/* Opportunities List */}
-              <ScrollView
-                style={styles.opportunitiesList}
-                refreshControl={
-                  <RefreshControl
-                    refreshing={opportunitiesRefreshing}
-                    onRefresh={handleOpportunitiesRefresh}
-                    tintColor="hsl(75, 100%, 60%)"
-                  />
-                }
-                showsVerticalScrollIndicator={false}
-              >
-                {filteredOpportunities.length === 0 ? (
-                  <View style={styles.opportunitiesEmptyState}>
-                    <Ionicons
-                      name="briefcase-outline"
-                      size={48}
-                      color="hsl(0, 0%, 30%)"
-                    />
-                    <Text style={styles.opportunitiesEmptyTitle}>
-                      No opportunities found
-                    </Text>
-                    <Text style={styles.opportunitiesEmptySubtitle}>
-                      {opportunitiesSearchQuery.trim()
-                        ? `No results for "${opportunitiesSearchQuery}"`
-                        : "Try adjusting your filters"}
-                    </Text>
-                  </View>
-                ) : (
-                  filteredOpportunities.map((opportunity) => (
-                    <OpportunityCard
-                      key={opportunity.id}
-                      opportunity={opportunity}
-                      onPress={() => handleOpportunityPress(opportunity)}
-                    />
-                  ))
-                )}
-              </ScrollView>
             </View>
           </View>
         );
@@ -2726,80 +2601,10 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
   },
-  opportunitiesSearchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  opportunitiesSearchInput: {
+  opportunitiesCardContainer: {
     flex: 1,
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 100%)",
-    marginLeft: 12,
-  },
-  opportunitiesClearButton: {
-    padding: 4,
-  },
-  opportunitiesFilterContainer: {
-    marginBottom: 16,
-  },
-  opportunitiesFilterContent: {
     paddingHorizontal: 20,
-    gap: 12,
-  },
-  opportunitiesFilterChip: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  opportunitiesFilterChipActive: {
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderColor: "hsl(75, 100%, 60%)",
-  },
-  opportunitiesFilterChipText: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    fontWeight: "500",
-  },
-  opportunitiesFilterChipTextActive: {
-    color: "hsl(0, 0%, 0%)",
-  },
-  opportunitiesList: {
-    flex: 1,
-  },
-  opportunitiesEmptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  opportunitiesEmptyTitle: {
-    fontSize: 18,
-    fontFamily: "TS-Block-Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  opportunitiesEmptySubtitle: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    textAlign: "center",
-    lineHeight: 20,
+    paddingBottom: 20,
   },
 
   // Opportunities Screen Styles
