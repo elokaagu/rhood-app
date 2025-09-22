@@ -32,6 +32,7 @@ import CommunityScreen from "./components/CommunityScreen";
 import ProfileScreen from "./components/ProfileScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import RhoodModal from "./components/RhoodModal";
+import OpportunityCard from "./components/OpportunityCard";
 import { db, auth, supabase } from "./lib/supabase";
 import {
   ANIMATION_DURATION,
@@ -153,6 +154,21 @@ export default function App() {
 
   // Global audio instance reference for cleanup
   const globalAudioRef = useRef(null);
+
+  // Mock opportunity data
+  const mockOpportunity = {
+    id: 1,
+    venue: "Underground Warehouse",
+    title: "Friday Night Rave",
+    location: "Brooklyn, NY",
+    date: "March 15, 2024",
+    time: "10:00 PM - 6:00 AM",
+    audienceSize: "500+ people",
+    description: "Join us for an electrifying night of underground electronic music. We're looking for DJs who can bring high-energy sets and keep the crowd moving all night long. This is a premier venue with state-of-the-art sound system and lighting.",
+    genres: ["Techno", "House", "Trance"],
+    compensation: "$300 - $500",
+    image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+  };
 
   // Helper function to show custom modal
   const showCustomModal = (config) => {
@@ -768,6 +784,24 @@ export default function App() {
     closeMenu();
   };
 
+  const handleOpportunityPress = (opportunity) => {
+    showCustomModal({
+      type: "info",
+      title: opportunity.title,
+      message: `Venue: ${opportunity.venue}\nLocation: ${opportunity.location}\nDate: ${opportunity.date}\nTime: ${opportunity.time}\n\n${opportunity.description}\n\nCompensation: ${opportunity.compensation}`,
+      primaryButtonText: "Apply",
+      secondaryButtonText: "Close",
+      onPrimaryPress: () => {
+        showCustomModal({
+          type: "success",
+          title: "Application Sent!",
+          message: `Your application for ${opportunity.title} has been sent successfully. You'll hear back within 48 hours.`,
+          primaryButtonText: "OK",
+        });
+      },
+    });
+  };
+
   // Menu animation functions
   const openMenu = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -965,18 +999,19 @@ export default function App() {
     switch (screen) {
       case "opportunities":
         return (
-          <View style={styles.emptyOpportunitiesContainer}>
-            <Ionicons
-              name="briefcase-outline"
-              size={64}
-              color="hsl(0, 0%, 30%)"
-            />
-            <Text style={styles.emptyOpportunitiesTitle}>
-              No Opportunities Available
-            </Text>
-            <Text style={styles.emptyOpportunitiesSubtitle}>
-              Check back later for new gigs!
-            </Text>
+          <View style={styles.screen}>
+            <View style={styles.opportunitiesContainer}>
+              <View style={styles.opportunitiesHeader}>
+                <Text style={styles.opportunitiesTitle}>Opportunities</Text>
+                <Text style={styles.opportunitiesSubtitle}>
+                  Find your next DJ gig
+                </Text>
+              </View>
+              <OpportunityCard
+                opportunity={mockOpportunity}
+                onPress={() => handleOpportunityPress(mockOpportunity)}
+              />
+            </View>
           </View>
         );
 
@@ -2497,6 +2532,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
     width: "100%",
     lineHeight: 20,
+  },
+  opportunitiesContainer: {
+    flex: 1,
+    backgroundColor: "hsl(0, 0%, 0%)",
+  },
+  opportunitiesHeader: {
+    padding: 20,
+    paddingBottom: 10,
+  },
+  opportunitiesTitle: {
+    fontSize: 28,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 8,
+  },
+  opportunitiesSubtitle: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
   },
 
   // Opportunities Screen Styles
