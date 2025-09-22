@@ -22,7 +22,6 @@ const DJMix = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -49,12 +48,6 @@ const DJMix = ({
     }
   }, [isPlaying, pulseAnim]);
 
-  const formatNumber = (num) => {
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + "k";
-    }
-    return num.toString();
-  };
 
   return (
     <View style={styles.mixCard}>
@@ -128,24 +121,6 @@ const DJMix = ({
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
-          <View style={styles.statsLeft}>
-            <View style={styles.statItem}>
-              <Ionicons name="volume-high" size={14} color="hsl(0, 0%, 70%)" />
-              <Text style={styles.statText}>{formatNumber(mix.plays)}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.favoriteButton}
-              onPress={() => setIsFavorited(!isFavorited)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={isFavorited ? "heart" : "heart-outline"}
-                size={16}
-                color={isFavorited ? "hsl(0, 100%, 60%)" : "hsl(0, 0%, 70%)"}
-              />
-            </TouchableOpacity>
-          </View>
-
           <Text style={styles.duration}>{mix.duration}</Text>
         </View>
 
@@ -272,27 +247,8 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     marginTop: 8,
-  },
-  statsLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  favoriteButton: {
-    padding: 4,
-  },
-  statText: {
-    fontSize: 13,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 80%)",
-    fontWeight: "500",
   },
   duration: {
     fontSize: 10,
