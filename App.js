@@ -33,11 +33,11 @@ import ProfileScreen from "./components/ProfileScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import RhoodModal from "./components/RhoodModal";
 import { db, auth, supabase } from "./lib/supabase";
-import { 
-  ANIMATION_DURATION, 
-  NATIVE_ANIMATION_CONFIG, 
+import {
+  ANIMATION_DURATION,
+  NATIVE_ANIMATION_CONFIG,
   SPRING_CONFIG,
-  PERFORMANCE_THRESHOLDS 
+  PERFORMANCE_THRESHOLDS,
 } from "./lib/performanceConstants";
 import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";

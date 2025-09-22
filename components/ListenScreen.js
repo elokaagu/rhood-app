@@ -234,17 +234,9 @@ export default function ListenScreen({
     setSelectedGenre(genre);
   };
 
-  return (
-    <ScrollView 
-      style={styles.container}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          tintColor="hsl(75, 100%, 60%)"
-        />
-      }
-    >
+  // Header component for FlatList
+  const renderHeader = () => (
+    <>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>LISTEN</Text>
@@ -298,48 +290,12 @@ export default function ListenScreen({
           </TouchableOpacity>
         ))}
       </ScrollView>
+    </>
+  );
 
-
-      {/* Mixes List */}
-      <View style={styles.mixesContainer}>
-        <FlatList
-          data={filteredMixes}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item: mix }) => (
-            <DJMix
-              mix={mix}
-              isPlaying={playingMixId === mix.id}
-              isLoading={globalAudioState.isLoading && playingMixId === mix.id}
-              onPlayPause={() => handleMixPress(mix)}
-              onArtistPress={handleArtistPress}
-              progress={playingMixId === mix.id ? globalAudioState.progress : 0}
-            />
-          )}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyState}>
-              <Ionicons name="musical-notes" size={48} color="hsl(0, 0%, 30%)" />
-              <Text style={styles.emptyStateTitle}>No mixes found</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                {searchQuery.trim() 
-                  ? `No results for "${searchQuery}"`
-                  : "Try adjusting your filters"
-                }
-              </Text>
-            </View>
-          )}
-          showsVerticalScrollIndicator={false}
-          removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
-          initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
-          maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
-          windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
-          getItemLayout={(data, index) => ({
-            length: 80, // Approximate height of each DJMix item
-            offset: 80 * index,
-            index,
-          })}
-        />
-      </View>
-
+  // Footer component for FlatList
+  const renderFooter = () => (
+    <>
       {/* Upload CTA */}
       <View style={styles.uploadSection}>
         <View style={styles.uploadCard}>
@@ -363,7 +319,58 @@ export default function ListenScreen({
 
       {/* Bottom Spacing */}
       <View style={styles.bottomSpacing} />
-    </ScrollView>
+    </>
+  );
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={filteredMixes}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item: mix }) => (
+          <DJMix
+            mix={mix}
+            isPlaying={playingMixId === mix.id}
+            isLoading={globalAudioState.isLoading && playingMixId === mix.id}
+            onPlayPause={() => handleMixPress(mix)}
+            onArtistPress={handleArtistPress}
+            progress={playingMixId === mix.id ? globalAudioState.progress : 0}
+          />
+        )}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyState}>
+            <Ionicons name="musical-notes" size={48} color="hsl(0, 0%, 30%)" />
+            <Text style={styles.emptyStateTitle}>No mixes found</Text>
+            <Text style={styles.emptyStateSubtitle}>
+              {searchQuery.trim() 
+                ? `No results for "${searchQuery}"`
+                : "Try adjusting your filters"
+              }
+            </Text>
+          </View>
+        )}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="hsl(75, 100%, 60%)"
+          />
+        }
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+        initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+        maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+        windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+        getItemLayout={(data, index) => ({
+          length: 80, // Approximate height of each DJMix item
+          offset: 80 * index,
+          index,
+        })}
+        contentContainerStyle={styles.flatListContent}
+      />
+    </View>
   );
 }
 
@@ -391,9 +398,8 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
   },
-  mixesContainer: {
-    padding: 20,
-    paddingTop: 8,
+  flatListContent: {
+    flexGrow: 1,
   },
   uploadSection: {
     padding: 16,
