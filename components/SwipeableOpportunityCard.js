@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -32,7 +32,7 @@ export default function SwipeableOpportunityCard({
   const opacity = useRef(new Animated.Value(isNextCard ? 0.8 : 1)).current;
   const fadeOverlay = useRef(new Animated.Value(0)).current;
 
-  const panResponder = useRef(
+  const panResponder = useMemo(() => 
     PanResponder.create({
       onStartShouldSetPanResponder: () => {
         console.log(`onStartShouldSetPanResponder - isTopCard: ${isTopCard}`);
@@ -149,8 +149,8 @@ export default function SwipeableOpportunityCard({
           }
         }
       },
-    })
-  ).current;
+    }), [isTopCard, onSwipeLeft, onSwipeRight]
+  );
 
   const handleLike = () => {
     if (isTopCard) {
