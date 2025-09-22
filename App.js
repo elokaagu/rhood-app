@@ -87,10 +87,14 @@ export default function App() {
   // Opportunities swipe state
   const [currentOpportunityIndex, setCurrentOpportunityIndex] = useState(0);
   const [swipedOpportunities, setSwipedOpportunities] = useState([]);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Audio player animation values
   const [audioPlayerOpacity] = useState(new Animated.Value(0));
   const [audioPlayerTranslateY] = useState(new Animated.Value(50));
+
+  // Next card fade animation
+  const [nextCardOpacity] = useState(new Animated.Value(0));
 
   // Audio player swipe state
   const [audioPlayerSwipeTranslateY] = useState(new Animated.Value(0));
@@ -906,7 +910,21 @@ export default function App() {
       ...swipedOpportunities,
       { ...currentOpportunity, action: "pass" },
     ]);
-    setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+    
+    // Trigger fade-in animation for next card
+    setIsTransitioning(true);
+    nextCardOpacity.setValue(0);
+    
+    setTimeout(() => {
+      setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+      Animated.timing(nextCardOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsTransitioning(false);
+      });
+    }, 100);
   };
 
   const handleSwipeRight = () => {
@@ -916,7 +934,21 @@ export default function App() {
       ...swipedOpportunities,
       { ...currentOpportunity, action: "like" },
     ]);
-    setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+    
+    // Trigger fade-in animation for next card
+    setIsTransitioning(true);
+    nextCardOpacity.setValue(0);
+    
+    setTimeout(() => {
+      setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+      Animated.timing(nextCardOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsTransitioning(false);
+      });
+    }, 100);
 
     // Show application modal
     showCustomModal({
@@ -930,6 +962,8 @@ export default function App() {
   const resetOpportunities = () => {
     setCurrentOpportunityIndex(0);
     setSwipedOpportunities([]);
+    setIsTransitioning(false);
+    nextCardOpacity.setValue(1);
   };
 
   // Menu animation functions
@@ -1142,17 +1176,19 @@ export default function App() {
               <View style={styles.opportunitiesCardContainer}>
                 {currentOpportunityIndex < mockOpportunities.length &&
                 mockOpportunities[currentOpportunityIndex] ? (
-                  <SwipeableOpportunityCard
-                    opportunity={mockOpportunities[currentOpportunityIndex]}
-                    onPress={() =>
-                      handleOpportunityPress(
-                        mockOpportunities[currentOpportunityIndex]
-                      )
-                    }
-                    onSwipeLeft={handleSwipeLeft}
-                    onSwipeRight={handleSwipeRight}
-                    isTopCard={true}
-                  />
+                  <Animated.View style={{ opacity: nextCardOpacity }}>
+                    <SwipeableOpportunityCard
+                      opportunity={mockOpportunities[currentOpportunityIndex]}
+                      onPress={() =>
+                        handleOpportunityPress(
+                          mockOpportunities[currentOpportunityIndex]
+                        )
+                      }
+                      onSwipeLeft={handleSwipeLeft}
+                      onSwipeRight={handleSwipeRight}
+                      isTopCard={true}
+                    />
+                  </Animated.View>
                 ) : (
                   /* No more opportunities */
                   <View style={styles.noMoreOpportunities}>
