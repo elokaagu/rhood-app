@@ -202,17 +202,6 @@ export default function SwipeableOpportunityCard({
     outputRange: ["-15deg", "0deg", "15deg"],
   });
 
-  const likeOpacity = position.x.interpolate({
-    inputRange: [0, SWIPE_THRESHOLD],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
-
-  const passOpacity = position.x.interpolate({
-    inputRange: [-SWIPE_THRESHOLD, 0],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
 
   return (
     <Animated.View
@@ -269,28 +258,6 @@ export default function SwipeableOpportunityCard({
           </View>
         </LinearGradient>
 
-        {/* Swipe indicators */}
-        <Animated.View
-          style={[
-            styles.swipeIndicator,
-            styles.likeIndicator,
-            { opacity: likeOpacity },
-          ]}
-        >
-          <Ionicons name="heart" size={60} color="#4CAF50" />
-          <Text style={styles.swipeText}>LIKE</Text>
-        </Animated.View>
-
-        <Animated.View
-          style={[
-            styles.swipeIndicator,
-            styles.passIndicator,
-            { opacity: passOpacity },
-          ]}
-        >
-          <Ionicons name="close" size={60} color="#F44336" />
-          <Text style={styles.swipeText}>PASS</Text>
-        </Animated.View>
       </View>
 
       {/* Action buttons */}
@@ -404,33 +371,6 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 60%)",
     marginTop: 4,
     fontWeight: "600",
-  },
-  swipeIndicator: {
-    position: "absolute",
-    top: "50%",
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-    transform: [{ translateY: -60 }],
-  },
-  likeIndicator: {
-    right: 20,
-    borderWidth: 3,
-    borderColor: "#4CAF50",
-  },
-  passIndicator: {
-    left: 20,
-    borderWidth: 3,
-    borderColor: "#F44336",
-  },
-  swipeText: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "700",
-    marginTop: 4,
   },
   actionButtons: {
     position: "absolute",
