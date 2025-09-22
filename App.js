@@ -87,14 +87,9 @@ export default function App() {
   // Opportunities swipe state
   const [currentOpportunityIndex, setCurrentOpportunityIndex] = useState(0);
   const [swipedOpportunities, setSwipedOpportunities] = useState([]);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-
   // Audio player animation values
   const [audioPlayerOpacity] = useState(new Animated.Value(0));
   const [audioPlayerTranslateY] = useState(new Animated.Value(50));
-
-  // Next card fade animation
-  const [nextCardOpacity] = useState(new Animated.Value(1));
 
   // Audio player swipe state
   const [audioPlayerSwipeTranslateY] = useState(new Animated.Value(0));
@@ -894,20 +889,8 @@ export default function App() {
       { ...currentOpportunity, action: "pass" },
     ]);
 
-    // Trigger fade-in animation for next card
-    setIsTransitioning(true);
-    nextCardOpacity.setValue(0);
-
-    setTimeout(() => {
-      setCurrentOpportunityIndex(currentOpportunityIndex + 1);
-      Animated.timing(nextCardOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        setIsTransitioning(false);
-      });
-    }, 100);
+    // Move to next card immediately
+    setCurrentOpportunityIndex(currentOpportunityIndex + 1);
   };
 
   const handleSwipeRight = () => {
@@ -918,20 +901,8 @@ export default function App() {
       { ...currentOpportunity, action: "like" },
     ]);
 
-    // Trigger fade-in animation for next card
-    setIsTransitioning(true);
-    nextCardOpacity.setValue(0);
-
-    setTimeout(() => {
-      setCurrentOpportunityIndex(currentOpportunityIndex + 1);
-      Animated.timing(nextCardOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        setIsTransitioning(false);
-      });
-    }, 100);
+    // Move to next card immediately
+    setCurrentOpportunityIndex(currentOpportunityIndex + 1);
 
     // Show application modal
     showCustomModal({
@@ -945,8 +916,6 @@ export default function App() {
   const resetOpportunities = () => {
     setCurrentOpportunityIndex(0);
     setSwipedOpportunities([]);
-    setIsTransitioning(false);
-    nextCardOpacity.setValue(1);
   };
 
   // Menu animation functions
@@ -1157,7 +1126,6 @@ export default function App() {
 
               {/* Swipeable Card Stack */}
               <View style={styles.opportunitiesCardContainer}>
-                {console.log("Debug - Index:", currentOpportunityIndex, "Length:", mockOpportunities.length, "Condition:", currentOpportunityIndex < mockOpportunities.length)}
                 {currentOpportunityIndex < mockOpportunities.length &&
                 mockOpportunities[currentOpportunityIndex] ? (
                   <SwipeableOpportunityCard
@@ -1173,11 +1141,7 @@ export default function App() {
                   />
                 ) : (
                   /* No more opportunities */
-                  <>
-                    <View style={{ backgroundColor: 'blue', height: 100, width: '100%', marginBottom: 20, justifyContent: 'center', alignItems: 'center' }}>
-                      <Text style={{ color: 'white', fontSize: 16 }}>DEBUG: No more opportunities</Text>
-                    </View>
-                    <View style={styles.noMoreOpportunities}>
+                  <View style={styles.noMoreOpportunities}>
                     <Ionicons
                       name="checkmark-circle"
                       size={64}
@@ -1185,8 +1149,8 @@ export default function App() {
                     />
                     <Text style={styles.noMoreTitle}>All Caught Up!</Text>
                     <Text style={styles.noMoreSubtitle}>
-                      You've seen all available opportunities. Check back later
-                      for new gigs!
+                      You've seen all available opportunities. Check back
+                      later for new gigs!
                     </Text>
                     <TouchableOpacity
                       style={styles.resetButton}
@@ -1195,7 +1159,6 @@ export default function App() {
                       <Text style={styles.resetButtonText}>Start Over</Text>
                     </TouchableOpacity>
                   </View>
-                  </>
                 )}
               </View>
             </View>
