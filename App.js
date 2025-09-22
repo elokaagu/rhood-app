@@ -209,7 +209,7 @@ export default function App() {
     return () => {
       subscription?.remove();
       if (globalAudioRef.current) {
-        globalAudioRef.current.remove();
+        globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       }
     };
@@ -412,9 +412,10 @@ export default function App() {
       console.log("🔄 Audio file path:", track.audioUrl);
       console.log("🔄 Audio file type:", typeof track.audioUrl);
 
-      const { sound } = await Audio.createAsync(track.audioUrl, {
+      const { sound } = await Audio.Sound.createAsync(track.audioUrl, {
         shouldPlay: false,
         isLooping: false,
+        volume: 1.0,
       });
 
       console.log("🔄 Sound created:", sound);
@@ -456,13 +457,14 @@ export default function App() {
     } catch (error) {
       console.log("❌ Error playing global audio:", error);
       setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
+      Alert.alert("Audio Error", `Failed to play ${track.title}. Please try again.`);
     }
   };
 
   const pauseGlobalAudio = async () => {
-    if (globalAudioState.sound) {
+    if (globalAudioRef.current) {
       try {
-        await globalAudioState.sound.pauseAsync();
+        await globalAudioRef.current.pauseAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
       } catch (error) {
         console.log("❌ Error pausing audio:", error);
@@ -471,9 +473,9 @@ export default function App() {
   };
 
   const resumeGlobalAudio = async () => {
-    if (globalAudioState.sound) {
+    if (globalAudioRef.current) {
       try {
-        await globalAudioState.sound.playAsync();
+        await globalAudioRef.current.playAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
       } catch (error) {
         console.log("❌ Error resuming audio:", error);
@@ -619,7 +621,7 @@ export default function App() {
 
   // Skip forward functionality
   const skipForward = async () => {
-    if (globalAudioState.sound) {
+    if (globalAudioRef.current) {
       try {
         const currentPosition = globalAudioState.positionMillis || 0;
         const duration = globalAudioState.durationMillis || 0;
@@ -627,7 +629,7 @@ export default function App() {
           currentPosition + 10000, // Skip 10 seconds
           duration
         );
-        await globalAudioState.sound.seekTo(newPosition);
+        await globalAudioRef.current.seekTo(newPosition);
       } catch (error) {
         console.log("Error skipping forward:", error);
       }
@@ -636,14 +638,14 @@ export default function App() {
 
   // Skip backward functionality
   const skipBackward = async () => {
-    if (globalAudioState.sound) {
+    if (globalAudioRef.current) {
       try {
         const currentPosition = globalAudioState.positionMillis || 0;
         const newPosition = Math.max(
           currentPosition - 10000, // Skip back 10 seconds
           0
         );
-        await globalAudioState.sound.seekTo(newPosition);
+        await globalAudioRef.current.seekTo(newPosition);
       } catch (error) {
         console.log("Error skipping backward:", error);
       }
