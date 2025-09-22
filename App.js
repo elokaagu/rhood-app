@@ -1131,7 +1131,11 @@ export default function App() {
                     {/* Next card (behind current) */}
                     {currentOpportunityIndex + 1 < mockOpportunities.length && (
                       <View style={styles.nextCard}>
-                        {console.log("Rendering next card at index:", currentOpportunityIndex + 1, "isTopCard: false")}
+                        {console.log(
+                          "Rendering next card at index:",
+                          currentOpportunityIndex + 1,
+                          "isTopCard: false"
+                        )}
                         <SwipeableOpportunityCard
                           opportunity={
                             mockOpportunities[currentOpportunityIndex + 1]
@@ -1147,7 +1151,11 @@ export default function App() {
                     )}
 
                     {/* Current card (on top) */}
-                    {console.log("Rendering current card at index:", currentOpportunityIndex, "isTopCard: true")}
+                    {console.log(
+                      "Rendering current card at index:",
+                      currentOpportunityIndex,
+                      "isTopCard: true"
+                    )}
                     <SwipeableOpportunityCard
                       opportunity={mockOpportunities[currentOpportunityIndex]}
                       onPress={() =>
