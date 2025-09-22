@@ -1174,34 +1174,19 @@ export default function App() {
 
               {/* Swipeable Card Stack */}
               <View style={styles.opportunitiesCardContainer}>
-                {console.log(
-                  "Debug - Index:",
-                  currentOpportunityIndex,
-                  "Length:",
-                  mockOpportunities.length,
-                  "Opacity:",
-                  nextCardOpacity._value
-                )}
                 {currentOpportunityIndex < mockOpportunities.length &&
                 mockOpportunities[currentOpportunityIndex] ? (
-                  <>
-                    <View style={{ backgroundColor: 'red', height: 200, width: '100%', marginBottom: 20 }}>
-                      <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
-                        DEBUG: Card should be here
-                      </Text>
-                    </View>
-                    <SwipeableOpportunityCard
-                      opportunity={mockOpportunities[currentOpportunityIndex]}
-                      onPress={() =>
-                        handleOpportunityPress(
-                          mockOpportunities[currentOpportunityIndex]
-                        )
-                      }
-                      onSwipeLeft={handleSwipeLeft}
-                      onSwipeRight={handleSwipeRight}
-                      isTopCard={true}
-                    />
-                  </>
+                  <SwipeableOpportunityCard
+                    opportunity={mockOpportunities[currentOpportunityIndex]}
+                    onPress={() =>
+                      handleOpportunityPress(
+                        mockOpportunities[currentOpportunityIndex]
+                      )
+                    }
+                    onSwipeLeft={handleSwipeLeft}
+                    onSwipeRight={handleSwipeRight}
+                    isTopCard={true}
+                  />
                 ) : (
                   /* No more opportunities */
                   <View style={styles.noMoreOpportunities}>
