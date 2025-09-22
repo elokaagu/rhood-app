@@ -1156,17 +1156,19 @@ export default function App() {
                       currentOpportunityIndex,
                       "isTopCard: true"
                     )}
-                    <SwipeableOpportunityCard
-                      opportunity={mockOpportunities[currentOpportunityIndex]}
-                      onPress={() =>
-                        handleOpportunityPress(
-                          mockOpportunities[currentOpportunityIndex]
-                        )
-                      }
-                      onSwipeLeft={handleSwipeLeft}
-                      onSwipeRight={handleSwipeRight}
-                      isTopCard={true}
-                    />
+                    <View style={styles.currentCard}>
+                      <SwipeableOpportunityCard
+                        opportunity={mockOpportunities[currentOpportunityIndex]}
+                        onPress={() =>
+                          handleOpportunityPress(
+                            mockOpportunities[currentOpportunityIndex]
+                          )
+                        }
+                        onSwipeLeft={handleSwipeLeft}
+                        onSwipeRight={handleSwipeRight}
+                        isTopCard={true}
+                      />
+                    </View>
                   </>
                 ) : (
                   /* No more opportunities */
@@ -2747,6 +2749,11 @@ const styles = StyleSheet.create({
     right: 20,
     transform: [{ scale: 0.95 }],
     opacity: 0.8,
+    zIndex: 1,
+  },
+  currentCard: {
+    position: "relative",
+    zIndex: 100,
   },
   noMoreOpportunities: {
     flex: 1,

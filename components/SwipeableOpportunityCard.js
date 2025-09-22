@@ -223,7 +223,7 @@ export default function SwipeableOpportunityCard({
             { rotate: rotateInterpolate },
           ],
           opacity: opacity,
-          zIndex: isTopCard ? 10 : 1,
+          zIndex: isTopCard ? 100 : 1,
         },
       ]}
       {...panResponder.panHandlers}
