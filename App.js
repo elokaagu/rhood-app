@@ -1157,6 +1157,7 @@ export default function App() {
 
               {/* Swipeable Card Stack */}
               <View style={styles.opportunitiesCardContainer}>
+                {console.log("Debug - Index:", currentOpportunityIndex, "Length:", mockOpportunities.length, "Condition:", currentOpportunityIndex < mockOpportunities.length)}
                 {currentOpportunityIndex < mockOpportunities.length &&
                 mockOpportunities[currentOpportunityIndex] ? (
                   <SwipeableOpportunityCard
@@ -1172,7 +1173,11 @@ export default function App() {
                   />
                 ) : (
                   /* No more opportunities */
-                  <View style={styles.noMoreOpportunities}>
+                  <>
+                    <View style={{ backgroundColor: 'blue', height: 100, width: '100%', marginBottom: 20, justifyContent: 'center', alignItems: 'center' }}>
+                      <Text style={{ color: 'white', fontSize: 16 }}>DEBUG: No more opportunities</Text>
+                    </View>
+                    <View style={styles.noMoreOpportunities}>
                     <Ionicons
                       name="checkmark-circle"
                       size={64}
@@ -1190,6 +1195,7 @@ export default function App() {
                       <Text style={styles.resetButtonText}>Start Over</Text>
                     </TouchableOpacity>
                   </View>
+                  </>
                 )}
               </View>
             </View>
