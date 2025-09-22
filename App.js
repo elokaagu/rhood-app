@@ -1140,59 +1140,19 @@ export default function App() {
 
               {/* Swipeable Card Stack */}
               <View style={styles.opportunitiesCardContainer}>
-                {console.log("Debug - Current index:", currentOpportunityIndex, "Total:", mockOpportunities.length)}
                 {currentOpportunityIndex < mockOpportunities.length &&
                 mockOpportunities[currentOpportunityIndex] ? (
-                  <>
-                    {/* Background cards stack */}
-                    {currentOpportunityIndex + 1 < mockOpportunities.length && (
-                      <View style={styles.nextCard}>
-                        <SwipeableOpportunityCard
-                          opportunity={
-                            mockOpportunities[currentOpportunityIndex + 1]
-                          }
-                          onPress={() =>
-                            handleOpportunityPress(
-                              mockOpportunities[currentOpportunityIndex + 1]
-                            )
-                          }
-                          isTopCard={false}
-                          isNextCard={true}
-                        />
-                      </View>
-                    )}
-                    
-                    {/* Third card (if available) */}
-                    {currentOpportunityIndex + 2 < mockOpportunities.length && (
-                      <View style={styles.thirdCard}>
-                        <SwipeableOpportunityCard
-                          opportunity={
-                            mockOpportunities[currentOpportunityIndex + 2]
-                          }
-                          onPress={() =>
-                            handleOpportunityPress(
-                              mockOpportunities[currentOpportunityIndex + 2]
-                            )
-                          }
-                          isTopCard={false}
-                          isNextCard={true}
-                        />
-                      </View>
-                    )}
-
-                    {/* Current card (top) */}
-                    <SwipeableOpportunityCard
-                      opportunity={mockOpportunities[currentOpportunityIndex]}
-                      onPress={() =>
-                        handleOpportunityPress(
-                          mockOpportunities[currentOpportunityIndex]
-                        )
-                      }
-                      onSwipeLeft={handleSwipeLeft}
-                      onSwipeRight={handleSwipeRight}
-                      isTopCard={true}
-                    />
-                  </>
+                  <SwipeableOpportunityCard
+                    opportunity={mockOpportunities[currentOpportunityIndex]}
+                    onPress={() =>
+                      handleOpportunityPress(
+                        mockOpportunities[currentOpportunityIndex]
+                      )
+                    }
+                    onSwipeLeft={handleSwipeLeft}
+                    onSwipeRight={handleSwipeRight}
+                    isTopCard={true}
+                  />
                 ) : (
                   /* No more opportunities */
                   <View style={styles.noMoreOpportunities}>
@@ -2763,22 +2723,6 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "center",
     alignItems: "center",
-  },
-  nextCard: {
-    position: "absolute",
-    top: 30,
-    left: 20,
-    right: 20,
-    transform: [{ scale: 0.95 }],
-    opacity: 0.8,
-  },
-  thirdCard: {
-    position: "absolute",
-    top: 50,
-    left: 20,
-    right: 20,
-    transform: [{ scale: 0.9 }],
-    opacity: 0.6,
   },
   noMoreOpportunities: {
     flex: 1,
