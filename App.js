@@ -980,7 +980,8 @@ export default function App() {
         // If profile exists, update it instead of creating new one
         savedProfile = await db.updateUserProfile(user.id, {
           dj_name: djProfile.djName,
-          full_name: djProfile.fullName,
+          first_name: djProfile.firstName,
+          last_name: djProfile.lastName,
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
           city: djProfile.city,
@@ -994,7 +995,8 @@ export default function App() {
         const profileData = {
           id: user.id, // Use authenticated user's ID
           dj_name: djProfile.djName,
-          full_name: djProfile.fullName,
+          first_name: djProfile.firstName,
+          last_name: djProfile.lastName,
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
           city: djProfile.city,
