@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -841,13 +841,17 @@ export default function App() {
           opportunity.title.toLowerCase().includes(query) ||
           opportunity.venue.toLowerCase().includes(query) ||
           opportunity.location.toLowerCase().includes(query) ||
-          opportunity.genres.some((genre) => genre.toLowerCase().includes(query))
+          opportunity.genres.some((genre) =>
+            genre.toLowerCase().includes(query)
+          )
       );
     }
 
     // Apply status filter
     if (opportunitiesFilter !== "all") {
-      filtered = filtered.filter((opportunity) => opportunity.status === opportunitiesFilter);
+      filtered = filtered.filter(
+        (opportunity) => opportunity.status === opportunitiesFilter
+      );
     }
 
     return filtered;
@@ -1103,7 +1107,11 @@ export default function App() {
                     onPress={() => setOpportunitiesSearchQuery("")}
                     style={styles.opportunitiesClearButton}
                   >
-                    <Ionicons name="close-circle" size={20} color="hsl(0, 0%, 50%)" />
+                    <Ionicons
+                      name="close-circle"
+                      size={20}
+                      color="hsl(0, 0%, 50%)"
+                    />
                   </TouchableOpacity>
                 )}
               </View>
@@ -1120,14 +1128,16 @@ export default function App() {
                     key={filter}
                     style={[
                       styles.opportunitiesFilterChip,
-                      opportunitiesFilter === filter && styles.opportunitiesFilterChipActive,
+                      opportunitiesFilter === filter &&
+                        styles.opportunitiesFilterChipActive,
                     ]}
                     onPress={() => setOpportunitiesFilter(filter)}
                   >
                     <Text
                       style={[
                         styles.opportunitiesFilterChipText,
-                        opportunitiesFilter === filter && styles.opportunitiesFilterChipTextActive,
+                        opportunitiesFilter === filter &&
+                          styles.opportunitiesFilterChipTextActive,
                       ]}
                     >
                       {filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -1150,13 +1160,18 @@ export default function App() {
               >
                 {filteredOpportunities.length === 0 ? (
                   <View style={styles.opportunitiesEmptyState}>
-                    <Ionicons name="briefcase-outline" size={48} color="hsl(0, 0%, 30%)" />
-                    <Text style={styles.opportunitiesEmptyTitle}>No opportunities found</Text>
+                    <Ionicons
+                      name="briefcase-outline"
+                      size={48}
+                      color="hsl(0, 0%, 30%)"
+                    />
+                    <Text style={styles.opportunitiesEmptyTitle}>
+                      No opportunities found
+                    </Text>
                     <Text style={styles.opportunitiesEmptySubtitle}>
                       {opportunitiesSearchQuery.trim()
                         ? `No results for "${opportunitiesSearchQuery}"`
-                        : "Try adjusting your filters"
-                      }
+                        : "Try adjusting your filters"}
                     </Text>
                   </View>
                 ) : (
