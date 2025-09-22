@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
+import ConnectionsScreen from "./ConnectionsScreen";
 
 // Mock DJs data for discovery
 const mockDJs = [
@@ -112,6 +113,7 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all"); // all, online, nearby, mutual
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState("discover"); // discover, messages
 
   const filteredDJs = useMemo(() => {
     let filtered = djs.filter((dj) => !dj.isConnected); // Only show unconnected DJs
@@ -131,9 +133,10 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
       filtered = filtered.filter((dj) => dj.isOnline);
     } else if (activeFilter === "nearby") {
       // Filter by location (simplified - in real app would use actual location)
-      filtered = filtered.filter((dj) => 
-        dj.location.toLowerCase().includes("london") || 
-        dj.location.toLowerCase().includes("uk")
+      filtered = filtered.filter(
+        (dj) =>
+          dj.location.toLowerCase().includes("london") ||
+          dj.location.toLowerCase().includes("uk")
       );
     } else if (activeFilter === "mutual") {
       filtered = filtered.filter((dj) => dj.mutualConnections > 0);
@@ -144,9 +147,7 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
 
   const handleConnect = (djId) => {
     setDjs((prev) =>
-      prev.map((dj) =>
-        dj.id === djId ? { ...dj, isConnected: true } : dj
-      )
+      prev.map((dj) => (dj.id === djId ? { ...dj, isConnected: true } : dj))
     );
     // In a real app, this would send a connection request
   };
@@ -198,111 +199,172 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
             <Text style={styles.headerTitle}>CONNECTIONS</Text>
             <View style={styles.statsContainer}>
               <Text style={styles.statsText}>
-                {djs.filter((dj) => dj.isConnected).length} connected • {djs.length} total
+                {djs.filter((dj) => dj.isConnected).length} connected •{" "}
+                {djs.length} total
               </Text>
             </View>
           </View>
           <Text style={styles.headerSubtitle}>
-            Discover and connect with DJs worldwide
+            {activeTab === "discover" ? "Discover and connect with DJs worldwide" : "Your message conversations"}
           </Text>
 
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search DJs..."
-              placeholderTextColor="hsl(0, 0%, 50%)"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery("")}
-                style={styles.clearButton}
+          {/* Tab Switcher */}
+          <View style={styles.tabSwitcher}>
+            <TouchableOpacity
+              style={[
+                styles.tabSwitcherButton,
+                activeTab === "discover" && styles.tabSwitcherButtonActive,
+              ]}
+              onPress={() => setActiveTab("discover")}
+            >
+              <Ionicons
+                name="people-outline"
+                size={16}
+                color={
+                  activeTab === "discover"
+                    ? "hsl(0, 0%, 0%)"
+                    : "hsl(0, 0%, 70%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.tabSwitcherText,
+                  activeTab === "discover" && styles.tabSwitcherTextActive,
+                ]}
               >
-                <Ionicons
-                  name="close-circle"
-                  size={20}
-                  color="hsl(0, 0%, 50%)"
-                />
-              </TouchableOpacity>
-            )}
+                Discover
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tabSwitcherButton,
+                activeTab === "messages" && styles.tabSwitcherButtonActive,
+              ]}
+              onPress={() => setActiveTab("messages")}
+            >
+              <Ionicons
+                name="chatbubbles-outline"
+                size={16}
+                color={
+                  activeTab === "messages"
+                    ? "hsl(0, 0%, 0%)"
+                    : "hsl(0, 0%, 70%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.tabSwitcherText,
+                  activeTab === "messages" && styles.tabSwitcherTextActive,
+                ]}
+              >
+                Messages
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Filter Options */}
-          <View style={styles.filterContainer}>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                activeFilter === "all" && styles.filterButtonActive,
-              ]}
-              onPress={() => setActiveFilter("all")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  activeFilter === "all" && styles.filterButtonTextActive,
-                ]}
-              >
-                All
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                activeFilter === "online" && styles.filterButtonActive,
-              ]}
-              onPress={() => setActiveFilter("online")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  activeFilter === "online" && styles.filterButtonTextActive,
-                ]}
-              >
-                Online
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                activeFilter === "nearby" && styles.filterButtonActive,
-              ]}
-              onPress={() => setActiveFilter("nearby")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  activeFilter === "nearby" && styles.filterButtonTextActive,
-                ]}
-              >
-                Nearby
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                activeFilter === "mutual" && styles.filterButtonActive,
-              ]}
-              onPress={() => setActiveFilter("mutual")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  activeFilter === "mutual" && styles.filterButtonTextActive,
-                ]}
-              >
-                Mutual
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {activeTab === "discover" && (
+            <>
+              {/* Search Bar */}
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search DJs..."
+                  placeholderTextColor="hsl(0, 0%, 50%)"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setSearchQuery("")}
+                    style={styles.clearButton}
+                  >
+                    <Ionicons
+                      name="close-circle"
+                      size={20}
+                      color="hsl(0, 0%, 50%)"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Filter Options */}
+              <View style={styles.filterContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    activeFilter === "all" && styles.filterButtonActive,
+                  ]}
+                  onPress={() => setActiveFilter("all")}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      activeFilter === "all" && styles.filterButtonTextActive,
+                    ]}
+                  >
+                    All
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    activeFilter === "online" && styles.filterButtonActive,
+                  ]}
+                  onPress={() => setActiveFilter("online")}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      activeFilter === "online" && styles.filterButtonTextActive,
+                    ]}
+                  >
+                    Online
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    activeFilter === "nearby" && styles.filterButtonActive,
+                  ]}
+                  onPress={() => setActiveFilter("nearby")}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      activeFilter === "nearby" && styles.filterButtonTextActive,
+                    ]}
+                  >
+                    Nearby
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    activeFilter === "mutual" && styles.filterButtonActive,
+                  ]}
+                  onPress={() => setActiveFilter("mutual")}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      activeFilter === "mutual" && styles.filterButtonTextActive,
+                    ]}
+                  >
+                    Mutual
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
 
-        {/* DJs List */}
-        <View style={styles.djsList}>
+        {/* Content based on active tab */}
+        {activeTab === "discover" ? (
+          /* DJs List */
+          <View style={styles.djsList}>
           {filteredDJs.length === 0 ? (
             <View style={styles.noResultsContainer}>
               <Ionicons
@@ -330,22 +392,25 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                     <View style={styles.djDetails}>
                       <View style={styles.djNameRow}>
                         <Text style={styles.djName}>{dj.name}</Text>
-                        {dj.isOnline && (
-                          <View style={styles.onlineIndicator} />
-                        )}
+                        {dj.isOnline && <View style={styles.onlineIndicator} />}
                       </View>
                       <Text style={styles.djUsername}>{dj.username}</Text>
                       <Text style={styles.djLocation}>{dj.location}</Text>
                       {dj.mutualConnections > 0 && (
                         <Text style={styles.mutualConnections}>
-                          {dj.mutualConnections} mutual connection{dj.mutualConnections > 1 ? 's' : ''}
+                          {dj.mutualConnections} mutual connection
+                          {dj.mutualConnections > 1 ? "s" : ""}
                         </Text>
                       )}
                     </View>
                   </View>
                   <View style={styles.djActions}>
                     <View style={styles.ratingContainer}>
-                      <Ionicons name="star" size={14} color="hsl(75, 100%, 60%)" />
+                      <Ionicons
+                        name="star"
+                        size={14}
+                        color="hsl(75, 100%, 60%)"
+                      />
                       <Text style={styles.ratingText}>{dj.rating}</Text>
                     </View>
                     <Text style={styles.lastActive}>{dj.lastActive}</Text>
@@ -376,7 +441,11 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                     style={styles.viewProfileButton}
                     onPress={() => handleViewProfile(dj)}
                   >
-                    <Ionicons name="person-outline" size={16} color="hsl(0, 0%, 100%)" />
+                    <Ionicons
+                      name="person-outline"
+                      size={16}
+                      color="hsl(0, 0%, 100%)"
+                    />
                     <Text style={styles.viewProfileText}>View Profile</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -390,7 +459,15 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
               </View>
             ))
           )}
-        </View>
+          </View>
+        ) : (
+          /* Messages Section */
+          <ConnectionsScreen
+            onNavigate={(screen, params = {}) => {
+              onNavigate(screen, params);
+            }}
+          />
+        )}
       </ScrollView>
     </View>
   );
@@ -436,7 +513,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  tabSwitcher: {
+    flexDirection: "row",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  tabSwitcherButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  tabSwitcherButtonActive: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  tabSwitcherText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    marginLeft: 6,
+    fontWeight: "500",
+  },
+  tabSwitcherTextActive: {
+    color: "hsl(0, 0%, 0%)",
   },
   searchContainer: {
     flexDirection: "row",

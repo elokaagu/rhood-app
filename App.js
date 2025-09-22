@@ -1626,34 +1626,6 @@ export default function App() {
             <TouchableOpacity
               style={[
                 styles.tab,
-                currentScreen === "messages" && styles.activeTab,
-              ]}
-              onPress={() => handleMenuNavigation("messages")}
-            >
-              <Ionicons
-                name="chatbubbles-outline"
-                size={20}
-                color={
-                  currentScreen === "messages"
-                    ? "#C2CC06"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  currentScreen === "messages" && styles.activeTabText,
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-              >
-                Messages
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tab,
                 currentScreen === "connections" && styles.activeTab,
               ]}
               onPress={() => handleMenuNavigation("connections")}
