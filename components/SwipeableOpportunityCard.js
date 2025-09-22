@@ -22,12 +22,14 @@ export default function SwipeableOpportunityCard({
   onSwipeRight,
   onPress,
   isTopCard = false,
+  isNextCard = false,
 }) {
   const [showActions, setShowActions] = useState(false);
   const position = useRef(new Animated.ValueXY()).current;
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useRef(new Animated.Value(isNextCard ? 0.95 : 1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(isNextCard ? 0.8 : 1)).current;
+  const fadeOverlay = useRef(new Animated.Value(0)).current;
 
   const panResponder = useRef(
     PanResponder.create({
@@ -84,6 +86,11 @@ export default function SwipeableOpportunityCard({
                 duration: SWIPE_OUT_DURATION,
                 useNativeDriver: true,
               }),
+              Animated.timing(fadeOverlay, {
+                toValue: 1,
+                duration: SWIPE_OUT_DURATION * 0.7,
+                useNativeDriver: true,
+              }),
             ]).start(() => {
               onSwipeLeft && onSwipeLeft();
             });
@@ -99,6 +106,11 @@ export default function SwipeableOpportunityCard({
               Animated.timing(opacity, {
                 toValue: 0,
                 duration: SWIPE_OUT_DURATION,
+                useNativeDriver: true,
+              }),
+              Animated.timing(fadeOverlay, {
+                toValue: 1,
+                duration: SWIPE_OUT_DURATION * 0.7,
                 useNativeDriver: true,
               }),
             ]).start(() => {
@@ -148,6 +160,11 @@ export default function SwipeableOpportunityCard({
           duration: SWIPE_OUT_DURATION,
           useNativeDriver: true,
         }),
+        Animated.timing(fadeOverlay, {
+          toValue: 1,
+          duration: SWIPE_OUT_DURATION * 0.7,
+          useNativeDriver: true,
+        }),
       ]).start(() => {
         onSwipeRight && onSwipeRight();
       });
@@ -166,6 +183,11 @@ export default function SwipeableOpportunityCard({
         Animated.timing(opacity, {
           toValue: 0,
           duration: SWIPE_OUT_DURATION,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeOverlay, {
+          toValue: 1,
+          duration: SWIPE_OUT_DURATION * 0.7,
           useNativeDriver: true,
         }),
       ]).start(() => {
@@ -264,20 +286,30 @@ export default function SwipeableOpportunityCard({
         </Animated.View>
       </View>
 
-      {/* Action buttons */}
-      {showActions && (
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.passButton} onPress={handlePass}>
-            <Ionicons name="close" size={24} color="#F44336" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.likeButton} onPress={handleLike}>
-            <Ionicons name="heart" size={24} color="#4CAF50" />
-          </TouchableOpacity>
-        </View>
-      )}
-    </Animated.View>
-  );
-}
+        {/* Action buttons */}
+        {showActions && (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.passButton} onPress={handlePass}>
+              <Ionicons name="close" size={24} color="#F44336" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.likeButton} onPress={handleLike}>
+              <Ionicons name="heart" size={24} color="#4CAF50" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Dark fade overlay */}
+        <Animated.View
+          style={[
+            styles.fadeOverlay,
+            {
+              opacity: fadeOverlay,
+            },
+          ]}
+        />
+      </Animated.View>
+    );
+  }
 
 const styles = StyleSheet.create({
   card: {
@@ -415,5 +447,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#4CAF50",
+  },
+  fadeOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    borderRadius: 16,
   },
 });

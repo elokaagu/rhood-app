@@ -1156,6 +1156,7 @@ export default function App() {
                             )
                           }
                           isTopCard={false}
+                          isNextCard={true}
                         />
                       </View>
                     )}
