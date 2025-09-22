@@ -202,23 +202,6 @@ export default function App() {
     },
     {
       id: 3,
-      venue: "Bass Station",
-      title: "Bass Night",
-      location: "Miami, FL",
-      date: "March 25, 2024",
-      time: "9:00 PM - 4:00 AM",
-      audienceSize: "800+ people",
-      description:
-        "Heavy bass and high energy for our biggest night of the month. Looking for DJs who can handle the intensity and keep the crowd hyped.",
-      genres: ["Drum & Bass", "Dubstep", "Bass"],
-      compensation: "$400 - $600",
-      applicationsLeft: 1,
-      status: "closing",
-      image:
-        "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
-    },
-    {
-      id: 4,
       venue: "Electric Garden",
       title: "Neon Dreams",
       location: "Austin, TX",
@@ -235,7 +218,7 @@ export default function App() {
         "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop",
     },
     {
-      id: 5,
+      id: 4,
       venue: "Sky Lounge",
       title: "Cloud Nine",
       location: "Chicago, IL",
@@ -252,7 +235,7 @@ export default function App() {
         "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&h=400&fit=crop",
     },
     {
-      id: 6,
+      id: 5,
       venue: "The Underground",
       title: "Midnight Sessions",
       location: "Seattle, WA",
