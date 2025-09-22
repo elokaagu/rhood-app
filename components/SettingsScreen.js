@@ -226,7 +226,7 @@ export default function SettingsScreen({ onNavigate, onSignOut }) {
       ],
     },
     {
-      id: "account",
+      id: "accountActions",
       title: "Account",
       icon: "person-circle",
       items: [
