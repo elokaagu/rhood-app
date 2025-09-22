@@ -93,24 +93,6 @@ export default function SettingsScreen({ onNavigate, onSignOut }) {
           action: () => onNavigate && onNavigate("edit-profile"),
         },
         {
-          id: "profileVisibility",
-          title: "Profile Visibility",
-          subtitle:
-            settings.profileVisibility === "public" ? "Public" : "Private",
-          icon: "eye",
-          type: "select",
-          options: [
-            { label: "Public", value: "public" },
-            { label: "Private", value: "private" },
-          ],
-          currentValue: settings.profileVisibility,
-          onPress: () => {
-            const newValue =
-              settings.profileVisibility === "public" ? "private" : "public";
-            handleSettingChange("profileVisibility", newValue);
-          },
-        },
-        {
           id: "showEmail",
           title: "Show Email",
           subtitle: "Display email on profile",
@@ -147,29 +129,6 @@ export default function SettingsScreen({ onNavigate, onSignOut }) {
               "pushNotifications",
               !settings.pushNotifications
             ),
-        },
-        {
-          id: "emailNotifications",
-          title: "Email Notifications",
-          subtitle: "Receive email updates",
-          icon: "mail",
-          type: "toggle",
-          value: settings.emailNotifications,
-          onPress: () =>
-            handleSettingChange(
-              "emailNotifications",
-              !settings.emailNotifications
-            ),
-        },
-        {
-          id: "gigReminders",
-          title: "Gig Reminders",
-          subtitle: "Reminders for upcoming gigs",
-          icon: "calendar",
-          type: "toggle",
-          value: settings.gigReminders,
-          onPress: () =>
-            handleSettingChange("gigReminders", !settings.gigReminders),
         },
         {
           id: "messageNotifications",
@@ -216,97 +175,6 @@ export default function SettingsScreen({ onNavigate, onSignOut }) {
             const newValue = settings.theme === "dark" ? "light" : "dark";
             handleSettingChange("theme", newValue);
           },
-        },
-        {
-          id: "language",
-          title: "Language",
-          subtitle: "English",
-          icon: "language",
-          type: "navigate",
-          action: () => onNavigate && onNavigate("language-settings"),
-        },
-        {
-          id: "autoPlay",
-          title: "Auto Play",
-          subtitle: "Automatically play audio",
-          icon: "play",
-          type: "toggle",
-          value: settings.autoPlay,
-          onPress: () => handleSettingChange("autoPlay", !settings.autoPlay),
-        },
-        {
-          id: "dataUsage",
-          title: "Data Usage",
-          subtitle: settings.dataUsage === "wifi" ? "WiFi Only" : "Always",
-          icon: "wifi",
-          type: "select",
-          options: [
-            { label: "WiFi Only", value: "wifi" },
-            { label: "Always", value: "always" },
-          ],
-          currentValue: settings.dataUsage,
-          onPress: () => {
-            const newValue = settings.dataUsage === "wifi" ? "always" : "wifi";
-            handleSettingChange("dataUsage", newValue);
-          },
-        },
-        {
-          id: "cacheSize",
-          title: "Cache Size",
-          subtitle: settings.cacheSize,
-          icon: "folder",
-          type: "action",
-          action: handleClearCache,
-        },
-      ],
-    },
-    {
-      id: "privacy",
-      title: "Privacy & Security",
-      icon: "shield",
-      items: [
-        {
-          id: "locationSharing",
-          title: "Location Sharing",
-          subtitle: "Share location with other DJs",
-          icon: "location",
-          type: "toggle",
-          value: settings.locationSharing,
-          onPress: () =>
-            handleSettingChange("locationSharing", !settings.locationSharing),
-        },
-        {
-          id: "analyticsTracking",
-          title: "Analytics Tracking",
-          subtitle: "Help improve the app",
-          icon: "analytics",
-          type: "toggle",
-          value: settings.analyticsTracking,
-          onPress: () =>
-            handleSettingChange(
-              "analyticsTracking",
-              !settings.analyticsTracking
-            ),
-        },
-        {
-          id: "crashReporting",
-          title: "Crash Reporting",
-          subtitle: "Send crash reports automatically",
-          icon: "bug",
-          type: "toggle",
-          value: settings.crashReporting,
-          onPress: () =>
-            handleSettingChange("crashReporting", !settings.crashReporting),
-        },
-        {
-          id: "personalizedAds",
-          title: "Personalized Ads",
-          subtitle: "Show personalized advertisements",
-          icon: "megaphone",
-          type: "toggle",
-          value: settings.personalizedAds,
-          onPress: () =>
-            handleSettingChange("personalizedAds", !settings.personalizedAds),
         },
       ],
     },
@@ -423,7 +291,7 @@ export default function SettingsScreen({ onNavigate, onSignOut }) {
           >
             <Ionicons
               name={item.icon}
-              size={20}
+              size={item.destructive ? 16 : 20}
               color={
                 item.destructive ? "hsl(0, 100%, 60%)" : "hsl(75, 100%, 60%)"
               }
@@ -438,7 +306,7 @@ export default function SettingsScreen({ onNavigate, onSignOut }) {
             >
               {item.title}
             </Text>
-            <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
+            <Text style={[styles.settingSubtitle, item.destructive && styles.destructiveSubtitle]}>{item.subtitle}</Text>
           </View>
         </View>
 
@@ -635,6 +503,7 @@ const styles = StyleSheet.create({
   },
   destructiveItem: {
     borderBottomWidth: 0,
+    paddingVertical: 12,
   },
   settingLeft: {
     flexDirection: "row",
@@ -652,6 +521,9 @@ const styles = StyleSheet.create({
   },
   destructiveIcon: {
     backgroundColor: "hsl(0, 100%, 60%)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   settingContent: {
     flex: 1,
@@ -665,6 +537,10 @@ const styles = StyleSheet.create({
   },
   destructiveText: {
     color: "hsl(0, 100%, 60%)",
+    fontSize: 14,
+  },
+  destructiveSubtitle: {
+    fontSize: 12,
   },
   settingSubtitle: {
     fontSize: 14,
