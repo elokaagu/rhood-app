@@ -25,7 +25,6 @@ export default function SwipeableOpportunityCard({
   isTopCard = false,
   isNextCard = false,
 }) {
-  console.log(`SwipeableOpportunityCard rendered - isTopCard: ${isTopCard}, opportunity: ${opportunity.title}`);
   const position = useRef(new Animated.ValueXY()).current;
   const scale = useRef(new Animated.Value(isNextCard ? 0.95 : 1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
@@ -34,10 +33,7 @@ export default function SwipeableOpportunityCard({
 
   const panResponder = useMemo(() => 
     PanResponder.create({
-      onStartShouldSetPanResponder: () => {
-        console.log(`onStartShouldSetPanResponder - isTopCard: ${isTopCard}`);
-        return isTopCard;
-      },
+      onStartShouldSetPanResponder: () => isTopCard,
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return (
           isTopCard &&
@@ -45,7 +41,6 @@ export default function SwipeableOpportunityCard({
         );
       },
       onPanResponderGrant: () => {
-        console.log(`onPanResponderGrant - isTopCard: ${isTopCard}`);
         if (isTopCard) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           position.setOffset({
@@ -223,7 +218,7 @@ export default function SwipeableOpportunityCard({
             { rotate: rotateInterpolate },
           ],
           opacity: opacity,
-          zIndex: isTopCard ? 100 : 1,
+          zIndex: isTopCard ? 10 : 1,
         },
       ]}
       {...panResponder.panHandlers}
