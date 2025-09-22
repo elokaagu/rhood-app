@@ -33,7 +33,7 @@ import CommunityScreen from "./components/CommunityScreen";
 import ProfileScreen from "./components/ProfileScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import RhoodModal from "./components/RhoodModal";
-import OpportunityCard from "./components/OpportunityCard";
+import SwipeableOpportunityCard from "./components/SwipeableOpportunityCard";
 import { db, auth, supabase } from "./lib/supabase";
 import {
   ANIMATION_DURATION,
@@ -84,6 +84,9 @@ export default function App() {
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
 
+  // Opportunities swipe state
+  const [currentOpportunityIndex, setCurrentOpportunityIndex] = useState(0);
+  const [swipedOpportunities, setSwipedOpportunities] = useState([]);
 
   // Audio player animation values
   const [audioPlayerOpacity] = useState(new Animated.Value(0));
@@ -826,7 +829,6 @@ export default function App() {
     closeMenu();
   };
 
-
   const handleOpportunityPress = (opportunity) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     showCustomModal({
@@ -846,6 +848,32 @@ export default function App() {
     });
   };
 
+  const handleSwipeLeft = () => {
+    // Pass on opportunity
+    const currentOpportunity = mockOpportunities[currentOpportunityIndex];
+    setSwipedOpportunities([...swipedOpportunities, { ...currentOpportunity, action: "pass" }]);
+    setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+  };
+
+  const handleSwipeRight = () => {
+    // Like/Apply to opportunity
+    const currentOpportunity = mockOpportunities[currentOpportunityIndex];
+    setSwipedOpportunities([...swipedOpportunities, { ...currentOpportunity, action: "like" }]);
+    setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+    
+    // Show application modal
+    showCustomModal({
+      type: "success",
+      title: "Application Sent!",
+      message: `Your application for ${currentOpportunity.title} has been sent successfully. You'll hear back within 48 hours.`,
+      primaryButtonText: "OK",
+    });
+  };
+
+  const resetOpportunities = () => {
+    setCurrentOpportunityIndex(0);
+    setSwipedOpportunities([]);
+  };
 
   // Menu animation functions
   const openMenu = () => {
@@ -1053,12 +1081,43 @@ export default function App() {
                 </Text>
               </View>
 
-              {/* Single Opportunity Card */}
+              {/* Swipeable Card Stack */}
               <View style={styles.opportunitiesCardContainer}>
-                <OpportunityCard
-                  opportunity={mockOpportunities[0]}
-                  onPress={() => handleOpportunityPress(mockOpportunities[0])}
-                />
+                {currentOpportunityIndex < mockOpportunities.length ? (
+                  <>
+                    {/* Next card (background) */}
+                    {currentOpportunityIndex + 1 < mockOpportunities.length && (
+                      <View style={styles.nextCard}>
+                        <SwipeableOpportunityCard
+                          opportunity={mockOpportunities[currentOpportunityIndex + 1]}
+                          onPress={() => handleOpportunityPress(mockOpportunities[currentOpportunityIndex + 1])}
+                          isTopCard={false}
+                        />
+                      </View>
+                    )}
+                    
+                    {/* Current card (top) */}
+                    <SwipeableOpportunityCard
+                      opportunity={mockOpportunities[currentOpportunityIndex]}
+                      onPress={() => handleOpportunityPress(mockOpportunities[currentOpportunityIndex])}
+                      onSwipeLeft={handleSwipeLeft}
+                      onSwipeRight={handleSwipeRight}
+                      isTopCard={true}
+                    />
+                  </>
+                ) : (
+                  /* No more opportunities */
+                  <View style={styles.noMoreOpportunities}>
+                    <Ionicons name="checkmark-circle" size={64} color="hsl(75, 100%, 60%)" />
+                    <Text style={styles.noMoreTitle}>All Caught Up!</Text>
+                    <Text style={styles.noMoreSubtitle}>
+                      You've seen all available opportunities. Check back later for new gigs!
+                    </Text>
+                    <TouchableOpacity style={styles.resetButton} onPress={resetOpportunities}>
+                      <Text style={styles.resetButtonText}>Start Over</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             </View>
           </View>
@@ -2605,6 +2664,50 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingBottom: 20,
+    position: "relative",
+  },
+  nextCard: {
+    position: "absolute",
+    top: 10,
+    left: 20,
+    right: 20,
+    bottom: 20,
+    transform: [{ scale: 0.95 }],
+    opacity: 0.8,
+  },
+  noMoreOpportunities: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  noMoreTitle: {
+    fontSize: 24,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 20,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  noMoreSubtitle: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 30,
+  },
+  resetButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 12,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+  },
+  resetButtonText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 0%)",
+    fontWeight: "600",
   },
 
   // Opportunities Screen Styles
