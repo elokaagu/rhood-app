@@ -237,7 +237,7 @@ export default function SettingsScreen({ onNavigate, onSignOut }) {
           icon: "log-out",
           type: "action",
           action: handleSignOut,
-          destructive: true,
+          destructive: false,
         },
       ],
     },
@@ -278,35 +278,23 @@ export default function SettingsScreen({ onNavigate, onSignOut }) {
     return (
       <TouchableOpacity
         key={item.id}
-        style={[styles.settingItem, item.destructive && styles.destructiveItem]}
+        style={styles.settingItem}
         onPress={handlePress}
         activeOpacity={0.7}
       >
         <View style={styles.settingLeft}>
-          <View
-            style={[
-              styles.settingIcon,
-              item.destructive && styles.destructiveIcon,
-            ]}
-          >
+          <View style={styles.settingIcon}>
             <Ionicons
               name={item.icon}
-              size={item.destructive ? 16 : 20}
-              color={
-                item.destructive ? "hsl(0, 100%, 60%)" : "hsl(75, 100%, 60%)"
-              }
+              size={20}
+              color="hsl(75, 100%, 60%)"
             />
           </View>
           <View style={styles.settingContent}>
-            <Text
-              style={[
-                styles.settingTitle,
-                item.destructive && styles.destructiveText,
-              ]}
-            >
+            <Text style={styles.settingTitle}>
               {item.title}
             </Text>
-            <Text style={[styles.settingSubtitle, item.destructive && styles.destructiveSubtitle]}>{item.subtitle}</Text>
+            <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
           </View>
         </View>
 
@@ -339,7 +327,7 @@ export default function SettingsScreen({ onNavigate, onSignOut }) {
             <Ionicons
               name="chevron-forward"
               size={16}
-              color={item.destructive ? "hsl(0, 100%, 60%)" : "hsl(0, 0%, 50%)"}
+              color="hsl(0, 0%, 50%)"
             />
           )}
         </View>
