@@ -19,11 +19,10 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
-import OpportunitiesList from "./components/OpportunitiesList";
-import OpportunitiesSwipe from "./components/OpportunitiesSwipe";
 import ConnectionsScreen from "./components/ConnectionsScreen";
 import ListenScreen from "./components/ListenScreen";
 import MessagesScreen from "./components/MessagesScreen";
@@ -44,8 +43,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState("opportunities");
   const [screenParams, setScreenParams] = useState({});
-  const [opportunities, setOpportunities] = useState([]);
-  const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showFadeOverlay, setShowFadeOverlay] = useState(false);
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
@@ -126,9 +123,6 @@ export default function App() {
   }, [globalAudioState.currentTrack]);
 
   // Application sent modal state
-  const [showApplicationSentModal, setShowApplicationSentModal] =
-    useState(false);
-  const [appliedOpportunity, setAppliedOpportunity] = useState(null);
 
   // Edit profile modal state
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -655,22 +649,6 @@ export default function App() {
     }
   };
 
-  const loadOpportunities = async () => {
-    try {
-      setLoadingOpportunities(true);
-      const data = await db.getOpportunities();
-      setOpportunities(data);
-    } catch (error) {
-      console.error("Error loading opportunities:", error);
-      Alert.alert(
-        "Error",
-        "Failed to load opportunities. Please check your internet connection."
-      );
-    } finally {
-      setLoadingOpportunities(false);
-    }
-  };
-
   const applyToOpportunity = async (opportunityId) => {
     try {
       const userId = await AsyncStorage.getItem("userId");
@@ -686,13 +664,6 @@ export default function App() {
       Alert.alert("Error", "Failed to submit application. Please try again.");
     }
   };
-
-  // Load opportunities when opportunities screen is accessed
-  useEffect(() => {
-    if (currentScreen === "opportunities") {
-      loadOpportunities();
-    }
-  }, [currentScreen]);
 
   const checkFirstTime = async () => {
     try {
@@ -868,16 +839,19 @@ export default function App() {
     switch (screen) {
       case "opportunities":
         return (
-          <OpportunitiesSwipe
-            onApply={(opportunity) => {
-              console.log("Applied to:", opportunity.name);
-              setAppliedOpportunity(opportunity);
-              setShowApplicationSentModal(true);
-            }}
-            onPass={(opportunity) => {
-              console.log("Passed on:", opportunity.name);
-            }}
-          />
+          <View style={styles.emptyOpportunitiesContainer}>
+            <Ionicons
+              name="briefcase-outline"
+              size={64}
+              color="hsl(0, 0%, 30%)"
+            />
+            <Text style={styles.emptyOpportunitiesTitle}>
+              No Opportunities Available
+            </Text>
+            <Text style={styles.emptyOpportunitiesSubtitle}>
+              Check back later for new gigs!
+            </Text>
+          </View>
         );
 
       case "connections":
@@ -1203,17 +1177,12 @@ export default function App() {
 
       default:
         return (
-          <OpportunitiesSwipe
-            onApply={(opportunity) => {
-              console.log("Applied to:", opportunity.name);
-              Alert.alert(
-                "Application Sent",
-                `You've applied to ${opportunity.name}!`
-              );
-            }}
-            onPass={(opportunity) => {
-              console.log("Passed on:", opportunity.name);
-            }}
+          <ListenScreen
+            globalAudioState={globalAudioState}
+            onPlayAudio={playGlobalAudio}
+            onPauseAudio={pauseGlobalAudio}
+            onResumeAudio={resumeGlobalAudio}
+            onStopAudio={stopGlobalAudio}
           />
         );
     }
@@ -1244,7 +1213,12 @@ export default function App() {
 
         {/* Hide tab bar on messages screen */}
         {currentScreen !== "messages" && (
-          <View style={styles.tabBar}>
+          <LinearGradient
+            colors={["#000000", "#1a1a1a", "#000000"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.tabBar}
+          >
             <TouchableOpacity
               style={[
                 styles.tab,
@@ -1326,7 +1300,7 @@ export default function App() {
                 Listen
               </Text>
             </TouchableOpacity>
-          </View>
+          </LinearGradient>
         )}
 
         {/* Hamburger Menu Modal */}
@@ -1692,18 +1666,6 @@ export default function App() {
         )}
 
         {/* Application Sent Modal */}
-        <RhoodModal
-          visible={showApplicationSentModal}
-          onClose={() => setShowApplicationSentModal(false)}
-          title="Application Sent!"
-          message={
-            appliedOpportunity
-              ? `You've applied to ${appliedOpportunity.name}!`
-              : "Application sent successfully!"
-          }
-          type="success"
-          primaryButtonText="OK"
-        />
 
         {/* Edit Profile Modal */}
         <Modal
@@ -2209,18 +2171,21 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     flexDirection: "row",
-    backgroundColor: "#1E1E1E", // Solid dark grey background with no transparency
     borderRadius: 25,
     paddingVertical: 8,
     paddingHorizontal: 16,
+    // Enhanced shadow for more lift
     shadowColor: "#000000",
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 12,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8, // Android shadow
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 15, // Android shadow
+    // Enhanced border for more lift
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   tab: {
     flex: 1,
@@ -2236,17 +2201,45 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent", // Remove background for active tab
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: "Helvetica Neue",
-    fontWeight: "600",
+    fontWeight: "500", // Medium weight
     color: "hsl(0, 0%, 70%)", // Muted foreground
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    textTransform: "capitalize", // Proper capitalization instead of uppercase
+    letterSpacing: 0.3,
   },
   activeTabText: {
     color: "#C2CC06", // Brand lime green for active text
-    fontWeight: "600",
+    fontWeight: "500", // Medium weight to match inactive tabs
   },
+  // Empty Opportunities Screen Styles
+  emptyOpportunitiesContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 0%)",
+    padding: 40,
+    paddingHorizontal: 20,
+  },
+  emptyOpportunitiesTitle: {
+    fontSize: 20,
+    fontFamily: "TS-Block-Bold",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+    width: "100%",
+  },
+  emptyOpportunitiesSubtitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
+    width: "100%",
+    lineHeight: 20,
+  },
+
   // Opportunities Screen Styles
   featuredOpportunityCard: {
     backgroundColor: "#1D1D1B", // Brand black background
