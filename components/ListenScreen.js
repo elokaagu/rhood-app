@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  TextInput,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import DJMix from "./DJMix";
@@ -144,6 +146,36 @@ export default function ListenScreen({
 }) {
   const [mixes, setMixes] = useState(mockMixes);
   const [playingMixId, setPlayingMixId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedGenre, setSelectedGenre] = useState("All");
+  const [sortBy, setSortBy] = useState("popularity");
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Get unique genres for filter
+  const genres = ["All", ...new Set(mockMixes.map(mix => mix.genre))];
+
+  // Filter and sort mixes
+  const filteredMixes = mixes
+    .filter(mix => {
+      const matchesSearch = mix.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           mix.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           mix.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesGenre = selectedGenre === "All" || mix.genre === selectedGenre;
+      return matchesSearch && matchesGenre;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "popularity":
+          return b.plays - a.plays;
+        case "newest":
+          return b.id - a.id;
+        case "alphabetical":
+          return a.title.localeCompare(b.title);
+        default:
+          return b.plays - a.plays;
+      }
+    });
 
   // Sync local playing state with global audio state
   useEffect(() => {
@@ -202,27 +234,141 @@ export default function ListenScreen({
     );
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Simulate refresh delay
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  };
+
+  const handleSortChange = (newSort) => {
+    setSortBy(newSort);
+  };
+
+  const handleGenreFilter = (genre) => {
+    setSelectedGenre(genre);
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor="hsl(75, 100%, 60%)"
+        />
+      }
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>LISTEN</Text>
         <Text style={styles.headerSubtitle}>5-minute sets from top DJs</Text>
       </View>
 
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search mixes, artists, or genres..."
+          placeholderTextColor="hsl(0, 0%, 50%)"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity
+            onPress={() => setSearchQuery("")}
+            style={styles.clearButton}
+          >
+            <Ionicons name="close-circle" size={20} color="hsl(0, 0%, 50%)" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Genre Filter Chips */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.genreFilterContainer}
+        contentContainerStyle={styles.genreFilterContent}
+      >
+        {genres.map((genre) => (
+          <TouchableOpacity
+            key={genre}
+            style={[
+              styles.genreChip,
+              selectedGenre === genre && styles.genreChipActive
+            ]}
+            onPress={() => handleGenreFilter(genre)}
+          >
+            <Text style={[
+              styles.genreChipText,
+              selectedGenre === genre && styles.genreChipTextActive
+            ]}>
+              {genre}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Sort Options */}
+      <View style={styles.sortContainer}>
+        <Text style={styles.sortLabel}>Sort by:</Text>
+        <View style={styles.sortButtons}>
+          {[
+            { key: "popularity", label: "Popular" },
+            { key: "newest", label: "Newest" },
+            { key: "alphabetical", label: "A-Z" }
+          ].map((option) => (
+            <TouchableOpacity
+              key={option.key}
+              style={[
+                styles.sortButton,
+                sortBy === option.key && styles.sortButtonActive
+              ]}
+              onPress={() => handleSortChange(option.key)}
+            >
+              <Text style={[
+                styles.sortButtonText,
+                sortBy === option.key && styles.sortButtonTextActive
+              ]}>
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {/* Mixes List */}
       <View style={styles.mixesContainer}>
-        {mixes.map((mix) => (
-          <DJMix
-            key={mix.id}
-            mix={mix}
-            isPlaying={playingMixId === mix.id}
-            isLoading={globalAudioState.isLoading && playingMixId === mix.id}
-            onPlayPause={() => handleMixPress(mix)}
-            onArtistPress={handleArtistPress}
-            progress={playingMixId === mix.id ? globalAudioState.progress : 0}
-          />
-        ))}
+        {filteredMixes.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="musical-notes" size={48} color="hsl(0, 0%, 30%)" />
+            <Text style={styles.emptyStateTitle}>No mixes found</Text>
+            <Text style={styles.emptyStateSubtitle}>
+              {searchQuery.trim() 
+                ? `No results for "${searchQuery}"`
+                : "Try adjusting your filters"
+              }
+            </Text>
+          </View>
+        ) : (
+          filteredMixes.map((mix) => (
+            <DJMix
+              key={mix.id}
+              mix={mix}
+              isPlaying={playingMixId === mix.id}
+              isLoading={globalAudioState.isLoading && playingMixId === mix.id}
+              onPlayPause={() => handleMixPress(mix)}
+              onArtistPress={handleArtistPress}
+              progress={playingMixId === mix.id ? globalAudioState.progress : 0}
+            />
+          ))
+        )}
       </View>
 
       {/* Upload CTA */}
@@ -323,5 +469,118 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 20,
+  },
+  // Search Bar Styles
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    margin: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+    color: "hsl(0, 0%, 100%)",
+    fontFamily: "Helvetica Neue",
+  },
+  clearButton: {
+    padding: 4,
+  },
+  // Genre Filter Styles
+  genreFilterContainer: {
+    marginBottom: 16,
+  },
+  genreFilterContent: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  genreChip: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  genreChipActive: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  genreChipText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+    color: "hsl(0, 0%, 70%)",
+  },
+  genreChipTextActive: {
+    color: "hsl(0, 0%, 0%)",
+    fontWeight: "600",
+  },
+  // Sort Options Styles
+  sortContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  sortLabel: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    fontWeight: "500",
+  },
+  sortButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  sortButton: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  sortButtonActive: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  sortButtonText: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+    color: "hsl(0, 0%, 70%)",
+  },
+  sortButtonTextActive: {
+    color: "hsl(0, 0%, 0%)",
+    fontWeight: "600",
+  },
+  // Empty State Styles
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+    textAlign: "center",
+    lineHeight: 20,
   },
 });

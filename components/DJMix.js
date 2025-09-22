@@ -22,6 +22,7 @@ const DJMix = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -89,11 +90,11 @@ const DJMix = ({
               ]}
             >
               {isLoading ? (
-                <Ionicons name="hourglass" size={18} color="hsl(0, 0%, 100%)" />
+                <Ionicons name="hourglass" size={20} color="hsl(0, 0%, 100%)" />
               ) : (
                 <Ionicons
                   name={isPlaying ? "pause" : "play"}
-                  size={18}
+                  size={20}
                   color="hsl(0, 0%, 100%)"
                 />
               )}
@@ -127,9 +128,22 @@ const DJMix = ({
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Ionicons name="volume-high" size={14} color="hsl(0, 0%, 70%)" />
-            <Text style={styles.statText}>{formatNumber(mix.plays)}</Text>
+          <View style={styles.statsLeft}>
+            <View style={styles.statItem}>
+              <Ionicons name="volume-high" size={14} color="hsl(0, 0%, 70%)" />
+              <Text style={styles.statText}>{formatNumber(mix.plays)}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.favoriteButton}
+              onPress={() => setIsFavorited(!isFavorited)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={isFavorited ? "heart" : "heart-outline"}
+                size={16}
+                color={isFavorited ? "hsl(0, 100%, 60%)" : "hsl(0, 0%, 70%)"}
+              />
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.duration}>{mix.duration}</Text>
@@ -154,14 +168,14 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     shadowColor: "hsl(0, 0%, 0%)",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   leftColumn: {
     alignItems: "center",
@@ -197,14 +211,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   playButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "hsla(0, 0%, 0%, 0.8)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "hsla(0, 0%, 0%, 0.9)",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "hsla(255, 255, 255, 0.3)",
+    borderColor: "hsla(255, 255, 255, 0.4)",
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   genreBadge: {
     backgroundColor: "transparent",
@@ -256,10 +275,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 8,
   },
+  statsLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   statItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+  },
+  favoriteButton: {
+    padding: 4,
   },
   statText: {
     fontSize: 13,
