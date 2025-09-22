@@ -910,11 +910,11 @@ export default function App() {
       ...swipedOpportunities,
       { ...currentOpportunity, action: "pass" },
     ]);
-    
+
     // Trigger fade-in animation for next card
     setIsTransitioning(true);
     nextCardOpacity.setValue(0);
-    
+
     setTimeout(() => {
       setCurrentOpportunityIndex(currentOpportunityIndex + 1);
       Animated.timing(nextCardOpacity, {
@@ -934,11 +934,11 @@ export default function App() {
       ...swipedOpportunities,
       { ...currentOpportunity, action: "like" },
     ]);
-    
+
     // Trigger fade-in animation for next card
     setIsTransitioning(true);
     nextCardOpacity.setValue(0);
-    
+
     setTimeout(() => {
       setCurrentOpportunityIndex(currentOpportunityIndex + 1);
       Animated.timing(nextCardOpacity, {
