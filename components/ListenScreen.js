@@ -8,9 +8,11 @@ import {
   Alert,
   TextInput,
   RefreshControl,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import DJMix from "./DJMix";
+import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 
 // Audio optimization utilities for handling large files
 const getAudioOptimization = (audioUrl) => {
@@ -300,21 +302,11 @@ export default function ListenScreen({
 
       {/* Mixes List */}
       <View style={styles.mixesContainer}>
-        {filteredMixes.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="musical-notes" size={48} color="hsl(0, 0%, 30%)" />
-            <Text style={styles.emptyStateTitle}>No mixes found</Text>
-            <Text style={styles.emptyStateSubtitle}>
-              {searchQuery.trim() 
-                ? `No results for "${searchQuery}"`
-                : "Try adjusting your filters"
-              }
-            </Text>
-          </View>
-        ) : (
-          filteredMixes.map((mix) => (
+        <FlatList
+          data={filteredMixes}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item: mix }) => (
             <DJMix
-              key={mix.id}
               mix={mix}
               isPlaying={playingMixId === mix.id}
               isLoading={globalAudioState.isLoading && playingMixId === mix.id}
@@ -322,8 +314,30 @@ export default function ListenScreen({
               onArtistPress={handleArtistPress}
               progress={playingMixId === mix.id ? globalAudioState.progress : 0}
             />
-          ))
-        )}
+          )}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyState}>
+              <Ionicons name="musical-notes" size={48} color="hsl(0, 0%, 30%)" />
+              <Text style={styles.emptyStateTitle}>No mixes found</Text>
+              <Text style={styles.emptyStateSubtitle}>
+                {searchQuery.trim() 
+                  ? `No results for "${searchQuery}"`
+                  : "Try adjusting your filters"
+                }
+              </Text>
+            </View>
+          )}
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+          initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+          maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+          windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+          getItemLayout={(data, index) => ({
+            length: 80, // Approximate height of each DJMix item
+            offset: 80 * index,
+            index,
+          })}
+        />
       </View>
 
       {/* Upload CTA */}

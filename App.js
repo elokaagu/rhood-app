@@ -21,6 +21,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
+import * as Haptics from "expo-haptics";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
 import ConnectionsScreen from "./components/ConnectionsScreen";
@@ -32,6 +33,12 @@ import ProfileScreen from "./components/ProfileScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import RhoodModal from "./components/RhoodModal";
 import { db, auth, supabase } from "./lib/supabase";
+import { 
+  ANIMATION_DURATION, 
+  NATIVE_ANIMATION_CONFIG, 
+  SPRING_CONFIG,
+  PERFORMANCE_THRESHOLDS 
+} from "./lib/performanceConstants";
 import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";
 import EditProfileScreen from "./components/EditProfileScreen";
@@ -100,14 +107,13 @@ export default function App() {
       Animated.parallel([
         Animated.timing(audioPlayerOpacity, {
           toValue: 1,
-          duration: 400,
+          duration: ANIMATION_DURATION.SLOW,
           useNativeDriver: true,
         }),
         Animated.spring(audioPlayerTranslateY, {
           toValue: 0,
           useNativeDriver: true,
-          tension: 100,
-          friction: 8,
+          ...SPRING_CONFIG,
         }),
       ]).start();
     } else {
@@ -115,7 +121,7 @@ export default function App() {
       Animated.parallel([
         Animated.timing(audioPlayerOpacity, {
           toValue: 0,
-          duration: 300,
+          duration: ANIMATION_DURATION.NORMAL,
           useNativeDriver: true,
         }),
         Animated.spring(audioPlayerTranslateY, {
@@ -384,6 +390,7 @@ export default function App() {
   // Global audio control functions
   const playGlobalAudio = async (track) => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       console.log("🎵 Starting to play track:", track.title);
       console.log("🎵 Audio URL:", track.audioUrl);
       console.log("🎵 Audio URL type:", typeof track.audioUrl);
@@ -476,6 +483,7 @@ export default function App() {
   const pauseGlobalAudio = async () => {
     if (globalAudioRef.current) {
       try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         await globalAudioRef.current.pauseAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
       } catch (error) {
@@ -487,6 +495,7 @@ export default function App() {
   const resumeGlobalAudio = async () => {
     if (globalAudioRef.current) {
       try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         await globalAudioRef.current.playAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
       } catch (error) {
@@ -551,20 +560,21 @@ export default function App() {
 
       // Handle vertical swipes
       if (Math.abs(dy) > Math.abs(dx)) {
-        const swipeThreshold = 60; // Lower threshold for easier swiping
-        const velocityThreshold = 0.3; // Lower velocity threshold
+        const swipeThreshold = PERFORMANCE_THRESHOLDS.SWIPE_THRESHOLD;
+        const velocityThreshold = PERFORMANCE_THRESHOLDS.VELOCITY_THRESHOLD;
 
         if (dy > swipeThreshold || vy > velocityThreshold) {
           // Swipe down - dismiss player
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           Animated.parallel([
             Animated.timing(audioPlayerSwipeTranslateY, {
               toValue: 200,
-              duration: 300,
+              duration: ANIMATION_DURATION.NORMAL,
               useNativeDriver: true,
             }),
             Animated.timing(audioPlayerSwipeOpacity, {
               toValue: 0,
-              duration: 300,
+              duration: ANIMATION_DURATION.NORMAL,
               useNativeDriver: true,
             }),
           ]).start(() => {
@@ -574,16 +584,18 @@ export default function App() {
           });
         } else if (dy < -swipeThreshold || vy < -velocityThreshold) {
           // Swipe up - open full screen player
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           setShowFullScreenPlayer(true);
           // Reset position
           Animated.parallel([
             Animated.spring(audioPlayerSwipeTranslateY, {
               toValue: 0,
               useNativeDriver: true,
+              ...SPRING_CONFIG,
             }),
             Animated.timing(audioPlayerSwipeOpacity, {
               toValue: 1,
-              duration: 200,
+              duration: ANIMATION_DURATION.FAST,
               useNativeDriver: true,
             }),
           ]).start();
@@ -593,10 +605,11 @@ export default function App() {
             Animated.spring(audioPlayerSwipeTranslateY, {
               toValue: 0,
               useNativeDriver: true,
+              ...SPRING_CONFIG,
             }),
             Animated.timing(audioPlayerSwipeOpacity, {
               toValue: 1,
-              duration: 200,
+              duration: ANIMATION_DURATION.FAST,
               useNativeDriver: true,
             }),
           ]).start();
@@ -757,16 +770,17 @@ export default function App() {
 
   // Menu animation functions
   const openMenu = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowMenu(true);
     Animated.parallel([
       Animated.timing(menuSlideAnim, {
         toValue: 1,
-        duration: 300,
+        duration: ANIMATION_DURATION.NORMAL,
         useNativeDriver: true,
       }),
       Animated.timing(menuOpacityAnim, {
         toValue: 1,
-        duration: 200,
+        duration: ANIMATION_DURATION.FAST,
         useNativeDriver: true,
       }),
     ]).start();
@@ -776,12 +790,12 @@ export default function App() {
     Animated.parallel([
       Animated.timing(menuSlideAnim, {
         toValue: 0,
-        duration: 250,
+        duration: ANIMATION_DURATION.NORMAL,
         useNativeDriver: true,
       }),
       Animated.timing(menuOpacityAnim, {
         toValue: 0,
-        duration: 150,
+        duration: ANIMATION_DURATION.FAST,
         useNativeDriver: true,
       }),
     ]).start(() => {
