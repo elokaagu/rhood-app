@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Image,
   ScrollView,
   StyleSheet,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -29,20 +30,6 @@ const mockConnections = [
   },
   {
     id: 2,
-    name: "Sofia Rodriguez",
-    username: "@sofiavibes",
-    location: "Camden, London",
-    genres: ["Techno", "Progressive"],
-    profileImage:
-      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face",
-    rating: 4.7,
-    gigsCompleted: 18,
-    lastActive: "1 day ago",
-    mutualConnections: 7,
-    status: "recently_active",
-  },
-  {
-    id: 3,
     name: "Alex Thompson",
     username: "@alexunderground",
     location: "Hackney, London",
@@ -56,7 +43,7 @@ const mockConnections = [
     status: "online",
   },
   {
-    id: 4,
+    id: 3,
     name: "Luna Martinez",
     username: "@lunabeats",
     location: "Barcelona, Spain",
@@ -70,7 +57,7 @@ const mockConnections = [
     status: "recently_active",
   },
   {
-    id: 5,
+    id: 4,
     name: "Max Blackwood",
     username: "@maxindustrial",
     location: "Berlin, Germany",
@@ -84,7 +71,7 @@ const mockConnections = [
     status: "offline",
   },
   {
-    id: 6,
+    id: 5,
     name: "Zara Kim",
     username: "@zarasyntwave",
     location: "Tokyo, Japan",
@@ -97,9 +84,25 @@ const mockConnections = [
     mutualConnections: 4,
     status: "online",
   },
+  {
+    id: 6,
+    name: "Khadija Hashi",
+    username: "@khadijabeats",
+    location: "Nairobi, Kenya",
+    genres: ["Afro House", "Deep House"],
+    profileImage:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face",
+    rating: 4.9,
+    gigsCompleted: 35,
+    lastActive: "1 hour ago",
+    mutualConnections: 6,
+    status: "online",
+  },
 ];
 
 export default function ConnectionsScreen({ onNavigate }) {
+  const [searchQuery, setSearchQuery] = useState("");
+
   const handleGroupChatPress = () => {
     onNavigate && onNavigate("messages", { isGroupChat: true });
   };
@@ -112,6 +115,25 @@ export default function ConnectionsScreen({ onNavigate }) {
   const handleBrowseCommunity = () => {
     onNavigate && onNavigate("community");
   };
+
+  // Filter connections based on search query
+  const filteredConnections = useMemo(() => {
+    let filtered = mockConnections;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (connection) =>
+          connection.name.toLowerCase().includes(query) ||
+          connection.username.toLowerCase().includes(query) ||
+          connection.location.toLowerCase().includes(query) ||
+          connection.genres.some((genre) => genre.toLowerCase().includes(query))
+      );
+    }
+
+    return filtered;
+  }, [searchQuery]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -129,11 +151,11 @@ export default function ConnectionsScreen({ onNavigate }) {
   const getLastMessage = (connectionId) => {
     const messages = {
       1: "Hey! Are you free for that gig next week?",
-      2: "Thanks for the connection! Let's collaborate soon",
-      3: "That drum & bass set was incredible! 🎵",
-      4: "Love your progressive tracks!",
-      5: "When are you back in Berlin?",
-      6: "Your synthwave mix was amazing!",
+      2: "That drum & bass set was incredible! 🎵",
+      3: "Love your progressive tracks!",
+      4: "When are you back in Berlin?",
+      5: "Your synthwave mix was amazing!",
+      6: "The Afro House vibes were incredible! 🔥",
     };
     return messages[connectionId] || "New connection";
   };
@@ -147,6 +169,32 @@ export default function ConnectionsScreen({ onNavigate }) {
           <Text style={styles.headerSubtitle}>
             Your DJ network and community
           </Text>
+
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search connections..."
+              placeholderTextColor="hsl(0, 0%, 50%)"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setSearchQuery("")}
+                style={styles.clearButton}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={20}
+                  color="hsl(0, 0%, 50%)"
+                />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Pinned Group Chat Section */}
@@ -194,61 +242,89 @@ export default function ConnectionsScreen({ onNavigate }) {
 
         {/* Individual Connections List */}
         <View style={styles.connectionsList}>
-          {mockConnections.map((connection) => (
-            <TouchableOpacity
-              key={connection.id}
-              style={styles.connectionItem}
-              onPress={() => handleConnectionPress(connection)}
-            >
-              <View style={styles.connectionContent}>
-                {/* Profile Image with Online Status */}
-                <View style={styles.profileContainer}>
-                  <ProgressiveImage
-                    source={{ uri: connection.profileImage }}
-                    style={styles.profileImage}
-                  />
-                  {connection.status === "online" && (
-                    <View
-                      style={[
-                        styles.statusIndicator,
-                        { backgroundColor: getStatusColor(connection.status) },
-                      ]}
+          {filteredConnections.length === 0 ? (
+            <View style={styles.noResultsContainer}>
+              <Ionicons name="search" size={48} color="hsl(0, 0%, 30%)" />
+              <Text style={styles.noResultsTitle}>No connections found</Text>
+              <Text style={styles.noResultsSubtitle}>
+                {searchQuery.trim()
+                  ? `No results for "${searchQuery}"`
+                  : "Try adjusting your filters"}
+              </Text>
+            </View>
+          ) : (
+            filteredConnections.map((connection) => (
+              <TouchableOpacity
+                key={connection.id}
+                style={styles.connectionItem}
+                onPress={() => handleConnectionPress(connection)}
+              >
+                <View style={styles.connectionContent}>
+                  {/* Profile Image with Online Status */}
+                  <View style={styles.profileContainer}>
+                    <ProgressiveImage
+                      source={{ uri: connection.profileImage }}
+                      style={styles.profileImage}
                     />
+                    {connection.status === "online" && (
+                      <View
+                        style={[
+                          styles.statusIndicator,
+                          {
+                            backgroundColor: getStatusColor(connection.status),
+                          },
+                        ]}
+                      />
+                    )}
+                  </View>
+
+                  {/* Connection Info */}
+                  <View style={styles.connectionInfo}>
+                    {/* Name and Last Active Time */}
+                    <View style={styles.connectionHeader}>
+                      <Text style={styles.connectionName} numberOfLines={1}>
+                        {connection.name}
+                      </Text>
+                      <Text style={styles.lastActive}>
+                        {connection.lastActive}
+                      </Text>
+                    </View>
+
+                    {/* Last Message Preview */}
+                    <Text style={styles.lastMessage} numberOfLines={1}>
+                      {getLastMessage(connection.id)}
+                    </Text>
+
+                    {/* Genre Tags */}
+                    <View style={styles.genreTags}>
+                      {connection.genres.slice(0, 2).map((genre) => (
+                        <View key={genre} style={styles.genreTag}>
+                          <Text style={styles.genreTagText}>{genre}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Unread Message Indicator */}
+                  {connection.id === 1 && (
+                    <View style={styles.unreadCounter}>
+                      <Text style={styles.unreadCount}>2</Text>
+                    </View>
+                  )}
+                  {connection.id === 2 && (
+                    <View style={styles.unreadCounter}>
+                      <Text style={styles.unreadCount}>1</Text>
+                    </View>
+                  )}
+                  {connection.id === 6 && (
+                    <View style={styles.unreadCounter}>
+                      <Text style={styles.unreadCount}>3</Text>
+                    </View>
                   )}
                 </View>
-
-                {/* Connection Info */}
-                <View style={styles.connectionInfo}>
-                  {/* Name and Last Active Time */}
-                  <View style={styles.connectionHeader}>
-                    <Text style={styles.connectionName} numberOfLines={1}>
-                      {connection.name}
-                    </Text>
-                    <Text style={styles.lastActive}>
-                      {connection.lastActive}
-                    </Text>
-                  </View>
-
-                  {/* Last Message Preview */}
-                  <Text style={styles.lastMessage} numberOfLines={1}>
-                    {getLastMessage(connection.id)}
-                  </Text>
-
-                  {/* Genre Tags */}
-                  <View style={styles.genreTags}>
-                    {connection.genres.slice(0, 2).map((genre) => (
-                      <View key={genre} style={styles.genreTag}>
-                        <Text style={styles.genreTagText}>{genre}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Unread Message Indicator */}
-                {connection.id === 1 && <View style={styles.unreadDot} />}
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            ))
+          )}
         </View>
 
         {/* Add Connection Call-to-Action */}
@@ -312,6 +388,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)",
+    marginBottom: 16,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+    color: "hsl(0, 0%, 100%)",
+    fontFamily: "Helvetica Neue",
+  },
+  clearButton: {
+    padding: 4,
+  },
+  noResultsContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  noResultsTitle: {
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  noResultsSubtitle: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
+    lineHeight: 20,
   },
   pinnedGroup: {
     backgroundColor: "hsl(0, 0%, 5%)",

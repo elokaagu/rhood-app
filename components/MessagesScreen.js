@@ -22,25 +22,69 @@ import RhoodModal from "./RhoodModal";
 const mockDJs = [
   {
     id: 1,
-    name: "Maya Rodriguez",
-    username: "@mayabeats",
-    location: "Berlin, Germany",
-    genres: ["House", "Techno", "Progressive"],
+    name: "Marcus Chen",
+    username: "@marcusbeats",
+    location: "Shoreditch, London",
+    genres: ["House", "Tech House"],
     rating: 4.9,
     profileImage:
-      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
     isOnline: true,
   },
   {
     id: 2,
-    name: "Kai Johnson",
-    username: "@djkai",
-    location: "Amsterdam, Netherlands",
-    genres: ["Drum & Bass", "Breakbeat", "Electronic"],
-    rating: 4.7,
+    name: "Alex Thompson",
+    username: "@alexunderground",
+    location: "Hackney, London",
+    genres: ["Drum & Bass", "Jungle"],
+    rating: 4.8,
     profileImage:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
+    isOnline: true,
+  },
+  {
+    id: 3,
+    name: "Luna Martinez",
+    username: "@lunabeats",
+    location: "Barcelona, Spain",
+    genres: ["Progressive", "Trance"],
+    rating: 4.6,
+    profileImage:
+      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
     isOnline: false,
+  },
+  {
+    id: 4,
+    name: "Max Blackwood",
+    username: "@maxindustrial",
+    location: "Berlin, Germany",
+    genres: ["Industrial", "Dark Techno"],
+    rating: 4.9,
+    profileImage:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face",
+    isOnline: false,
+  },
+  {
+    id: 5,
+    name: "Zara Kim",
+    username: "@zarasyntwave",
+    location: "Tokyo, Japan",
+    genres: ["Synthwave", "Retro"],
+    rating: 4.8,
+    profileImage:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face",
+    isOnline: true,
+  },
+  {
+    id: 6,
+    name: "Khadija Hashi",
+    username: "@khadijabeats",
+    location: "Nairobi, Kenya",
+    genres: ["Afro House", "Deep House"],
+    rating: 4.9,
+    profileImage:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face",
+    isOnline: true,
   },
 ];
 
