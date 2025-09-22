@@ -14,6 +14,7 @@ import {
   Linking,
   Alert,
   PanResponder,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
