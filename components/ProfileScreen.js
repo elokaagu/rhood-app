@@ -20,8 +20,7 @@ const mockProfile = {
   id: 1,
   name: "Eloka Agu",
   username: "@elokaagu",
-  profileImage:
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+  profileImage: require("../assets/eloka-profile.jpeg"),
   rating: 4.8,
   gigsCompleted: 12,
   credits: 156,
