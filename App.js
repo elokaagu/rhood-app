@@ -386,6 +386,8 @@ export default function App() {
     try {
       console.log("🎵 Starting to play track:", track.title);
       console.log("🎵 Audio URL:", track.audioUrl);
+      console.log("🎵 Audio URL type:", typeof track.audioUrl);
+      console.log("🎵 Audio URL value:", JSON.stringify(track.audioUrl));
 
       // Stop current audio if playing
       if (globalAudioRef.current) {
@@ -403,8 +405,6 @@ export default function App() {
         playThroughEarpieceAndroid: false,
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
-        interruptionModeIOS: Audio.InterruptionModeIOS.MixWithOthers,
-        interruptionModeAndroid: Audio.InterruptionModeAndroid.DoNotMix,
       });
 
       // Create and load new sound using expo-av
@@ -412,11 +412,20 @@ export default function App() {
       console.log("🔄 Audio file path:", track.audioUrl);
       console.log("🔄 Audio file type:", typeof track.audioUrl);
 
-      const { sound } = await Audio.Sound.createAsync(track.audioUrl, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
-      });
+      // Try to load the audio file
+      let sound;
+      try {
+        const result = await Audio.Sound.createAsync(track.audioUrl, {
+          shouldPlay: false,
+          isLooping: false,
+          volume: 1.0,
+        });
+        sound = result.sound;
+        console.log("✅ Sound loaded successfully");
+      } catch (loadError) {
+        console.error("❌ Error loading sound:", loadError);
+        throw new Error(`Failed to load audio file: ${loadError.message}`);
+      }
 
       console.log("🔄 Sound created:", sound);
 

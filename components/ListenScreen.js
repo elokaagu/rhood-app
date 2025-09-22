@@ -84,7 +84,7 @@ const mockMixes = [
     description: "Smooth deep house for golden hour moments",
     image:
       "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/lost-jun-tanaka-blend.mp3"),
+    audioUrl: require("../assets/audio/unique-original-mix.mp3"),
     plays: 892,
   },
   {
