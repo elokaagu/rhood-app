@@ -33,7 +33,10 @@ export default function SwipeableOpportunityCard({
     PanResponder.create({
       onStartShouldSetPanResponder: () => isTopCard,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return isTopCard && (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5);
+        return (
+          isTopCard &&
+          (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5)
+        );
       },
       onPanResponderGrant: () => {
         if (isTopCard) {
@@ -48,24 +51,25 @@ export default function SwipeableOpportunityCard({
       onPanResponderMove: (_, gestureState) => {
         if (isTopCard) {
           position.setValue({ x: gestureState.dx, y: gestureState.dy });
-          
+
           // Add rotation based on horizontal movement
-          const rotation = gestureState.dx / screenWidth * 0.3;
+          const rotation = (gestureState.dx / screenWidth) * 0.3;
           rotate.setValue(rotation);
-          
+
           // Add scale effect
-          const scaleValue = 1 - Math.abs(gestureState.dx) / screenWidth * 0.1;
+          const scaleValue =
+            1 - (Math.abs(gestureState.dx) / screenWidth) * 0.1;
           scale.setValue(Math.max(0.9, scaleValue));
         }
       },
       onPanResponderRelease: (_, gestureState) => {
         if (isTopCard) {
           position.flattenOffset();
-          
+
           const { dx, vx } = gestureState;
           const shouldSwipeLeft = dx < -SWIPE_THRESHOLD || vx < -0.5;
           const shouldSwipeRight = dx > SWIPE_THRESHOLD || vx > 0.5;
-          
+
           if (shouldSwipeLeft) {
             // Swipe left (pass)
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -123,7 +127,7 @@ export default function SwipeableOpportunityCard({
               }),
             ]).start();
           }
-          
+
           setShowActions(false);
         }
       },
@@ -205,8 +209,11 @@ export default function SwipeableOpportunityCard({
     >
       {/* Large featured image */}
       <View style={styles.imageContainer}>
-        <Image source={{ uri: opportunity.image }} style={styles.featuredImage} />
-        
+        <Image
+          source={{ uri: opportunity.image }}
+          style={styles.featuredImage}
+        />
+
         {/* Image overlay with content */}
         <View style={styles.imageOverlay}>
           <View style={styles.overlayHeader}>
@@ -234,12 +241,24 @@ export default function SwipeableOpportunityCard({
         </View>
 
         {/* Swipe indicators */}
-        <Animated.View style={[styles.swipeIndicator, styles.likeIndicator, { opacity: likeOpacity }]}>
+        <Animated.View
+          style={[
+            styles.swipeIndicator,
+            styles.likeIndicator,
+            { opacity: likeOpacity },
+          ]}
+        >
           <Ionicons name="heart" size={60} color="#4CAF50" />
           <Text style={styles.swipeText}>LIKE</Text>
         </Animated.View>
-        
-        <Animated.View style={[styles.swipeIndicator, styles.passIndicator, { opacity: passOpacity }]}>
+
+        <Animated.View
+          style={[
+            styles.swipeIndicator,
+            styles.passIndicator,
+            { opacity: passOpacity },
+          ]}
+        >
           <Ionicons name="close" size={60} color="#F44336" />
           <Text style={styles.swipeText}>PASS</Text>
         </Animated.View>

@@ -213,6 +213,23 @@ export default function App() {
       image:
         "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
     },
+    {
+      id: 4,
+      venue: "Electric Garden",
+      title: "Neon Dreams",
+      location: "Austin, TX",
+      date: "March 30, 2024",
+      time: "8:00 PM - 2:00 AM",
+      audienceSize: "350+ people",
+      description:
+        "Futuristic beats and neon vibes at our outdoor garden venue. We're seeking DJs who can blend electronic genres and create an otherworldly atmosphere under the stars.",
+      genres: ["Future Bass", "Synthwave", "Electronic"],
+      compensation: "$250 - $400",
+      applicationsLeft: 5,
+      status: "new",
+      image:
+        "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop",
+    },
   ];
 
   // Helper function to show custom modal
@@ -1089,8 +1106,8 @@ export default function App() {
 
               {/* Swipeable Card Stack */}
               <View style={styles.opportunitiesCardContainer}>
-                {console.log("Current index:", currentOpportunityIndex, "Total opportunities:", mockOpportunities.length)}
-                {currentOpportunityIndex < mockOpportunities.length && mockOpportunities[currentOpportunityIndex] ? (
+                {currentOpportunityIndex < mockOpportunities.length &&
+                mockOpportunities[currentOpportunityIndex] ? (
                   <>
                     {/* Next card (background) */}
                     {currentOpportunityIndex + 1 < mockOpportunities.length && (
