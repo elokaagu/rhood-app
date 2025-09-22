@@ -50,6 +50,8 @@ export default function App() {
   const [showMenu, setShowMenu] = useState(false);
   const [showFadeOverlay, setShowFadeOverlay] = useState(false);
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
+  const menuSlideAnim = useRef(new Animated.Value(0)).current;
+  const menuOpacityAnim = useRef(new Animated.Value(0)).current;
 
   // Authentication state
   const [user, setUser] = useState(null);
@@ -736,7 +738,41 @@ export default function App() {
     console.log("🎯 Navigating to screen:", screen);
     setCurrentScreen(screen);
     setScreenParams(params);
-    setShowMenu(false);
+    closeMenu();
+  };
+
+  // Menu animation functions
+  const openMenu = () => {
+    setShowMenu(true);
+    Animated.parallel([
+      Animated.timing(menuSlideAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(menuOpacityAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeMenu = () => {
+    Animated.parallel([
+      Animated.timing(menuSlideAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(menuOpacityAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowMenu(false);
+    });
   };
 
   const completeOnboarding = async () => {
@@ -1317,10 +1353,7 @@ export default function App() {
             />
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={styles.menuButton}
-              onPress={() => setShowMenu(true)}
-            >
+            <TouchableOpacity style={styles.menuButton} onPress={openMenu}>
               <Ionicons name="menu" size={24} color="hsl(0, 0%, 100%)" />
             </TouchableOpacity>
           </View>
@@ -1424,21 +1457,43 @@ export default function App() {
         <Modal
           visible={showMenu}
           transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowMenu(false)}
+          animationType="none"
+          onRequestClose={closeMenu}
         >
-          <TouchableOpacity
-            style={styles.menuOverlay}
-            activeOpacity={1}
-            onPress={() => setShowMenu(false)}
+          <Animated.View
+            style={[
+              styles.menuOverlay,
+              {
+                opacity: menuOpacityAnim,
+              },
+            ]}
           >
-            <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuOverlayTouchable}
+              activeOpacity={1}
+              onPress={closeMenu}
+            />
+            <Animated.View
+              style={[
+                styles.menuContainer,
+                {
+                  transform: [
+                    {
+                      translateY: menuSlideAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [300, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
               <View style={styles.menuContent}>
                 <View style={styles.menuHeader}>
                   <Text style={styles.tsBlockBoldHeading}>MENU</Text>
                   <TouchableOpacity
                     style={styles.closeButton}
-                    onPress={() => setShowMenu(false)}
+                    onPress={closeMenu}
                   >
                     <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
                   </TouchableOpacity>
@@ -1446,60 +1501,106 @@ export default function App() {
 
                 <View style={styles.menuItems}>
                   <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[
+                      styles.menuItem,
+                      currentScreen === "connections" && styles.menuItemActive,
+                    ]}
                     onPress={() => handleMenuNavigation("connections")}
+                    activeOpacity={0.7}
                   >
                     <Ionicons
                       name="chatbubbles-outline"
                       size={20}
                       color="#C2CC06"
                     />
-                    <Text style={styles.menuItemText}>Messages</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Messages</Text>
+                      <Text style={styles.menuItemDescription}>
+                        View all conversations
+                      </Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[
+                      styles.menuItem,
+                      currentScreen === "notifications" &&
+                        styles.menuItemActive,
+                    ]}
                     onPress={() => handleMenuNavigation("notifications")}
+                    activeOpacity={0.7}
                   >
                     <Ionicons
                       name="notifications-outline"
                       size={20}
                       color="#C2CC06"
                     />
-                    <Text style={styles.menuItemText}>Notifications</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Notifications</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Stay updated on activity
+                      </Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[
+                      styles.menuItem,
+                      currentScreen === "community" && styles.menuItemActive,
+                    ]}
                     onPress={() => handleMenuNavigation("community")}
+                    activeOpacity={0.7}
                   >
                     <Ionicons name="people-outline" size={20} color="#C2CC06" />
-                    <Text style={styles.menuItemText}>Community</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Community</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Connect with other DJs
+                      </Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[
+                      styles.menuItem,
+                      currentScreen === "profile" && styles.menuItemActive,
+                    ]}
                     onPress={() => handleMenuNavigation("profile")}
+                    activeOpacity={0.7}
                   >
                     <Ionicons name="person-outline" size={20} color="#C2CC06" />
-                    <Text style={styles.menuItemText}>Profile</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Profile</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Manage your profile
+                      </Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[
+                      styles.menuItem,
+                      currentScreen === "settings" && styles.menuItemActive,
+                    ]}
                     onPress={() => handleMenuNavigation("settings")}
+                    activeOpacity={0.7}
                   >
                     <Ionicons
                       name="settings-outline"
                       size={20}
                       color="#C2CC06"
                     />
-                    <Text style={styles.menuItemText}>Settings</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Settings</Text>
+                      <Text style={styles.menuItemDescription}>
+                        App preferences
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
-          </TouchableOpacity>
+            </Animated.View>
+          </Animated.View>
         </Modal>
 
         {/* Global Audio Player - shows when there's a current track */}
@@ -2646,6 +2747,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.8)",
     justifyContent: "flex-end",
   },
+  menuOverlayTouchable: {
+    flex: 1,
+  },
   menuContainer: {
     backgroundColor: "hsl(0, 0%, 5%)",
     borderTopLeftRadius: 20,
@@ -2653,6 +2757,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     borderBottomWidth: 0,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
   },
   menuContent: {
     padding: 20,
@@ -2681,7 +2793,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuItems: {
-    gap: 8,
+    gap: 1,
   },
   menuItem: {
     flexDirection: "row",
@@ -2692,6 +2804,8 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 10%)",
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 8%)",
   },
   menuItemText: {
     fontSize: 16,
@@ -2699,6 +2813,21 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     marginLeft: 12,
     fontWeight: "500",
+  },
+  menuItemContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  menuItemDescription: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+    marginTop: 2,
+  },
+  menuItemActive: {
+    backgroundColor: "hsl(0, 0%, 15%)",
+    borderColor: "hsl(75, 100%, 60%)",
+    borderWidth: 1,
   },
 
   // Global Audio Player Styles
