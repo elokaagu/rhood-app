@@ -1126,19 +1126,36 @@ export default function App() {
 
               {/* Swipeable Card Stack */}
               <View style={styles.opportunitiesCardContainer}>
-                {currentOpportunityIndex < mockOpportunities.length &&
-                mockOpportunities[currentOpportunityIndex] ? (
-                  <SwipeableOpportunityCard
-                    opportunity={mockOpportunities[currentOpportunityIndex]}
-                    onPress={() =>
-                      handleOpportunityPress(
-                        mockOpportunities[currentOpportunityIndex]
-                      )
-                    }
-                    onSwipeLeft={handleSwipeLeft}
-                    onSwipeRight={handleSwipeRight}
-                    isTopCard={true}
-                  />
+                {currentOpportunityIndex < mockOpportunities.length ? (
+                  <>
+                    {/* Next card (behind current) */}
+                    {currentOpportunityIndex + 1 < mockOpportunities.length && (
+                      <View style={styles.nextCard}>
+                        <SwipeableOpportunityCard
+                          opportunity={mockOpportunities[currentOpportunityIndex + 1]}
+                          onPress={() =>
+                            handleOpportunityPress(
+                              mockOpportunities[currentOpportunityIndex + 1]
+                            )
+                          }
+                          isTopCard={false}
+                        />
+                      </View>
+                    )}
+                    
+                    {/* Current card (on top) */}
+                    <SwipeableOpportunityCard
+                      opportunity={mockOpportunities[currentOpportunityIndex]}
+                      onPress={() =>
+                        handleOpportunityPress(
+                          mockOpportunities[currentOpportunityIndex]
+                        )
+                      }
+                      onSwipeLeft={handleSwipeLeft}
+                      onSwipeRight={handleSwipeRight}
+                      isTopCard={true}
+                    />
+                  </>
                 ) : (
                   /* No more opportunities */
                   <View style={styles.noMoreOpportunities}>
@@ -2710,6 +2727,15 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "flex-start",
     alignItems: "center",
+  },
+  nextCard: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    right: 20,
+    transform: [{ scale: 0.95 }],
+    opacity: 0.8,
+    zIndex: 1,
   },
   noMoreOpportunities: {
     flex: 1,
