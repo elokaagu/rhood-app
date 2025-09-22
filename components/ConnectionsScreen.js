@@ -170,7 +170,6 @@ export default function ConnectionsScreen({ onNavigate }) {
       <ScrollView style={styles.scrollView}>
         {/* Header */}
         <View style={styles.header}>
-
           {/* Search Bar */}
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
@@ -398,6 +397,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    marginTop: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
