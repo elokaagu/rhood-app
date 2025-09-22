@@ -25,7 +25,6 @@ export default function SwipeableOpportunityCard({
   isTopCard = false,
   isNextCard = false,
 }) {
-  const [showActions, setShowActions] = useState(false);
   const position = useRef(new Animated.ValueXY()).current;
   const scale = useRef(new Animated.Value(isNextCard ? 0.95 : 1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
@@ -44,7 +43,6 @@ export default function SwipeableOpportunityCard({
       onPanResponderGrant: () => {
         if (isTopCard) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setShowActions(true);
           position.setOffset({
             x: position.x._value,
             y: position.y._value,
@@ -141,7 +139,6 @@ export default function SwipeableOpportunityCard({
             ]).start();
           }
 
-          setShowActions(false);
         }
       },
     })
@@ -260,17 +257,6 @@ export default function SwipeableOpportunityCard({
 
       </View>
 
-      {/* Action buttons */}
-      {showActions && (
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.passButton} onPress={handlePass}>
-            <Ionicons name="close" size={24} color="#F44336" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.likeButton} onPress={handleLike}>
-            <Ionicons name="heart" size={24} color="#4CAF50" />
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Dark fade overlay */}
       <Animated.View
@@ -371,35 +357,6 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 60%)",
     marginTop: 4,
     fontWeight: "600",
-  },
-  actionButtons: {
-    position: "absolute",
-    bottom: 20,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingHorizontal: 40,
-  },
-  passButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(244, 67, 54, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#F44336",
-  },
-  likeButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(76, 175, 80, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#4CAF50",
   },
   fadeOverlay: {
     position: "absolute",
