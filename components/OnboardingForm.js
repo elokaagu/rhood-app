@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 // Music genres for selection
 const MUSIC_GENRES = [
@@ -107,8 +108,11 @@ export default function OnboardingForm({
 
     switch (step) {
       case 1:
-        if (!djProfile.fullName.trim()) {
-          newErrors.fullName = "Full name is required";
+        if (!djProfile.firstName.trim()) {
+          newErrors.firstName = "First name is required";
+        }
+        if (!djProfile.lastName.trim()) {
+          newErrors.lastName = "Last name is required";
         }
         if (!djProfile.djName.trim()) {
           newErrors.djName = "DJ name is required";
@@ -181,6 +185,10 @@ export default function OnboardingForm({
     setShowCityDropdown(false);
   };
 
+  const toggleCityDropdown = () => {
+    setShowCityDropdown(!showCityDropdown);
+  };
+
   const renderStepIndicator = () => (
     <View style={styles.stepIndicator}>
       {Array.from({ length: totalSteps }, (_, index) => (
@@ -209,20 +217,38 @@ export default function OnboardingForm({
       <Text style={styles.stepSubtitle}>Tell us about yourself</Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Full Name *</Text>
+        <Text style={styles.label}>First Name *</Text>
         <TextInput
-          style={[styles.input, errors.fullName && styles.inputError]}
-          placeholder="Enter your full name"
-          value={djProfile.fullName}
+          style={[styles.input, errors.firstName && styles.inputError]}
+          placeholder="Enter your first name"
+          value={djProfile.firstName}
           onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, fullName: text }));
-            if (errors.fullName) {
-              setErrors((prev) => ({ ...prev, fullName: null }));
+            setDjProfile((prev) => ({ ...prev, firstName: text }));
+            if (errors.firstName) {
+              setErrors((prev) => ({ ...prev, firstName: null }));
             }
           }}
         />
-        {errors.fullName && (
-          <Text style={styles.errorText}>{errors.fullName}</Text>
+        {errors.firstName && (
+          <Text style={styles.errorText}>{errors.firstName}</Text>
+        )}
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Last Name *</Text>
+        <TextInput
+          style={[styles.input, errors.lastName && styles.inputError]}
+          placeholder="Enter your last name"
+          value={djProfile.lastName}
+          onChangeText={(text) => {
+            setDjProfile((prev) => ({ ...prev, lastName: text }));
+            if (errors.lastName) {
+              setErrors((prev) => ({ ...prev, lastName: null }));
+            }
+          }}
+        />
+        {errors.lastName && (
+          <Text style={styles.errorText}>{errors.lastName}</Text>
         )}
       </View>
 
@@ -261,7 +287,7 @@ export default function OnboardingForm({
         <Text style={styles.label}>City *</Text>
         <TouchableOpacity
           style={[styles.dropdownButton, errors.city && styles.inputError]}
-          onPress={() => setShowCityDropdown(!showCityDropdown)}
+          onPress={toggleCityDropdown}
         >
           <Text
             style={[
@@ -276,11 +302,12 @@ export default function OnboardingForm({
 
         {showCityDropdown && (
           <View style={styles.dropdown}>
-            {MAJOR_CITIES.map((city) => (
+            {MAJOR_CITIES.map((city, index) => (
               <TouchableOpacity
-                key={city}
+                key={`${city}-${index}`}
                 style={styles.dropdownItem}
                 onPress={() => selectCity(city)}
+                activeOpacity={0.7}
               >
                 <Text style={styles.dropdownItemText}>{city}</Text>
               </TouchableOpacity>
@@ -306,26 +333,40 @@ export default function OnboardingForm({
       <Text style={styles.stepSubtitle}>What genres do you play?</Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Select Genres *</Text>
-        <View style={styles.genreContainer}>
+        <View style={styles.genreHeader}>
+          <Text style={styles.label}>Select Genres *</Text>
+          <Text style={styles.genreCount}>
+            {djProfile.genres.length} selected
+          </Text>
+        </View>
+        <Text style={styles.genreHint}>Select at least one genre you play</Text>
+        <View style={styles.genreGrid}>
           {MUSIC_GENRES.map((genre) => (
             <TouchableOpacity
               key={genre}
               style={[
-                styles.genreTag,
-                djProfile.genres.includes(genre) && styles.genreTagSelected,
+                styles.genreCard,
+                djProfile.genres.includes(genre) && styles.genreCardSelected,
               ]}
               onPress={() => toggleGenre(genre)}
+              activeOpacity={0.8}
             >
-              <Text
-                style={[
-                  styles.genreTagText,
-                  djProfile.genres.includes(genre) &&
-                    styles.genreTagTextSelected,
-                ]}
-              >
-                {genre}
-              </Text>
+              <View style={styles.genreCardContent}>
+                <Text
+                  style={[
+                    styles.genreCardText,
+                    djProfile.genres.includes(genre) &&
+                      styles.genreCardTextSelected,
+                  ]}
+                >
+                  {genre}
+                </Text>
+                {djProfile.genres.includes(genre) && (
+                  <View style={styles.genreCheckmark}>
+                    <Text style={styles.genreCheckmarkText}>✓</Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -347,40 +388,74 @@ export default function OnboardingForm({
       <Text style={styles.stepTitle}>Social Links</Text>
       <Text style={styles.stepSubtitle}>Connect your profiles (optional)</Text>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Instagram (Optional)</Text>
-        <TextInput
-          style={[styles.input, errors.instagram && styles.inputError]}
-          placeholder="@yourhandle or full URL (optional)"
-          value={djProfile.instagram}
-          onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, instagram: text }));
-            if (errors.instagram) {
-              setErrors((prev) => ({ ...prev, instagram: null }));
-            }
-          }}
-        />
-        {errors.instagram && (
-          <Text style={styles.errorText}>{errors.instagram}</Text>
-        )}
-      </View>
+      <View style={styles.socialLinksCard}>
+        <View style={styles.inputGroup}>
+          <View style={styles.inputLabelContainer}>
+            <Text style={styles.label}>Instagram</Text>
+            <Text style={styles.optionalLabel}>Optional</Text>
+          </View>
+          <TextInput
+            style={[styles.socialInput, errors.instagram && styles.inputError]}
+            placeholder="@yourhandle or full URL"
+            placeholderTextColor="hsl(0, 0%, 50%)"
+            value={djProfile.instagram}
+            onChangeText={(text) => {
+              setDjProfile((prev) => ({ ...prev, instagram: text }));
+              if (errors.instagram) {
+                setErrors((prev) => ({ ...prev, instagram: null }));
+              }
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {djProfile.instagram && (
+            <Text style={styles.formatHint}>
+              {isValidInstagram(djProfile.instagram)
+                ? "✓ Valid format"
+                : "⚠ Check format"}
+            </Text>
+          )}
+          {errors.instagram && (
+            <Text style={styles.errorText}>{errors.instagram}</Text>
+          )}
+        </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>SoundCloud (Optional)</Text>
-        <TextInput
-          style={[styles.input, errors.soundcloud && styles.inputError]}
-          placeholder="Your SoundCloud URL (optional)"
-          value={djProfile.soundcloud}
-          onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, soundcloud: text }));
-            if (errors.soundcloud) {
-              setErrors((prev) => ({ ...prev, soundcloud: null }));
-            }
-          }}
-        />
-        {errors.soundcloud && (
-          <Text style={styles.errorText}>{errors.soundcloud}</Text>
-        )}
+        <View style={styles.inputGroup}>
+          <View style={styles.inputLabelContainer}>
+            <Text style={styles.label}>SoundCloud</Text>
+            <Text style={styles.optionalLabel}>Optional</Text>
+          </View>
+          <TextInput
+            style={[styles.socialInput, errors.soundcloud && styles.inputError]}
+            placeholder="https://soundcloud.com/yourusername"
+            placeholderTextColor="hsl(0, 0%, 50%)"
+            value={djProfile.soundcloud}
+            onChangeText={(text) => {
+              setDjProfile((prev) => ({ ...prev, soundcloud: text }));
+              if (errors.soundcloud) {
+                setErrors((prev) => ({ ...prev, soundcloud: null }));
+              }
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {djProfile.soundcloud && (
+            <Text style={styles.formatHint}>
+              {isValidSoundCloud(djProfile.soundcloud)
+                ? "✓ Valid format"
+                : "⚠ Check format"}
+            </Text>
+          )}
+          {errors.soundcloud && (
+            <Text style={styles.errorText}>{errors.soundcloud}</Text>
+          )}
+        </View>
+
+        <View style={styles.skipContainer}>
+          <Text style={styles.skipText}>
+            You can always add these later in your profile settings
+          </Text>
+        </View>
       </View>
     </Animated.View>
   );
@@ -412,28 +487,26 @@ export default function OnboardingForm({
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <Text style={styles.subtitle}>
-            Join the Underground Music Network
-          </Text>
+          <Text style={styles.subtitle}>Join R/HOOD</Text>
           {renderStepIndicator()}
         </View>
 
         <View style={styles.form}>{renderCurrentStep()}</View>
-
-        <View style={styles.buttonContainer}>
-          {currentStep > 1 && (
-            <TouchableOpacity style={styles.secondaryButton} onPress={prevStep}>
-              <Text style={styles.secondaryButtonText}>Back</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity style={styles.primaryButton} onPress={nextStep}>
-            <Text style={styles.primaryButtonText}>
-              {currentStep === totalSteps ? "Complete Setup" : "Next"}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
+
+      <View style={styles.buttonContainer}>
+        {currentStep > 1 && (
+          <TouchableOpacity style={styles.secondaryButton} onPress={prevStep}>
+            <Text style={styles.secondaryButtonText}>Back</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity style={styles.primaryButton} onPress={nextStep}>
+          <Text style={styles.primaryButtonText}>
+            {currentStep === totalSteps ? "Complete Setup" : "Next"}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -446,6 +519,7 @@ const styles = {
   scrollContent: {
     flexGrow: 1,
     padding: 20,
+    paddingBottom: 20, // Reduced padding since buttons are now outside
   },
   header: {
     alignItems: "center",
@@ -562,7 +636,7 @@ const styles = {
   },
   dropdown: {
     position: "absolute",
-    top: 60,
+    top: 95, // Increased from 80 to 95 (additional 15px down)
     left: 0,
     right: 0,
     backgroundColor: "hsl(0, 0%, 10%)", // Dark background
@@ -576,44 +650,154 @@ const styles = {
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)", // Subtle border
+    backgroundColor: "hsl(0, 0%, 10%)", // Ensure consistent background
+    borderTopWidth: 0, // Remove any top border
+    borderLeftWidth: 0, // Remove any left border
+    borderRightWidth: 0, // Remove any right border
   },
   dropdownItemText: {
     fontSize: 16,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)", // Pure white text
+    fontWeight: "500", // Ensure consistent weight
   },
-  genreContainer: {
+  genreHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  genreCount: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
+    fontWeight: "600",
+  },
+  genreHint: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)", // Muted text
+    marginBottom: 16,
+  },
+  genreGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginTop: 10,
+    marginTop: 0,
+    justifyContent: "space-between",
   },
-  genreTag: {
-    backgroundColor: "hsl(0, 0%, 15%)", // Muted background
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: 8,
+  genreCard: {
+    width: "48%", // Two columns with small gap
+    backgroundColor: "hsl(0, 0%, 8%)", // Darker background
+    borderRadius: 12,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderColor: "hsl(0, 0%, 20%)", // Subtle border
+    overflow: "hidden",
   },
-  genreTagSelected: {
+  genreCardSelected: {
     backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
     borderColor: "hsl(75, 100%, 60%)",
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  genreTagText: {
-    fontSize: 12,
+  genreCardContent: {
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    minHeight: 60,
+  },
+  genreCardText: {
+    fontSize: 16,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)", // Pure white text
+    fontWeight: "600",
+    flex: 1,
   },
-  genreTagTextSelected: {
+  genreCardTextSelected: {
     color: "hsl(0, 0%, 0%)", // Black text on selected
+    fontWeight: "700",
+  },
+  genreCheckmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 0%)", // Black background for checkmark
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  genreCheckmarkText: {
+    fontSize: 14,
+    color: "hsl(75, 100%, 60%)", // Lime green checkmark
+    fontWeight: "bold",
+  },
+  socialLinksCard: {
+    backgroundColor: "hsl(0, 0%, 8%)", // Dark card background
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)", // Subtle border
+    marginTop: 10,
+  },
+  inputLabelContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  optionalLabel: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)", // R/HOOD lime color
+    fontWeight: "500",
+    backgroundColor: "hsl(75, 100%, 60%, 0.1)", // Subtle background
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  socialInput: {
+    backgroundColor: "hsl(0, 0%, 12%)", // Darker input background
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)", // Subtle border
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)", // White text
+    marginBottom: 4,
+  },
+  formatHint: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)", // Muted text
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  skipContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "hsl(0, 0%, 15%)", // Subtle divider
+  },
+  skipText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)", // Muted text
+    textAlign: "center",
+    fontStyle: "italic",
   },
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 30,
+    paddingBottom: 20, // Add bottom padding for safe area
+    paddingHorizontal: 20, // Match container padding
+    paddingTop: 20, // Add top padding for separation
+    backgroundColor: "hsl(0, 0%, 0%)", // Match background
   },
   primaryButton: {
     backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color

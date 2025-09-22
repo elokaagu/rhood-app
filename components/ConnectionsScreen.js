@@ -8,6 +8,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 
 // Mock connections data
@@ -138,126 +139,139 @@ export default function ConnectionsScreen({ onNavigate }) {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>CONNECTIONS</Text>
-        <Text style={styles.headerSubtitle}>Your DJ network and community</Text>
-      </View>
-
-      {/* Pinned Group Chat Section */}
-      <View style={styles.pinnedGroup}>
-        <TouchableOpacity
-          style={styles.groupChatItem}
-          onPress={handleGroupChatPress}
-        >
-          {/* Group Avatar */}
-          <View style={styles.groupAvatarContainer}>
-            <View style={styles.groupAvatar}>
-              <Ionicons name="people" size={24} color="hsl(0, 0%, 0%)" />
-            </View>
-            {/* Online Status Indicator */}
-            <View style={styles.onlineIndicator} />
-          </View>
-
-          {/* Group Chat Info */}
-          <View style={styles.groupInfo}>
-            <View style={styles.groupHeader}>
-              <Text style={styles.groupName}>Rhood Group</Text>
-              <Text style={styles.groupTime}>2m</Text>
-            </View>
-            <Text style={styles.groupMessage} numberOfLines={1}>
-              Sofia: Yeah, the set was amazing! 🔥
-            </Text>
-            <View style={styles.groupBadges}>
-              <View style={styles.pinnedBadge}>
-                <Text style={styles.pinnedBadgeText}>Pinned</Text>
-              </View>
-              <Text style={styles.memberCount}>12 members</Text>
-            </View>
-          </View>
-
-          {/* Unread Messages Counter */}
-          <View style={styles.unreadCounter}>
-            <Text style={styles.unreadCount}>3</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Individual Connections List */}
-      <View style={styles.connectionsList}>
-        {mockConnections.map((connection) => (
-          <TouchableOpacity
-            key={connection.id}
-            style={styles.connectionItem}
-            onPress={() => handleConnectionPress(connection)}
-          >
-            <View style={styles.connectionContent}>
-              {/* Profile Image with Online Status */}
-              <View style={styles.profileContainer}>
-                <ProgressiveImage
-                  source={{ uri: connection.profileImage }}
-                  style={styles.profileImage}
-                />
-                {connection.status === "online" && (
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      { backgroundColor: getStatusColor(connection.status) },
-                    ]}
-                  />
-                )}
-              </View>
-
-              {/* Connection Info */}
-              <View style={styles.connectionInfo}>
-                {/* Name and Last Active Time */}
-                <View style={styles.connectionHeader}>
-                  <Text style={styles.connectionName} numberOfLines={1}>
-                    {connection.name}
-                  </Text>
-                  <Text style={styles.lastActive}>{connection.lastActive}</Text>
-                </View>
-
-                {/* Last Message Preview */}
-                <Text style={styles.lastMessage} numberOfLines={1}>
-                  {getLastMessage(connection.id)}
-                </Text>
-
-                {/* Genre Tags */}
-                <View style={styles.genreTags}>
-                  {connection.genres.slice(0, 2).map((genre) => (
-                    <View key={genre} style={styles.genreTag}>
-                      <Text style={styles.genreTagText}>{genre}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              {/* Unread Message Indicator */}
-              {connection.id === 1 && <View style={styles.unreadDot} />}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Add Connection Call-to-Action */}
-      <View style={styles.ctaSection}>
-        <View style={styles.ctaCard}>
-          <Ionicons name="person-add" size={24} color="hsl(0, 0%, 70%)" />
-          <Text style={styles.ctaTitle}>Find More Connections</Text>
-          <Text style={styles.ctaDescription}>
-            Discover DJs and industry professionals
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>CONNECTIONS</Text>
+          <Text style={styles.headerSubtitle}>
+            Your DJ network and community
           </Text>
+        </View>
+
+        {/* Pinned Group Chat Section */}
+        <View style={styles.pinnedGroup}>
           <TouchableOpacity
-            style={styles.ctaButton}
-            onPress={handleBrowseCommunity}
+            style={styles.groupChatItem}
+            onPress={handleGroupChatPress}
           >
-            <Text style={styles.ctaButtonText}>Browse Community</Text>
+            {/* Group Avatar */}
+            <View style={styles.groupAvatarContainer}>
+              <View style={styles.groupAvatar}>
+                <Ionicons name="people" size={24} color="hsl(0, 0%, 0%)" />
+              </View>
+              {/* Online Status Indicator */}
+              <View style={styles.onlineIndicator} />
+            </View>
+
+            {/* Group Chat Info */}
+            <View style={styles.groupInfo}>
+              <View style={styles.groupHeader}>
+                <Text style={styles.groupName}>Rhood Group</Text>
+                <Text style={styles.groupTime}>2m</Text>
+              </View>
+              <Text style={styles.groupMessage} numberOfLines={1}>
+                Sofia: Yeah, the set was amazing! 🔥
+              </Text>
+              <View style={styles.groupBadges}>
+                <View style={styles.pinnedBadge}>
+                  <Text style={styles.pinnedBadgeText}>Pinned</Text>
+                </View>
+                <Text style={styles.memberCount}>12 members</Text>
+              </View>
+            </View>
+
+            {/* Unread Messages Counter */}
+            <View style={styles.unreadCounter}>
+              <Text style={styles.unreadCount}>3</Text>
+            </View>
           </TouchableOpacity>
         </View>
-      </View>
-    </ScrollView>
+
+        {/* Individual Connections List */}
+        <View style={styles.connectionsList}>
+          {mockConnections.map((connection) => (
+            <TouchableOpacity
+              key={connection.id}
+              style={styles.connectionItem}
+              onPress={() => handleConnectionPress(connection)}
+            >
+              <View style={styles.connectionContent}>
+                {/* Profile Image with Online Status */}
+                <View style={styles.profileContainer}>
+                  <ProgressiveImage
+                    source={{ uri: connection.profileImage }}
+                    style={styles.profileImage}
+                  />
+                  {connection.status === "online" && (
+                    <View
+                      style={[
+                        styles.statusIndicator,
+                        { backgroundColor: getStatusColor(connection.status) },
+                      ]}
+                    />
+                  )}
+                </View>
+
+                {/* Connection Info */}
+                <View style={styles.connectionInfo}>
+                  {/* Name and Last Active Time */}
+                  <View style={styles.connectionHeader}>
+                    <Text style={styles.connectionName} numberOfLines={1}>
+                      {connection.name}
+                    </Text>
+                    <Text style={styles.lastActive}>
+                      {connection.lastActive}
+                    </Text>
+                  </View>
+
+                  {/* Last Message Preview */}
+                  <Text style={styles.lastMessage} numberOfLines={1}>
+                    {getLastMessage(connection.id)}
+                  </Text>
+
+                  {/* Genre Tags */}
+                  <View style={styles.genreTags}>
+                    {connection.genres.slice(0, 2).map((genre) => (
+                      <View key={genre} style={styles.genreTag}>
+                        <Text style={styles.genreTagText}>{genre}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Unread Message Indicator */}
+                {connection.id === 1 && <View style={styles.unreadDot} />}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Add Connection Call-to-Action */}
+        <View style={styles.ctaSection}>
+          <View style={styles.ctaCard}>
+            <Ionicons name="person-add" size={24} color="hsl(0, 0%, 70%)" />
+            <Text style={styles.ctaTitle}>Find More Connections</Text>
+            <Text style={styles.ctaDescription}>
+              Discover DJs and industry professionals
+            </Text>
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={handleBrowseCommunity}
+            >
+              <Text style={styles.ctaButtonText}>Browse Community</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Bottom gradient fade overlay */}
+      <LinearGradient
+        colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)"]}
+        style={styles.bottomGradient}
+        pointerEvents="none"
+      />
+    </View>
   );
 }
 
@@ -265,6 +279,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "hsl(0, 0%, 0%)",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  bottomGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 120,
   },
   header: {
     padding: 20,

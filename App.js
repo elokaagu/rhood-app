@@ -132,7 +132,8 @@ export default function App() {
 
   const [djProfile, setDjProfile] = useState({
     djName: "",
-    fullName: "",
+    firstName: "",
+    lastName: "",
     instagram: "",
     soundcloud: "",
     city: "",
@@ -223,7 +224,8 @@ export default function App() {
           // User signed out, reset state
           setDjProfile({
             djName: "",
-            fullName: "",
+            firstName: "",
+            lastName: "",
             instagram: "",
             soundcloud: "",
             city: "",
@@ -317,7 +319,8 @@ export default function App() {
     // Update the local djProfile state with the updated profile
     setDjProfile({
       djName: updatedProfile.dj_name,
-      fullName: updatedProfile.full_name,
+      firstName: updatedProfile.first_name || "",
+      lastName: updatedProfile.last_name || "",
       instagram: updatedProfile.instagram || "",
       soundcloud: updatedProfile.soundcloud || "",
       city: updatedProfile.city,
@@ -328,7 +331,8 @@ export default function App() {
       "djProfile",
       JSON.stringify({
         djName: updatedProfile.dj_name,
-        fullName: updatedProfile.full_name,
+        firstName: updatedProfile.first_name || "",
+        lastName: updatedProfile.last_name || "",
         instagram: updatedProfile.instagram || "",
         soundcloud: updatedProfile.soundcloud || "",
         city: updatedProfile.city,
@@ -693,13 +697,14 @@ export default function App() {
   const completeOnboarding = async () => {
     if (
       !djProfile.djName ||
-      !djProfile.fullName ||
+      !djProfile.firstName ||
+      !djProfile.lastName ||
       !djProfile.city ||
       djProfile.genres.length === 0
     ) {
       Alert.alert(
         "Error",
-        "Please fill in all required fields: DJ name, full name, city, and at least one genre"
+        "Please fill in all required fields: DJ name, first name, last name, city, and at least one genre"
       );
       return;
     }

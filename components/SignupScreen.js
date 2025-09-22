@@ -21,7 +21,8 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
     password: "",
     confirmPassword: "",
     djName: "",
-    fullName: "",
+    firstName: "",
+    lastName: "",
     city: "",
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -33,15 +34,23 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   };
 
   const validateForm = () => {
-    const { email, password, confirmPassword, djName, fullName, city } =
-      formData;
+    const {
+      email,
+      password,
+      confirmPassword,
+      djName,
+      firstName,
+      lastName,
+      city,
+    } = formData;
 
     if (
       !email ||
       !password ||
       !confirmPassword ||
       !djName ||
-      !fullName ||
+      !firstName ||
+      !lastName ||
       !city
     ) {
       Alert.alert("Error", "Please fill in all fields");
@@ -68,7 +77,8 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       setLoading(true);
       const { user } = await auth.signUp(formData.email, formData.password, {
         dj_name: formData.djName,
-        full_name: formData.fullName,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
         city: formData.city,
       });
 
@@ -78,7 +88,8 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
           id: user.id, // Use the authenticated user's ID
           email: formData.email,
           dj_name: formData.djName,
-          full_name: formData.fullName,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
           city: formData.city,
           genres: [], // Will be set during onboarding
           bio: `DJ from ${formData.city}`,
@@ -143,15 +154,28 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
             />
           </View>
 
-          {/* Full Name Input */}
+          {/* First Name Input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Full Name *</Text>
+            <Text style={styles.label}>First Name *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Your real name"
+              placeholder="Your first name"
               placeholderTextColor="hsl(0, 0%, 50%)"
-              value={formData.fullName}
-              onChangeText={(value) => updateFormData("fullName", value)}
+              value={formData.firstName}
+              onChangeText={(value) => updateFormData("firstName", value)}
+              autoCapitalize="words"
+            />
+          </View>
+
+          {/* Last Name Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Last Name *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Your last name"
+              placeholderTextColor="hsl(0, 0%, 50%)"
+              value={formData.lastName}
+              onChangeText={(value) => updateFormData("lastName", value)}
               autoCapitalize="words"
             />
           </View>
