@@ -148,34 +148,20 @@ export default function ListenScreen({
   const [playingMixId, setPlayingMixId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
-  const [sortBy, setSortBy] = useState("popularity");
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Get unique genres for filter
   const genres = ["All", ...new Set(mockMixes.map(mix => mix.genre))];
 
-  // Filter and sort mixes
-  const filteredMixes = mixes
-    .filter(mix => {
-      const matchesSearch = mix.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           mix.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           mix.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesGenre = selectedGenre === "All" || mix.genre === selectedGenre;
-      return matchesSearch && matchesGenre;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "popularity":
-          return b.plays - a.plays;
-        case "newest":
-          return b.id - a.id;
-        case "alphabetical":
-          return a.title.localeCompare(b.title);
-        default:
-          return b.plays - a.plays;
-      }
-    });
+  // Filter mixes
+  const filteredMixes = mixes.filter(mix => {
+    const matchesSearch = mix.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         mix.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         mix.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesGenre = selectedGenre === "All" || mix.genre === selectedGenre;
+    return matchesSearch && matchesGenre;
+  });
 
   // Sync local playing state with global audio state
   useEffect(() => {
@@ -242,10 +228,6 @@ export default function ListenScreen({
     }, 1000);
   };
 
-  const handleSortChange = (newSort) => {
-    setSortBy(newSort);
-  };
-
   const handleGenreFilter = (genre) => {
     setSelectedGenre(genre);
   };
@@ -264,7 +246,7 @@ export default function ListenScreen({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>LISTEN</Text>
-        <Text style={styles.headerSubtitle}>5-minute sets from top DJs</Text>
+        <Text style={styles.headerSubtitle}>5 minute sets from DJs in R/HOOD</Text>
       </View>
 
       {/* Search Bar */}
@@ -315,33 +297,6 @@ export default function ListenScreen({
         ))}
       </ScrollView>
 
-      {/* Sort Options */}
-      <View style={styles.sortContainer}>
-        <Text style={styles.sortLabel}>Sort by:</Text>
-        <View style={styles.sortButtons}>
-          {[
-            { key: "popularity", label: "Popular" },
-            { key: "newest", label: "Newest" },
-            { key: "alphabetical", label: "A-Z" }
-          ].map((option) => (
-            <TouchableOpacity
-              key={option.key}
-              style={[
-                styles.sortButton,
-                sortBy === option.key && styles.sortButtonActive
-              ]}
-              onPress={() => handleSortChange(option.key)}
-            >
-              <Text style={[
-                styles.sortButtonText,
-                sortBy === option.key && styles.sortButtonTextActive
-              ]}>
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
 
       {/* Mixes List */}
       <View style={styles.mixesContainer}>
@@ -520,46 +475,6 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
   },
   genreChipTextActive: {
-    color: "hsl(0, 0%, 0%)",
-    fontWeight: "600",
-  },
-  // Sort Options Styles
-  sortContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  sortLabel: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    fontWeight: "500",
-  },
-  sortButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  sortButton: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  sortButtonActive: {
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderColor: "hsl(75, 100%, 60%)",
-  },
-  sortButtonText: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "500",
-    color: "hsl(0, 0%, 70%)",
-  },
-  sortButtonTextActive: {
     color: "hsl(0, 0%, 0%)",
     fontWeight: "600",
   },
