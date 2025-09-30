@@ -92,6 +92,24 @@ CREATE TABLE messages (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create mixes table for DJ uploads
+CREATE TABLE mixes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  genre VARCHAR(100),
+  duration INTEGER, -- Duration in seconds
+  file_url TEXT NOT NULL, -- Supabase storage URL
+  file_size BIGINT, -- File size in bytes
+  artwork_url TEXT, -- Optional cover art
+  play_count INTEGER DEFAULT 0,
+  likes_count INTEGER DEFAULT 0,
+  is_public BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_user_profiles_city ON user_profiles(city);
 CREATE INDEX idx_user_profiles_genres ON user_profiles USING GIN(genres);
@@ -106,6 +124,10 @@ CREATE INDEX idx_community_members_user ON community_members(user_id);
 CREATE INDEX idx_community_members_community ON community_members(community_id);
 CREATE INDEX idx_messages_sender ON messages(sender_id);
 CREATE INDEX idx_messages_receiver ON messages(receiver_id);
+CREATE INDEX idx_mixes_user_id ON mixes(user_id);
+CREATE INDEX idx_mixes_created_at ON mixes(created_at DESC);
+CREATE INDEX idx_mixes_genre ON mixes(genre);
+CREATE INDEX idx_mixes_is_public ON mixes(is_public);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
@@ -115,6 +137,7 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE communities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mixes ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies (basic - you may want to customize these)
 -- User profiles can be read by anyone, but only updated by the owner
@@ -148,6 +171,19 @@ CREATE POLICY "Community members are viewable by everyone" ON community_members
 CREATE POLICY "Users can view their own messages" ON messages
   FOR SELECT USING (auth.uid()::text = sender_id::text OR auth.uid()::text = receiver_id::text);
 
+-- Mixes policies
+CREATE POLICY "Users can view their own mixes and public mixes" ON mixes
+  FOR SELECT USING (auth.uid()::text = user_id::text OR is_public = true);
+
+CREATE POLICY "Users can insert their own mixes" ON mixes
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id::text);
+
+CREATE POLICY "Users can update their own mixes" ON mixes
+  FOR UPDATE USING (auth.uid()::text = user_id::text);
+
+CREATE POLICY "Users can delete their own mixes" ON mixes
+  FOR DELETE USING (auth.uid()::text = user_id::text);
+
 -- Create functions for updating timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -168,6 +204,9 @@ CREATE TRIGGER update_applications_updated_at BEFORE UPDATE ON applications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_communities_updated_at BEFORE UPDATE ON communities
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_mixes_updated_at BEFORE UPDATE ON mixes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert sample data
