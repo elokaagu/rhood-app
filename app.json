@@ -4,7 +4,7 @@
     "slug": "rhoodapp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/rhood_logo.webp",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -30,7 +30,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/rhood_logo.webp",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#000000"
       },
       "package": "com.rhoodapp.mobile",

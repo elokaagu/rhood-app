@@ -46,7 +46,10 @@ import {
 import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";
 import EditProfileScreen from "./components/EditProfileScreen";
-import { registerForPushNotifications, setupNotificationListeners } from "./lib/pushNotifications";
+import {
+  registerForPushNotifications,
+  setupNotificationListeners,
+} from "./lib/pushNotifications";
 
 export default function App() {
   // Load custom fonts
@@ -302,9 +305,11 @@ export default function App() {
     initializeAuth();
     setupGlobalAudio();
     fetchOpportunities();
-    
-    // Setup push notifications
-    setupPushNotifications();
+
+    // Setup push notifications (disabled until development build is created)
+    // Note: Push notifications require a custom development build, not Expo Go
+    // To enable: Run `eas build --profile development --platform ios`
+    // setupPushNotifications();
 
     // Handle app state changes for background audio
     const handleAppStateChange = (nextAppState) => {
@@ -336,16 +341,16 @@ export default function App() {
       // Register for push notifications
       const token = await registerForPushNotifications();
       if (token) {
-        console.log('Push notification token obtained:', token);
+        console.log("Push notification token obtained:", token);
       }
 
       // Setup notification listeners
       const cleanup = setupNotificationListeners();
-      
+
       // Store cleanup function for later use
       return cleanup;
     } catch (error) {
-      console.error('Error setting up push notifications:', error);
+      console.error("Error setting up push notifications:", error);
     }
   };
 
