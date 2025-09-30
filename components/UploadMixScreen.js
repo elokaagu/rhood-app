@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,18 +9,18 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { supabase } from '../lib/supabase';
-import { LinearGradient } from 'expo-linear-gradient';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { supabase } from "../lib/supabase";
+import { LinearGradient } from "expo-linear-gradient";
 
 // Conditionally import DocumentPicker
 let DocumentPicker;
 try {
-  DocumentPicker = require('expo-document-picker');
+  DocumentPicker = require("expo-document-picker");
 } catch (e) {
-  console.log('DocumentPicker not available in Expo Go');
+  console.log("DocumentPicker not available in Expo Go");
 }
 
 export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
@@ -28,85 +28,88 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [mixData, setMixData] = useState({
-    title: '',
-    description: '',
-    genre: '',
+    title: "",
+    description: "",
+    genre: "",
     isPublic: true,
   });
 
   const genres = [
-    'House',
-    'Techno',
-    'R&B',
-    'Soul',
-    'Hip-Hop',
-    'Electronic',
-    'Drum & Bass',
-    'Dubstep',
-    'Trance',
-    'Deep House',
-    'Tech House',
-    'Disco',
-    'Funk',
-    'Other',
+    "House",
+    "Techno",
+    "R&B",
+    "Soul",
+    "Hip-Hop",
+    "Electronic",
+    "Drum & Bass",
+    "Dubstep",
+    "Trance",
+    "Deep House",
+    "Tech House",
+    "Disco",
+    "Funk",
+    "Other",
   ];
 
   const pickAudioFile = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
+
       if (!DocumentPicker) {
         Alert.alert(
-          'Feature Not Available',
-          'File picker requires a development build. Please use the development build to upload mixes.',
-          [{ text: 'OK' }]
+          "Feature Not Available",
+          "File picker requires a development build. Please use the development build to upload mixes.",
+          [{ text: "OK" }]
         );
         return;
       }
-      
+
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'audio/*',
+        type: "audio/*",
         copyToCacheDirectory: true,
       });
 
-      if (result.type === 'success' || !result.canceled) {
+      if (result.type === "success" || !result.canceled) {
         const file = result.assets ? result.assets[0] : result;
-        
+
         // Check file size (max 500MB)
         if (file.size > 500 * 1024 * 1024) {
-          Alert.alert('File Too Large', 'Please select a file smaller than 500MB');
+          Alert.alert(
+            "File Too Large",
+            "Please select a file smaller than 500MB"
+          );
           return;
         }
 
         setSelectedFile(file);
-        
+
         // Auto-fill title from filename if empty
         if (!mixData.title && file.name) {
-          setMixData(prev => ({
+          setMixData((prev) => ({
             ...prev,
-            title: file.name.replace(/\.(mp3|wav|m4a|aac)$/i, ''),
+            title: file.name.replace(/\.(mp3|wav|m4a|aac)$/i, ""),
           }));
         }
       }
     } catch (error) {
-      console.error('Error picking file:', error);
-      Alert.alert('Error', 'Failed to select file. Please try again.');
+      console.error("Error picking file:", error);
+      Alert.alert("Error", "Failed to select file. Please try again.");
     }
   };
 
   const uploadMix = async () => {
     if (!selectedFile) {
-      Alert.alert('No File Selected', 'Please select an audio file to upload');
+      Alert.alert("No File Selected", "Please select an audio file to upload");
       return;
     }
 
     if (!mixData.title.trim()) {
-      Alert.alert('Title Required', 'Please enter a title for your mix');
+      Alert.alert("Title Required", "Please enter a title for your mix");
       return;
     }
 
     if (!user?.id) {
-      Alert.alert('Error', 'You must be logged in to upload mixes');
+      Alert.alert("Error", "You must be logged in to upload mixes");
       return;
     }
 
@@ -116,7 +119,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Create unique filename
-      const fileExt = selectedFile.name.split('.').pop();
+      const fileExt = selectedFile.name.split(".").pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
       // Read file as blob
@@ -125,10 +128,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('mixes')
+        .from("mixes")
         .upload(fileName, blob, {
-          contentType: selectedFile.mimeType || 'audio/mpeg',
-          cacheControl: '3600',
+          contentType: selectedFile.mimeType || "audio/mpeg",
+          cacheControl: "3600",
           upsert: false,
         });
 
@@ -140,14 +143,14 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('mixes')
+        .from("mixes")
         .getPublicUrl(fileName);
 
       setUploadProgress(75);
 
       // Save mix metadata to database
       const { data: mixRecord, error: dbError } = await supabase
-        .from('mixes')
+        .from("mixes")
         .insert({
           user_id: user.id,
           title: mixData.title.trim(),
@@ -162,37 +165,33 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       if (dbError) {
         // If database insert fails, try to delete the uploaded file
-        await supabase.storage.from('mixes').remove([fileName]);
+        await supabase.storage.from("mixes").remove([fileName]);
         throw dbError;
       }
 
       setUploadProgress(100);
-      
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-      Alert.alert(
-        'Success!',
-        'Your mix has been uploaded successfully',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              if (onUploadComplete) {
-                onUploadComplete(mixRecord);
-              }
-              if (onBack) {
-                onBack();
-              }
-            },
+
+      Alert.alert("Success!", "Your mix has been uploaded successfully", [
+        {
+          text: "OK",
+          onPress: () => {
+            if (onUploadComplete) {
+              onUploadComplete(mixRecord);
+            }
+            if (onBack) {
+              onBack();
+            }
           },
-        ]
-      );
+        },
+      ]);
     } catch (error) {
-      console.error('Error uploading mix:', error);
+      console.error("Error uploading mix:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(
-        'Upload Failed',
-        error.message || 'Failed to upload mix. Please try again.'
+        "Upload Failed",
+        error.message || "Failed to upload mix. Please try again."
       );
     } finally {
       setUploading(false);
@@ -201,11 +200,11 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
   };
 
   const formatFileSize = (bytes) => {
-    if (!bytes) return '0 B';
+    if (!bytes) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
   return (
@@ -237,7 +236,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
             disabled={uploading}
           >
             <Ionicons
-              name={selectedFile ? 'musical-note' : 'cloud-upload-outline'}
+              name={selectedFile ? "musical-note" : "cloud-upload-outline"}
               size={32}
               color="hsl(75, 100%, 60%)"
             />
@@ -259,7 +258,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         {/* Mix Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Mix Details</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Title *</Text>
             <TextInput
@@ -267,7 +266,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
               placeholder="Enter mix title"
               placeholderTextColor="hsl(0, 0%, 40%)"
               value={mixData.title}
-              onChangeText={(text) => setMixData(prev => ({ ...prev, title: text }))}
+              onChangeText={(text) =>
+                setMixData((prev) => ({ ...prev, title: text }))
+              }
               editable={!uploading}
             />
           </View>
@@ -279,7 +280,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
               placeholder="Tell us about your mix..."
               placeholderTextColor="hsl(0, 0%, 40%)"
               value={mixData.description}
-              onChangeText={(text) => setMixData(prev => ({ ...prev, description: text }))}
+              onChangeText={(text) =>
+                setMixData((prev) => ({ ...prev, description: text }))
+              }
               multiline
               numberOfLines={4}
               editable={!uploading}
@@ -302,9 +305,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
                   ]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setMixData(prev => ({
+                    setMixData((prev) => ({
                       ...prev,
-                      genre: prev.genre === genre ? '' : genre,
+                      genre: prev.genre === genre ? "" : genre,
                     }));
                   }}
                   disabled={uploading}
@@ -327,25 +330,24 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
               style={styles.toggleRow}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setMixData(prev => ({ ...prev, isPublic: !prev.isPublic }));
+                setMixData((prev) => ({ ...prev, isPublic: !prev.isPublic }));
               }}
               disabled={uploading}
             >
               <View style={styles.toggleLeft}>
                 <Ionicons
-                  name={mixData.isPublic ? 'globe-outline' : 'lock-closed-outline'}
+                  name={
+                    mixData.isPublic ? "globe-outline" : "lock-closed-outline"
+                  }
                   size={20}
                   color="white"
                 />
                 <Text style={styles.toggleLabel}>
-                  {mixData.isPublic ? 'Public' : 'Private'}
+                  {mixData.isPublic ? "Public" : "Private"}
                 </Text>
               </View>
               <View
-                style={[
-                  styles.toggle,
-                  mixData.isPublic && styles.toggleActive,
-                ]}
+                style={[styles.toggle, mixData.isPublic && styles.toggleActive]}
               >
                 <View
                   style={[
@@ -357,23 +359,26 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
             </TouchableOpacity>
             <Text style={styles.toggleHint}>
               {mixData.isPublic
-                ? 'Everyone can see and play this mix'
-                : 'Only you can see this mix'}
+                ? "Everyone can see and play this mix"
+                : "Only you can see this mix"}
             </Text>
           </View>
         </View>
 
         {/* Upload Button */}
         <TouchableOpacity
-          style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
+          style={[
+            styles.uploadButton,
+            uploading && styles.uploadButtonDisabled,
+          ]}
           onPress={uploadMix}
           disabled={uploading || !selectedFile}
         >
           <LinearGradient
             colors={
               uploading || !selectedFile
-                ? ['hsl(0, 0%, 20%)', 'hsl(0, 0%, 15%)']
-                : ['hsl(75, 100%, 60%)', 'hsl(75, 100%, 50%)']
+                ? ["hsl(0, 0%, 20%)", "hsl(0, 0%, 15%)"]
+                : ["hsl(75, 100%, 60%)", "hsl(75, 100%, 50%)"]
             }
             style={styles.uploadButtonGradient}
           >
@@ -400,7 +405,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'hsl(0, 0%, 0%)',
+    backgroundColor: "hsl(0, 0%, 0%)",
   },
   scrollView: {
     flex: 1,
@@ -410,21 +415,21 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 24,
   },
   backButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
+    fontWeight: "bold",
+    color: "white",
     letterSpacing: 1,
   },
   section: {
@@ -432,37 +437,37 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: 'hsl(75, 100%, 60%)',
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
     marginBottom: 12,
     letterSpacing: 0.5,
   },
   filePickerButton: {
-    backgroundColor: 'hsl(0, 0%, 10%)',
+    backgroundColor: "hsl(0, 0%, 10%)",
     borderRadius: 12,
     padding: 24,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: 'hsl(0, 0%, 20%)',
-    borderStyle: 'dashed',
+    borderColor: "hsl(0, 0%, 20%)",
+    borderStyle: "dashed",
   },
   filePickerText: {
-    color: 'hsl(0, 0%, 60%)',
+    color: "hsl(0, 0%, 60%)",
     fontSize: 16,
     marginTop: 12,
   },
   fileInfo: {
     marginTop: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   fileName: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
   fileSize: {
-    color: 'hsl(0, 0%, 60%)',
+    color: "hsl(0, 0%, 60%)",
     fontSize: 14,
     marginTop: 4,
   },
@@ -470,64 +475,64 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   label: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: 'hsl(0, 0%, 10%)',
+    backgroundColor: "hsl(0, 0%, 10%)",
     borderRadius: 8,
     padding: 12,
-    color: 'white',
+    color: "white",
     fontSize: 16,
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 20%)',
+    borderColor: "hsl(0, 0%, 20%)",
   },
   textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   genreScroll: {
     flexGrow: 0,
   },
   genreChip: {
-    backgroundColor: 'hsl(0, 0%, 10%)',
+    backgroundColor: "hsl(0, 0%, 10%)",
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 20%)',
+    borderColor: "hsl(0, 0%, 20%)",
   },
   genreChipSelected: {
-    backgroundColor: 'hsl(75, 100%, 60%)',
-    borderColor: 'hsl(75, 100%, 60%)',
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderColor: "hsl(75, 100%, 60%)",
   },
   genreChipText: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   genreChipTextSelected: {
-    color: 'black',
+    color: "black",
   },
   toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'hsl(0, 0%, 10%)',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "hsl(0, 0%, 10%)",
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'hsl(0, 0%, 20%)',
+    borderColor: "hsl(0, 0%, 20%)",
   },
   toggleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   toggleLabel: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
     marginLeft: 8,
   },
@@ -535,49 +540,49 @@ const styles = StyleSheet.create({
     width: 50,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'hsl(0, 0%, 20%)',
+    backgroundColor: "hsl(0, 0%, 20%)",
     padding: 2,
   },
   toggleActive: {
-    backgroundColor: 'hsl(75, 100%, 60%)',
+    backgroundColor: "hsl(75, 100%, 60%)",
   },
   toggleThumb: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
   toggleThumbActive: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
   },
   toggleHint: {
-    color: 'hsl(0, 0%, 60%)',
+    color: "hsl(0, 0%, 60%)",
     fontSize: 12,
     marginTop: 8,
   },
   uploadButton: {
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginTop: 12,
   },
   uploadButtonDisabled: {
     opacity: 0.5,
   },
   uploadButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     padding: 16,
     gap: 8,
   },
   uploadButtonText: {
-    color: 'black',
+    color: "black",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   uploadingContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
 });

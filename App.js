@@ -47,10 +47,11 @@ import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";
 import EditProfileScreen from "./components/EditProfileScreen";
 import UploadMixScreen from "./components/UploadMixScreen";
-import {
-  registerForPushNotifications,
-  setupNotificationListeners,
-} from "./lib/pushNotifications";
+// Push notifications temporarily disabled for Expo Go
+// import {
+//   registerForPushNotifications,
+//   setupNotificationListeners,
+// } from "./lib/pushNotifications";
 
 export default function App() {
   // Load custom fonts
