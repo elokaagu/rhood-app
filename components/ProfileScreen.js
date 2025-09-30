@@ -399,7 +399,9 @@ export default function ProfileScreen({ onNavigate, user }) {
           </View>
         </View>
 
-        {/* Upload Mix Button */}
+        {/* Upload Mix Button - Temporarily hidden for Expo Go testing */}
+        {/* Uncomment when using development build */}
+        {/*
         <TouchableOpacity
           style={styles.uploadButton}
           onPress={() => onNavigate && onNavigate("upload-mix")}
@@ -412,6 +414,7 @@ export default function ProfileScreen({ onNavigate, user }) {
             <Text style={styles.uploadButtonText}>Upload Mix</Text>
           </LinearGradient>
         </TouchableOpacity>
+        */}
 
         {/* Recent Gigs */}
         <View style={styles.gigsContainer}>
