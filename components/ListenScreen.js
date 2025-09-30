@@ -9,8 +9,10 @@ import {
   TextInput,
   RefreshControl,
   FlatList,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import DJMix from "./DJMix";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 
@@ -150,6 +152,7 @@ export default function ListenScreen({
   const [playingMixId, setPlayingMixId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -209,18 +212,7 @@ export default function ListenScreen({
   };
 
   const handleUploadMix = () => {
-    Alert.alert(
-      "Upload Your Mix",
-      "Share your 5-minute DJ mix with the R/HOOD community!",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Upload",
-          onPress: () =>
-            Alert.alert("Coming Soon", "Mix upload feature coming soon!"),
-        },
-      ]
-    );
+    setShowUploadModal(true);
   };
 
   const handleRefresh = async () => {
@@ -374,6 +366,53 @@ export default function ListenScreen({
         })}
         contentContainerStyle={styles.flatListContent}
       />
+
+      {/* Upload Mix Modal - R/HOOD Themed */}
+      <Modal
+        visible={showUploadModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowUploadModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Ionicons
+              name="cloud-upload-outline"
+              size={64}
+              color="hsl(75, 100%, 60%)"
+              style={styles.modalIcon}
+            />
+            <Text style={styles.modalTitle}>Upload Your Mix</Text>
+            <Text style={styles.modalDescription}>
+              Share your 5-minute DJ mix with the R/HOOD community!
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowUploadModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.modalUploadButton}
+                onPress={() => {
+                  setShowUploadModal(false);
+                  Alert.alert("Coming Soon", "Mix upload feature coming soon!");
+                }}
+              >
+                <LinearGradient
+                  colors={["hsl(75, 100%, 60%)", "hsl(75, 100%, 50%)"]}
+                  style={styles.modalUploadGradient}
+                >
+                  <Text style={styles.modalUploadText}>Upload</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -448,6 +487,73 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 20,
+  },
+  // Modal Styles - R/HOOD Theme
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 20,
+    padding: 32,
+    width: "85%",
+    maxWidth: 400,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  modalIcon: {
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  modalDescription: {
+    fontSize: 16,
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  modalCancelButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 25%)",
+    alignItems: "center",
+  },
+  modalCancelText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalUploadButton: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  modalUploadGradient: {
+    padding: 14,
+    alignItems: "center",
+  },
+  modalUploadText: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   // Search Bar Styles
   searchContainer: {
