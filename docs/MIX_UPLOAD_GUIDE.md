@@ -5,6 +5,7 @@ This guide explains how to set up and use the mix upload functionality in the Rh
 ## 🎯 Overview
 
 The mix upload feature allows DJs to:
+
 - ✅ Upload audio files (MP3, WAV, M4A, AAC) directly from the app
 - ✅ Store mixes in Supabase Storage
 - ✅ Add metadata (title, description, genre)
@@ -15,12 +16,14 @@ The mix upload feature allows DJs to:
 ## 📁 Files Added/Modified
 
 ### New Files:
+
 - `components/UploadMixScreen.js` - Mix upload interface
 - `database/create-mixes-table.sql` - Database schema for mixes
 - `database/create-mixes-storage-bucket.sql` - Storage bucket setup
 - `docs/MIX_UPLOAD_GUIDE.md` - This guide
 
 ### Modified Files:
+
 - `App.js` - Added upload-mix screen route
 - `components/ProfileScreen.js` - Added upload button
 - `package.json` - Added expo-document-picker dependency
@@ -30,6 +33,7 @@ The mix upload feature allows DJs to:
 ### Step 1: Install Dependencies
 
 The required package has already been installed:
+
 ```bash
 npx expo install expo-document-picker
 ```
@@ -54,6 +58,7 @@ Run this SQL script in your Supabase SQL Editor:
 ```
 
 This creates:
+
 - `mixes` table for storing mix metadata
 - Indexes for better query performance
 - Row Level Security policies
@@ -68,6 +73,7 @@ Run this SQL script in your Supabase SQL Editor:
 ```
 
 This sets up:
+
 - Upload permissions for authenticated users
 - Public read access for mixes
 - User-specific folder structure
@@ -99,6 +105,7 @@ This sets up:
 ### Upload Process
 
 The upload process:
+
 1. Validates file size and type
 2. Uploads audio file to Supabase Storage
 3. Generates public URL for playback
@@ -131,6 +138,7 @@ CREATE TABLE mixes (
 ### Storage Structure
 
 Files are stored in user-specific folders:
+
 ```
 mixes/
   └── {user_id}/
@@ -159,6 +167,7 @@ The `mixes` table has RLS enabled with policies:
 ## 📊 Features
 
 ### Current Features:
+
 - ✅ File picker with audio filtering
 - ✅ File size validation (max 500MB)
 - ✅ Title auto-fill from filename
@@ -170,6 +179,7 @@ The `mixes` table has RLS enabled with policies:
 - ✅ Success confirmation
 
 ### UI Components:
+
 - **Upload Button**: Prominent green button on profile
 - **File Picker**: Dashed border upload area
 - **Form Fields**: Title, description, genre
@@ -179,13 +189,14 @@ The `mixes` table has RLS enabled with policies:
 ## 🎨 UI/UX Design
 
 ### Upload Screen Layout:
+
 ```
 ┌─────────────────────────┐
 │ ← UPLOAD MIX           │  Header
 ├─────────────────────────┤
 │ [Audio File Picker]    │  File Selection
 ├─────────────────────────┤
-│ Title *                │  
+│ Title *                │
 │ [                     ] │  Form Fields
 │ Description            │
 │ [                     ] │
@@ -198,6 +209,7 @@ The `mixes` table has RLS enabled with policies:
 ```
 
 ### Profile Screen:
+
 - Upload button appears after social links
 - Before "Recent Gigs" section
 - Prominent green gradient design
@@ -206,6 +218,7 @@ The `mixes` table has RLS enabled with policies:
 ## 🔄 Future Enhancements
 
 Potential improvements:
+
 - [ ] Display uploaded mixes list on profile
 - [ ] Mix playback directly from profile
 - [ ] Edit mix metadata after upload
@@ -225,17 +238,20 @@ Potential improvements:
 ### Common Issues:
 
 1. **"File Too Large"**
+
    - Max size is 500MB
    - Compress your audio file
    - Use MP3 format for smaller size
 
 2. **"Upload Failed"**
+
    - Check internet connection
    - Verify Supabase storage bucket exists
    - Check storage policies are configured
    - Ensure user is authenticated
 
 3. **"No File Selected"**
+
    - Tap the upload area again
    - Grant file access permissions
    - Try different file picker
@@ -246,6 +262,7 @@ Potential improvements:
    - Verify user_id foreign key
 
 ### Debug Steps:
+
 1. Check console logs for errors
 2. Verify Supabase connection
 3. Test with small file first
@@ -257,23 +274,23 @@ Potential improvements:
 ### Upload Function
 
 ```javascript
-import { supabase } from '../lib/supabase';
+import { supabase } from "../lib/supabase";
 
 // Upload file to storage
 const { data, error } = await supabase.storage
-  .from('mixes')
+  .from("mixes")
   .upload(fileName, blob, {
-    contentType: 'audio/mpeg',
-    cacheControl: '3600',
+    contentType: "audio/mpeg",
+    cacheControl: "3600",
     upsert: false,
   });
 
 // Save metadata to database
 const { data: mixRecord, error: dbError } = await supabase
-  .from('mixes')
+  .from("mixes")
   .insert({
     user_id: userId,
-    title: 'My Mix',
+    title: "My Mix",
     file_url: publicUrl,
     // ... other fields
   });
@@ -284,22 +301,23 @@ const { data: mixRecord, error: dbError } = await supabase
 ```javascript
 // Get user's mixes
 const { data, error } = await supabase
-  .from('mixes')
-  .select('*')
-  .eq('user_id', userId)
-  .order('created_at', { ascending: false });
+  .from("mixes")
+  .select("*")
+  .eq("user_id", userId)
+  .order("created_at", { ascending: false });
 
 // Get public mixes
 const { data, error } = await supabase
-  .from('mixes')
-  .select('*')
-  .eq('is_public', true)
-  .order('created_at', { ascending: false });
+  .from("mixes")
+  .select("*")
+  .eq("is_public", true)
+  .order("created_at", { ascending: false });
 ```
 
 ## 🎉 Summary
 
 The mix upload system is now fully integrated! DJs can:
+
 - Upload their mixes directly from the app
 - Store them securely in Supabase
 - Control visibility (public/private)
@@ -307,4 +325,3 @@ The mix upload system is now fully integrated! DJs can:
 - Access from their profile
 
 The infrastructure is scalable and ready for additional features like playback, sharing, and analytics! 🚀
-

@@ -8,12 +8,20 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
+
+// Conditionally import DocumentPicker
+let DocumentPicker;
+try {
+  DocumentPicker = require('expo-document-picker');
+} catch (e) {
+  console.log('DocumentPicker not available in Expo Go');
+}
 
 export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -46,6 +54,15 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
   const pickAudioFile = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      if (!DocumentPicker) {
+        Alert.alert(
+          'Feature Not Available',
+          'File picker requires a development build. Please use the development build to upload mixes.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
       
       const result = await DocumentPicker.getDocumentAsync({
         type: 'audio/*',
