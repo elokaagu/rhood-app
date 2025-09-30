@@ -35,6 +35,7 @@ import ProfileScreen from "./components/ProfileScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import RhoodModal from "./components/RhoodModal";
 import SwipeableOpportunityCard from "./components/SwipeableOpportunityCard";
+import BriefForm from "./components/BriefForm";
 import { db, auth, supabase } from "./lib/supabase";
 import {
   ANIMATION_DURATION,
@@ -85,9 +86,17 @@ export default function App() {
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
 
-  // Opportunities swipe state
+  // Opportunities state - now using live data from Supabase
+  const [opportunities, setOpportunities] = useState([]);
   const [currentOpportunityIndex, setCurrentOpportunityIndex] = useState(0);
   const [swipedOpportunities, setSwipedOpportunities] = useState([]);
+  const [isLoadingOpportunities, setIsLoadingOpportunities] = useState(true);
+
+  // Brief form state
+  const [showBriefForm, setShowBriefForm] = useState(false);
+  const [selectedOpportunity, setSelectedOpportunity] = useState(null);
+  const [isSubmittingBrief, setIsSubmittingBrief] = useState(false);
+
   // Audio player animation values
   const [audioPlayerOpacity] = useState(new Animated.Value(0));
   const [audioPlayerTranslateY] = useState(new Animated.Value(50));
@@ -163,7 +172,7 @@ export default function App() {
   // Mock opportunities data
   const mockOpportunities = [
     {
-      id: 1,
+      id: "550e8400-e29b-41d4-a716-446655440001",
       venue: "Underground Warehouse",
       title: "Friday Night Rave",
       location: "Brooklyn, NY",
@@ -180,7 +189,7 @@ export default function App() {
         "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
     },
     {
-      id: 2,
+      id: "550e8400-e29b-41d4-a716-446655440002",
       venue: "The Loft",
       title: "Sunset Sessions",
       location: "Los Angeles, CA",
@@ -197,7 +206,7 @@ export default function App() {
         "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop",
     },
     {
-      id: 3,
+      id: "550e8400-e29b-41d4-a716-446655440003",
       venue: "Electric Garden",
       title: "Neon Dreams",
       location: "Austin, TX",
@@ -214,7 +223,7 @@ export default function App() {
         "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop",
     },
     {
-      id: 4,
+      id: "550e8400-e29b-41d4-a716-446655440004",
       venue: "Sky Lounge",
       title: "Cloud Nine",
       location: "Chicago, IL",
@@ -231,7 +240,7 @@ export default function App() {
         "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&h=400&fit=crop",
     },
     {
-      id: 5,
+      id: "550e8400-e29b-41d4-a716-446655440005",
       venue: "The Underground",
       title: "Midnight Sessions",
       location: "Seattle, WA",
@@ -291,6 +300,7 @@ export default function App() {
 
     initializeAuth();
     setupGlobalAudio();
+    fetchOpportunities();
 
     // Handle app state changes for background audio
     const handleAppStateChange = (nextAppState) => {
@@ -884,7 +894,7 @@ export default function App() {
 
   const handleSwipeLeft = () => {
     // Pass on opportunity
-    const currentOpportunity = mockOpportunities[currentOpportunityIndex];
+    const currentOpportunity = opportunities[currentOpportunityIndex];
     setSwipedOpportunities([
       ...swipedOpportunities,
       { ...currentOpportunity, action: "pass" },
@@ -895,28 +905,201 @@ export default function App() {
   };
 
   const handleSwipeRight = () => {
-    // Like/Apply to opportunity
-    const currentOpportunity = mockOpportunities[currentOpportunityIndex];
-    setSwipedOpportunities([
-      ...swipedOpportunities,
-      { ...currentOpportunity, action: "like" },
-    ]);
-
-    // Move to next card immediately
-    setCurrentOpportunityIndex(currentOpportunityIndex + 1);
-
-    // Show application modal
-    showCustomModal({
-      type: "success",
-      title: "Application Sent!",
-      message: `Your application for ${currentOpportunity.title} has been sent successfully. You'll hear back within 48 hours.`,
-      primaryButtonText: "OK",
-    });
+    // Show brief form for application
+    const currentOpportunity = opportunities[currentOpportunityIndex];
+    setSelectedOpportunity(currentOpportunity);
+    setShowBriefForm(true);
   };
 
   const resetOpportunities = () => {
     setCurrentOpportunityIndex(0);
     setSwipedOpportunities([]);
+  };
+
+  const refreshOpportunities = async () => {
+    await fetchOpportunities();
+    setCurrentOpportunityIndex(0);
+    setSwipedOpportunities([]);
+  };
+
+  // Brief form handlers
+  const handleBriefSubmit = async (briefData) => {
+    setIsSubmittingBrief(true);
+
+    try {
+      // Ensure user is authenticated
+      const user = await ensureAuthenticated();
+
+      if (!user) {
+        Alert.alert(
+          "Authentication Required",
+          "Please log in to submit your application.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                AsyncStorage.removeItem("userToken");
+                setShowLogin(true);
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // Validate opportunity ID is a proper UUID
+      const opportunityId = briefData.opportunityId;
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+      if (!uuidRegex.test(opportunityId)) {
+        throw new Error(`Invalid opportunity ID format: ${opportunityId}`);
+      }
+
+      // Submit application with brief data
+      // Use the actual opportunity ID from the mock data
+      const { error } = await supabase.from("applications").insert({
+        opportunity_id: opportunityId,
+        user_id: user.id,
+        status: "pending",
+        message: `APPLICATION FOR: ${selectedOpportunity.title}\n\nExperience: ${briefData.briefData.experience}\n\nAvailability: ${briefData.briefData.availability}\n\nEquipment: ${briefData.briefData.equipment}\n\nRate: ${briefData.briefData.rate}\n\nPortfolio: ${briefData.briefData.portfolio}\n\nMessage: ${briefData.briefData.message}`,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Add to swiped opportunities
+      setSwipedOpportunities([
+        ...swipedOpportunities,
+        { ...selectedOpportunity, action: "applied" },
+      ]);
+
+      // Move to next card
+      setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+
+      // Close brief form
+      setShowBriefForm(false);
+      setSelectedOpportunity(null);
+
+      // Show success modal
+      showCustomModal({
+        type: "success",
+        title: "Application Sent!",
+        message: `Your application for ${selectedOpportunity.title} has been sent successfully. You'll hear back within 48 hours.`,
+        primaryButtonText: "OK",
+      });
+    } catch (error) {
+      console.error("Error submitting brief:", error);
+
+      // Handle specific error types
+      if (
+        error.message?.includes("Invalid Refresh Token") ||
+        error.message?.includes("Refresh Token Not Found")
+      ) {
+        Alert.alert(
+          "Session Expired",
+          "Your session has expired. Please log in again.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                AsyncStorage.removeItem("userToken");
+                setShowLogin(true);
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert("Error", "Failed to submit application. Please try again.");
+      }
+    } finally {
+      setIsSubmittingBrief(false);
+    }
+  };
+
+  const handleBriefClose = () => {
+    setShowBriefForm(false);
+    setSelectedOpportunity(null);
+  };
+
+  // Global authentication helper
+  const ensureAuthenticated = async () => {
+    try {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error) {
+        // Try to refresh session
+        const { data: refreshData, error: refreshError } =
+          await supabase.auth.refreshSession();
+
+        if (refreshError || !refreshData.user) {
+          return null; // Need to log in
+        }
+
+        return refreshData.user;
+      }
+
+      return user;
+    } catch (error) {
+      console.error("Auth check error:", error);
+      return null;
+    }
+  };
+
+  // Fetch opportunities from Supabase
+  const fetchOpportunities = async () => {
+    try {
+      setIsLoadingOpportunities(true);
+
+      const { data, error } = await supabase
+        .from("opportunities")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching opportunities:", error);
+        // Fallback to mock data if database fails
+        setOpportunities(mockOpportunities);
+        return;
+      }
+
+      // Transform database data to match our component expectations
+      const transformedOpportunities = data.map((opp) => ({
+        id: opp.id,
+        venue: opp.organizer_name,
+        title: opp.title,
+        location: opp.location,
+        date: opp.event_date
+          ? new Date(opp.event_date).toLocaleDateString()
+          : "TBD",
+        time: "TBD", // We don't have time in the database schema
+        audienceSize: "TBD", // We don't have audience size in the database schema
+        description: opp.description,
+        genres: opp.genre ? [opp.genre] : ["Electronic"],
+        compensation: opp.payment ? `$${opp.payment}` : "TBD",
+        applicationsLeft: Math.floor(Math.random() * 10) + 1, // Random for now
+        status:
+          opp.created_at > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+            ? "new"
+            : "hot", // New if created within last 7 days
+        image:
+          opp.image_url ||
+          "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+      }));
+
+      setOpportunities(transformedOpportunities);
+    } catch (error) {
+      console.error("Error fetching opportunities:", error);
+      // Fallback to mock data
+      setOpportunities(mockOpportunities);
+    } finally {
+      setIsLoadingOpportunities(false);
+    }
   };
 
   // Menu animation functions
@@ -1129,13 +1312,20 @@ export default function App() {
 
               {/* Single Card with Transition */}
               <View style={styles.opportunitiesCardContainer}>
-                {currentOpportunityIndex < mockOpportunities.length ? (
+                {isLoadingOpportunities ? (
+                  /* Loading state */
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>
+                      Loading opportunities...
+                    </Text>
+                  </View>
+                ) : currentOpportunityIndex < opportunities.length ? (
                   <SwipeableOpportunityCard
                     key={currentOpportunityIndex}
-                    opportunity={mockOpportunities[currentOpportunityIndex]}
+                    opportunity={opportunities[currentOpportunityIndex]}
                     onPress={() =>
                       handleOpportunityPress(
-                        mockOpportunities[currentOpportunityIndex]
+                        opportunities[currentOpportunityIndex]
                       )
                     }
                     onSwipeLeft={handleSwipeLeft}
@@ -2149,6 +2339,23 @@ export default function App() {
           onPrimaryPress={modalConfig.onPrimaryPress}
           onSecondaryPress={modalConfig.onSecondaryPress}
         />
+
+        {/* Brief Form Modal */}
+        <Modal
+          visible={showBriefForm}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={handleBriefClose}
+        >
+          {selectedOpportunity && (
+            <BriefForm
+              opportunity={selectedOpportunity}
+              onClose={handleBriefClose}
+              onSubmit={handleBriefSubmit}
+              isLoading={isSubmittingBrief}
+            />
+          )}
+        </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -2729,6 +2936,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  loadingText: {
+    fontSize: 18,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    textAlign: "center",
   },
   noMoreTitle: {
     fontSize: 24,

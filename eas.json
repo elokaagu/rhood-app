@@ -19,7 +19,7 @@
     "production": {
       "ios": {
         "appleId": "eloka@satellitelabs.xyz",
-        "ascAppId": "your-app-store-connect-app-id",
+        "ascAppId": "REPLACE_WITH_YOUR_ACTUAL_APP_ID",
         "appleTeamId": "228556876"
       }
     }
