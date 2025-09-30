@@ -399,22 +399,19 @@ export default function ProfileScreen({ onNavigate, user }) {
           </View>
         </View>
 
-        {/* Upload Mix Button - Temporarily hidden for Expo Go testing */}
-        {/* Uncomment when using development build */}
-        {/*
+        {/* Upload Mix Button */}
         <TouchableOpacity
           style={styles.uploadButton}
           onPress={() => onNavigate && onNavigate("upload-mix")}
         >
           <LinearGradient
-            colors={['hsl(75, 100%, 60%)', 'hsl(75, 100%, 50%)']}
+            colors={["hsl(75, 100%, 60%)", "hsl(75, 100%, 50%)"]}
             style={styles.uploadButtonGradient}
           >
             <Ionicons name="cloud-upload-outline" size={24} color="black" />
             <Text style={styles.uploadButtonText}>Upload Mix</Text>
           </LinearGradient>
         </TouchableOpacity>
-        */}
 
         {/* Recent Gigs */}
         <View style={styles.gigsContainer}>
@@ -830,18 +827,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   uploadButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     padding: 16,
     gap: 8,
   },
   uploadButtonText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: 'black',
+    fontWeight: "bold",
+    color: "black",
   },
 });
