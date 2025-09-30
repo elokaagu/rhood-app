@@ -12,8 +12,9 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import NotificationTest from "./NotificationTest";
 
-export default function SettingsScreen({ onNavigate, onSignOut }) {
+export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [settings, setSettings] = useState({
     // Account Settings
@@ -386,6 +387,9 @@ export default function SettingsScreen({ onNavigate, onSignOut }) {
             </View>
           ))}
         </View>
+
+        {/* Notification Test */}
+        <NotificationTest userId={user?.id} />
 
         {/* App Version */}
         <View style={styles.versionContainer}>

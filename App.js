@@ -46,6 +46,7 @@ import {
 import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";
 import EditProfileScreen from "./components/EditProfileScreen";
+import { registerForPushNotifications, setupNotificationListeners } from "./lib/pushNotifications";
 
 export default function App() {
   // Load custom fonts
@@ -301,6 +302,9 @@ export default function App() {
     initializeAuth();
     setupGlobalAudio();
     fetchOpportunities();
+    
+    // Setup push notifications
+    setupPushNotifications();
 
     // Handle app state changes for background audio
     const handleAppStateChange = (nextAppState) => {
@@ -325,6 +329,25 @@ export default function App() {
       }
     };
   }, []);
+
+  // Setup push notifications
+  const setupPushNotifications = async () => {
+    try {
+      // Register for push notifications
+      const token = await registerForPushNotifications();
+      if (token) {
+        console.log('Push notification token obtained:', token);
+      }
+
+      // Setup notification listeners
+      const cleanup = setupNotificationListeners();
+      
+      // Store cleanup function for later use
+      return cleanup;
+    } catch (error) {
+      console.error('Error setting up push notifications:', error);
+    }
+  };
 
   // Initialize authentication
   const initializeAuth = async () => {
@@ -1411,6 +1434,7 @@ export default function App() {
       case "settings":
         return (
           <SettingsScreen
+            user={user}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);

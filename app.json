@@ -43,8 +43,9 @@
         "android.permission.RECORD_AUDIO"
       ]
     },
-    "web": {
-      "favicon": "./assets/rhood_logo.webp"
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#ffffff"
     },
     "extra": {
       "eas": {
@@ -56,7 +57,14 @@
       "expo-audio",
       "expo-av",
       "expo-web-browser",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#ffffff"
+        }
+      ]
     ],
     "scheme": "rhoodapp",
     "owner": "elokaagu",
