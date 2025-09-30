@@ -986,6 +986,26 @@ export default function App() {
         throw new Error(`Invalid opportunity ID format: ${opportunityId}`);
       }
 
+      // Check if user has already applied to this opportunity
+      const { data: existingApplication } = await supabase
+        .from("applications")
+        .select("id")
+        .eq("opportunity_id", opportunityId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (existingApplication) {
+        Alert.alert(
+          "Already Applied",
+          "You've already submitted an application for this opportunity.",
+          [{ text: "OK" }]
+        );
+        setShowBriefForm(false);
+        setSelectedOpportunity(null);
+        setIsSubmittingBrief(false);
+        return;
+      }
+
       // Submit application with brief data
       // Use the actual opportunity ID from the mock data
       const { error } = await supabase.from("applications").insert({
