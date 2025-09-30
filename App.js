@@ -46,6 +46,7 @@ import {
 import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";
 import EditProfileScreen from "./components/EditProfileScreen";
+import UploadMixScreen from "./components/UploadMixScreen";
 import {
   registerForPushNotifications,
   setupNotificationListeners,
@@ -1429,6 +1430,7 @@ export default function App() {
       case "profile":
         return (
           <ProfileScreen
+            user={user}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
@@ -1458,6 +1460,18 @@ export default function App() {
                 genres: [],
               });
               setCurrentScreen("login");
+            }}
+          />
+        );
+
+      case "upload-mix":
+        return (
+          <UploadMixScreen
+            user={user}
+            onBack={() => setCurrentScreen("profile")}
+            onUploadComplete={(mix) => {
+              console.log("Mix uploaded:", mix);
+              setCurrentScreen("profile");
             }}
           />
         );

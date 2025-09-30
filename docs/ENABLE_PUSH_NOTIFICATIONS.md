@@ -21,11 +21,13 @@ eas build --profile development --platform ios
 ```
 
 **What this does:**
+
 - Compiles the native modules (including expo-notifications)
 - Creates a development build you can install on your device
 - Enables all native features including push notifications
 
 **You'll need:**
+
 - Apple Developer account credentials
 - Access to provisioning profiles
 - A physical iOS device (for testing)
@@ -75,12 +77,14 @@ This creates the `user_expo_tokens` table for storing push notification tokens.
 If you don't need push notifications immediately, the app will work fine in Expo Go with push notifications disabled (current state).
 
 **What still works:**
+
 - ✅ All app features
 - ✅ In-app notifications (stored in database)
 - ✅ Notification UI in the app
 - ✅ All other functionality
 
 **What won't work:**
+
 - ❌ Push notifications to device when app is closed
 - ❌ Badge counts on app icon
 - ❌ Lock screen notifications
@@ -117,7 +121,8 @@ The `eas.json` file already has a development profile configured:
 
 ### Build fails with authentication error
 
-**Solution**: 
+**Solution**:
+
 1. Run: `eas credentials`
 2. Select iOS
 3. Configure credentials manually
@@ -126,6 +131,7 @@ The `eas.json` file already has a development profile configured:
 ## When to Enable Push Notifications
 
 Enable push notifications when:
+
 - ✅ You're ready to test on a physical device
 - ✅ You have Apple Developer account access
 - ✅ You want to test the full notification experience
@@ -152,12 +158,14 @@ The production build will automatically include all native modules, including pu
 ## Summary
 
 **Current State:**
+
 - ✅ All notification code is implemented
 - ✅ App runs in Expo Go (push notifications disabled)
 - ✅ In-app notifications work
 - ⏸️ Push notifications temporarily disabled
 
 **To Enable:**
+
 1. Run `eas build --profile development --platform ios`
 2. Install development build on device
 3. Uncomment `setupPushNotifications()` in App.js
@@ -165,4 +173,3 @@ The production build will automatically include all native modules, including pu
 5. Test notifications!
 
 The notification system is ready to go - just needs a development build to activate! 🚀
-

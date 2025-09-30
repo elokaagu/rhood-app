@@ -66,7 +66,7 @@ const mockProfile = {
   joinDate: "2023-01-15",
 };
 
-export default function ProfileScreen({ onNavigate }) {
+export default function ProfileScreen({ onNavigate, user }) {
   const [profile, setProfile] = useState(mockProfile);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackPosition, setPlaybackPosition] = useState(0);
@@ -398,6 +398,20 @@ export default function ProfileScreen({ onNavigate }) {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Upload Mix Button */}
+        <TouchableOpacity
+          style={styles.uploadButton}
+          onPress={() => onNavigate && onNavigate("upload-mix")}
+        >
+          <LinearGradient
+            colors={['hsl(75, 100%, 60%)', 'hsl(75, 100%, 50%)']}
+            style={styles.uploadButtonGradient}
+          >
+            <Ionicons name="cloud-upload-outline" size={24} color="black" />
+            <Text style={styles.uploadButtonText}>Upload Mix</Text>
+          </LinearGradient>
+        </TouchableOpacity>
 
         {/* Recent Gigs */}
         <View style={styles.gigsContainer}>
@@ -808,5 +822,23 @@ const styles = StyleSheet.create({
   },
   achievementTextEarned: {
     color: "hsl(0, 0%, 100%)",
+  },
+  uploadButton: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  uploadButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 8,
+  },
+  uploadButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'black',
   },
 });
