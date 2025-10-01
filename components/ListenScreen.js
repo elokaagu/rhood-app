@@ -163,17 +163,10 @@ export default function ListenScreen({
     try {
       setLoading(true);
       
+      // First, try to fetch mixes without joins (simplest approach)
       const { data, error } = await supabase
         .from("mixes")
-        .select(`
-          *,
-          user_profiles:user_id (
-            first_name,
-            last_name,
-            dj_name
-          )
-        `)
-        .eq("is_public", true)
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -185,21 +178,47 @@ export default function ListenScreen({
 
       console.log(`✅ Fetched ${data.length} mixes from database`);
 
-      // Transform database data to match our component expectations
-      const transformedMixes = data.map((mix) => ({
-        id: mix.id,
-        title: mix.title,
-        artist: mix.user_profiles?.dj_name || 
-                `${mix.user_profiles?.first_name || 'Unknown'} ${mix.user_profiles?.last_name || 'Artist'}`.trim(),
-        genre: mix.genre || "Electronic",
-        duration: mix.duration ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60).toString().padStart(2, '0')}` : "5:00",
-        description: mix.description || "No description available",
-        image: mix.artwork_url || "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-        audioUrl: mix.file_url,
-        plays: mix.play_count || 0,
-      }));
+      if (data.length === 0) {
+        console.log("⚠️ No mixes in database, using mock data");
+        setMixes(mockMixes);
+        return;
+      }
 
-      setMixes(transformedMixes.length > 0 ? transformedMixes : mockMixes);
+      // For each mix, fetch the user profile separately
+      const transformedMixes = await Promise.all(
+        data.map(async (mix) => {
+          let artistName = "Unknown Artist";
+          
+          // Try to fetch user profile for artist name
+          if (mix.user_id) {
+            const { data: profile } = await supabase
+              .from("user_profiles")
+              .select("dj_name, first_name, last_name")
+              .eq("id", mix.user_id)
+              .single();
+            
+            if (profile) {
+              artistName = profile.dj_name || 
+                          `${profile.first_name || ''} ${profile.last_name || ''}`.trim() ||
+                          "Unknown Artist";
+            }
+          }
+
+          return {
+            id: mix.id,
+            title: mix.title,
+            artist: artistName,
+            genre: mix.genre || "Electronic",
+            duration: mix.duration ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60).toString().padStart(2, '0')}` : "5:00",
+            description: mix.description || "No description available",
+            image: mix.artwork_url || "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+            audioUrl: mix.file_url,
+            plays: mix.play_count || 0,
+          };
+        })
+      );
+
+      setMixes(transformedMixes);
     } catch (error) {
       console.error("❌ Error in fetchMixes:", error);
       setMixes(mockMixes);
