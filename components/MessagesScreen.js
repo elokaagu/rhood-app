@@ -765,7 +765,10 @@ export default function MessagesScreen({ navigation, route }) {
           <View style={styles.headerInfo}>
             <View style={styles.djImageContainer}>
               <Image
-                source={{ uri: currentDJ.profileImage }}
+                source={{ 
+                  uri: otherUser?.profile_image_url || 
+                  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face"
+                }}
                 style={styles.djImage}
                 resizeMode="cover"
                 onError={(error) => {
@@ -773,11 +776,12 @@ export default function MessagesScreen({ navigation, route }) {
                   // Fallback to initials if image fails
                 }}
               />
-              {currentDJ.isOnline && <View style={styles.onlineIndicator} />}
+              {/* For now, show all as online. In a real app, you'd track online status */}
+              <View style={styles.onlineIndicator} />
             </View>
 
             <View style={styles.djDetails}>
-              <Text style={styles.djName}>{currentDJ.name}</Text>
+              <Text style={styles.djName}>{otherUser?.dj_name || otherUser?.full_name || "Unknown User"}</Text>
               <View style={styles.djLocation}>
                 <Ionicons
                   name="location-outline"

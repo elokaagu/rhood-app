@@ -1445,11 +1445,9 @@ export default function App() {
 
       case "messages":
         return (
-          <ConnectionsScreen
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
+          <MessagesScreen
+            navigation={{ goBack: () => setCurrentScreen("connections") }}
+            route={{ params: screenParams }}
           />
         );
 
@@ -1544,14 +1542,6 @@ export default function App() {
               setCurrentScreen(screen);
               setScreenParams(params);
             }}
-          />
-        );
-
-      case "messages":
-        return (
-          <MessagesScreen
-            navigation={{ goBack: () => setCurrentScreen("connections") }}
-            route={{ params: screenParams }}
           />
         );
 
