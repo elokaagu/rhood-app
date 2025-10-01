@@ -398,9 +398,9 @@ export default function ListenScreen({
       <FlatList
         data={filteredMixes}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item: mix }) => (
+        renderItem={({ item: mix, index }) => (
           <DJMix
-            mix={mix}
+            mix={{ ...mix, trackNumber: index + 1 }}
             isPlaying={playingMixId === mix.id}
             isLoading={globalAudioState.isLoading && playingMixId === mix.id}
             onPlayPause={() => handleMixPress(mix)}

@@ -56,7 +56,7 @@ const DJMix = ({
     >
       {/* Track Number */}
       <View style={styles.trackNumber}>
-        <Text style={styles.trackNumberText}>{mix.id}</Text>
+        <Text style={styles.trackNumberText}>{mix.trackNumber || mix.id}</Text>
       </View>
 
       {/* Album Art */}
