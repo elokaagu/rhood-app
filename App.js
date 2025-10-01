@@ -998,7 +998,8 @@ export default function App() {
         showCustomModal({
           type: "info",
           title: "Already Applied",
-          message: "You've already submitted an application for this opportunity.",
+          message:
+            "You've already submitted an application for this opportunity.",
           primaryButtonText: "OK",
         });
         setShowBriefForm(false);
@@ -1020,26 +1021,31 @@ export default function App() {
         throw error;
       }
 
+      // Store title before clearing
+      const opportunityTitle = selectedOpportunity.title;
+
+      // Close brief form first
+      setShowBriefForm(false);
+      setSelectedOpportunity(null);
+
       // Add to swiped opportunities
       setSwipedOpportunities([
         ...swipedOpportunities,
         { ...selectedOpportunity, action: "applied" },
       ]);
 
-      // Move to next card
+      // Move to next card immediately
       setCurrentOpportunityIndex(currentOpportunityIndex + 1);
 
-      // Close brief form
-      setShowBriefForm(false);
-      setSelectedOpportunity(null);
-
-      // Show success modal
-      showCustomModal({
-        type: "success",
-        title: "Application Sent!",
-        message: `Your application for ${selectedOpportunity.title} has been sent successfully. You'll hear back within 48 hours.`,
-        primaryButtonText: "OK",
-      });
+      // Show success modal after card transition
+      setTimeout(() => {
+        showCustomModal({
+          type: "success",
+          title: "Application Sent!",
+          message: `Your application for ${opportunityTitle} has been sent successfully. You'll hear back within 48 hours.`,
+          primaryButtonText: "OK",
+        });
+      }, 100);
     } catch (error) {
       console.error("Error submitting brief:", error);
 
