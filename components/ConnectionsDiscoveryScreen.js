@@ -194,14 +194,6 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
     onNavigate("profile", { djId: dj.id, djName: dj.name });
   };
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  };
-
   const getGenreIcon = (genre) => {
     switch (genre.toLowerCase()) {
       case "house":
