@@ -1121,11 +1121,14 @@ export default function App() {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Error fetching opportunities:", error);
+        console.error("❌ Error fetching opportunities from database:", error);
+        console.log("⚠️ Falling back to mock opportunities");
         // Fallback to mock data if database fails
         setOpportunities(mockOpportunities);
         return;
       }
+
+      console.log(`✅ Fetched ${data.length} opportunities from database`);
 
       // Transform database data to match our component expectations
       const transformedOpportunities = data.map((opp) => ({
