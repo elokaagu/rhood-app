@@ -147,6 +147,7 @@ export default function ListenScreen({
   onPauseAudio,
   onResumeAudio,
   onStopAudio,
+  onNavigate,
 }) {
   const [mixes, setMixes] = useState(mockMixes);
   const [playingMixId, setPlayingMixId] = useState(null);
@@ -399,7 +400,9 @@ export default function ListenScreen({
                 style={styles.modalUploadButton}
                 onPress={() => {
                   setShowUploadModal(false);
-                  Alert.alert("Coming Soon", "Mix upload feature coming soon!");
+                  if (onNavigate) {
+                    onNavigate("upload-mix");
+                  }
                 }}
               >
                 <LinearGradient

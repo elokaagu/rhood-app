@@ -1512,6 +1512,10 @@ export default function App() {
             onPauseAudio={pauseGlobalAudio}
             onResumeAudio={resumeGlobalAudio}
             onStopAudio={stopGlobalAudio}
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
           />
         );
 
