@@ -4,6 +4,9 @@
 -- Note: Replace the user_id values with actual user IDs from your auth.users table
 -- To get user IDs, run: SELECT id, email FROM auth.users;
 
+-- Note: If you get an error about artwork_url, run the migration first:
+-- database/add-artwork-url-to-mixes.sql
+
 -- Insert sample mixes
 INSERT INTO mixes (
   title,
@@ -12,7 +15,6 @@ INSERT INTO mixes (
   duration,
   file_url,
   file_size,
-  artwork_url,
   play_count,
   is_public,
   user_id
@@ -25,7 +27,6 @@ INSERT INTO mixes (
   3000, -- 50 minutes in seconds
   'https://example.com/mixes/midnight-warehouse-vibes.mp3',
   52428800, -- ~50MB
-  'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
   1240,
   true,
   (SELECT id FROM auth.users LIMIT 1) -- Replace with actual user_id
@@ -38,7 +39,6 @@ INSERT INTO mixes (
   3600, -- 60 minutes
   'https://example.com/mixes/sunset-rooftop-sessions.mp3',
   62914560, -- ~60MB
-  'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
   892,
   true,
   (SELECT id FROM auth.users LIMIT 1)
@@ -51,7 +51,6 @@ INSERT INTO mixes (
   2700, -- 45 minutes
   'https://example.com/mixes/underground-energy.mp3',
   47185920, -- ~45MB
-  'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop',
   2103,
   true,
   (SELECT id FROM auth.users LIMIT 1)
@@ -64,7 +63,6 @@ INSERT INTO mixes (
   4200, -- 70 minutes
   'https://example.com/mixes/beach-festival-highlights.mp3',
   73400320, -- ~70MB
-  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop',
   1456,
   true,
   (SELECT id FROM auth.users LIMIT 1)
@@ -77,7 +75,6 @@ INSERT INTO mixes (
   3300, -- 55 minutes
   'https://example.com/mixes/industrial-soundscapes.mp3',
   57671680, -- ~55MB
-  'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
   678,
   true,
   (SELECT id FROM auth.users LIMIT 1)
@@ -90,7 +87,6 @@ INSERT INTO mixes (
   2400, -- 40 minutes
   'https://example.com/mixes/neon-city-nights.mp3',
   41943040, -- ~40MB
-  'https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop',
   934,
   true,
   (SELECT id FROM auth.users LIMIT 1)
