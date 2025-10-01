@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import DJMix from "./DJMix";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
+import { supabase } from "../lib/supabase";
 
 // Audio optimization utilities for handling large files
 const getAudioOptimization = (audioUrl) => {
@@ -149,16 +150,71 @@ export default function ListenScreen({
   onStopAudio,
   onNavigate,
 }) {
-  const [mixes, setMixes] = useState(mockMixes);
+  const [mixes, setMixes] = useState([]);
   const [playingMixId, setPlayingMixId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch mixes from Supabase
+  const fetchMixes = async () => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from("mixes")
+        .select(`
+          *,
+          user_profiles:user_id (
+            first_name,
+            last_name,
+            dj_name
+          )
+        `)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("❌ Error fetching mixes from database:", error);
+        console.log("⚠️ Falling back to mock mixes");
+        setMixes(mockMixes);
+        return;
+      }
+
+      console.log(`✅ Fetched ${data.length} mixes from database`);
+
+      // Transform database data to match our component expectations
+      const transformedMixes = data.map((mix) => ({
+        id: mix.id,
+        title: mix.title,
+        artist: mix.user_profiles?.dj_name || 
+                `${mix.user_profiles?.first_name || 'Unknown'} ${mix.user_profiles?.last_name || 'Artist'}`.trim(),
+        genre: mix.genre || "Electronic",
+        duration: mix.duration ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60).toString().padStart(2, '0')}` : "5:00",
+        description: mix.description || "No description available",
+        image: mix.artwork_url || "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+        audioUrl: mix.file_url,
+        plays: mix.play_count || 0,
+      }));
+
+      setMixes(transformedMixes.length > 0 ? transformedMixes : mockMixes);
+    } catch (error) {
+      console.error("❌ Error in fetchMixes:", error);
+      setMixes(mockMixes);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load mixes on mount
+  useEffect(() => {
+    fetchMixes();
+  }, []);
 
   // Get unique genres for filter
-  const genres = ["All", ...new Set(mockMixes.map((mix) => mix.genre))];
+  const genres = ["All", ...new Set(mixes.map((mix) => mix.genre))];
 
   // Filter mixes
   const filteredMixes = mixes.filter((mix) => {
@@ -218,10 +274,8 @@ export default function ListenScreen({
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh delay
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    await fetchMixes();
+    setRefreshing(false);
   };
 
   const handleGenreFilter = (genre) => {
