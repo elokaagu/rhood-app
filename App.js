@@ -995,11 +995,12 @@ export default function App() {
         .single();
 
       if (existingApplication) {
-        Alert.alert(
-          "Already Applied",
-          "You've already submitted an application for this opportunity.",
-          [{ text: "OK" }]
-        );
+        showCustomModal({
+          type: "info",
+          title: "Already Applied",
+          message: "You've already submitted an application for this opportunity.",
+          primaryButtonText: "OK",
+        });
         setShowBriefForm(false);
         setSelectedOpportunity(null);
         setIsSubmittingBrief(false);
