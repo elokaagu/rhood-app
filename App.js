@@ -557,7 +557,23 @@ export default function App() {
       // Try to load the audio file
       let sound;
       try {
-        const result = await Audio.Sound.createAsync(track.audioUrl, {
+        // Determine if audioUrl is a local require or remote URL
+        let audioSource;
+        if (typeof track.audioUrl === 'string') {
+          // It's a remote URL string - wrap in { uri: url }
+          audioSource = { uri: track.audioUrl };
+          console.log("🌐 Loading remote audio from URL:", track.audioUrl);
+        } else if (typeof track.audioUrl === 'number') {
+          // It's a local require() - use directly
+          audioSource = track.audioUrl;
+          console.log("📁 Loading local audio file");
+        } else {
+          // It's already an object with uri
+          audioSource = track.audioUrl;
+          console.log("🔗 Loading audio from object:", track.audioUrl);
+        }
+
+        const result = await Audio.Sound.createAsync(audioSource, {
           shouldPlay: false,
           isLooping: false,
           volume: 1.0,
@@ -566,6 +582,13 @@ export default function App() {
         console.log("✅ Sound loaded successfully");
       } catch (loadError) {
         console.error("❌ Error loading sound:", loadError);
+        console.error("❌ Audio URL:", track.audioUrl);
+        console.error("❌ Audio URL type:", typeof track.audioUrl);
+        Alert.alert(
+          "Audio Error",
+          `Failed to play ${track.title}. Please try again.`,
+          [{ text: "OK" }]
+        );
         throw new Error(`Failed to load audio file: ${loadError.message}`);
       }
 
