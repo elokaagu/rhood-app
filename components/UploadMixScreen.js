@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -27,6 +28,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showDevBuildModal, setShowDevBuildModal] = useState(false);
   const [mixData, setMixData] = useState({
     title: "",
     description: "",
@@ -56,11 +58,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       if (!DocumentPicker) {
-        Alert.alert(
-          "Feature Not Available",
-          "File picker requires a development build. Please use the development build to upload mixes.",
-          [{ text: "OK" }]
-        );
+        setShowDevBuildModal(true);
         return;
       }
 
@@ -398,6 +396,41 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Development Build Required Modal - R/HOOD Theme */}
+      <Modal
+        visible={showDevBuildModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDevBuildModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Ionicons
+              name="alert-circle-outline"
+              size={64}
+              color="hsl(75, 100%, 60%)"
+              style={styles.modalIcon}
+            />
+            <Text style={styles.modalTitle}>Feature Not Available</Text>
+            <Text style={styles.modalDescription}>
+              File picker requires a development build. Please use the development build to upload mixes.
+            </Text>
+            
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowDevBuildModal(false)}
+            >
+              <LinearGradient
+                colors={["hsl(75, 100%, 60%)", "hsl(75, 100%, 50%)"]}
+                style={styles.modalButtonGradient}
+              >
+                <Text style={styles.modalButtonText}>OK</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -584,5 +617,53 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  // Modal Styles - R/HOOD Theme
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 20,
+    padding: 32,
+    width: "85%",
+    maxWidth: 400,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  modalIcon: {
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  modalDescription: {
+    fontSize: 16,
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButton: {
+    width: "100%",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  modalButtonGradient: {
+    padding: 14,
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
