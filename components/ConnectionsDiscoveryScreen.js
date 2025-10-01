@@ -127,20 +127,21 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
   const loadUserAndRecommendedDJs = async () => {
     try {
       setLoading(true);
-      
+
       // Get current user
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
       if (!currentUser) {
         Alert.alert("Error", "Please log in to discover connections");
         return;
       }
-      
+
       setUser(currentUser);
-      
+
       // Get recommended users to follow
       const recommended = await connectionsService.getRecommendedUsers(20);
       setDjs(recommended);
-      
     } catch (error) {
       console.error("Error loading recommended DJs:", error);
       Alert.alert("Error", "Failed to load recommended DJs");
@@ -177,12 +178,12 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
   const handleConnect = async (djId) => {
     try {
       await connectionsService.followUser(djId);
-      
+
       // Update local state to show as connected
       setDjs((prev) =>
         prev.map((dj) => (dj.id === djId ? { ...dj, isConnected: true } : dj))
       );
-      
+
       Alert.alert("Success", "You're now following this DJ!");
     } catch (error) {
       console.error("Error following user:", error);
@@ -344,19 +345,26 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                   <View style={styles.djHeader}>
                     <View style={styles.djInfo}>
                       <ProgressiveImage
-                        source={{ 
-                          uri: dj.profile_image_url || 
-                          "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face"
+                        source={{
+                          uri:
+                            dj.profile_image_url ||
+                            "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
                         }}
                         style={styles.djAvatar}
                       />
                       <View style={styles.djDetails}>
                         <View style={styles.djNameRow}>
-                          <Text style={styles.djName}>{dj.dj_name || dj.full_name}</Text>
+                          <Text style={styles.djName}>
+                            {dj.dj_name || dj.full_name}
+                          </Text>
                           {/* For now, show all as online. In a real app, you'd track online status */}
                           <View style={styles.onlineIndicator} />
                         </View>
-                        <Text style={styles.djUsername}>@{dj.dj_name?.toLowerCase().replace(/\s+/g, '') || 'dj'}</Text>
+                        <Text style={styles.djUsername}>
+                          @
+                          {dj.dj_name?.toLowerCase().replace(/\s+/g, "") ||
+                            "dj"}
+                        </Text>
                         <Text style={styles.djLocation}>{dj.city}</Text>
                         {/* Mutual connections would need to be calculated */}
                       </View>
@@ -375,11 +383,13 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                   </View>
 
                   {/* DJ Bio */}
-                  <Text style={styles.djBio}>{dj.bio || "Electronic music producer and DJ"}</Text>
+                  <Text style={styles.djBio}>
+                    {dj.bio || "Electronic music producer and DJ"}
+                  </Text>
 
                   {/* Genres */}
                   <View style={styles.genresContainer}>
-                    {(dj.genres || ['Electronic']).map((genre, index) => (
+                    {(dj.genres || ["Electronic"]).map((genre, index) => (
                       <View key={index} style={styles.genreTag}>
                         <Ionicons
                           name={getGenreIcon(genre)}
