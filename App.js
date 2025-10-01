@@ -559,11 +559,11 @@ export default function App() {
       try {
         // Determine if audioUrl is a local require or remote URL
         let audioSource;
-        if (typeof track.audioUrl === 'string') {
+        if (typeof track.audioUrl === "string") {
           // It's a remote URL string - wrap in { uri: url }
           audioSource = { uri: track.audioUrl };
           console.log("🌐 Loading remote audio from URL:", track.audioUrl);
-        } else if (typeof track.audioUrl === 'number') {
+        } else if (typeof track.audioUrl === "number") {
           // It's a local require() - use directly
           audioSource = track.audioUrl;
           console.log("📁 Loading local audio file");

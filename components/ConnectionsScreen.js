@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,14 @@ import {
   TextInput,
   Animated,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import * as Haptics from "expo-haptics";
+import { connectionsService } from "../lib/connectionsService";
+import { supabase } from "../lib/supabase";
 
 // Mock connections data
 const mockConnections = [
@@ -107,6 +110,47 @@ export default function ConnectionsScreen({ onNavigate }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState(null);
+  const [connections, setConnections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+
+  // Load user and connections on mount
+  useEffect(() => {
+    loadUserAndConnections();
+  }, []);
+
+  const loadUserAndConnections = async () => {
+    try {
+      setLoading(true);
+      
+      // Get current user
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        Alert.alert("Error", "Please log in to view connections");
+        return;
+      }
+      
+      setUser(currentUser);
+      
+      // Get user's connections (people they follow)
+      const following = await connectionsService.getFollowing(currentUser.id);
+      setConnections(following);
+      
+    } catch (error) {
+      console.error("Error loading connections:", error);
+      Alert.alert("Error", "Failed to load connections");
+      // Fallback to mock data
+      setConnections(mockConnections);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadUserAndConnections();
+    setRefreshing(false);
+  };
 
   const handleGroupChatPress = () => {
     onNavigate && onNavigate("messages", { isGroupChat: true });
@@ -123,22 +167,22 @@ export default function ConnectionsScreen({ onNavigate }) {
 
   // Filter connections based on search query
   const filteredConnections = useMemo(() => {
-    let filtered = mockConnections;
+    let filtered = connections;
 
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (connection) =>
-          connection.name.toLowerCase().includes(query) ||
-          connection.username.toLowerCase().includes(query) ||
-          connection.location.toLowerCase().includes(query) ||
-          connection.genres.some((genre) => genre.toLowerCase().includes(query))
+          connection.full_name?.toLowerCase().includes(query) ||
+          connection.dj_name?.toLowerCase().includes(query) ||
+          connection.city?.toLowerCase().includes(query) ||
+          connection.genres?.some((genre) => genre.toLowerCase().includes(query))
       );
     }
 
     return filtered;
-  }, [searchQuery]);
+  }, [connections, searchQuery]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -154,20 +198,24 @@ export default function ConnectionsScreen({ onNavigate }) {
   };
 
   const getLastMessage = (connectionId) => {
-    const messages = {
-      1: "Hey! Are you free for that gig next week?",
-      2: "That drum & bass set was incredible! 🎵",
-      3: "Love your progressive tracks!",
-      4: "When are you back in Berlin?",
-      5: "Your synthwave mix was amazing!",
-      6: "The Afro House vibes were incredible! 🔥",
-    };
-    return messages[connectionId] || "New connection";
+    // For now, return a placeholder. In a full implementation,
+    // this would fetch the last message from the thread
+    return "Tap to start a conversation";
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="hsl(0, 0%, 100%)"
+            colors={["hsl(0, 0%, 100%)"]}
+          />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           {/* Search Bar */}
@@ -263,19 +311,21 @@ export default function ConnectionsScreen({ onNavigate }) {
                   {/* Profile Image with Online Status */}
                   <View style={styles.profileContainer}>
                     <ProgressiveImage
-                      source={{ uri: connection.profileImage }}
+                      source={{ 
+                        uri: connection.profile_image_url || 
+                        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face"
+                      }}
                       style={styles.profileImage}
                     />
-                    {connection.status === "online" && (
-                      <View
-                        style={[
-                          styles.statusIndicator,
-                          {
-                            backgroundColor: getStatusColor(connection.status),
-                          },
-                        ]}
-                      />
-                    )}
+                    {/* For now, show all as online. In a real app, you'd track online status */}
+                    <View
+                      style={[
+                        styles.statusIndicator,
+                        {
+                          backgroundColor: "hsl(120, 100%, 50%)", // Always online for now
+                        },
+                      ]}
+                    />
                   </View>
 
                   {/* Connection Info */}
@@ -283,10 +333,13 @@ export default function ConnectionsScreen({ onNavigate }) {
                     {/* Name and Last Active Time */}
                     <View style={styles.connectionHeader}>
                       <Text style={styles.connectionName} numberOfLines={1}>
-                        {connection.name}
+                        {connection.dj_name || connection.full_name}
                       </Text>
                       <Text style={styles.lastActive}>
-                        {connection.lastActive}
+                        {connection.followedAt ? 
+                          new Date(connection.followedAt).toLocaleDateString() : 
+                          "Recently"
+                        }
                       </Text>
                     </View>
 
@@ -297,11 +350,16 @@ export default function ConnectionsScreen({ onNavigate }) {
 
                     {/* Genre Tags */}
                     <View style={styles.genreTags}>
-                      {connection.genres.slice(0, 2).map((genre) => (
+                      {(connection.genres || []).slice(0, 2).map((genre) => (
                         <View key={genre} style={styles.genreTag}>
                           <Text style={styles.genreTagText}>{genre}</Text>
                         </View>
                       ))}
+                      {(!connection.genres || connection.genres.length === 0) && (
+                        <View style={styles.genreTag}>
+                          <Text style={styles.genreTagText}>Electronic</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
 

@@ -17,6 +17,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import RhoodModal from "./RhoodModal";
+import { connectionsService } from "../lib/connectionsService";
+import { supabase } from "../lib/supabase";
 
 // Mock DJ Data
 const mockDJs = [
@@ -187,6 +189,12 @@ export default function MessagesScreen({ navigation, route }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
+  // Real-time messaging state
+  const [currentUser, setCurrentUser] = useState(null);
+  const [otherUser, setOtherUser] = useState(null);
+  const [threadId, setThreadId] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+
   const currentDJ = mockDJs.find((dj) => dj.id === djId) || mockDJs[0];
 
   // Storage keys
@@ -195,8 +203,76 @@ export default function MessagesScreen({ navigation, route }) {
 
   // Load data on component mount
   useEffect(() => {
-    loadData();
+    initializeMessaging();
   }, [djId]);
+
+  // Cleanup subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, [subscription]);
+
+  const initializeMessaging = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert("Error", "Please log in to send messages");
+        return;
+      }
+      
+      setCurrentUser(user);
+      
+      // Get other user's profile
+      const { data: otherUserProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', djId)
+        .single();
+      
+      if (profileError) {
+        console.error("Error fetching user profile:", profileError);
+        // Fallback to mock data
+        setOtherUser({ id: djId, dj_name: currentDJ.name, profile_image_url: currentDJ.profileImage });
+      } else {
+        setOtherUser(otherUserProfile);
+      }
+      
+      // Get or create message thread
+      const thread = await connectionsService.getOrCreateThread(djId);
+      setThreadId(thread.id);
+      
+      // Load existing messages
+      const existingMessages = await connectionsService.getMessages(thread.id);
+      setMessages(existingMessages);
+      
+      // Mark messages as read
+      await connectionsService.markMessagesAsRead(thread.id);
+      
+      // Subscribe to new messages
+      const newSubscription = connectionsService.subscribeToMessages(thread.id, (payload) => {
+        console.log("New message received:", payload);
+        if (payload.eventType === 'INSERT') {
+          setMessages(prev => [...prev, payload.new]);
+        }
+      });
+      
+      setSubscription(newSubscription);
+      
+    } catch (error) {
+      console.error("Error initializing messaging:", error);
+      Alert.alert("Error", "Failed to load messages");
+      // Fallback to mock data
+      loadData();
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Data persistence functions
   const loadData = async () => {
@@ -253,19 +329,39 @@ export default function MessagesScreen({ navigation, route }) {
   };
 
   // CRUD Operations for Messages
-  const createMessage = (text) => {
-    const newMessage = {
-      id: Date.now(), // Simple ID generation
-      senderId: "current",
-      text: text.trim(),
-      timestamp: new Date(),
-      isCurrentUser: true,
-    };
+  const createMessage = async (text) => {
+    if (!currentUser || !otherUser || !threadId) {
+      Alert.alert("Error", "Unable to send message. Please try again.");
+      return;
+    }
 
-    const updatedMessages = [...messages, newMessage];
-    setMessages(updatedMessages);
-    saveMessages(updatedMessages);
-    return newMessage;
+    try {
+      const message = await connectionsService.sendMessage(otherUser.id, text.trim());
+      
+      // The message will be added via the real-time subscription
+      // But we can add it optimistically for better UX
+      const optimisticMessage = {
+        id: message.id,
+        sender_id: currentUser.id,
+        receiver_id: otherUser.id,
+        content: text.trim(),
+        created_at: new Date().toISOString(),
+        is_read: false,
+        thread_id: threadId,
+        sender: {
+          id: currentUser.id,
+          dj_name: currentUser.user_metadata?.dj_name || "You",
+          full_name: currentUser.user_metadata?.full_name || "You",
+          profile_image_url: currentUser.user_metadata?.profile_image_url
+        }
+      };
+      
+      setMessages(prev => [...prev, optimisticMessage]);
+      
+    } catch (error) {
+      console.error("Error sending message:", error);
+      Alert.alert("Error", "Failed to send message");
+    }
   };
 
   const updateMessage = (messageId, newText) => {
@@ -731,6 +827,7 @@ export default function MessagesScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
       >
         {messages.map((message) => {
+          const isCurrentUser = message.sender_id === currentUser?.id;
           const panResponder = PanResponder.create({
             onStartShouldSetPanResponder: () => true,
             onMoveShouldSetPanResponder: (_, gestureState) => {
@@ -754,7 +851,7 @@ export default function MessagesScreen({ navigation, route }) {
               key={message.id}
               style={[
                 styles.messageContainer,
-                message.isCurrentUser
+                isCurrentUser
                   ? styles.messageRight
                   : styles.messageLeft,
               ]}
@@ -762,7 +859,7 @@ export default function MessagesScreen({ navigation, route }) {
               <View
                 style={[
                   styles.messageBubble,
-                  message.isCurrentUser
+                  isCurrentUser
                     ? styles.messageBubbleRight
                     : styles.messageBubbleLeft,
                 ]}
@@ -777,24 +874,24 @@ export default function MessagesScreen({ navigation, route }) {
                   <Text
                     style={[
                       styles.messageText,
-                      message.isCurrentUser
+                      isCurrentUser
                         ? styles.messageTextRight
                         : styles.messageTextLeft,
                     ]}
                   >
-                    {message.text}
+                    {message.content}
                   </Text>
                   <View style={styles.messageFooter}>
                     <Text
                       style={[
                         styles.messageTime,
-                        message.isCurrentUser
+                        isCurrentUser
                           ? styles.messageTimeRight
                           : styles.messageTimeLeft,
                       ]}
                     >
-                      {formatTime(message.timestamp)}
-                      {message.isEdited && " (edited)"}
+                      {formatTime(new Date(message.created_at))}
+                      {message.is_edited && " (edited)"}
                     </Text>
                   </View>
                 </TouchableOpacity>

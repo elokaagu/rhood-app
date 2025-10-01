@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,11 +8,14 @@ import {
   TextInput,
   RefreshControl,
   Image,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import ConnectionsScreen from "./ConnectionsScreen";
+import { connectionsService } from "../lib/connectionsService";
+import { supabase } from "../lib/supabase";
 
 // Mock DJs data for discovery
 const mockDJs = [
@@ -109,33 +112,82 @@ const mockDJs = [
 ];
 
 export default function ConnectionsDiscoveryScreen({ onNavigate }) {
-  const [djs, setDjs] = useState(mockDJs);
+  const [djs, setDjs] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("discover"); // discover, messages
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+
+  // Load user and recommended DJs on mount
+  useEffect(() => {
+    loadUserAndRecommendedDJs();
+  }, []);
+
+  const loadUserAndRecommendedDJs = async () => {
+    try {
+      setLoading(true);
+      
+      // Get current user
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        Alert.alert("Error", "Please log in to discover connections");
+        return;
+      }
+      
+      setUser(currentUser);
+      
+      // Get recommended users to follow
+      const recommended = await connectionsService.getRecommendedUsers(20);
+      setDjs(recommended);
+      
+    } catch (error) {
+      console.error("Error loading recommended DJs:", error);
+      Alert.alert("Error", "Failed to load recommended DJs");
+      // Fallback to mock data
+      setDjs(mockDJs);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadUserAndRecommendedDJs();
+    setRefreshing(false);
+  };
 
   const filteredDJs = useMemo(() => {
-    let filtered = djs.filter((dj) => !dj.isConnected); // Only show unconnected DJs
+    let filtered = djs; // Show all recommended DJs
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (dj) =>
-          dj.name.toLowerCase().includes(query) ||
-          dj.username.toLowerCase().includes(query) ||
-          dj.location.toLowerCase().includes(query) ||
-          dj.genres.some((genre) => genre.toLowerCase().includes(query))
+          dj.dj_name?.toLowerCase().includes(query) ||
+          dj.full_name?.toLowerCase().includes(query) ||
+          dj.city?.toLowerCase().includes(query) ||
+          dj.genres?.some((genre) => genre.toLowerCase().includes(query))
       );
     }
 
     return filtered;
   }, [djs, searchQuery]);
 
-  const handleConnect = (djId) => {
-    setDjs((prev) =>
-      prev.map((dj) => (dj.id === djId ? { ...dj, isConnected: true } : dj))
-    );
-    // In a real app, this would send a connection request
+  const handleConnect = async (djId) => {
+    try {
+      await connectionsService.followUser(djId);
+      
+      // Update local state to show as connected
+      setDjs((prev) =>
+        prev.map((dj) => (dj.id === djId ? { ...dj, isConnected: true } : dj))
+      );
+      
+      Alert.alert("Success", "You're now following this DJ!");
+    } catch (error) {
+      console.error("Error following user:", error);
+      Alert.alert("Error", "Failed to follow user");
+    }
   };
 
   const handleViewProfile = (dj) => {
@@ -300,24 +352,21 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                   <View style={styles.djHeader}>
                     <View style={styles.djInfo}>
                       <ProgressiveImage
-                        source={{ uri: dj.profileImage }}
+                        source={{ 
+                          uri: dj.profile_image_url || 
+                          "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face"
+                        }}
                         style={styles.djAvatar}
                       />
                       <View style={styles.djDetails}>
                         <View style={styles.djNameRow}>
-                          <Text style={styles.djName}>{dj.name}</Text>
-                          {dj.isOnline && (
-                            <View style={styles.onlineIndicator} />
-                          )}
+                          <Text style={styles.djName}>{dj.dj_name || dj.full_name}</Text>
+                          {/* For now, show all as online. In a real app, you'd track online status */}
+                          <View style={styles.onlineIndicator} />
                         </View>
-                        <Text style={styles.djUsername}>{dj.username}</Text>
-                        <Text style={styles.djLocation}>{dj.location}</Text>
-                        {dj.mutualConnections > 0 && (
-                          <Text style={styles.mutualConnections}>
-                            {dj.mutualConnections} mutual connection
-                            {dj.mutualConnections > 1 ? "s" : ""}
-                          </Text>
-                        )}
+                        <Text style={styles.djUsername}>@{dj.dj_name?.toLowerCase().replace(/\s+/g, '') || 'dj'}</Text>
+                        <Text style={styles.djLocation}>{dj.city}</Text>
+                        {/* Mutual connections would need to be calculated */}
                       </View>
                     </View>
                     <View style={styles.djActions}>
@@ -327,18 +376,18 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                           size={14}
                           color="hsl(75, 100%, 60%)"
                         />
-                        <Text style={styles.ratingText}>{dj.rating}</Text>
+                        <Text style={styles.ratingText}>4.5</Text>
                       </View>
-                      <Text style={styles.lastActive}>{dj.lastActive}</Text>
+                      <Text style={styles.lastActive}>Recently active</Text>
                     </View>
                   </View>
 
                   {/* DJ Bio */}
-                  <Text style={styles.djBio}>{dj.bio}</Text>
+                  <Text style={styles.djBio}>{dj.bio || "Electronic music producer and DJ"}</Text>
 
                   {/* Genres */}
                   <View style={styles.genresContainer}>
-                    {dj.genres.map((genre, index) => (
+                    {(dj.genres || ['Electronic']).map((genre, index) => (
                       <View key={index} style={styles.genreTag}>
                         <Ionicons
                           name={getGenreIcon(genre)}

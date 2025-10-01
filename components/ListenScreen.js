@@ -162,7 +162,7 @@ export default function ListenScreen({
   const fetchMixes = async () => {
     try {
       setLoading(true);
-      
+
       // First, try to fetch mixes without joins (simplest approach)
       const { data, error } = await supabase
         .from("mixes")
@@ -188,7 +188,7 @@ export default function ListenScreen({
       const transformedMixes = await Promise.all(
         data.map(async (mix) => {
           let artistName = "Unknown Artist";
-          
+
           // Try to fetch user profile for artist name
           if (mix.user_id) {
             const { data: profile } = await supabase
@@ -196,11 +196,14 @@ export default function ListenScreen({
               .select("dj_name, first_name, last_name")
               .eq("id", mix.user_id)
               .single();
-            
+
             if (profile) {
-              artistName = profile.dj_name || 
-                          `${profile.first_name || ''} ${profile.last_name || ''}`.trim() ||
-                          "Unknown Artist";
+              artistName =
+                profile.dj_name ||
+                `${profile.first_name || ""} ${
+                  profile.last_name || ""
+                }`.trim() ||
+                "Unknown Artist";
             }
           }
 
@@ -209,9 +212,15 @@ export default function ListenScreen({
             title: mix.title,
             artist: artistName,
             genre: mix.genre || "Electronic",
-            duration: mix.duration ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60).toString().padStart(2, '0')}` : "5:00",
+            duration: mix.duration
+              ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60)
+                  .toString()
+                  .padStart(2, "0")}`
+              : "5:00",
             description: mix.description || "No description available",
-            image: mix.artwork_url || "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+            image:
+              mix.artwork_url ||
+              "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
             audioUrl: mix.file_url,
             plays: mix.play_count || 0,
           };
@@ -460,7 +469,7 @@ export default function ListenScreen({
             <Text style={styles.modalDescription}>
               Share your 5-minute DJ mix with the R/HOOD community!
             </Text>
-            
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalCancelButton}
@@ -468,7 +477,7 @@ export default function ListenScreen({
               >
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={styles.modalUploadButton}
                 onPress={() => {

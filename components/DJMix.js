@@ -49,7 +49,7 @@ const DJMix = ({
   }, [isPlaying, pulseAnim]);
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.mixCard}
       onPress={onPlayPause}
       activeOpacity={0.7}
@@ -71,11 +71,7 @@ const DJMix = ({
           />
         ) : (
           <View style={styles.fallbackImage}>
-            <Ionicons
-              name="musical-notes"
-              size={24}
-              color="hsl(0, 0%, 60%)"
-            />
+            <Ionicons name="musical-notes" size={24} color="hsl(0, 0%, 60%)" />
           </View>
         )}
         {/* Play Button Overlay */}
