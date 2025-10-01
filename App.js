@@ -1360,7 +1360,7 @@ export default function App() {
     switch (screen) {
       case "opportunities":
         return (
-          <View style={styles.screen}>
+          <View style={[styles.screen, { backgroundColor: "hsl(0, 0%, 0%)" }]}>
             <View style={styles.opportunitiesContainer}>
               <View style={styles.opportunitiesHeader}>
                 <Text style={styles.opportunitiesTitle}>Opportunities</Text>
@@ -3020,6 +3020,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 40,
+    backgroundColor: "hsl(0, 0%, 0%)", // Black background
   },
   loadingText: {
     fontSize: 18,
