@@ -5,13 +5,13 @@
 SELECT * FROM mixes
 ORDER BY created_at DESC;
 
--- Step 2: For each mix, fetch the user profile separately
--- Replace 'USER_ID_HERE' with an actual user_id from the mixes table
-SELECT dj_name, first_name, last_name 
-FROM user_profiles 
-WHERE id = 'USER_ID_HERE';
-
--- Or get all user profiles to see what's available
+-- Step 2: Get all user profiles to see what's available
 SELECT id, dj_name, first_name, last_name, email
 FROM user_profiles;
+
+-- Step 3: Fetch a specific user profile by ID
+-- First, get a user_id from the mixes table, then run this:
+-- SELECT dj_name, first_name, last_name 
+-- FROM user_profiles 
+-- WHERE id = (SELECT user_id FROM mixes LIMIT 1);
 
