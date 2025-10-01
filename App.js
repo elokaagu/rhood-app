@@ -3007,6 +3007,7 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "flex-start",
     alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 0%)", // Black background to prevent white flash
   },
   noMoreOpportunities: {
     flex: 1,
