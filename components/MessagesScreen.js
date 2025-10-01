@@ -169,8 +169,18 @@ const mockMessages = [
 ];
 
 export default function MessagesScreen({ navigation, route }) {
-  const { isGroupChat = false, djId = 1, communityId, communityName } = route.params || {};
-  console.log("📱 MessagesScreen loaded with params:", { isGroupChat, djId, communityId, communityName });
+  const {
+    isGroupChat = false,
+    djId = 1,
+    communityId,
+    communityName,
+  } = route.params || {};
+  console.log("📱 MessagesScreen loaded with params:", {
+    isGroupChat,
+    djId,
+    communityId,
+    communityName,
+  });
 
   // State for messages and posts
   const [newMessage, setNewMessage] = useState("");
@@ -218,52 +228,60 @@ export default function MessagesScreen({ navigation, route }) {
   const initializeMessaging = async () => {
     try {
       setIsLoading(true);
-      
+
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert("Error", "Please log in to send messages");
         return;
       }
-      
+
       setCurrentUser(user);
-      
+
       // Get other user's profile
       const { data: otherUserProfile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', djId)
+        .from("user_profiles")
+        .select("*")
+        .eq("id", djId)
         .single();
-      
+
       if (profileError) {
         console.error("Error fetching user profile:", profileError);
         // Fallback to mock data
-        setOtherUser({ id: djId, dj_name: currentDJ.name, profile_image_url: currentDJ.profileImage });
+        setOtherUser({
+          id: djId,
+          dj_name: currentDJ.name,
+          profile_image_url: currentDJ.profileImage,
+        });
       } else {
         setOtherUser(otherUserProfile);
       }
-      
+
       // Get or create message thread
       const thread = await connectionsService.getOrCreateThread(djId);
       setThreadId(thread.id);
-      
+
       // Load existing messages
       const existingMessages = await connectionsService.getMessages(thread.id);
       setMessages(existingMessages);
-      
+
       // Mark messages as read
       await connectionsService.markMessagesAsRead(thread.id);
-      
+
       // Subscribe to new messages
-      const newSubscription = connectionsService.subscribeToMessages(thread.id, (payload) => {
-        console.log("New message received:", payload);
-        if (payload.eventType === 'INSERT') {
-          setMessages(prev => [...prev, payload.new]);
+      const newSubscription = connectionsService.subscribeToMessages(
+        thread.id,
+        (payload) => {
+          console.log("New message received:", payload);
+          if (payload.eventType === "INSERT") {
+            setMessages((prev) => [...prev, payload.new]);
+          }
         }
-      });
-      
+      );
+
       setSubscription(newSubscription);
-      
     } catch (error) {
       console.error("Error initializing messaging:", error);
       Alert.alert("Error", "Failed to load messages");
@@ -336,8 +354,11 @@ export default function MessagesScreen({ navigation, route }) {
     }
 
     try {
-      const message = await connectionsService.sendMessage(otherUser.id, text.trim());
-      
+      const message = await connectionsService.sendMessage(
+        otherUser.id,
+        text.trim()
+      );
+
       // The message will be added via the real-time subscription
       // But we can add it optimistically for better UX
       const optimisticMessage = {
@@ -352,12 +373,11 @@ export default function MessagesScreen({ navigation, route }) {
           id: currentUser.id,
           dj_name: currentUser.user_metadata?.dj_name || "You",
           full_name: currentUser.user_metadata?.full_name || "You",
-          profile_image_url: currentUser.user_metadata?.profile_image_url
-        }
+          profile_image_url: currentUser.user_metadata?.profile_image_url,
+        },
       };
-      
-      setMessages(prev => [...prev, optimisticMessage]);
-      
+
+      setMessages((prev) => [...prev, optimisticMessage]);
     } catch (error) {
       console.error("Error sending message:", error);
       Alert.alert("Error", "Failed to send message");
@@ -600,7 +620,8 @@ export default function MessagesScreen({ navigation, route }) {
                 {communityName || "RHOOD Group"}
               </Text>
               <Text style={styles.groupSubtitle}>
-                12 members • {communityId ? "Community Chat" : "Community Forum"}
+                12 members •{" "}
+                {communityId ? "Community Chat" : "Community Forum"}
               </Text>
             </View>
           </View>
@@ -765,9 +786,10 @@ export default function MessagesScreen({ navigation, route }) {
           <View style={styles.headerInfo}>
             <View style={styles.djImageContainer}>
               <Image
-                source={{ 
-                  uri: otherUser?.profile_image_url || 
-                  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face"
+                source={{
+                  uri:
+                    otherUser?.profile_image_url ||
+                    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face",
                 }}
                 style={styles.djImage}
                 resizeMode="cover"
@@ -781,7 +803,9 @@ export default function MessagesScreen({ navigation, route }) {
             </View>
 
             <View style={styles.djDetails}>
-              <Text style={styles.djName}>{otherUser?.dj_name || otherUser?.full_name || "Unknown User"}</Text>
+              <Text style={styles.djName}>
+                {otherUser?.dj_name || otherUser?.full_name || "Unknown User"}
+              </Text>
               <View style={styles.djLocation}>
                 <Ionicons
                   name="location-outline"
@@ -855,9 +879,7 @@ export default function MessagesScreen({ navigation, route }) {
               key={message.id}
               style={[
                 styles.messageContainer,
-                isCurrentUser
-                  ? styles.messageRight
-                  : styles.messageLeft,
+                isCurrentUser ? styles.messageRight : styles.messageLeft,
               ]}
             >
               <View
