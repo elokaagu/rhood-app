@@ -1078,6 +1078,8 @@ export default function App() {
   const handleBriefClose = () => {
     setShowBriefForm(false);
     setSelectedOpportunity(null);
+    // Move to next card when brief is closed without submitting
+    setCurrentOpportunityIndex(currentOpportunityIndex + 1);
   };
 
   // Global authentication helper
