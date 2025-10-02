@@ -21,7 +21,7 @@ import { supabase } from "../lib/supabase";
 // Mock connections data
 const mockConnections = [
   {
-    id: 1,
+    id: "cc00a0ac-9163-4c30-b123-81cc06046e8b",
     name: "Marcus Chen",
     username: "@marcusbeats",
     location: "Shoreditch, London",
@@ -35,7 +35,7 @@ const mockConnections = [
     status: "online",
   },
   {
-    id: 2,
+    id: "dd11b1bd-a274-5d41-c234-92dd17157f9c",
     name: "Alex Thompson",
     username: "@alexunderground",
     location: "Hackney, London",
@@ -49,7 +49,7 @@ const mockConnections = [
     status: "online",
   },
   {
-    id: 3,
+    id: "ee22c2ce-b385-6e52-d345-a3ee28268g0d",
     name: "Luna Martinez",
     username: "@lunabeats",
     location: "Barcelona, Spain",
@@ -63,7 +63,7 @@ const mockConnections = [
     status: "recently_active",
   },
   {
-    id: 4,
+    id: "ff33d3df-c496-7f63-e456-b4ff39379h1e",
     name: "Max Blackwood",
     username: "@maxindustrial",
     location: "Berlin, Germany",
@@ -77,7 +77,7 @@ const mockConnections = [
     status: "offline",
   },
   {
-    id: 5,
+    id: "gg44e4eg-d5a7-8g74-f567-c5gg40480i2f",
     name: "Zara Kim",
     username: "@zarasyntwave",
     location: "Tokyo, Japan",
@@ -122,20 +122,21 @@ export default function ConnectionsScreen({ onNavigate }) {
   const loadUserAndConnections = async () => {
     try {
       setLoading(true);
-      
+
       // Get current user
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
       if (!currentUser) {
         Alert.alert("Error", "Please log in to view connections");
         return;
       }
-      
+
       setUser(currentUser);
-      
+
       // Get user's connections (people they follow)
       const following = await connectionsService.getFollowing(currentUser.id);
       setConnections(following);
-      
     } catch (error) {
       console.error("Error loading connections:", error);
       Alert.alert("Error", "Failed to load connections");
@@ -177,7 +178,9 @@ export default function ConnectionsScreen({ onNavigate }) {
           connection.full_name?.toLowerCase().includes(query) ||
           connection.dj_name?.toLowerCase().includes(query) ||
           connection.city?.toLowerCase().includes(query) ||
-          connection.genres?.some((genre) => genre.toLowerCase().includes(query))
+          connection.genres?.some((genre) =>
+            genre.toLowerCase().includes(query)
+          )
       );
     }
 
@@ -205,7 +208,7 @@ export default function ConnectionsScreen({ onNavigate }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         refreshControl={
           <RefreshControl
@@ -311,9 +314,10 @@ export default function ConnectionsScreen({ onNavigate }) {
                   {/* Profile Image with Online Status */}
                   <View style={styles.profileContainer}>
                     <ProgressiveImage
-                      source={{ 
-                        uri: connection.profile_image_url || 
-                        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face"
+                      source={{
+                        uri:
+                          connection.profile_image_url ||
+                          "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face",
                       }}
                       style={styles.profileImage}
                     />
@@ -336,10 +340,9 @@ export default function ConnectionsScreen({ onNavigate }) {
                         {connection.dj_name || connection.full_name}
                       </Text>
                       <Text style={styles.lastActive}>
-                        {connection.followedAt ? 
-                          new Date(connection.followedAt).toLocaleDateString() : 
-                          "Recently"
-                        }
+                        {connection.followedAt
+                          ? new Date(connection.followedAt).toLocaleDateString()
+                          : "Recently"}
                       </Text>
                     </View>
 
@@ -355,7 +358,8 @@ export default function ConnectionsScreen({ onNavigate }) {
                           <Text style={styles.genreTagText}>{genre}</Text>
                         </View>
                       ))}
-                      {(!connection.genres || connection.genres.length === 0) && (
+                      {(!connection.genres ||
+                        connection.genres.length === 0) && (
                         <View style={styles.genreTag}>
                           <Text style={styles.genreTagText}>Electronic</Text>
                         </View>

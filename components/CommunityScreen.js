@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,11 +11,12 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
+import { connectionsService } from "../lib/connectionsService";
 
 // Mock communities data
 const mockCommunities = [
   {
-    id: 1,
+    id: "aa00a0aa-1111-1111-1111-111111111111",
     name: "Underground DJs",
     description: "Connect with underground DJs worldwide",
     memberCount: 1234,
@@ -36,7 +37,7 @@ const mockCommunities = [
     lastPost: "New underground track shared by @technobeats",
   },
   {
-    id: 2,
+    id: "bb11b1bb-2222-2222-2222-222222222222",
     name: "Techno Collective",
     description: "Share techno tracks and collaborate",
     memberCount: 856,
@@ -56,7 +57,7 @@ const mockCommunities = [
     lastPost: "New techno production tips from @producer_mike",
   },
   {
-    id: 3,
+    id: "cc22c2cc-3333-3333-3333-333333333333",
     name: "Miami Music Scene",
     description: "Local Miami DJs and producers",
     memberCount: 432,
@@ -78,7 +79,7 @@ const mockCommunities = [
     lastPost: "Miami Music Week afterparty at Club Space",
   },
   {
-    id: 4,
+    id: "dd33d3dd-4444-4444-4444-444444444444",
     name: "Deep House Vibes",
     description: "Deep house enthusiasts and producers",
     memberCount: 678,
@@ -98,7 +99,7 @@ const mockCommunities = [
     lastPost: "New deep house track from @deepbeats",
   },
   {
-    id: 5,
+    id: "ee44e4ee-5555-5555-5555-555555555555",
     name: "Berlin Electronic",
     description: "Berlin's electronic music community",
     memberCount: 2341,
@@ -123,36 +124,70 @@ const mockCommunities = [
 ];
 
 export default function CommunityScreen({ onNavigate }) {
-  const [communities, setCommunities] = useState(mockCommunities);
+  const [communities, setCommunities] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Load communities from database
+  const loadCommunities = async () => {
+    try {
+      setLoading(true);
+      const communitiesData = await connectionsService.getAllCommunities();
+      setCommunities(communitiesData);
+    } catch (error) {
+      console.error("Error loading communities:", error);
+      // Fallback to mock data if database fails
+      setCommunities(mockCommunities);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load communities on component mount
+  useEffect(() => {
+    loadCommunities();
+  }, []);
 
   const handleCommunityPress = (community) => {
     // Navigate to community group chat
-    onNavigate && onNavigate("messages", { 
-      communityId: community.id,
-      communityName: community.name,
-      isGroupChat: true 
-    });
+    onNavigate &&
+      onNavigate("messages", {
+        communityId: community.id,
+        communityName: community.name,
+        isGroupChat: true,
+      });
   };
 
-  const handleJoinCommunity = (communityId) => {
-    setCommunities((prev) =>
-      prev.map((community) =>
-        community.id === communityId
-          ? { ...community, isJoined: !community.isJoined }
-          : community
-      )
-    );
+  const handleJoinCommunity = async (communityId) => {
+    try {
+      const community = communities.find((c) => c.id === communityId);
+      if (!community) return;
+
+      if (community.isJoined) {
+        // Leave community
+        await connectionsService.leaveCommunity(communityId);
+      } else {
+        // Join community
+        await connectionsService.joinCommunity(communityId);
+      }
+
+      // Update local state
+      setCommunities((prev) =>
+        prev.map((c) =>
+          c.id === communityId ? { ...c, isJoined: !c.isJoined } : c
+        )
+      );
+    } catch (error) {
+      console.error("Error joining/leaving community:", error);
+    }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    await loadCommunities();
+    setRefreshing(false);
   };
 
   // Filter communities based on search query and active filter
@@ -344,7 +379,19 @@ export default function CommunityScreen({ onNavigate }) {
 
         {/* Communities List */}
         <View style={styles.communitiesList}>
-          {filteredCommunities.length === 0 ? (
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <Ionicons
+                name="musical-notes"
+                size={48}
+                color="hsl(75, 100%, 60%)"
+              />
+              <Text style={styles.loadingTitle}>Loading Communities...</Text>
+              <Text style={styles.loadingSubtitle}>
+                Fetching the latest communities from the database
+              </Text>
+            </View>
+          ) : filteredCommunities.length === 0 ? (
             <View style={styles.noResultsContainer}>
               <Ionicons
                 name="people-outline"
@@ -618,6 +665,26 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   noResultsSubtitle: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  loadingTitle: {
+    fontSize: 16,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(75, 100%, 60%)",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  loadingSubtitle: {
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
     textAlign: "center",

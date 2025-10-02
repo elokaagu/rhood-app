@@ -20,7 +20,7 @@ import { supabase } from "../lib/supabase";
 // Mock DJs data for discovery
 const mockDJs = [
   {
-    id: 1,
+    id: "cc00a0ac-9163-4c30-b123-81cc06046e8b",
     name: "Marcus Chen",
     username: "@marcusbeats",
     location: "Shoreditch, London",
@@ -35,7 +35,7 @@ const mockDJs = [
     bio: "House music enthusiast with 5+ years experience",
   },
   {
-    id: 2,
+    id: "dd11b1bd-a274-5d41-c234-92dd17157f9c",
     name: "Alex Thompson",
     username: "@alexunderground",
     location: "Hackney, London",
@@ -50,7 +50,7 @@ const mockDJs = [
     bio: "Underground DJ specializing in D&B and Jungle",
   },
   {
-    id: 3,
+    id: "ee22c2ce-b385-6e52-d345-a3ee28268g0d",
     name: "Luna Martinez",
     username: "@lunabeats",
     location: "Barcelona, Spain",
@@ -65,7 +65,7 @@ const mockDJs = [
     bio: "Progressive and trance DJ from Barcelona",
   },
   {
-    id: 4,
+    id: "ff33d3df-c496-7f63-e456-b4ff39379h1e",
     name: "Khadija Hashi",
     username: "@khadijabeats",
     location: "Manchester, UK",
@@ -80,7 +80,7 @@ const mockDJs = [
     bio: "Afro house specialist bringing African rhythms to the UK",
   },
   {
-    id: 5,
+    id: "gg44e4eg-d5a7-8g74-f567-c5gg40480i2f",
     name: "James Wilson",
     username: "@jameswtechno",
     location: "Berlin, Germany",
@@ -95,7 +95,7 @@ const mockDJs = [
     bio: "Berlin-based techno DJ and producer",
   },
   {
-    id: 6,
+    id: "hh55f5fh-e6b8-9h85-g678-d6hh51591j3g",
     name: "Sofia Rodriguez",
     username: "@sofiaelectronic",
     location: "Madrid, Spain",

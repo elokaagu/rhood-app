@@ -23,7 +23,7 @@ import { supabase } from "../lib/supabase";
 // Mock DJ Data
 const mockDJs = [
   {
-    id: 1,
+    id: "cc00a0ac-9163-4c30-b123-81cc06046e8b",
     name: "Marcus Chen",
     username: "@marcusbeats",
     location: "Shoreditch, London",
@@ -34,7 +34,7 @@ const mockDJs = [
     isOnline: true,
   },
   {
-    id: 2,
+    id: "dd11b1bd-a274-5d41-c234-92dd17157f9c",
     name: "Alex Thompson",
     username: "@alexunderground",
     location: "Hackney, London",
@@ -45,7 +45,7 @@ const mockDJs = [
     isOnline: true,
   },
   {
-    id: 3,
+    id: "ee22c2ce-b385-6e52-d345-a3ee28268g0d",
     name: "Luna Martinez",
     username: "@lunabeats",
     location: "Barcelona, Spain",
@@ -56,7 +56,7 @@ const mockDJs = [
     isOnline: false,
   },
   {
-    id: 4,
+    id: "ff33d3df-c496-7f63-e456-b4ff39379h1e",
     name: "Max Blackwood",
     username: "@maxindustrial",
     location: "Berlin, Germany",
@@ -67,7 +67,7 @@ const mockDJs = [
     isOnline: false,
   },
   {
-    id: 5,
+    id: "gg44e4eg-d5a7-8g74-f567-c5gg40480i2f",
     name: "Zara Kim",
     username: "@zarasyntwave",
     location: "Tokyo, Japan",
@@ -171,7 +171,7 @@ const mockMessages = [
 export default function MessagesScreen({ navigation, route }) {
   const {
     isGroupChat = false,
-    djId = 1,
+    djId = "cc00a0ac-9163-4c30-b123-81cc06046e8b", // Default to a valid UUID
     communityId,
     communityName,
   } = route.params || {};
@@ -240,6 +240,61 @@ export default function MessagesScreen({ navigation, route }) {
 
       setCurrentUser(user);
 
+      if (isGroupChat && communityId) {
+        // Initialize group chat
+        await initializeGroupChat();
+      } else {
+        // Initialize 1-on-1 chat
+        await initializeDirectChat();
+      }
+    } catch (error) {
+      console.error("Error initializing messaging:", error);
+      Alert.alert("Error", "Failed to load messages");
+      // Fallback to mock data
+      loadData();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const initializeGroupChat = async () => {
+    try {
+      // Check if user is a member of the community
+      const isMember = await connectionsService.isCommunityMember(communityId);
+      if (!isMember) {
+        Alert.alert(
+          "Not a Member",
+          "You need to join this community to participate in the chat"
+        );
+        return;
+      }
+
+      // Load group messages
+      const groupMessages = await connectionsService.getGroupMessages(
+        communityId
+      );
+      setMessages(groupMessages);
+
+      // Subscribe to group messages
+      const newSubscription = connectionsService.subscribeToGroupMessages(
+        communityId,
+        (payload) => {
+          console.log("New group message received:", payload);
+          if (payload.eventType === "INSERT") {
+            setMessages((prev) => [...prev, payload.new]);
+          }
+        }
+      );
+
+      setSubscription(newSubscription);
+    } catch (error) {
+      console.error("Error initializing group chat:", error);
+      throw error;
+    }
+  };
+
+  const initializeDirectChat = async () => {
+    try {
       // Get other user's profile
       const { data: otherUserProfile, error: profileError } = await supabase
         .from("user_profiles")
@@ -283,12 +338,8 @@ export default function MessagesScreen({ navigation, route }) {
 
       setSubscription(newSubscription);
     } catch (error) {
-      console.error("Error initializing messaging:", error);
-      Alert.alert("Error", "Failed to load messages");
-      // Fallback to mock data
-      loadData();
-    } finally {
-      setIsLoading(false);
+      console.error("Error initializing direct chat:", error);
+      throw error;
     }
   };
 
@@ -348,36 +399,66 @@ export default function MessagesScreen({ navigation, route }) {
 
   // CRUD Operations for Messages
   const createMessage = async (text) => {
-    if (!currentUser || !otherUser || !threadId) {
+    if (!currentUser) {
       Alert.alert("Error", "Unable to send message. Please try again.");
       return;
     }
 
     try {
-      const message = await connectionsService.sendMessage(
-        otherUser.id,
-        text.trim()
-      );
+      if (isGroupChat && communityId) {
+        // Send group message
+        const message = await connectionsService.sendGroupMessage(
+          communityId,
+          text.trim()
+        );
 
-      // The message will be added via the real-time subscription
-      // But we can add it optimistically for better UX
-      const optimisticMessage = {
-        id: message.id,
-        sender_id: currentUser.id,
-        receiver_id: otherUser.id,
-        content: text.trim(),
-        created_at: new Date().toISOString(),
-        is_read: false,
-        thread_id: threadId,
-        sender: {
-          id: currentUser.id,
-          dj_name: currentUser.user_metadata?.dj_name || "You",
-          full_name: currentUser.user_metadata?.full_name || "You",
-          profile_image_url: currentUser.user_metadata?.profile_image_url,
-        },
-      };
+        // Add message optimistically for better UX
+        const optimisticMessage = {
+          id: message.id,
+          community_id: communityId,
+          sender_id: currentUser.id,
+          content: text.trim(),
+          created_at: new Date().toISOString(),
+          sender: {
+            id: currentUser.id,
+            dj_name: currentUser.user_metadata?.dj_name || "You",
+            full_name: currentUser.user_metadata?.full_name || "You",
+            profile_image_url: currentUser.user_metadata?.profile_image_url,
+          },
+        };
 
-      setMessages((prev) => [...prev, optimisticMessage]);
+        setMessages((prev) => [...prev, optimisticMessage]);
+      } else {
+        // Send direct message
+        if (!otherUser || !threadId) {
+          Alert.alert("Error", "Unable to send message. Please try again.");
+          return;
+        }
+
+        const message = await connectionsService.sendMessage(
+          otherUser.id,
+          text.trim()
+        );
+
+        // Add message optimistically for better UX
+        const optimisticMessage = {
+          id: message.id,
+          sender_id: currentUser.id,
+          receiver_id: otherUser.id,
+          content: text.trim(),
+          created_at: new Date().toISOString(),
+          is_read: false,
+          thread_id: threadId,
+          sender: {
+            id: currentUser.id,
+            dj_name: currentUser.user_metadata?.dj_name || "You",
+            full_name: currentUser.user_metadata?.full_name || "You",
+            profile_image_url: currentUser.user_metadata?.profile_image_url,
+          },
+        };
+
+        setMessages((prev) => [...prev, optimisticMessage]);
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       Alert.alert("Error", "Failed to send message");
@@ -509,22 +590,12 @@ export default function MessagesScreen({ navigation, route }) {
 
   // Utility Functions
   const formatTime = (date) => {
-    const now = new Date();
-    const diffInHours = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-    );
-
-    if (diffInHours < 1) {
-      const diffInMins = Math.floor(
-        (now.getTime() - date.getTime()) / (1000 * 60)
-      );
-      return `${diffInMins}m`;
-    } else if (diffInHours < 24) {
-      return `${diffInHours}h`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays}d`;
-    }
+    // Format as actual time (e.g., "2:30 PM" or "14:30")
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
   // Event Handlers

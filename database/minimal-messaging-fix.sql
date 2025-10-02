@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS message_threads (
 -- Enable RLS
 ALTER TABLE message_threads ENABLE ROW LEVEL SECURITY;
 
--- Create basic RLS policy
+-- Create basic RLS policy (drop existing one first to avoid conflicts)
+DROP POLICY IF EXISTS "Users can manage their own threads" ON message_threads;
 CREATE POLICY "Users can manage their own threads" ON message_threads
   FOR ALL USING (auth.uid() = participant_1 OR auth.uid() = participant_2);
 
