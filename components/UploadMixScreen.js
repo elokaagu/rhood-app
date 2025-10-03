@@ -144,11 +144,18 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       setUploadProgress(75);
 
       // Get user's DJ name for the artist field
-      const { data: userProfile } = await supabase
+      const { data: userProfile, error: profileError } = await supabase
         .from("user_profiles")
-        .select("dj_name")
+        .select("dj_name, id")
         .eq("id", user.id)
         .single();
+
+      if (profileError) {
+        console.error("Error fetching user profile:", profileError);
+        throw new Error(
+          "User profile not found. Please complete your profile first."
+        );
+      }
 
       // Save mix metadata to database
       // Using the actual schema from your database
@@ -165,10 +172,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           file_url: urlData.publicUrl,
           file_name: selectedFile.name,
           file_size: selectedFile.size,
-          uploaded_by: user.id,
-          user_id: user.id,
+          uploaded_by: userProfile.id,
+          user_id: userProfile.id,
           is_public: mixData.isPublic,
-          status: "active",
           plays: 0,
           rating: 0.0,
         })
