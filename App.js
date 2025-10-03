@@ -557,31 +557,32 @@ export default function App() {
       // Try to load the audio file
       let sound;
       try {
-        // Determine if audioUrl is a local require or remote URL
-        let audioSource;
-        if (typeof track.audioUrl === "string") {
-          // It's a remote URL string - wrap in { uri: url }
-          audioSource = { uri: track.audioUrl };
-          console.log("🌐 Loading remote audio from URL:", track.audioUrl);
-        } else if (typeof track.audioUrl === "number") {
-          // It's a local require() - use directly
-          audioSource = track.audioUrl;
-          console.log("📁 Loading local audio file");
-        } else {
-          // It's already an object with uri
-          audioSource = track.audioUrl;
-          console.log("🔗 Loading audio from object:", track.audioUrl);
-        }
+      // Determine if audioUrl is a local require or remote URL
+      let audioSource;
+      if (typeof track.audioUrl === "string") {
+        // It's a remote URL string - wrap in { uri: url }
+        audioSource = { uri: track.audioUrl };
+        console.log("🌐 Loading remote audio from URL:", track.audioUrl);
+      } else if (typeof track.audioUrl === "number") {
+        // It's a local require() - use directly
+        audioSource = track.audioUrl;
+        console.log("📁 Loading local audio file");
+      } else {
+        // It's already an object with uri
+        audioSource = track.audioUrl;
+        console.log("🔗 Loading audio from object:", track.audioUrl);
+      }
 
-        console.log("🔄 About to create Audio.Sound with:", {
-          audioSource: audioSource,
-          audioSourceType: typeof audioSource,
+      console.log("🔄 About to create Audio.Sound with:", {
+        audioSource: audioSource,
+        audioSourceType: typeof audioSource,
         shouldPlay: false,
         isLooping: false,
-          volume: 1.0
-        });
+        volume: 1.0,
+      });
 
-        // Add timeout for audio loading
+      // Try loading with timeout
+      try {
         const loadPromise = Audio.Sound.createAsync(audioSource, {
           shouldPlay: false,
           isLooping: false,
@@ -589,7 +590,10 @@ export default function App() {
         });
 
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Audio loading timeout after 30 seconds')), 30000);
+          setTimeout(
+            () => reject(new Error("Audio loading timeout after 60 seconds")),
+            60000
+          );
         });
 
         const result = await Promise.race([loadPromise, timeoutPromise]);
@@ -598,7 +602,7 @@ export default function App() {
         console.log("📊 Sound object:", {
           loaded: sound._loaded,
           key: sound._key,
-          uri: sound._uri
+          uri: sound._uri,
         });
       } catch (loadError) {
         console.error("❌ Error loading sound:", loadError);
@@ -619,7 +623,7 @@ export default function App() {
           console.log("✅ Alternative loading method succeeded");
         } catch (altError) {
           console.error("❌ Alternative loading also failed:", altError);
-          
+
           // More specific error messages
           let errorMessage = `Failed to play ${track.title}. `;
           if (loadError.message?.includes("Network")) {
@@ -687,7 +691,7 @@ export default function App() {
       // Start playing
       console.log("▶️ Starting playback...");
       try {
-      await sound.playAsync();
+        await sound.playAsync();
         console.log("✅ Playback started successfully");
       } catch (playError) {
         console.error("❌ Playback failed:", playError);
@@ -1312,7 +1316,7 @@ export default function App() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-    setShowMenu(false);
+      setShowMenu(false);
     });
   };
 
@@ -2070,10 +2074,10 @@ export default function App() {
                 opacity: menuOpacityAnim,
               },
             ]}
-        >
-          <TouchableOpacity
+          >
+            <TouchableOpacity
               style={styles.menuOverlayTouchable}
-            activeOpacity={1}
+              activeOpacity={1}
               onPress={closeMenu}
             />
             <Animated.View
@@ -2117,7 +2121,7 @@ export default function App() {
                       color="#C2CC06"
                     />
                     <View style={styles.menuItemContent}>
-                    <Text style={styles.menuItemText}>Messages</Text>
+                      <Text style={styles.menuItemText}>Messages</Text>
                       <Text style={styles.menuItemDescription}>
                         View all conversations
                       </Text>
@@ -2139,7 +2143,7 @@ export default function App() {
                       color="#C2CC06"
                     />
                     <View style={styles.menuItemContent}>
-                    <Text style={styles.menuItemText}>Notifications</Text>
+                      <Text style={styles.menuItemText}>Notifications</Text>
                       <Text style={styles.menuItemDescription}>
                         Stay updated on activity
                       </Text>
@@ -2156,7 +2160,7 @@ export default function App() {
                   >
                     <Ionicons name="people-outline" size={20} color="#C2CC06" />
                     <View style={styles.menuItemContent}>
-                    <Text style={styles.menuItemText}>Community</Text>
+                      <Text style={styles.menuItemText}>Community</Text>
                       <Text style={styles.menuItemDescription}>
                         Connect with other DJs
                       </Text>
@@ -2173,7 +2177,7 @@ export default function App() {
                   >
                     <Ionicons name="person-outline" size={20} color="#C2CC06" />
                     <View style={styles.menuItemContent}>
-                    <Text style={styles.menuItemText}>Profile</Text>
+                      <Text style={styles.menuItemText}>Profile</Text>
                       <Text style={styles.menuItemDescription}>
                         Manage your profile
                       </Text>
@@ -2194,7 +2198,7 @@ export default function App() {
                       color="#C2CC06"
                     />
                     <View style={styles.menuItemContent}>
-                    <Text style={styles.menuItemText}>Settings</Text>
+                      <Text style={styles.menuItemText}>Settings</Text>
                       <Text style={styles.menuItemDescription}>
                         App preferences
                       </Text>
