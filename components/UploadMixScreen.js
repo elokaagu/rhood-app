@@ -18,10 +18,17 @@ import { LinearGradient } from "expo-linear-gradient";
 
 // Conditionally import DocumentPicker
 let DocumentPicker;
+let ImagePicker;
 try {
   DocumentPicker = require("expo-document-picker");
 } catch (e) {
   console.log("DocumentPicker not available in Expo Go");
+}
+
+try {
+  ImagePicker = require("expo-image-picker");
+} catch (e) {
+  console.log("ImagePicker not available in Expo Go");
 }
 
 export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
@@ -96,25 +103,55 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
     }
   };
 
-  const pickArtworkFile = async () => {
+  const pickArtworkImage = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.attentionAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      if (!DocumentPicker) {
-        setShowDevBuildModal(true);
+      if (!ImagePicker) {
+        Alert.alert(
+          "Feature Not Available",
+          "Image picker requires a development build. Please use the development build to select artwork.",
+          [{ text: "OK" }]
+        );
         return;
       }
 
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "image/*",
-        copyToCacheDirectory: true,
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          "Permission Required",
+          "We need access to your photo library to select artwork.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1], // Square aspect ratio for artwork
+        quality: 0.8, // Good quality but smaller file size
+        base64: false,
       });
 
-      if (result.type === "success" || !result.canceled) {
-        const file = result.assets ? result.assets[0] : result;
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        
+        // Create a file-like object from the image picker result
+        const imageFile = {
+          uri: asset.uri,
+          name: asset.fileName || `artwork_${Date.now()}.jpg`,
+          type: asset.type || 'image/jpeg',
+          size: asset.fileSize || 0,
+          width: asset.width,
+          height: asset.height,
+        };
 
         // Check file size (max 10MB for images)
-        if (file.size > 10 * 1024 * 1024) {
+        if (imageFile.size > 10 * 1024 * 1024) {
           Alert.alert(
             "File Too Large",
             "Please select an image smaller than 10MB.",
@@ -123,28 +160,11 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           return;
         }
 
-        // Validate file type
-        const allowedTypes = [
-          "image/jpeg",
-          "image/jpg",
-          "image/png",
-          "image/webp",
-        ];
-
-        if (!allowedTypes.includes(file.mimeType)) {
-          Alert.alert(
-            "Invalid File Type",
-            "Please select an image file (JPEG, PNG, or WebP).",
-            [{ text: "OK" }]
-          );
-          return;
-        }
-
-        setSelectedArtwork(file);
+        setSelectedArtwork(imageFile);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
-      console.error("Error picking artwork:", error);
+      console.error("Error picking artwork image:", error);
       Alert.alert("Error", "Failed to select artwork. Please try again.");
     }
   };
@@ -193,29 +213,47 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       // Upload artwork if selected
       let artworkUrl = null;
       if (selectedArtwork) {
-        const artworkExt = selectedArtwork.name.split(".").pop();
-        const artworkFileName = `${
-          user.id
-        }/artwork_${Date.now()}.${artworkExt}`;
+        try {
+          const artworkExt = selectedArtwork.name.split(".").pop() || 'jpg';
+          const artworkFileName = `${user.id}/artwork_${Date.now()}.${artworkExt}`;
 
-        const { data: artworkUploadData, error: artworkUploadError } =
-          await supabase.storage
-            .from("mixes")
-            .upload(artworkFileName, selectedArtwork, {
-              contentType: selectedArtwork.mimeType || "image/jpeg",
-              cacheControl: "3600",
-              upsert: false,
-            });
+          // Handle different file formats (URI from image picker vs file object)
+          let fileToUpload;
+          let contentType = selectedArtwork.type || "image/jpeg";
 
-        if (artworkUploadError) {
-          console.error("Error uploading artwork:", artworkUploadError);
+          if (selectedArtwork.uri) {
+            // Image picker format - convert URI to blob/fetch
+            const response = await fetch(selectedArtwork.uri);
+            fileToUpload = response;
+            contentType = response.headers.get('content-type') || "image/jpeg";
+          } else {
+            // Document picker format - use file directly
+            fileToUpload = selectedArtwork;
+            contentType = selectedArtwork.mimeType || "image/jpeg";
+          }
+
+          const { data: artworkUploadData, error: artworkUploadError } =
+            await supabase.storage
+              .from("mixes")
+              .upload(artworkFileName, fileToUpload, {
+                contentType: contentType,
+                cacheControl: "3600",
+                upsert: false,
+              });
+
+          if (artworkUploadError) {
+            console.error("Error uploading artwork:", artworkUploadError);
+            // Continue without artwork rather than failing the entire upload
+          } else {
+            const { data: artworkUrlData } = supabase.storage
+              .from("mixes")
+              .getPublicUrl(artworkFileName);
+            artworkUrl = artworkUrlData.publicUrl;
+            console.log("🖼️ Generated artwork URL:", artworkUrl);
+          }
+        } catch (artworkError) {
+          console.error("Error processing artwork:", artworkError);
           // Continue without artwork rather than failing the entire upload
-        } else {
-          const { data: artworkUrlData } = supabase.storage
-            .from("mixes")
-            .getPublicUrl(artworkFileName);
-          artworkUrl = artworkUrlData.publicUrl;
-          console.log("🖼️ Generated artwork URL:", artworkUrl);
         }
       }
 
@@ -367,7 +405,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           <Text style={styles.sectionTitle}>Artwork (Optional)</Text>
           <TouchableOpacity
             style={styles.filePickerButton}
-            onPress={pickArtworkFile}
+            onPress={pickArtworkImage}
             disabled={uploading}
           >
             <Ionicons
@@ -383,7 +421,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
                 </Text>
               </View>
             ) : (
-              <Text style={styles.filePickerText}>Tap to select artwork</Text>
+              <Text style={styles.filePickerText}>Tap to select artwork from photos</Text>
             )}
           </TouchableOpacity>
         </View>
