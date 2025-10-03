@@ -604,6 +604,28 @@ export default function App() {
 
       console.log("🔄 Sound created:", sound);
 
+      // Check sound properties before playing
+      try {
+        const status = await sound.getStatusAsync();
+        console.log("📊 Initial sound status:", {
+          isLoaded: status.isLoaded,
+          durationMillis: status.durationMillis,
+          playableDurationMillis: status.playableDurationMillis,
+          uri: status.uri
+        });
+        
+        if (!status.isLoaded) {
+          throw new Error("Sound failed to load properly");
+        }
+        
+        if (status.durationMillis === 0) {
+          console.warn("⚠️ Audio file has 0 duration - may be corrupted");
+        }
+      } catch (statusError) {
+        console.error("❌ Error getting sound status:", statusError);
+        throw statusError;
+      }
+
       // Set up status update listener
       sound.setOnPlaybackStatusUpdate((status) => {
         console.log("📊 Audio status update:", status);
@@ -627,7 +649,18 @@ export default function App() {
 
       // Start playing
       console.log("▶️ Starting playback...");
-      await sound.playAsync();
+      try {
+        await sound.playAsync();
+        console.log("✅ Playback started successfully");
+      } catch (playError) {
+        console.error("❌ Playback failed:", playError);
+        console.error("❌ Playback error details:", {
+          message: playError.message,
+          code: playError.code,
+          name: playError.name
+        });
+        throw playError; // Re-throw to be caught by outer catch
+      }
 
       setGlobalAudioState((prev) => ({
         ...prev,
