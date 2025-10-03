@@ -277,9 +277,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           let contentType = selectedArtwork.type || "image/jpeg";
 
           if (selectedArtwork.uri) {
-            // Image picker format - use the URI directly for Supabase upload
-            fileToUpload = selectedArtwork.uri;
-            contentType = selectedArtwork.type || "image/jpeg";
+            // Image picker format - convert URI to blob for Supabase upload
+            console.log("🔄 Converting image URI to blob...");
+            const response = await fetch(selectedArtwork.uri);
+            const blob = await response.blob();
+            fileToUpload = blob;
+            contentType = blob.type || selectedArtwork.type || "image/jpeg";
+            console.log("✅ Blob created:", { size: blob.size, type: blob.type });
           } else {
             // Document picker format - use file directly
             fileToUpload = selectedArtwork;
