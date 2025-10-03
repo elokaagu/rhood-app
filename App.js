@@ -1031,13 +1031,27 @@ export default function App() {
         return;
       }
 
-      // Submit application with brief data
-      // Use the actual opportunity ID from the mock data
+      // Submit application with brief data using structured fields
       const { error } = await supabase.from("applications").insert({
         opportunity_id: opportunityId,
         user_id: user.id,
         status: "pending",
-        message: `APPLICATION FOR: ${selectedOpportunity.title}\n\nExperience: ${briefData.briefData.experience}\n\nAvailability: ${briefData.briefData.availability}\n\nEquipment: ${briefData.briefData.equipment}\n\nRate: ${briefData.briefData.rate}\n\nPortfolio: ${briefData.briefData.portfolio}\n\nMessage: ${briefData.briefData.message}`,
+        message: briefData.briefData.message,
+        // Structured brief fields
+        brief_data: {
+          experience: briefData.briefData.experience,
+          availability: briefData.briefData.availability,
+          equipment: briefData.briefData.equipment,
+          rate: briefData.briefData.rate,
+          portfolio: briefData.briefData.portfolio,
+          message: briefData.briefData.message,
+        },
+        experience: briefData.briefData.experience,
+        availability: briefData.briefData.availability,
+        equipment: briefData.briefData.equipment,
+        rate: briefData.briefData.rate,
+        portfolio: briefData.briefData.portfolio,
+        brief_submitted_at: new Date().toISOString(),
       });
 
       if (error) {

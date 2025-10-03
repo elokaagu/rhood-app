@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function OpportunityCard({ opportunity, onPress }) {
@@ -13,7 +7,10 @@ export default function OpportunityCard({ opportunity, onPress }) {
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       {/* Large featured image */}
       <View style={styles.imageContainer}>
-        <Image source={{ uri: opportunity.image }} style={styles.featuredImage} />
+        <Image
+          source={{ uri: opportunity.image }}
+          style={styles.featuredImage}
+        />
         <View style={styles.imageOverlay}>
           <View style={styles.overlayHeader}>
             <Text style={styles.venueName}>{opportunity.venue}</Text>
@@ -39,7 +36,6 @@ export default function OpportunityCard({ opportunity, onPress }) {
           </Text>
         </View>
       </View>
-
     </TouchableOpacity>
   );
 }

@@ -120,14 +120,11 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       const fileExt = selectedFile.name.split(".").pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
-      // Read file as blob
-      const response = await fetch(selectedFile.uri);
-      const blob = await response.blob();
-
-      // Upload to Supabase Storage
+      // Upload file directly to Supabase Storage
+      // In React Native, we can pass the file URI directly
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("mixes")
-        .upload(fileName, blob, {
+        .upload(fileName, selectedFile, {
           contentType: selectedFile.mimeType || "audio/mpeg",
           cacheControl: "3600",
           upsert: false,
@@ -156,7 +153,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           genre: mixData.genre || null,
           file_url: urlData.publicUrl,
           file_size: selectedFile.size,
-          is_public: mixData.isPublic,
+          // Note: is_public column may not exist yet - will be added by migration
         })
         .select()
         .single();
@@ -414,9 +411,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
             />
             <Text style={styles.modalTitle}>Feature Not Available</Text>
             <Text style={styles.modalDescription}>
-              File picker requires a development build. Please use the development build to upload mixes.
+              File picker requires a development build. Please use the
+              development build to upload mixes.
             </Text>
-            
+
             <TouchableOpacity
               style={styles.modalButton}
               onPress={() => setShowDevBuildModal(false)}
