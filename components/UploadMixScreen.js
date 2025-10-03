@@ -143,17 +143,34 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       setUploadProgress(75);
 
+      // Get user's DJ name for the artist field
+      const { data: userProfile } = await supabase
+        .from("user_profiles")
+        .select("dj_name")
+        .eq("id", user.id)
+        .single();
+
       // Save mix metadata to database
+      // Using the actual schema from your database
       const { data: mixRecord, error: dbError } = await supabase
         .from("mixes")
         .insert({
-          user_id: user.id,
           title: mixData.title.trim(),
+          artist:
+            userProfile?.dj_name ||
+            user.email?.split("@")[0] ||
+            "Unknown Artist",
+          genre: mixData.genre || "Electronic",
           description: mixData.description.trim() || null,
-          genre: mixData.genre || null,
           file_url: urlData.publicUrl,
+          file_name: selectedFile.name,
           file_size: selectedFile.size,
-          // Note: is_public column may not exist yet - will be added by migration
+          uploaded_by: user.id,
+          user_id: user.id,
+          is_public: mixData.isPublic,
+          status: "active",
+          plays: 0,
+          rating: 0.0,
         })
         .select()
         .single();

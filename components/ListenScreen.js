@@ -210,7 +210,7 @@ export default function ListenScreen({
           return {
             id: mix.id,
             title: mix.title,
-            artist: artistName,
+            artist: mix.artist || artistName,
             genre: mix.genre || "Electronic",
             duration: mix.duration
               ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60)
@@ -222,7 +222,7 @@ export default function ListenScreen({
               mix.artwork_url ||
               "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
             audioUrl: mix.file_url,
-            plays: mix.play_count || 0,
+            plays: mix.plays || mix.play_count || 0,
           };
         })
       );

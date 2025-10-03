@@ -10,6 +10,7 @@ ORDER BY ordinal_position;
 -- Add all missing columns that the app expects
 ALTER TABLE mixes 
 ADD COLUMN IF NOT EXISTS user_id UUID,
+ADD COLUMN IF NOT EXISTS artist VARCHAR(255) NOT NULL DEFAULT 'Unknown Artist',
 ADD COLUMN IF NOT EXISTS title VARCHAR(255),
 ADD COLUMN IF NOT EXISTS description TEXT,
 ADD COLUMN IF NOT EXISTS genre VARCHAR(100),
