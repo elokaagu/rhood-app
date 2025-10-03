@@ -24,6 +24,20 @@ const DJMix = ({
   const [imageError, setImageError] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  // Validate image URL and provide fallback
+  const getImageSource = () => {
+    if (mix.image && typeof mix.image === "string" && mix.image.trim() !== "") {
+      // Check if it's a valid URL or matches upload pattern
+      if (mix.image.includes("supabase") || mix.image.startsWith("http")) {
+        return { uri: mix.image };
+      }
+    }
+    // Return fallback image
+    return {
+      uri: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+    };
+  };
+
   useEffect(() => {
     if (isPlaying) {
       // Start pulsing animation when playing
@@ -63,11 +77,17 @@ const DJMix = ({
       <View style={styles.albumArtContainer}>
         {!imageError ? (
           <Image
-            source={{ uri: mix.image }}
+            source={getImageSource()}
             style={styles.albumArt}
             resizeMode="cover"
-            onError={() => setImageError(true)}
-            onLoad={() => setImageError(false)}
+            onError={() => {
+              setImageError(true);
+              console.log(`❌ Failed to load image: ${mix.image}`);
+            }}
+            onLoad={() => {
+              setImageError(false);
+              console.log(`✅ Successfully loaded image: ${mix.image}`);
+            }}
           />
         ) : (
           <View style={styles.fallbackImage}>

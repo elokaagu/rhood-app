@@ -117,9 +117,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       }
 
       // Request permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
         Alert.alert(
           "Permission Required",
           "We need access to your photo library to select artwork.",
@@ -139,12 +140,12 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        
+
         // Create a file-like object from the image picker result
         const imageFile = {
           uri: asset.uri,
           name: asset.fileName || `artwork_${Date.now()}.jpg`,
-          type: asset.type || 'image/jpeg',
+          type: asset.type || "image/jpeg",
           size: asset.fileSize || 0,
           width: asset.width,
           height: asset.height,
@@ -214,23 +215,29 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       let artworkUrl = null;
       if (selectedArtwork) {
         try {
-          const artworkExt = selectedArtwork.name.split(".").pop() || 'jpg';
-          const artworkFileName = `${user.id}/artwork_${Date.now()}.${artworkExt}`;
+          const artworkExt = selectedArtwork.name.split(".").pop() || "jpg";
+          const artworkFileName = `${
+            user.id
+          }/artwork_${Date.now()}.${artworkExt}`;
 
           // Handle different file formats (URI from image picker vs file object)
           let fileToUpload;
           let contentType = selectedArtwork.type || "image/jpeg";
 
           if (selectedArtwork.uri) {
-            // Image picker format - convert URI to blob/fetch
-            const response = await fetch(selectedArtwork.uri);
-            fileToUpload = response;
-            contentType = response.headers.get('content-type') || "image/jpeg";
+            // Image picker format - use the URI directly for Supabase upload
+            fileToUpload = selectedArtwork.uri;
+            contentType = selectedArtwork.type || "image/jpeg";
           } else {
             // Document picker format - use file directly
             fileToUpload = selectedArtwork;
             contentType = selectedArtwork.mimeType || "image/jpeg";
           }
+
+          console.log("🖼️ Uploading artwork...");
+          console.log("   📁 Filename:", artworkFileName);
+          console.log("   📄 File to upload:", typeof fileToUpload);
+          console.log("   🏷️ Content type:", contentType);
 
           const { data: artworkUploadData, error: artworkUploadError } =
             await supabase.storage
@@ -242,14 +249,16 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
               });
 
           if (artworkUploadError) {
-            console.error("Error uploading artwork:", artworkUploadError);
+            console.error("❌ Error uploading artwork:", artworkUploadError);
             // Continue without artwork rather than failing the entire upload
           } else {
+            console.log("✅ Artwork uploaded successfully:", artworkUploadData);
             const { data: artworkUrlData } = supabase.storage
               .from("mixes")
               .getPublicUrl(artworkFileName);
             artworkUrl = artworkUrlData.publicUrl;
             console.log("🖼️ Generated artwork URL:", artworkUrl);
+            console.log("📂 Full path:", artworkFileName);
           }
         } catch (artworkError) {
           console.error("Error processing artwork:", artworkError);
@@ -421,7 +430,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
                 </Text>
               </View>
             ) : (
-              <Text style={styles.filePickerText}>Tap to select artwork from photos</Text>
+              <Text style={styles.filePickerText}>
+                Tap to select artwork from photos
+              </Text>
             )}
           </TouchableOpacity>
         </View>

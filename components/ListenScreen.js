@@ -207,7 +207,7 @@ export default function ListenScreen({
             }
           }
 
-          return {
+          const transformedMix = {
             id: mix.id,
             title: mix.title,
             artist: mix.artist || artistName,
@@ -224,6 +224,14 @@ export default function ListenScreen({
             audioUrl: mix.file_url,
             plays: mix.plays || mix.play_count || 0,
           };
+
+          // Debug logging for uploaded mixes
+          console.log(`🎵 Mix ${transformedMix.id} (${transformedMix.title}):`);
+          console.log(`   📁 Audio URL: ${transformedMix.audioUrl}`);
+          console.log(`   🖼️ Artwork URL: ${transformedMix.image}`);
+          console.log(`   👤 Artist: ${transformedMix.artist}`);
+
+          return transformedMix;
         })
       );
 
