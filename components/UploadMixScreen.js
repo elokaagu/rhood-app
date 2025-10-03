@@ -105,7 +105,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
   const pickArtworkImage = async () => {
     try {
-      Haptics.attentionAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       if (!ImagePicker) {
         Alert.alert(
@@ -113,9 +113,12 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           "Image picker requires a development build. Please use the development build to select artwork.",
           [
             { text: "OK", style: "default" },
-            { text: "Continue Without Artwork", onPress: () => {
-              console.log("📱 User chose to continue without artwork");
-            }}
+            {
+              text: "Continue Without Artwork",
+              onPress: () => {
+                console.log("📱 User chose to continue without artwork");
+              },
+            },
           ]
         );
         return;
@@ -125,7 +128,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       console.log("📱 Requesting media library permissions...");
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+
       console.log("📱 Permission status:", status);
 
       if (status !== "granted") {
@@ -135,7 +138,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           "We need access to your photo library to select artwork. Please enable media library access in your device settings.",
           [
             { text: "Cancel", style: "cancel" },
-            { text: "Settings", onPress: () => console.log("Open settings") }
+            { text: "Settings", onPress: () => console.log("Open settings") },
           ]
         );
         return;
@@ -153,11 +156,11 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         allowsMultipleSelection: false,
         selectionLimit: 1,
       });
-      
+
       console.log("📱 Image picker result:", {
         canceled: result.canceled,
         hasAssets: !!result.assets,
-        assetCount: result.assets?.length || 0
+        assetCount: result.assets?.length || 0,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -188,7 +191,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           name: imageFile.name,
           size: imageFile.size,
           type: imageFile.type,
-          dimensions: `${imageFile.width}x${imageFile.height}`
+          dimensions: `${imageFile.width}x${imageFile.height}`,
         });
 
         setSelectedArtwork(imageFile);
@@ -200,19 +203,21 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         message: error.message,
         code: error.code,
         name: error.name,
-        stack: error.stack
+        stack: error.stack,
       });
-      
+
       // More specific error handling
       let errorMessage = "Failed to select artwork. Please try again.";
-      if (error.message?.includes('permission')) {
-        errorMessage = "Permission denied. Please enable media library access in your device settings.";
-      } else if (error.message?.includes('cancel')) {
-        errorMessage = "Image selection was cancelled."; 
-      } else if (error.message?.includes('network')) {
-        errorMessage = "Network error. Please check your connection and try again.";
+      if (error.message?.includes("permission")) {
+        errorMessage =
+          "Permission denied. Please enable media library access in your device settings.";
+      } else if (error.message?.includes("cancel")) {
+        errorMessage = "Image selection was cancelled.";
+      } else if (error.message?.includes("network")) {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
       }
-      
+
       Alert.alert("Error", errorMessage, [{ text: "OK" }]);
     }
   };
