@@ -573,33 +573,70 @@ export default function App() {
           console.log("🔗 Loading audio from object:", track.audioUrl);
         }
 
-        const result = await Audio.Sound.createAsync(audioSource, {
+        console.log("🔄 About to create Audio.Sound with:", {
+          audioSource: audioSource,
+          audioSourceType: typeof audioSource,
+        shouldPlay: false,
+        isLooping: false,
+          volume: 1.0
+        });
+
+        // Add timeout for audio loading
+        const loadPromise = Audio.Sound.createAsync(audioSource, {
           shouldPlay: false,
           isLooping: false,
           volume: 1.0,
         });
+
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Audio loading timeout after 30 seconds')), 30000);
+        });
+
+        const result = await Promise.race([loadPromise, timeoutPromise]);
         sound = result.sound;
         console.log("✅ Sound loaded successfully");
+        console.log("📊 Sound object:", {
+          loaded: sound._loaded,
+          key: sound._key,
+          uri: sound._uri
+        });
       } catch (loadError) {
         console.error("❌ Error loading sound:", loadError);
         console.error("❌ Audio URL:", track.audioUrl);
         console.error("❌ Audio URL type:", typeof track.audioUrl);
         console.error("❌ Track details:", track);
 
-        // More specific error messages
-        let errorMessage = `Failed to play ${track.title}. `;
-        if (loadError.message?.includes("Network")) {
-          errorMessage += "Network error - check your connection.";
-        } else if (loadError.message?.includes("404")) {
-          errorMessage += "Audio file not found.";
-        } else if (loadError.message?.includes("CORS")) {
-          errorMessage += "CORS error - file may not be publicly accessible.";
-        } else {
-          errorMessage += "Please try again.";
-        }
+        // Try alternative loading method
+        console.log("🔄 Trying alternative audio loading method...");
+        try {
+          const altResult = await Audio.Sound.createAsync(audioSource, {
+            shouldPlay: false,
+            isLooping: false,
+            volume: 1.0,
+            progressUpdateIntervalMillis: 1000,
+          });
+          sound = altResult.sound;
+          console.log("✅ Alternative loading method succeeded");
+        } catch (altError) {
+          console.error("❌ Alternative loading also failed:", altError);
+          
+          // More specific error messages
+          let errorMessage = `Failed to play ${track.title}. `;
+          if (loadError.message?.includes("Network")) {
+            errorMessage += "Network error - check your connection.";
+          } else if (loadError.message?.includes("404")) {
+            errorMessage += "Audio file not found.";
+          } else if (loadError.message?.includes("CORS")) {
+            errorMessage += "CORS error - file may not be publicly accessible.";
+          } else if (loadError.message?.includes("timeout")) {
+            errorMessage += "Audio loading timed out - file may be too large.";
+          } else {
+            errorMessage += "Please try again.";
+          }
 
-        Alert.alert("Audio Error", errorMessage, [{ text: "OK" }]);
-        throw new Error(`Failed to load audio file: ${loadError.message}`);
+          Alert.alert("Audio Error", errorMessage, [{ text: "OK" }]);
+          throw new Error(`Failed to load audio file: ${loadError.message}`);
+        }
       }
 
       console.log("🔄 Sound created:", sound);
@@ -611,13 +648,13 @@ export default function App() {
           isLoaded: status.isLoaded,
           durationMillis: status.durationMillis,
           playableDurationMillis: status.playableDurationMillis,
-          uri: status.uri
+          uri: status.uri,
         });
-        
+
         if (!status.isLoaded) {
           throw new Error("Sound failed to load properly");
         }
-        
+
         if (status.durationMillis === 0) {
           console.warn("⚠️ Audio file has 0 duration - may be corrupted");
         }
@@ -650,14 +687,14 @@ export default function App() {
       // Start playing
       console.log("▶️ Starting playback...");
       try {
-        await sound.playAsync();
+      await sound.playAsync();
         console.log("✅ Playback started successfully");
       } catch (playError) {
         console.error("❌ Playback failed:", playError);
         console.error("❌ Playback error details:", {
           message: playError.message,
           code: playError.code,
-          name: playError.name
+          name: playError.name,
         });
         throw playError; // Re-throw to be caught by outer catch
       }
@@ -1275,7 +1312,7 @@ export default function App() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setShowMenu(false);
+    setShowMenu(false);
     });
   };
 
@@ -2033,10 +2070,10 @@ export default function App() {
                 opacity: menuOpacityAnim,
               },
             ]}
-          >
-            <TouchableOpacity
+        >
+          <TouchableOpacity
               style={styles.menuOverlayTouchable}
-              activeOpacity={1}
+            activeOpacity={1}
               onPress={closeMenu}
             />
             <Animated.View
@@ -2080,7 +2117,7 @@ export default function App() {
                       color="#C2CC06"
                     />
                     <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Messages</Text>
+                    <Text style={styles.menuItemText}>Messages</Text>
                       <Text style={styles.menuItemDescription}>
                         View all conversations
                       </Text>
@@ -2102,7 +2139,7 @@ export default function App() {
                       color="#C2CC06"
                     />
                     <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Notifications</Text>
+                    <Text style={styles.menuItemText}>Notifications</Text>
                       <Text style={styles.menuItemDescription}>
                         Stay updated on activity
                       </Text>
@@ -2119,7 +2156,7 @@ export default function App() {
                   >
                     <Ionicons name="people-outline" size={20} color="#C2CC06" />
                     <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Community</Text>
+                    <Text style={styles.menuItemText}>Community</Text>
                       <Text style={styles.menuItemDescription}>
                         Connect with other DJs
                       </Text>
@@ -2136,7 +2173,7 @@ export default function App() {
                   >
                     <Ionicons name="person-outline" size={20} color="#C2CC06" />
                     <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Profile</Text>
+                    <Text style={styles.menuItemText}>Profile</Text>
                       <Text style={styles.menuItemDescription}>
                         Manage your profile
                       </Text>
@@ -2157,7 +2194,7 @@ export default function App() {
                       color="#C2CC06"
                     />
                     <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Settings</Text>
+                    <Text style={styles.menuItemText}>Settings</Text>
                       <Text style={styles.menuItemDescription}>
                         App preferences
                       </Text>
