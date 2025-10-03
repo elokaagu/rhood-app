@@ -111,31 +111,53 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         Alert.alert(
           "Feature Not Available",
           "Image picker requires a development build. Please use the development build to select artwork.",
-          [{ text: "OK" }]
+          [
+            { text: "OK", style: "default" },
+            { text: "Continue Without Artwork", onPress: () => {
+              console.log("📱 User chose to continue without artwork");
+            }}
+          ]
         );
         return;
       }
 
       // Request permissions
+      console.log("📱 Requesting media library permissions...");
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      console.log("📱 Permission status:", status);
 
       if (status !== "granted") {
+        console.log("❌ Media library permission denied");
         Alert.alert(
           "Permission Required",
-          "We need access to your photo library to select artwork.",
-          [{ text: "OK" }]
+          "We need access to your photo library to select artwork. Please enable media library access in your device settings.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Settings", onPress: () => console.log("Open settings") }
+          ]
         );
         return;
       }
 
       // Launch image picker
+      console.log("📱 Launching image picker...");
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1], // Square aspect ratio for artwork
         quality: 0.8, // Good quality but smaller file size
         base64: false,
+        exif: false, // Don't include EXIF data to reduce file size
+        allowsMultipleSelection: false,
+        selectionLimit: 1,
+      });
+      
+      console.log("📱 Image picker result:", {
+        canceled: result.canceled,
+        hasAssets: !!result.assets,
+        assetCount: result.assets?.length || 0
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -151,8 +173,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           height: asset.height,
         };
 
-        // Check file size (max 10MB for images)
-        if (imageFile.size > 10 * 1024 * 1024) {
+        // Check file size (max 10MB for images) only if we have size info
+        if (imageFile.size > 0 && imageFile.size > 10 * 1024 * 1024) {
+          console.log("❌ File too large:", imageFile.size, "bytes");
           Alert.alert(
             "File Too Large",
             "Please select an image smaller than 10MB.",
@@ -161,12 +184,36 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           return;
         }
 
+        console.log("✅ Artwork selected successfully:", {
+          name: imageFile.name,
+          size: imageFile.size,
+          type: imageFile.type,
+          dimensions: `${imageFile.width}x${imageFile.height}`
+        });
+
         setSelectedArtwork(imageFile);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
-      console.error("Error picking artwork image:", error);
-      Alert.alert("Error", "Failed to select artwork. Please try again.");
+      console.error("❌ Error picking artwork image:", error);
+      console.error("❌ Error details:", {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        stack: error.stack
+      });
+      
+      // More specific error handling
+      let errorMessage = "Failed to select artwork. Please try again.";
+      if (error.message?.includes('permission')) {
+        errorMessage = "Permission denied. Please enable media library access in your device settings.";
+      } else if (error.message?.includes('cancel')) {
+        errorMessage = "Image selection was cancelled."; 
+      } else if (error.message?.includes('network')) {
+        errorMessage = "Network error. Please check your connection and try again.";
+      }
+      
+      Alert.alert("Error", errorMessage, [{ text: "OK" }]);
     }
   };
 
