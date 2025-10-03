@@ -584,11 +584,21 @@ export default function App() {
         console.error("❌ Error loading sound:", loadError);
         console.error("❌ Audio URL:", track.audioUrl);
         console.error("❌ Audio URL type:", typeof track.audioUrl);
-        Alert.alert(
-          "Audio Error",
-          `Failed to play ${track.title}. Please try again.`,
-          [{ text: "OK" }]
-        );
+        console.error("❌ Track details:", track);
+
+        // More specific error messages
+        let errorMessage = `Failed to play ${track.title}. `;
+        if (loadError.message?.includes("Network")) {
+          errorMessage += "Network error - check your connection.";
+        } else if (loadError.message?.includes("404")) {
+          errorMessage += "Audio file not found.";
+        } else if (loadError.message?.includes("CORS")) {
+          errorMessage += "CORS error - file may not be publicly accessible.";
+        } else {
+          errorMessage += "Please try again.";
+        }
+
+        Alert.alert("Audio Error", errorMessage, [{ text: "OK" }]);
         throw new Error(`Failed to load audio file: ${loadError.message}`);
       }
 

@@ -26,6 +26,7 @@ try {
 
 export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showDevBuildModal, setShowDevBuildModal] = useState(false);
@@ -95,6 +96,59 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
     }
   };
 
+  const pickArtworkFile = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      if (!DocumentPicker) {
+        setShowDevBuildModal(true);
+        return;
+      }
+
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
+      });
+
+      if (result.type === "success" || !result.canceled) {
+        const file = result.assets ? result.assets[0] : result;
+
+        // Check file size (max 10MB for images)
+        if (file.size > 10 * 1024 * 1024) {
+          Alert.alert(
+            "File Too Large",
+            "Please select an image smaller than 10MB.",
+            [{ text: "OK" }]
+          );
+          return;
+        }
+
+        // Validate file type
+        const allowedTypes = [
+          "image/jpeg",
+          "image/jpg",
+          "image/png",
+          "image/webp",
+        ];
+
+        if (!allowedTypes.includes(file.mimeType)) {
+          Alert.alert(
+            "Invalid File Type",
+            "Please select an image file (JPEG, PNG, or WebP).",
+            [{ text: "OK" }]
+          );
+          return;
+        }
+
+        setSelectedArtwork(file);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error("Error picking artwork:", error);
+      Alert.alert("Error", "Failed to select artwork. Please try again.");
+    }
+  };
+
   const uploadMix = async () => {
     if (!selectedFile) {
       Alert.alert("No File Selected", "Please select an audio file to upload");
@@ -134,12 +188,46 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         throw uploadError;
       }
 
+      setUploadProgress(30);
+
+      // Upload artwork if selected
+      let artworkUrl = null;
+      if (selectedArtwork) {
+        const artworkExt = selectedArtwork.name.split(".").pop();
+        const artworkFileName = `${
+          user.id
+        }/artwork_${Date.now()}.${artworkExt}`;
+
+        const { data: artworkUploadData, error: artworkUploadError } =
+          await supabase.storage
+            .from("mixes")
+            .upload(artworkFileName, selectedArtwork, {
+              contentType: selectedArtwork.mimeType || "image/jpeg",
+              cacheControl: "3600",
+              upsert: false,
+            });
+
+        if (artworkUploadError) {
+          console.error("Error uploading artwork:", artworkUploadError);
+          // Continue without artwork rather than failing the entire upload
+        } else {
+          const { data: artworkUrlData } = supabase.storage
+            .from("mixes")
+            .getPublicUrl(artworkFileName);
+          artworkUrl = artworkUrlData.publicUrl;
+          console.log("🖼️ Generated artwork URL:", artworkUrl);
+        }
+      }
+
       setUploadProgress(50);
 
-      // Get public URL
+      // Get public URL for audio file
       const { data: urlData } = supabase.storage
         .from("mixes")
         .getPublicUrl(fileName);
+
+      console.log("📁 Generated public URL:", urlData.publicUrl);
+      console.log("📁 File name:", fileName);
 
       setUploadProgress(75);
 
@@ -172,6 +260,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           file_url: urlData.publicUrl,
           file_name: selectedFile.name,
           file_size: selectedFile.size,
+          artwork_url: artworkUrl,
           uploaded_by: userProfile.id,
           user_id: userProfile.id,
           is_public: mixData.isPublic,
@@ -269,6 +358,32 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
               <Text style={styles.filePickerText}>
                 Tap to select audio file
               </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Artwork Picker */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Artwork (Optional)</Text>
+          <TouchableOpacity
+            style={styles.filePickerButton}
+            onPress={pickArtworkFile}
+            disabled={uploading}
+          >
+            <Ionicons
+              name={selectedArtwork ? "image" : "image-outline"}
+              size={32}
+              color="hsl(75, 100%, 60%)"
+            />
+            {selectedArtwork ? (
+              <View style={styles.fileInfo}>
+                <Text style={styles.fileName}>{selectedArtwork.name}</Text>
+                <Text style={styles.fileSize}>
+                  {formatFileSize(selectedArtwork.size)}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.filePickerText}>Tap to select artwork</Text>
             )}
           </TouchableOpacity>
         </View>
