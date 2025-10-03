@@ -642,6 +642,9 @@ export default function App() {
           throw new Error(`Failed to load audio file: ${loadError.message}`);
         }
       }
+      } catch (audioError) {
+        console.error("❌ Error in audio loading:", audioError);
+        throw audioError;
       }
 
       console.log("🔄 Sound created:", sound);
