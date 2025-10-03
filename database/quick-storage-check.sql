@@ -44,12 +44,12 @@ FROM mixes
 WHERE created_at > NOW() - INTERVAL '7 days'
 ORDER BY created_at DESC;
 
--- Check current policies (without trying to modify them)
+-- Check current policies (using correct PostgreSQL system table)
 SELECT 
   policyname,
   cmd,
   permissive,
   'CURRENT POLICIES' as info
-FROM pg_lookup_policies 
+FROM pg_policies 
 WHERE tablename = 'objects' 
 ORDER BY policyname;

@@ -13,7 +13,7 @@ DECLARE
 BEGIN 
     FOR pol IN 
         SELECT policyname 
-        FROM pg_lookup_policies 
+        FROM pg_policies 
         WHERE tablename = 'objects' 
         AND policyname LIKE '%mixes%'
     LOOP 
@@ -89,7 +89,7 @@ SELECT
   permissive,
   roles,
   cmd
-FROM pg_lookup_policies 
+FROM pg_policies 
 WHERE tablename = 'objects' 
 AND policyname LIKE '%mixes%'
 ORDER BY policyname;

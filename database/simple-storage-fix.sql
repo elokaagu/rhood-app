@@ -12,7 +12,7 @@ RETURNS void AS $$
 BEGIN
   -- Check if policy already exists
   IF NOT EXISTS (
-    SELECT 1 FROM pg_lookup_policies 
+    SELECT 1 FROM pg_policies 
     WHERE tablename = 'objects' 
     AND policyname = 'Mixes public access'
   ) THEN
@@ -35,7 +35,7 @@ CREATE OR REPLACE FUNCTION ensure_mixes_upload_policy()
 RETURNS void AS $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_lookup_policies 
+    SELECT 1 FROM pg_policies 
     WHERE tablename = 'objects' 
     AND policyname = 'Mixes authenticated upload'
   ) THEN
@@ -63,9 +63,8 @@ SELECT
   policyname,
   cmd,
   'Current policies on storage.objects' as status
-FROM pg_lookup_policies 
+FROM pg_policies 
 WHERE tablename = 'objects' 
-AND bucket_id = 'mixes'
 ORDER BY policyname;
 
 SELECT 'Storage configuration completed - bucket should now be public' as result;
