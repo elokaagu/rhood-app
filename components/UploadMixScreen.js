@@ -219,6 +219,15 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       setUploadProgress(0);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+      // Debug: Log file structure
+      console.log("Selected file:", {
+        name: selectedFile.name,
+        hasUri: !!selectedFile.uri,
+        hasFileCopyUri: !!selectedFile.fileCopyUri,
+        size: selectedFile.size,
+        type: selectedFile.mimeType,
+      });
+
       // Validate audio file format
       const fileExt = selectedFile.name.split(".").pop().toLowerCase();
       const validFormats = ["mp3", "wav", "m4a", "aac", "ogg", "flac"];
@@ -237,9 +246,23 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       setUploadProgress(10);
 
-      // Convert file URI to blob for React Native upload
-      const audioResponse = await fetch(selectedFile.uri);
-      const audioBlob = await audioResponse.blob();
+      // Convert file to blob for React Native upload
+      let audioBlob;
+      try {
+        // DocumentPicker returns a file with uri property
+        const fileUri = selectedFile.uri || selectedFile.fileCopyUri;
+        if (!fileUri) {
+          throw new Error("File URI not found");
+        }
+        
+        const audioResponse = await fetch(fileUri);
+        audioBlob = await audioResponse.blob();
+      } catch (blobError) {
+        console.error("Error creating blob:", blobError);
+        throw new Error("Failed to read audio file. Please try again.");
+      }
+
+      setUploadProgress(20);
 
       // Upload audio file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
