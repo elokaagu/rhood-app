@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   Modal,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -125,27 +126,22 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       }
 
       // Request permissions
-      console.log("📱 Requesting media library permissions...");
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      console.log("📱 Permission status:", status);
-
       if (status !== "granted") {
-        console.log("❌ Media library permission denied");
         Alert.alert(
           "Permission Required",
           "We need access to your photo library to select artwork. Please enable media library access in your device settings.",
           [
             { text: "Cancel", style: "cancel" },
-            { text: "Settings", onPress: () => console.log("Open settings") },
+            { text: "Settings", onPress: () => Linking.openSettings() },
           ]
         );
         return;
       }
 
       // Launch image picker
-      console.log("📱 Launching image picker...");
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -155,12 +151,6 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         exif: false, // Don't include EXIF data to reduce file size
         allowsMultipleSelection: false,
         selectionLimit: 1,
-      });
-
-      console.log("📱 Image picker result:", {
-        canceled: result.canceled,
-        hasAssets: !!result.assets,
-        assetCount: result.assets?.length || 0,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -178,7 +168,6 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
         // Check file size (max 10MB for images) only if we have size info
         if (imageFile.size > 0 && imageFile.size > 10 * 1024 * 1024) {
-          console.log("❌ File too large:", imageFile.size, "bytes");
           Alert.alert(
             "File Too Large",
             "Please select an image smaller than 10MB.",
@@ -187,24 +176,11 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           return;
         }
 
-        console.log("✅ Artwork selected successfully:", {
-          name: imageFile.name,
-          size: imageFile.size,
-          type: imageFile.type,
-          dimensions: `${imageFile.width}x${imageFile.height}`,
-        });
-
         setSelectedArtwork(imageFile);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
-      console.error("❌ Error picking artwork image:", error);
-      console.error("❌ Error details:", {
-        message: error.message,
-        code: error.code,
-        name: error.name,
-        stack: error.stack,
-      });
+      console.error("Error picking artwork:", error.message);
 
       // More specific error handling
       let errorMessage = "Failed to select artwork. Please try again.";
@@ -243,16 +219,33 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       setUploadProgress(0);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Create unique filename
-      const fileExt = selectedFile.name.split(".").pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      // Validate audio file format
+      const fileExt = selectedFile.name.split(".").pop().toLowerCase();
+      const validFormats = ["mp3", "wav", "m4a", "aac", "ogg", "flac"];
+      if (!validFormats.includes(fileExt)) {
+        Alert.alert(
+          "Invalid Format",
+          `Please select a valid audio file (${validFormats.join(", ")})`
+        );
+        setUploading(false);
+        return;
+      }
 
-      // Upload file directly to Supabase Storage
-      // In React Native, we can pass the file URI directly
+      // Create unique filename with random string to prevent conflicts
+      const randomStr = Math.random().toString(36).substring(7);
+      const fileName = `${user.id}/${Date.now()}_${randomStr}.${fileExt}`;
+
+      setUploadProgress(10);
+
+      // Convert file URI to blob for React Native upload
+      const audioResponse = await fetch(selectedFile.uri);
+      const audioBlob = await audioResponse.blob();
+
+      // Upload audio file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("mixes")
-        .upload(fileName, selectedFile, {
-          contentType: selectedFile.mimeType || "audio/mpeg",
+        .upload(fileName, audioBlob, {
+          contentType: selectedFile.mimeType || audioBlob.type || "audio/mpeg",
           cacheControl: "3600",
           upsert: false,
         });
@@ -261,7 +254,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         throw uploadError;
       }
 
-      setUploadProgress(30);
+      setUploadProgress(40);
 
       // Upload artwork if selected
       let artworkUrl = null;
@@ -278,22 +271,15 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
           if (selectedArtwork.uri) {
             // Image picker format - convert URI to blob for Supabase upload
-            console.log("🔄 Converting image URI to blob...");
             const response = await fetch(selectedArtwork.uri);
             const blob = await response.blob();
             fileToUpload = blob;
             contentType = blob.type || selectedArtwork.type || "image/jpeg";
-            console.log("✅ Blob created:", { size: blob.size, type: blob.type });
           } else {
             // Document picker format - use file directly
             fileToUpload = selectedArtwork;
             contentType = selectedArtwork.mimeType || "image/jpeg";
           }
-
-          console.log("🖼️ Uploading artwork...");
-          console.log("   📁 Filename:", artworkFileName);
-          console.log("   📄 File to upload:", typeof fileToUpload);
-          console.log("   🏷️ Content type:", contentType);
 
           const { data: artworkUploadData, error: artworkUploadError } =
             await supabase.storage
@@ -305,39 +291,33 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
               });
 
           if (artworkUploadError) {
-            console.error("❌ Error uploading artwork:", artworkUploadError);
+            console.error("Artwork upload error:", artworkUploadError.message);
             // Continue without artwork rather than failing the entire upload
           } else {
-            console.log("✅ Artwork uploaded successfully:", artworkUploadData);
             const { data: artworkUrlData } = supabase.storage
               .from("mixes")
               .getPublicUrl(artworkFileName);
             artworkUrl = artworkUrlData.publicUrl;
-            console.log("🖼️ Generated artwork URL:", artworkUrl);
-            console.log("📂 Full path:", artworkFileName);
           }
         } catch (artworkError) {
-          console.error("Error processing artwork:", artworkError);
+          console.error("Error processing artwork:", artworkError.message);
           // Continue without artwork rather than failing the entire upload
         }
       }
 
-      setUploadProgress(50);
+      setUploadProgress(60);
 
       // Get public URL for audio file
       const { data: urlData } = supabase.storage
         .from("mixes")
         .getPublicUrl(fileName);
 
-      console.log("📁 Generated public URL:", urlData.publicUrl);
-      console.log("📁 File name:", fileName);
+      setUploadProgress(70);
 
-      setUploadProgress(75);
-
-      // Get user's DJ name for the artist field
+      // Get user profile to ensure user exists
       const { data: userProfile, error: profileError } = await supabase
         .from("user_profiles")
-        .select("dj_name, id")
+        .select("id")
         .eq("id", user.id)
         .single();
 
@@ -348,34 +328,41 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         );
       }
 
-      // Save mix metadata to database
-      // Using the actual schema from your database
+      setUploadProgress(80);
+
+      // Save mix metadata to database - matching actual schema
       const { data: mixRecord, error: dbError } = await supabase
         .from("mixes")
         .insert({
+          user_id: userProfile.id,
           title: mixData.title.trim(),
-          artist:
-            userProfile?.dj_name ||
-            user.email?.split("@")[0] ||
-            "Unknown Artist",
-          genre: mixData.genre || "Electronic",
           description: mixData.description.trim() || null,
+          genre: mixData.genre || "Electronic",
           file_url: urlData.publicUrl,
-          file_name: selectedFile.name,
           file_size: selectedFile.size,
           artwork_url: artworkUrl,
-          uploaded_by: userProfile.id,
-          user_id: userProfile.id,
           is_public: mixData.isPublic,
-          plays: 0,
-          rating: 0.0,
+          play_count: 0,
+          likes_count: 0,
+          duration: null, // Will be calculated on first play
         })
         .select()
         .single();
 
       if (dbError) {
-        // If database insert fails, try to delete the uploaded file
-        await supabase.storage.from("mixes").remove([fileName]);
+        console.error("Database insert error:", dbError);
+        // If database insert fails, try to delete uploaded files
+        try {
+          await supabase.storage.from("mixes").remove([fileName]);
+          if (artworkUrl) {
+            const artworkPath = artworkUrl.split("/mixes/")[1];
+            if (artworkPath) {
+              await supabase.storage.from("mixes").remove([artworkPath]);
+            }
+          }
+        } catch (cleanupError) {
+          console.error("Cleanup error:", cleanupError);
+        }
         throw dbError;
       }
 
