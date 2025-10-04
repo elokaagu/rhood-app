@@ -394,6 +394,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           title: mixData.title.trim(),
           description: mixData.description.trim() || null,
           genre: mixData.genre || "Electronic",
+          file_name: selectedFile.name, // Original filename
           file_url: urlData.publicUrl,
           file_size: selectedFile.size,
           artwork_url: artworkUrl,
