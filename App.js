@@ -583,6 +583,7 @@ export default function App() {
 
         // Try loading with timeout
         try {
+          console.log("🔄 Starting Audio.Sound.createAsync...");
           const loadPromise = Audio.Sound.createAsync(audioSource, {
             shouldPlay: false,
             isLooping: false,
@@ -591,11 +592,12 @@ export default function App() {
 
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(
-              () => reject(new Error("Audio loading timeout after 60 seconds")),
-              60000
+              () => reject(new Error("Audio loading timeout after 10 seconds")),
+              10000
             );
           });
 
+          console.log("🔄 Racing between load and timeout promises...");
           const result = await Promise.race([loadPromise, timeoutPromise]);
           sound = result.sound;
           console.log("✅ Sound loaded successfully");
