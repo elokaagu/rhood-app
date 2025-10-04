@@ -556,7 +556,7 @@ export default function App() {
 
       // Try to load the audio file
       let sound;
-      
+
       // Determine if audioUrl is a local require or remote URL
       let audioSource;
       if (typeof track.audioUrl === "string") {
@@ -583,14 +583,14 @@ export default function App() {
         sound = loadedSound;
       } catch (loadError) {
         console.error("Failed to load audio:", loadError.message);
-        
+
         let errorMessage = "Failed to play this mix.";
         if (loadError.message?.includes("404")) {
           errorMessage = "Audio file not found.";
         } else if (loadError.message?.includes("Network")) {
           errorMessage = "Network error. Check your connection.";
         }
-        
+
         Alert.alert("Playback Error", errorMessage);
         setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
         return;
