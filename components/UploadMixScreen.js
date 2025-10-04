@@ -314,42 +314,49 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
             user.id
           }/artwork_${Date.now()}.${artworkExt}`;
 
-          // Handle different file formats (URI from image picker vs file object)
-          let fileToUpload;
+          console.log("🖼️ Uploading artwork:", selectedArtwork.name);
+
+          // Convert artwork to Uint8Array (same as audio fix)
+          let artworkData;
           let contentType = selectedArtwork.type || "image/jpeg";
 
           if (selectedArtwork.uri) {
-            // Image picker format - convert URI to blob for Supabase upload
+            // Image picker format - convert URI to Uint8Array
             const response = await fetch(selectedArtwork.uri);
-            const blob = await response.blob();
-            fileToUpload = blob;
-            contentType = blob.type || selectedArtwork.type || "image/jpeg";
+            const arrayBuffer = await response.arrayBuffer();
+            artworkData = new Uint8Array(arrayBuffer);
+            contentType = selectedArtwork.type || "image/jpeg";
+            
+            console.log("✅ Artwork converted to Uint8Array, size:", artworkData.length, "bytes");
           } else {
-            // Document picker format - use file directly
-            fileToUpload = selectedArtwork;
+            // Document picker format - convert to Uint8Array
+            const response = await fetch(selectedArtwork.uri || selectedArtwork.fileCopyUri);
+            const arrayBuffer = await response.arrayBuffer();
+            artworkData = new Uint8Array(arrayBuffer);
             contentType = selectedArtwork.mimeType || "image/jpeg";
           }
 
           const { data: artworkUploadData, error: artworkUploadError } =
             await supabase.storage
               .from("mixes")
-              .upload(artworkFileName, fileToUpload, {
+              .upload(artworkFileName, artworkData, {
                 contentType: contentType,
                 cacheControl: "3600",
                 upsert: false,
               });
 
           if (artworkUploadError) {
-            console.error("Artwork upload error:", artworkUploadError.message);
+            console.error("❌ Artwork upload error:", artworkUploadError.message);
             // Continue without artwork rather than failing the entire upload
           } else {
             const { data: artworkUrlData } = supabase.storage
               .from("mixes")
               .getPublicUrl(artworkFileName);
             artworkUrl = artworkUrlData.publicUrl;
+            console.log("✅ Artwork uploaded successfully:", artworkUrl);
           }
         } catch (artworkError) {
-          console.error("Error processing artwork:", artworkError.message);
+          console.error("❌ Error processing artwork:", artworkError.message);
           // Continue without artwork rather than failing the entire upload
         }
       }
