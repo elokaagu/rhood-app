@@ -249,7 +249,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       // Get file URI - DocumentPicker provides this
       const fileUri = selectedFile.uri || selectedFile.fileCopyUri;
       if (!fileUri) {
-        throw new Error("File URI not found. Please try selecting the file again.");
+        throw new Error(
+          "File URI not found. Please try selecting the file again."
+        );
       }
 
       console.log("📁 File URI:", fileUri);
@@ -265,15 +267,21 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         const response = await fetch(fileUri);
         const arrayBuffer = await response.arrayBuffer();
         fileData = new Uint8Array(arrayBuffer);
-        
-        console.log("✅ Converted to Uint8Array, size:", fileData.length, "bytes");
-        
+
+        console.log(
+          "✅ Converted to Uint8Array, size:",
+          fileData.length,
+          "bytes"
+        );
+
         if (fileData.length === 0) {
           throw new Error("File appears to be empty");
         }
-        
+
         if (fileData.length !== selectedFile.size) {
-          console.warn(`⚠️ Size mismatch: expected ${selectedFile.size}, got ${fileData.length}`);
+          console.warn(
+            `⚠️ Size mismatch: expected ${selectedFile.size}, got ${fileData.length}`
+          );
         }
       } catch (conversionError) {
         console.error("❌ File conversion error:", conversionError);

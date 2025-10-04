@@ -1,11 +1,13 @@
 # Mix Upload Comparison: Studio vs App
 
 ## Overview
+
 This document compares how mixes are uploaded through the R/HOOD Studio versus the R/HOOD mobile app to ensure they both connect to Supabase in the same way.
 
 ## Current App Upload Process
 
 ### 1. File Selection
+
 ```javascript
 // components/UploadMixScreen.js
 const pickAudioFile = async () => {
@@ -13,13 +15,14 @@ const pickAudioFile = async () => {
     type: "audio/*",
     copyToCacheDirectory: true,
   });
-  
+
   const file = result.assets ? result.assets[0] : result;
   setSelectedFile(file);
-}
+};
 ```
 
 ### 2. File Upload to Storage
+
 ```javascript
 // Convert file to blob
 const fileUri = selectedFile.uri || selectedFile.fileCopyUri;
@@ -37,13 +40,13 @@ const { data, error } = await supabase.storage
 ```
 
 ### 3. Get Public URL
+
 ```javascript
-const { data: urlData } = supabase.storage
-  .from("mixes")
-  .getPublicUrl(fileName);
+const { data: urlData } = supabase.storage.from("mixes").getPublicUrl(fileName);
 ```
 
 ### 4. Insert into Database
+
 ```javascript
 const { data: mixRecord, error: dbError } = await supabase
   .from("mixes")
@@ -90,19 +93,24 @@ CREATE TABLE mixes (
 ## Key Differences to Check
 
 ### 1. File URL Format
+
 - **Expected**: `https://[project].supabase.co/storage/v1/object/public/mixes/{user_id}/{timestamp}_{random}.{ext}`
 - **Check**: Are studio URLs in the same format?
 
 ### 2. Storage Bucket
+
 - **App uses**: `mixes` bucket
 - **Check**: Does studio use the same bucket?
 
 ### 3. File Path Structure
+
 - **App uses**: `{user_id}/{timestamp}_{random}.{ext}`
 - **Check**: Does studio use the same path structure?
 
 ### 4. Database Fields
+
 The app populates these fields:
+
 - ✅ `user_id` - UUID from auth
 - ✅ `title` - User input
 - ✅ `description` - Optional user input
@@ -116,7 +124,9 @@ The app populates these fields:
 - ⚠️ `duration` - Set to null (calculated on first play)
 
 ### 5. Storage Metadata
+
 The app sets:
+
 - `contentType`: Audio MIME type (e.g., "audio/mpeg")
 - `cacheControl`: "3600" (1 hour)
 - `upsert`: false (no overwriting)
@@ -124,12 +134,14 @@ The app sets:
 ## How to Run the Comparison
 
 1. **Run the SQL comparison script**:
+
    ```bash
    # In Supabase SQL Editor, run:
    database/compare-mix-uploads.sql
    ```
 
 2. **Check the results for**:
+
    - URL format differences
    - File size differences
    - Missing fields
@@ -144,21 +156,25 @@ The app sets:
 ## Potential Issues to Look For
 
 ### Issue 1: Different URL Formats
+
 **Symptom**: Studio URLs work but app URLs don't
 **Cause**: Different URL generation methods
 **Fix**: Ensure both use `supabase.storage.from("mixes").getPublicUrl()`
 
 ### Issue 2: Missing Blob Conversion
+
 **Symptom**: "property blob does not exist" error
 **Cause**: File not converted to blob before upload
 **Fix**: Already implemented - fetching URI and converting to blob
 
 ### Issue 3: Storage Bucket Permissions
+
 **Symptom**: Some files are private/inaccessible
 **Cause**: Different RLS policies or bucket settings
 **Fix**: Ensure storage policies allow public read
 
 ### Issue 4: File Path Conflicts
+
 **Symptom**: Files overwrite each other
 **Cause**: Not using unique filenames
 **Fix**: Already implemented - using `{timestamp}_{random}` pattern
@@ -185,12 +201,15 @@ The app sets:
 ## Questions to Answer
 
 1. **Does the studio upload directly to Supabase Storage?**
+
    - Or does it use a different method (e.g., direct file upload, API endpoint)?
 
 2. **What user_id does the studio use?**
+
    - Is it the same auth.uid() that the app uses?
 
 3. **Does the studio set the same storage metadata?**
+
    - contentType, cacheControl, etc.
 
 4. **Are there any additional fields the studio populates?**
@@ -199,7 +218,7 @@ The app sets:
 ## Contact Points
 
 If differences are found, we may need to:
+
 1. Align the app upload with studio upload
 2. Or update the studio to match the app
 3. Or create a unified upload API that both use
-
