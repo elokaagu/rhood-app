@@ -363,10 +363,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       setUploadProgress(70);
 
-      // Get user profile to ensure user exists
+      // Get user profile to get DJ name for artist field
       const { data: userProfile, error: profileError } = await supabase
         .from("user_profiles")
-        .select("id")
+        .select("id, dj_name, first_name, last_name")
         .eq("id", user.id)
         .single();
 
@@ -377,6 +377,12 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         );
       }
 
+      // Determine artist name from profile
+      const artistName =
+        userProfile.dj_name ||
+        `${userProfile.first_name || ""} ${userProfile.last_name || ""}`.trim() ||
+        "Unknown Artist";
+
       setUploadProgress(80);
 
       // Save mix metadata to database - matching actual schema
@@ -384,6 +390,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         .from("mixes")
         .insert({
           user_id: userProfile.id,
+          artist: artistName,
           title: mixData.title.trim(),
           description: mixData.description.trim() || null,
           genre: mixData.genre || "Electronic",
