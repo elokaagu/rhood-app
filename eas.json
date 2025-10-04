@@ -21,9 +21,7 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "eloka@satellitelabs.xyz",
-        "ascAppId": "REPLACE_WITH_YOUR_ACTUAL_APP_ID",
-        "appleTeamId": "228556876"
+        "appleId": "eloka@satellitelabs.xyz"
       }
     }
   }
