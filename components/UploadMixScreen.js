@@ -246,29 +246,47 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       setUploadProgress(10);
 
-      // Convert file to blob for React Native upload
-      let audioBlob;
-      try {
-        // DocumentPicker returns a file with uri property
-        const fileUri = selectedFile.uri || selectedFile.fileCopyUri;
-        if (!fileUri) {
-          throw new Error("File URI not found");
-        }
-        
-        const audioResponse = await fetch(fileUri);
-        audioBlob = await audioResponse.blob();
-      } catch (blobError) {
-        console.error("Error creating blob:", blobError);
-        throw new Error("Failed to read audio file. Please try again.");
+      // Get file URI - DocumentPicker provides this
+      const fileUri = selectedFile.uri || selectedFile.fileCopyUri;
+      if (!fileUri) {
+        throw new Error("File URI not found. Please try selecting the file again.");
       }
+
+      console.log("📁 File URI:", fileUri);
+      console.log("📁 File size:", selectedFile.size);
+      console.log("📁 MIME type:", selectedFile.mimeType);
 
       setUploadProgress(20);
 
-      // Upload audio file to Supabase Storage
+      // For React Native, we need to create a FormData-compatible file object
+      // Supabase client can handle the ArrayBuffer directly
+      let fileData;
+      try {
+        const response = await fetch(fileUri);
+        const arrayBuffer = await response.arrayBuffer();
+        fileData = new Uint8Array(arrayBuffer);
+        
+        console.log("✅ Converted to Uint8Array, size:", fileData.length, "bytes");
+        
+        if (fileData.length === 0) {
+          throw new Error("File appears to be empty");
+        }
+        
+        if (fileData.length !== selectedFile.size) {
+          console.warn(`⚠️ Size mismatch: expected ${selectedFile.size}, got ${fileData.length}`);
+        }
+      } catch (conversionError) {
+        console.error("❌ File conversion error:", conversionError);
+        throw new Error("Failed to read audio file. Please try again.");
+      }
+
+      setUploadProgress(30);
+
+      // Upload audio file to Supabase Storage with the Uint8Array
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("mixes")
-        .upload(fileName, audioBlob, {
-          contentType: selectedFile.mimeType || audioBlob.type || "audio/mpeg",
+        .upload(fileName, fileData, {
+          contentType: selectedFile.mimeType || "audio/mpeg",
           cacheControl: "3600",
           upsert: false,
         });
