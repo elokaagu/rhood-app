@@ -573,15 +573,31 @@ export default function App() {
           console.log("🔗 Loading audio from object:", track.audioUrl);
         }
 
-        console.log("🔄 About to create Audio.Sound with:", {
-          audioSource: audioSource,
-          audioSourceType: typeof audioSource,
-          shouldPlay: false,
-          isLooping: false,
-          volume: 1.0,
-        });
+      console.log("🔄 About to create Audio.Sound with:", {
+        audioSource: audioSource,
+        audioSourceType: typeof audioSource,
+        shouldPlay: false,
+        isLooping: false,
+        volume: 1.0,
+      });
 
-        // Try loading with timeout
+      // Test if audio URL is accessible
+      if (typeof track.audioUrl === "string" && track.audioUrl.startsWith("http")) {
+        console.log("🌐 Testing audio URL accessibility...");
+        try {
+          const response = await fetch(track.audioUrl, { method: "HEAD" });
+          console.log("📡 URL accessibility test:", {
+            status: response.status,
+            statusText: response.statusText,
+            contentType: response.headers.get("content-type"),
+            contentLength: response.headers.get("content-length")
+          });
+        } catch (urlError) {
+          console.error("❌ URL accessibility test failed:", urlError);
+        }
+      }
+
+      // Try loading with timeout
         try {
           console.log("🔄 Starting Audio.Sound.createAsync...");
           const loadPromise = Audio.Sound.createAsync(audioSource, {
@@ -608,6 +624,8 @@ export default function App() {
           });
         } catch (loadError) {
           console.error("❌ Error loading sound:", loadError);
+          console.error("❌ Error message:", loadError.message);
+          console.error("❌ Error stack:", loadError.stack);
           console.error("❌ Audio URL:", track.audioUrl);
           console.error("❌ Audio URL type:", typeof track.audioUrl);
           console.error("❌ Track details:", track);
