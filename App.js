@@ -556,117 +556,44 @@ export default function App() {
 
       // Try to load the audio file
       let sound;
-      try {
-        // Determine if audioUrl is a local require or remote URL
-        let audioSource;
-        if (typeof track.audioUrl === "string") {
-          // It's a remote URL string - wrap in { uri: url }
-          audioSource = { uri: track.audioUrl };
-          console.log("🌐 Loading remote audio from URL:", track.audioUrl);
-        } else if (typeof track.audioUrl === "number") {
-          // It's a local require() - use directly
-          audioSource = track.audioUrl;
-          console.log("📁 Loading local audio file");
-        } else {
-          // It's already an object with uri
-          audioSource = track.audioUrl;
-          console.log("🔗 Loading audio from object:", track.audioUrl);
-        }
-
-      console.log("🔄 About to create Audio.Sound with:", {
-        audioSource: audioSource,
-        audioSourceType: typeof audioSource,
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
-      });
-
-      // Test if audio URL is accessible
-      if (typeof track.audioUrl === "string" && track.audioUrl.startsWith("http")) {
-        console.log("🌐 Testing audio URL accessibility...");
-        try {
-          const response = await fetch(track.audioUrl, { method: "HEAD" });
-          console.log("📡 URL accessibility test:", {
-            status: response.status,
-            statusText: response.statusText,
-            contentType: response.headers.get("content-type"),
-            contentLength: response.headers.get("content-length")
-          });
-        } catch (urlError) {
-          console.error("❌ URL accessibility test failed:", urlError);
-        }
+      
+      // Determine if audioUrl is a local require or remote URL
+      let audioSource;
+      if (typeof track.audioUrl === "string") {
+        audioSource = { uri: track.audioUrl };
+      } else if (typeof track.audioUrl === "number") {
+        audioSource = track.audioUrl;
+      } else {
+        audioSource = track.audioUrl;
       }
 
-      // Try loading with timeout
-        try {
-          console.log("🔄 Starting Audio.Sound.createAsync...");
-          const loadPromise = Audio.Sound.createAsync(audioSource, {
+      // Load audio with streaming support for large files
+      try {
+        const { sound: loadedSound } = await Audio.Sound.createAsync(
+          audioSource,
+          {
             shouldPlay: false,
             isLooping: false,
             volume: 1.0,
-          });
-
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(
-              () => reject(new Error("Audio loading timeout after 10 seconds")),
-              10000
-            );
-          });
-
-          console.log("🔄 Racing between load and timeout promises...");
-          const result = await Promise.race([loadPromise, timeoutPromise]);
-          sound = result.sound;
-          console.log("✅ Sound loaded successfully");
-          console.log("📊 Sound object:", {
-            loaded: sound._loaded,
-            key: sound._key,
-            uri: sound._uri,
-          });
-        } catch (loadError) {
-          console.error("❌ Error loading sound:", loadError);
-          console.error("❌ Error message:", loadError.message);
-          console.error("❌ Error stack:", loadError.stack);
-          console.error("❌ Audio URL:", track.audioUrl);
-          console.error("❌ Audio URL type:", typeof track.audioUrl);
-          console.error("❌ Track details:", track);
-
-          // Try alternative loading method
-          console.log("🔄 Trying alternative audio loading method...");
-          try {
-            const altResult = await Audio.Sound.createAsync(audioSource, {
-              shouldPlay: false,
-              isLooping: false,
-              volume: 1.0,
-              progressUpdateIntervalMillis: 1000,
-            });
-            sound = altResult.sound;
-            console.log("✅ Alternative loading method succeeded");
-          } catch (altError) {
-            console.error("❌ Alternative loading also failed:", altError);
-
-            // More specific error messages
-            let errorMessage = `Failed to play ${track.title}. `;
-            if (loadError.message?.includes("Network")) {
-              errorMessage += "Network error - check your connection.";
-            } else if (loadError.message?.includes("404")) {
-              errorMessage += "Audio file not found.";
-            } else if (loadError.message?.includes("CORS")) {
-              errorMessage +=
-                "CORS error - file may not be publicly accessible.";
-            } else if (loadError.message?.includes("timeout")) {
-              errorMessage +=
-                "Audio loading timed out - file may be too large.";
-            } else {
-              errorMessage += "Please try again.";
-            }
-
-            Alert.alert("Audio Error", errorMessage, [{ text: "OK" }]);
-            throw new Error(`Failed to load audio file: ${loadError.message}`);
-          }
+            progressUpdateIntervalMillis: 500,
+          },
+          null,
+          true // downloadFirst = true for better streaming
+        );
+        sound = loadedSound;
+      } catch (loadError) {
+        console.error("Failed to load audio:", loadError.message);
+        
+        let errorMessage = "Failed to play this mix.";
+        if (loadError.message?.includes("404")) {
+          errorMessage = "Audio file not found.";
+        } else if (loadError.message?.includes("Network")) {
+          errorMessage = "Network error. Check your connection.";
         }
-      } catch (audioError) {
-        console.error("❌ Error in audio loading:", audioError);
-        throw audioError;
+        
+        Alert.alert("Playback Error", errorMessage);
+        setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
+        return;
       }
 
       console.log("🔄 Sound created:", sound);
