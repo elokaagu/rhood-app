@@ -7,6 +7,9 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  Modal,
+  Alert,
+  PanResponder,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -18,11 +21,18 @@ const DJMix = ({
   isLoading = false,
   onPlayPause,
   onArtistPress,
+  onDelete,
+  currentUserId,
   progress = 0,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const swipeAnim = useRef(new Animated.Value(0)).current;
+  
+  // Check if current user owns this mix
+  const isOwnMix = currentUserId && mix.user_id === currentUserId;
 
   // Validate image URL and provide fallback
   const getImageSource = () => {
@@ -62,19 +72,106 @@ const DJMix = ({
     }
   }, [isPlaying, pulseAnim]);
 
-  return (
-    <TouchableOpacity
-      style={styles.mixCard}
-      onPress={onPlayPause}
-      activeOpacity={0.7}
-    >
-      {/* Track Number */}
-      <View style={styles.trackNumber}>
-        <Text style={styles.trackNumberText}>{mix.trackNumber || mix.id}</Text>
-      </View>
+  // Swipe to delete gesture handler (only for own mixes)
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => isOwnMix,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return isOwnMix && Math.abs(gestureState.dx) > 10;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dx < 0) {
+          // Only allow left swipe
+          swipeAnim.setValue(Math.max(gestureState.dx, -100));
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx < -50) {
+          // Swipe threshold reached - show delete button
+          Animated.spring(swipeAnim, {
+            toValue: -80,
+            useNativeDriver: true,
+          }).start();
+        } else {
+          // Reset position
+          Animated.spring(swipeAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
-      {/* Album Art */}
-      <View style={styles.albumArtContainer}>
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Mix",
+      `Are you sure you want to delete "${mix.title}"? This action cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => {
+            setShowOptionsMenu(false);
+            // Reset swipe position
+            Animated.spring(swipeAnim, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start();
+          },
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            setShowOptionsMenu(false);
+            if (onDelete) {
+              onDelete(mix);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <View style={styles.swipeContainer}>
+      {/* Delete Button (revealed on swipe) */}
+      {isOwnMix && (
+        <View style={styles.deleteButtonContainer}>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDelete}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="trash" size={24} color="white" />
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Main Mix Card (swipeable) */}
+      <Animated.View
+        style={[
+          styles.mixCardAnimated,
+          {
+            transform: [{ translateX: swipeAnim }],
+          },
+        ]}
+        {...(isOwnMix ? panResponder.panHandlers : {})}
+      >
+        <TouchableOpacity
+          style={styles.mixCard}
+          onPress={onPlayPause}
+          activeOpacity={0.7}
+        >
+          {/* Track Number */}
+          <View style={styles.trackNumber}>
+            <Text style={styles.trackNumberText}>{mix.trackNumber || mix.id}</Text>
+          </View>
+
+          {/* Album Art */}
+          <View style={styles.albumArtContainer}>
         {!imageError ? (
           <Image
             source={getImageSource()}
@@ -134,24 +231,72 @@ const DJMix = ({
         </View>
       </View>
 
-      {/* Options Menu */}
-      <TouchableOpacity style={styles.optionsButton} activeOpacity={0.7}>
-        <Ionicons name="ellipsis-vertical" size={20} color="hsl(0, 0%, 70%)" />
-      </TouchableOpacity>
+          {/* Options Menu */}
+          {isOwnMix && (
+            <TouchableOpacity
+              style={styles.optionsButton}
+              activeOpacity={0.7}
+              onPress={() => setShowOptionsMenu(true)}
+            >
+              <Ionicons name="ellipsis-vertical" size={20} color="hsl(0, 0%, 70%)" />
+            </TouchableOpacity>
+          )}
 
-      {/* Progress Bar - Only show when playing */}
-      {isPlaying && (
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${progress}%` }]} />
+          {/* Progress Bar - Only show when playing */}
+          {isPlaying && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${progress}%` }]} />
+              </View>
+            </View>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Options Modal */}
+      <Modal
+        visible={showOptionsMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowOptionsMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowOptionsMenu(false)}
+        >
+          <View style={styles.optionsModal}>
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={handleDelete}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash" size={20} color="hsl(0, 100%, 60%)" />
+              <Text style={styles.optionTextDelete}>Delete Mix</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => setShowOptionsMenu(false)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={20} color="hsl(0, 0%, 70%)" />
+              <Text style={styles.optionText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-      )}
-    </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  swipeContainer: {
+    position: "relative",
+    overflow: "hidden",
+  },
+  mixCardAnimated: {
+    backgroundColor: "hsl(0, 0%, 0%)",
+  },
   mixCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -160,6 +305,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 8%)",
+  },
+  deleteButtonContainer: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 80,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 100%, 50%)",
+  },
+  deleteButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 10,
+  },
+  deleteButtonText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 4,
   },
   trackNumber: {
     width: 32,
@@ -276,6 +442,39 @@ const styles = StyleSheet.create({
   progressFill: {
     height: "100%",
     backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  optionsModal: {
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderRadius: 12,
+    padding: 8,
+    width: "80%",
+    maxWidth: 300,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+  },
+  optionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 8,
+  },
+  optionText: {
+    color: "hsl(0, 0%, 70%)",
+    fontSize: 16,
+    marginLeft: 12,
+    fontWeight: "500",
+  },
+  optionTextDelete: {
+    color: "hsl(0, 100%, 60%)",
+    fontSize: 16,
+    marginLeft: 12,
+    fontWeight: "600",
   },
 });
 

@@ -149,6 +149,7 @@ export default function ListenScreen({
   onResumeAudio,
   onStopAudio,
   onNavigate,
+  user,
 }) {
   const [mixes, setMixes] = useState([]);
   const [playingMixId, setPlayingMixId] = useState(null);
@@ -314,6 +315,66 @@ export default function ListenScreen({
     setRefreshing(false);
   };
 
+  const handleDeleteMix = async (mix) => {
+    try {
+      console.log("🗑️ Deleting mix:", mix.title);
+
+      // Stop audio if this mix is currently playing
+      if (playingMixId === mix.id) {
+        onStopAudio();
+      }
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from("mixes")
+        .delete()
+        .eq("id", mix.id);
+
+      if (dbError) {
+        console.error("❌ Error deleting mix from database:", dbError);
+        Alert.alert("Error", "Failed to delete mix. Please try again.");
+        return;
+      }
+
+      // Delete audio file from storage
+      if (mix.audioUrl && typeof mix.audioUrl === "string") {
+        const audioPath = mix.audioUrl.split("/mixes/")[1];
+        if (audioPath) {
+          const { error: audioError } = await supabase.storage
+            .from("mixes")
+            .remove([audioPath]);
+          
+          if (audioError) {
+            console.error("❌ Error deleting audio file:", audioError);
+          }
+        }
+      }
+
+      // Delete artwork from storage if it exists
+      if (mix.image && typeof mix.image === "string" && mix.image.includes("supabase")) {
+        const artworkPath = mix.image.split("/mixes/")[1];
+        if (artworkPath) {
+          const { error: artworkError } = await supabase.storage
+            .from("mixes")
+            .remove([artworkPath]);
+          
+          if (artworkError) {
+            console.error("❌ Error deleting artwork:", artworkError);
+          }
+        }
+      }
+
+      // Remove from local state
+      setMixes((prevMixes) => prevMixes.filter((m) => m.id !== mix.id));
+
+      console.log("✅ Mix deleted successfully");
+      Alert.alert("Success", "Mix deleted successfully");
+    } catch (error) {
+      console.error("❌ Error deleting mix:", error);
+      Alert.alert("Error", "Failed to delete mix. Please try again.");
+    }
+  };
+
   const handleGenreFilter = (genre) => {
     setSelectedGenre(genre);
   };
@@ -422,6 +483,8 @@ export default function ListenScreen({
             isLoading={globalAudioState.isLoading && playingMixId === mix.id}
             onPlayPause={() => handleMixPress(mix)}
             onArtistPress={handleArtistPress}
+            onDelete={handleDeleteMix}
+            currentUserId={user?.id}
             progress={playingMixId === mix.id ? globalAudioState.progress : 0}
           />
         )}

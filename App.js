@@ -1621,6 +1621,7 @@ export default function App() {
               setCurrentScreen(screen);
               setScreenParams(params);
             }}
+            user={user}
           />
         );
 
@@ -1924,6 +1925,7 @@ export default function App() {
             onPauseAudio={pauseGlobalAudio}
             onResumeAudio={resumeGlobalAudio}
             onStopAudio={stopGlobalAudio}
+            user={user}
           />
         );
     }
