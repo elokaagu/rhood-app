@@ -87,6 +87,8 @@ export default function App() {
     repeatMode: "none", // 'none', 'one', 'all'
     positionMillis: 0,
     durationMillis: 0,
+    queue: [], // Array of tracks in queue
+    currentQueueIndex: -1, // Index of current track in queue
   });
 
   // Full-screen player state
@@ -625,6 +627,35 @@ export default function App() {
       sound.setOnPlaybackStatusUpdate(async (status) => {
         console.log("📊 Audio status update:", status);
         if (status.isLoaded) {
+          // Check if track has finished playing
+          const hasFinished =
+            status.didJustFinish ||
+            (status.positionMillis >= status.durationMillis - 100 &&
+              status.durationMillis > 0);
+
+          if (hasFinished && !status.isPlaying) {
+            console.log("🎵 Track finished, checking for next track in queue");
+
+            // Get current queue state
+            setGlobalAudioState((prev) => {
+              // Play next track if available
+              setTimeout(() => {
+                playNextTrack();
+              }, 100); // Small delay to ensure state is updated
+
+              return {
+                ...prev,
+                isPlaying: false,
+                isLoading: false,
+                progress: 1, // Set to 100% when finished
+                positionMillis: status.durationMillis || 0,
+                durationMillis: status.durationMillis || 0,
+              };
+            });
+
+            return; // Exit early since we're handling the finished state
+          }
+
           setGlobalAudioState((prev) => ({
             ...prev,
             isPlaying: status.isPlaying,
@@ -686,13 +717,34 @@ export default function App() {
         throw playError; // Re-throw to be caught by outer catch
       }
 
-      setGlobalAudioState((prev) => ({
-        ...prev,
-        sound: sound,
-        isPlaying: true,
-        currentTrack: track,
-        isLoading: false,
-      }));
+      setGlobalAudioState((prev) => {
+        // If this track is not in the queue, add it
+        let newQueue = [...prev.queue];
+        let newIndex = newQueue.findIndex((t) => t.id === track.id);
+
+        if (newIndex === -1) {
+          // Track not in queue, add it
+          newQueue.push(track);
+          newIndex = newQueue.length - 1;
+          console.log(
+            `🎵 Added "${track.title}" to queue at index ${newIndex}`
+          );
+        } else {
+          console.log(
+            `🎵 Playing existing track from queue at index ${newIndex}`
+          );
+        }
+
+        return {
+          ...prev,
+          sound: sound,
+          isPlaying: true,
+          currentTrack: track,
+          isLoading: false,
+          queue: newQueue,
+          currentQueueIndex: newIndex,
+        };
+      });
 
       console.log("🎉 Global audio started successfully:", track.title);
     } catch (error) {
@@ -748,6 +800,8 @@ export default function App() {
       repeatMode: "none",
       positionMillis: 0,
       durationMillis: 0,
+      queue: [],
+      currentQueueIndex: -1,
     });
   };
 
@@ -1061,6 +1115,100 @@ export default function App() {
 
     // Provide haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  // Queue management functions
+  const addToQueue = (track) => {
+    setGlobalAudioState((prev) => {
+      const newQueue = [...prev.queue, track];
+      console.log(
+        `🎵 Added "${track.title}" to queue. Queue length: ${newQueue.length}`
+      );
+      return {
+        ...prev,
+        queue: newQueue,
+      };
+    });
+  };
+
+  const addToQueueAndPlay = (track) => {
+    setGlobalAudioState((prev) => {
+      const newQueue = [...prev.queue, track];
+      const newIndex = newQueue.length - 1;
+      console.log(
+        `🎵 Added "${track.title}" to queue and will play next. Queue length: ${newQueue.length}`
+      );
+      return {
+        ...prev,
+        queue: newQueue,
+        currentQueueIndex: newIndex,
+      };
+    });
+    playGlobalAudio(track);
+  };
+
+  const clearQueue = () => {
+    setGlobalAudioState((prev) => ({
+      ...prev,
+      queue: [],
+      currentQueueIndex: -1,
+    }));
+    console.log("🗑️ Queue cleared");
+  };
+
+  const getNextTrack = () => {
+    const { queue, currentQueueIndex, repeatMode, isShuffled } =
+      globalAudioState;
+
+    if (queue.length === 0) return null;
+
+    // Handle repeat one mode
+    if (repeatMode === "one" && globalAudioState.currentTrack) {
+      return globalAudioState.currentTrack;
+    }
+
+    let nextIndex;
+
+    if (repeatMode === "all") {
+      // Repeat all - cycle back to beginning
+      nextIndex = (currentQueueIndex + 1) % queue.length;
+    } else {
+      // Normal progression
+      nextIndex = currentQueueIndex + 1;
+    }
+
+    // Check if we've reached the end
+    if (nextIndex >= queue.length) {
+      if (repeatMode === "all") {
+        // Already handled above
+      } else {
+        console.log("🎵 End of queue reached");
+        return null;
+      }
+    }
+
+    return queue[nextIndex];
+  };
+
+  const playNextTrack = async () => {
+    const nextTrack = getNextTrack();
+
+    if (nextTrack) {
+      console.log(`⏭️ Playing next track: "${nextTrack.title}"`);
+
+      // Update queue index
+      setGlobalAudioState((prev) => ({
+        ...prev,
+        currentQueueIndex: prev.currentQueueIndex + 1,
+      }));
+
+      // Play the next track
+      await playGlobalAudio(nextTrack);
+    } else {
+      console.log("🎵 No more tracks in queue");
+      // Stop playback when queue is empty
+      await stopGlobalAudio();
+    }
   };
 
   // Share functionality
@@ -1767,6 +1915,9 @@ export default function App() {
             onPauseAudio={pauseGlobalAudio}
             onResumeAudio={resumeGlobalAudio}
             onStopAudio={stopGlobalAudio}
+            onAddToQueue={addToQueue}
+            onPlayNext={playNextTrack}
+            onClearQueue={clearQueue}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
@@ -2075,6 +2226,9 @@ export default function App() {
             onPauseAudio={pauseGlobalAudio}
             onResumeAudio={resumeGlobalAudio}
             onStopAudio={stopGlobalAudio}
+            onAddToQueue={addToQueue}
+            onPlayNext={playNextTrack}
+            onClearQueue={clearQueue}
             user={user}
           />
         );

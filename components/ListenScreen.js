@@ -66,88 +66,15 @@ PERFORMANCE OPTIMIZATION STRATEGIES FOR LARGE AUDIO FILES:
    - Add compression detection
 */
 
-// Mock DJ mixes data - using only existing audio files
-const mockMixes = [
-  {
-    id: 1,
-    title: "Midnight Warehouse Vibes",
-    artist: "DJ Marcus Chen",
-    genre: "Techno",
-    duration: "5:00",
-    description: "Dark, pulsing techno for late-night sessions",
-    image:
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/unique-original-mix.mp3"),
-    plays: 1240,
-  },
-  {
-    id: 2,
-    title: "Sunset Rooftop Sessions",
-    artist: "Sofia Rodriguez",
-    genre: "Deep House",
-    duration: "5:00",
-    description: "Smooth deep house for golden hour moments",
-    image:
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/rhood-demo-audio.wav"),
-    plays: 892,
-  },
-  {
-    id: 3,
-    title: "Underground Energy",
-    artist: "Alex Thompson",
-    genre: "Drum & Bass",
-    duration: "5:00",
-    description: "High-energy drum & bass to get your blood pumping",
-    image:
-      "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/unique-original-mix.mp3"),
-    plays: 2103,
-  },
-  {
-    id: 4,
-    title: "Beach Festival Highlights",
-    artist: "Luna Martinez",
-    genre: "Progressive",
-    duration: "5:00",
-    description: "Ethereal progressive house from the beach festival",
-    image:
-      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/rhood-demo-audio.wav"),
-    plays: 1456,
-  },
-  {
-    id: 5,
-    title: "Industrial Soundscapes",
-    artist: "Max Blackwood",
-    genre: "Industrial",
-    duration: "5:00",
-    description: "Raw industrial beats from the underground scene",
-    image:
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/unique-original-mix.mp3"),
-    plays: 678,
-  },
-  {
-    id: 6,
-    title: "Neon City Nights",
-    artist: "Zara Kim",
-    genre: "Synthwave",
-    duration: "5:00",
-    description: "Retro-futuristic synthwave for cyberpunk vibes",
-    image:
-      "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/rhood-demo-audio.wav"),
-    plays: 934,
-  },
-];
-
 export default function ListenScreen({
   globalAudioState,
   onPlayAudio,
   onPauseAudio,
   onResumeAudio,
   onStopAudio,
+  onAddToQueue,
+  onPlayNext,
+  onClearQueue,
   onNavigate,
   user,
 }) {
@@ -172,16 +99,15 @@ export default function ListenScreen({
 
       if (error) {
         console.error("❌ Error fetching mixes from database:", error);
-        console.log("⚠️ Falling back to mock mixes");
-        setMixes(mockMixes);
+        setMixes([]);
         return;
       }
 
       console.log(`✅ Fetched ${data.length} mixes from database`);
 
       if (data.length === 0) {
-        console.log("⚠️ No mixes in database, using mock data");
-        setMixes(mockMixes);
+        console.log("📭 No mixes found in database");
+        setMixes([]);
         return;
       }
 
@@ -240,7 +166,7 @@ export default function ListenScreen({
       setMixes(transformedMixes);
     } catch (error) {
       console.error("❌ Error in fetchMixes:", error);
-      setMixes(mockMixes);
+      setMixes([]);
     } finally {
       setLoading(false);
     }
@@ -385,14 +311,15 @@ export default function ListenScreen({
   };
 
   const handleAddToQueue = (mix) => {
-    // TODO: Implement queue functionality in App.js
-    // For now, show a success message
-    Alert.alert(
-      "Added to Queue",
-      `"${mix.title}" by ${mix.artist} has been added to your queue.`,
-      [{ text: "OK" }]
-    );
-    console.log("🎵 Added to queue:", mix.title);
+    if (onAddToQueue) {
+      onAddToQueue(mix);
+      Alert.alert(
+        "Added to Queue",
+        `"${mix.title}" by ${mix.artist} has been added to your queue.`,
+        [{ text: "OK" }]
+      );
+      console.log("🎵 Added to queue:", mix.title);
+    }
   };
 
   // Header component for FlatList

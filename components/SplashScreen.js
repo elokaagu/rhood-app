@@ -127,17 +127,6 @@ const SplashScreen = ({ onFinish }) => {
 
   return (
     <View style={styles.container}>
-      {/* Full Screen Video Background */}
-      <Video
-        source={require("../assets/RHOOD_Logo_Spinner.mov")}
-        style={styles.fullScreenVideo}
-        shouldPlay={true}
-        isLooping={true}
-        isMuted={true}
-        resizeMode="cover"
-        onPlaybackStatusUpdate={setVideoStatus}
-      />
-
       {/* Content Overlay */}
       <Animated.View
         style={[
@@ -148,6 +137,19 @@ const SplashScreen = ({ onFinish }) => {
           },
         ]}
       >
+        {/* Smaller Spinning Logo Above Text */}
+        <View style={styles.spinnerContainer}>
+          <Video
+            source={require("../assets/RHOOD_Logo_Spinner.mov")}
+            style={styles.spinnerVideo}
+            shouldPlay={true}
+            isLooping={true}
+            isMuted={true}
+            resizeMode="contain"
+            onPlaybackStatusUpdate={setVideoStatus}
+          />
+        </View>
+
         <Image
           source={require("../assets/RHOOD_Lettering_White.png")}
           style={styles.logoImage}
@@ -194,15 +196,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 9999,
-  },
-  fullScreenVideo: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: "100%",
-    height: "100%",
+    backgroundColor: "#000000", // Pure black background
   },
   contentOverlay: {
     position: "absolute",
@@ -211,9 +205,19 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     alignItems: "center",
-    justifyContent: "flex-end",
-    paddingBottom: 100, // Add padding from bottom
-    backgroundColor: "rgba(0, 0, 0, 0.3)", // Semi-transparent overlay for text readability
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  spinnerContainer: {
+    width: 360,
+    height: 360,
+    marginBottom: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  spinnerVideo: {
+    width: 360,
+    height: 360,
   },
   logoImage: {
     height: 60,
