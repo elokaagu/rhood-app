@@ -34,6 +34,18 @@ const DJMix = ({
 
   // Check if current user owns this mix
   const isOwnMix = currentUserId && mix.user_id === currentUserId;
+  
+  // Debug logging
+  useEffect(() => {
+    if (currentUserId && mix.user_id) {
+      console.log(`Mix "${mix.title}":`, {
+        currentUserId,
+        mixUserId: mix.user_id,
+        isOwnMix,
+        match: currentUserId === mix.user_id,
+      });
+    }
+  }, [currentUserId, mix.user_id, mix.title, isOwnMix]);
 
   // Validate image URL and provide fallback
   const getImageSource = () => {
