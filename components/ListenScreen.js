@@ -210,6 +210,7 @@ export default function ListenScreen({
 
           const transformedMix = {
             id: mix.id,
+            user_id: mix.user_id, // IMPORTANT: Include for ownership check
             title: mix.title,
             artist: mix.artist || artistName,
             genre: mix.genre || "Electronic",
