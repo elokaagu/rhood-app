@@ -66,7 +66,7 @@ PERFORMANCE OPTIMIZATION STRATEGIES FOR LARGE AUDIO FILES:
    - Add compression detection
 */
 
-// Mock DJ mixes data
+// Mock DJ mixes data - using only existing audio files
 const mockMixes = [
   {
     id: 1,
@@ -89,7 +89,7 @@ const mockMixes = [
     description: "Smooth deep house for golden hour moments",
     image:
       "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/unique-original-mix.mp3"),
+    audioUrl: require("../assets/audio/rhood-demo-audio.wav"),
     plays: 892,
   },
   {
@@ -101,7 +101,7 @@ const mockMixes = [
     description: "High-energy drum & bass to get your blood pumping",
     image:
       "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/in-ur-arms-ft-stripess.mp3"),
+    audioUrl: require("../assets/audio/unique-original-mix.mp3"),
     plays: 2103,
   },
   {
@@ -113,7 +113,7 @@ const mockMixes = [
     description: "Ethereal progressive house from the beach festival",
     image:
       "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/any-time-any-place-janet-jackson.mp3"),
+    audioUrl: require("../assets/audio/rhood-demo-audio.wav"),
     plays: 1456,
   },
   {
@@ -137,7 +137,7 @@ const mockMixes = [
     description: "Retro-futuristic synthwave for cyberpunk vibes",
     image:
       "https://images.unsplash.com/photo-1571266028243-e68fdf4ce6d9?w=400&h=400&fit=crop",
-    audioUrl: require("../assets/audio/lost-jun-tanaka-blend.mp3"),
+    audioUrl: require("../assets/audio/rhood-demo-audio.wav"),
     plays: 934,
   },
 ];
@@ -344,7 +344,7 @@ export default function ListenScreen({
           const { error: audioError } = await supabase.storage
             .from("mixes")
             .remove([audioPath]);
-          
+
           if (audioError) {
             console.error("❌ Error deleting audio file:", audioError);
           }
@@ -352,13 +352,17 @@ export default function ListenScreen({
       }
 
       // Delete artwork from storage if it exists
-      if (mix.image && typeof mix.image === "string" && mix.image.includes("supabase")) {
+      if (
+        mix.image &&
+        typeof mix.image === "string" &&
+        mix.image.includes("supabase")
+      ) {
         const artworkPath = mix.image.split("/mixes/")[1];
         if (artworkPath) {
           const { error: artworkError } = await supabase.storage
             .from("mixes")
             .remove([artworkPath]);
-          
+
           if (artworkError) {
             console.error("❌ Error deleting artwork:", artworkError);
           }

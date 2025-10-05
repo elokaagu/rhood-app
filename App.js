@@ -13,8 +13,8 @@ import {
   Share,
   Linking,
   Alert,
-  PanResponder,
   RefreshControl,
+  PanResponder,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -978,74 +978,90 @@ export default function App() {
 
   // Seek to position in track
   const seekToPosition = async (positionMillis) => {
-    if (globalAudioRef.current) {
-      try {
-        console.log(`🎯 Attempting to seek to ${positionMillis}ms`);
-        
-        // Ensure the audio is loaded before seeking
-        const status = await globalAudioRef.current.getStatusAsync();
-        console.log(`📊 Audio status before seek:`, status);
-        
-        if (status.isLoaded && status.durationMillis > 0) {
-          await globalAudioRef.current.setPositionAsync(positionMillis);
-          console.log(`✅ Successfully seeked to ${positionMillis}ms`);
-          
-          // Update the global state to reflect the new position
-          setGlobalAudioState((prev) => ({
-            ...prev,
-            positionMillis: positionMillis,
-            progress: positionMillis / status.durationMillis,
-          }));
-        } else {
-          console.error(`❌ Audio not ready for seeking - isLoaded: ${status.isLoaded}, duration: ${status.durationMillis}`);
-        }
-      } catch (error) {
-        console.error("❌ Error seeking:", error);
+    if (!globalAudioRef.current) {
+      console.error("❌ No audio reference available for seeking");
+      return;
+    }
+
+    // Validate position before attempting to seek
+    if (positionMillis < 0) {
+      console.error(
+        `❌ Invalid seek position: ${positionMillis}ms (cannot be negative)`
+      );
+      return;
+    }
+
+    try {
+      console.log(`🎯 Attempting to seek to ${positionMillis}ms`);
+
+      // Ensure the audio is loaded before seeking
+      const status = await globalAudioRef.current.getStatusAsync();
+      console.log(`📊 Audio status before seek:`, status);
+
+      if (status.isLoaded && status.durationMillis > 0) {
+        // Ensure position doesn't exceed duration
+        const clampedPosition = Math.min(positionMillis, status.durationMillis);
+        await globalAudioRef.current.setPositionAsync(clampedPosition);
+        console.log(`✅ Successfully seeked to ${clampedPosition}ms`);
+
+        // Update the global state to reflect the new position
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          positionMillis: clampedPosition,
+          progress: clampedPosition / status.durationMillis,
+        }));
+      } else {
+        console.error(
+          `❌ Audio not ready for seeking - isLoaded: ${status.isLoaded}, duration: ${status.durationMillis}`
+        );
       }
+    } catch (error) {
+      console.error("❌ Error seeking:", error);
     }
   };
 
-  // Scrubbing state for progress bar
-  const [isScrubbing, setIsScrubbing] = useState(false);
-  const [scrubbingPosition, setScrubbingPosition] = useState(0);
+  // Refs for progress bar dimensions
+  const miniProgressBarRef = useRef(null);
+  const fullScreenProgressBarRef = useRef(null);
 
-  // Create PanResponder for scrubbing the mini player progress bar
-  const miniPlayerPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        setIsScrubbing(true);
-        // Calculate position from touch
-        const locationX = evt.nativeEvent.locationX;
-        const width = evt.nativeEvent.target?.offsetWidth || 300;
-        const percentage = Math.max(0, Math.min(1, locationX / width));
-        setScrubbingPosition(percentage);
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        // Calculate position from touch
-        const locationX = evt.nativeEvent.locationX;
-        const width = evt.nativeEvent.target?.offsetWidth || 300;
-        const percentage = Math.max(0, Math.min(1, locationX / width));
-        setScrubbingPosition(percentage);
-      },
-      onPanResponderRelease: async () => {
-        // Seek to the scrubbed position
-        const newPosition = scrubbingPosition * globalAudioState.durationMillis;
-        console.log(`🎯 Scrubbing release - Position: ${scrubbingPosition}, Duration: ${globalAudioState.durationMillis}, New Position: ${newPosition}ms`);
-        
-        if (globalAudioState.durationMillis > 0 && newPosition >= 0) {
-          await seekToPosition(newPosition);
-          console.log(`✅ Successfully seeked to ${newPosition}ms`);
-        } else {
-          console.error(`❌ Invalid seek position: ${newPosition}ms (duration: ${globalAudioState.durationMillis}ms)`);
-        }
-        
-        setIsScrubbing(false);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      },
-    })
-  ).current;
+  // Simple touch handler for progress bar scrubbing
+  const handleProgressBarPress = async (event) => {
+    console.log(`🎯 Progress bar pressed`);
+    console.log(`🎯 Touch event:`, event.nativeEvent);
+
+    // Check if audio is ready
+    if (globalAudioState.durationMillis <= 0 || globalAudioState.isLoading) {
+      console.warn("⚠️ Cannot scrub - audio not ready");
+      return;
+    }
+
+    // Get the touch position - try multiple approaches
+    const { locationX, pageX } = event.nativeEvent;
+    const target = event.currentTarget;
+    const progressBarWidth = target?.offsetWidth || target?.clientWidth || 300;
+
+    console.log(
+      `🎯 Touch details - locationX: ${locationX}, pageX: ${pageX}, width: ${progressBarWidth}`
+    );
+
+    // Calculate the percentage position
+    const percentage = Math.max(0, Math.min(1, locationX / progressBarWidth));
+
+    console.log(
+      `🎯 Scrub to position: ${percentage} (${locationX}/${progressBarWidth})`
+    );
+
+    // Seek to the position immediately
+    const newPosition = percentage * globalAudioState.durationMillis;
+    console.log(
+      `🎯 Seeking to ${newPosition}ms of ${globalAudioState.durationMillis}ms`
+    );
+
+    await seekToPosition(newPosition);
+
+    // Provide haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
   // Share functionality
   const shareTrack = async () => {
@@ -2402,42 +2418,23 @@ export default function App() {
             </View>
 
             {/* Progress Bar - Scrubbable */}
-            <View
+            <TouchableOpacity
+              ref={miniProgressBarRef}
               style={styles.audioProgressContainer}
-              {...miniPlayerPanResponder.panHandlers}
+              onPress={handleProgressBarPress}
+              activeOpacity={0.8}
             >
               <View style={styles.audioProgressBar}>
                 <View
                   style={[
                     styles.audioProgressFill,
                     {
-                      width: `${
-                        isScrubbing
-                          ? scrubbingPosition * 100
-                          : globalAudioState.progress || 0
-                      }%`,
+                      width: `${(globalAudioState.progress || 0) * 100}%`,
                     },
                   ]}
                 />
-                {/* Scrubber thumb - shows when scrubbing */}
-                {isScrubbing && (
-                  <View
-                    style={[
-                      styles.scrubberThumb,
-                      { left: `${scrubbingPosition * 100}%` },
-                    ]}
-                  />
-                )}
               </View>
-              {/* Time display when scrubbing */}
-              {isScrubbing && (
-                <Text style={styles.scrubTimeText}>
-                  {formatTime(
-                    scrubbingPosition * globalAudioState.durationMillis
-                  )}
-                </Text>
-              )}
-            </View>
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -2489,45 +2486,26 @@ export default function App() {
 
                 {/* Progress Section - Scrubbable */}
                 <View style={styles.fullScreenProgressSection}>
-                  <View
+                  <TouchableOpacity
+                    ref={fullScreenProgressBarRef}
                     style={styles.fullScreenProgressContainer}
-                    {...miniPlayerPanResponder.panHandlers}
+                    onPress={handleProgressBarPress}
+                    activeOpacity={0.8}
                   >
                     <View style={styles.fullScreenProgressBarContainer}>
                       <View
                         style={[
                           styles.fullScreenProgressBar,
                           {
-                            width: `${
-                              isScrubbing
-                                ? scrubbingPosition * 100
-                                : globalAudioState.progress
-                            }%`,
-                          },
-                        ]}
-                      />
-                      {/* Scrubber thumb */}
-                      <View
-                        style={[
-                          styles.fullScreenScrubberThumb,
-                          {
-                            left: `${
-                              isScrubbing
-                                ? scrubbingPosition * 100
-                                : globalAudioState.progress
-                            }%`,
+                            width: `${(globalAudioState.progress || 0) * 100}%`,
                           },
                         ]}
                       />
                     </View>
-                  </View>
+                  </TouchableOpacity>
                   <Text style={styles.progressText}>
-                    {isScrubbing
-                      ? formatTime(
-                          scrubbingPosition * globalAudioState.durationMillis
-                        )
-                      : formatTime(globalAudioState.positionMillis)}{" "}
-                    / {formatTime(globalAudioState.durationMillis)}
+                    {formatTime(globalAudioState.positionMillis || 0)} /{" "}
+                    {formatTime(globalAudioState.durationMillis || 0)}
                   </Text>
                 </View>
 
