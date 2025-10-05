@@ -980,8 +980,25 @@ export default function App() {
   const seekToPosition = async (positionMillis) => {
     if (globalAudioRef.current) {
       try {
-        await globalAudioRef.current.setPositionAsync(positionMillis);
-        console.log(`⏭️ Seeked to ${positionMillis}ms`);
+        console.log(`🎯 Attempting to seek to ${positionMillis}ms`);
+        
+        // Ensure the audio is loaded before seeking
+        const status = await globalAudioRef.current.getStatusAsync();
+        console.log(`📊 Audio status before seek:`, status);
+        
+        if (status.isLoaded && status.durationMillis > 0) {
+          await globalAudioRef.current.setPositionAsync(positionMillis);
+          console.log(`✅ Successfully seeked to ${positionMillis}ms`);
+          
+          // Update the global state to reflect the new position
+          setGlobalAudioState((prev) => ({
+            ...prev,
+            positionMillis: positionMillis,
+            progress: positionMillis / status.durationMillis,
+          }));
+        } else {
+          console.error(`❌ Audio not ready for seeking - isLoaded: ${status.isLoaded}, duration: ${status.durationMillis}`);
+        }
       } catch (error) {
         console.error("❌ Error seeking:", error);
       }
@@ -1015,7 +1032,15 @@ export default function App() {
       onPanResponderRelease: async () => {
         // Seek to the scrubbed position
         const newPosition = scrubbingPosition * globalAudioState.durationMillis;
-        await seekToPosition(newPosition);
+        console.log(`🎯 Scrubbing release - Position: ${scrubbingPosition}, Duration: ${globalAudioState.durationMillis}, New Position: ${newPosition}ms`);
+        
+        if (globalAudioState.durationMillis > 0 && newPosition >= 0) {
+          await seekToPosition(newPosition);
+          console.log(`✅ Successfully seeked to ${newPosition}ms`);
+        } else {
+          console.error(`❌ Invalid seek position: ${newPosition}ms (duration: ${globalAudioState.durationMillis}ms)`);
+        }
+        
         setIsScrubbing(false);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       },
