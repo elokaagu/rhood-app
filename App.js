@@ -643,18 +643,20 @@ export default function App() {
           ) {
             durationUpdated = true;
             const durationInSeconds = Math.floor(status.durationMillis / 1000);
-            
+
             try {
               const { error } = await supabase
                 .from("mixes")
                 .update({ duration: durationInSeconds })
                 .eq("id", track.id)
                 .is("duration", null); // Only update if duration is null
-              
+
               if (error) {
                 console.error("❌ Error updating duration:", error);
               } else {
-                console.log(`✅ Updated duration for "${track.title}": ${durationInSeconds}s`);
+                console.log(
+                  `✅ Updated duration for "${track.title}": ${durationInSeconds}s`
+                );
               }
             } catch (err) {
               console.error("❌ Failed to update duration:", err);
@@ -925,9 +927,9 @@ export default function App() {
 
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
+
       const isLiked = globalAudioState.currentTrack.isLiked;
-      
+
       // Optimistically update UI
       setGlobalAudioState((prev) => ({
         ...prev,
@@ -942,18 +944,22 @@ export default function App() {
         // Unlike - decrement likes_count
         const { error } = await supabase
           .from("mixes")
-          .update({ likes_count: globalAudioState.currentTrack.likes_count - 1 })
+          .update({
+            likes_count: globalAudioState.currentTrack.likes_count - 1,
+          })
           .eq("id", globalAudioState.currentTrack.id);
-        
+
         if (error) throw error;
         console.log("👎 Unliked mix");
       } else {
         // Like - increment likes_count
         const { error } = await supabase
           .from("mixes")
-          .update({ likes_count: (globalAudioState.currentTrack.likes_count || 0) + 1 })
+          .update({
+            likes_count: (globalAudioState.currentTrack.likes_count || 0) + 1,
+          })
           .eq("id", globalAudioState.currentTrack.id);
-        
+
         if (error) throw error;
         console.log("❤️ Liked mix");
       }
@@ -2331,7 +2337,8 @@ export default function App() {
               {/* Timer - Compact format */}
               <View style={styles.audioTimeContainer}>
                 <Text style={styles.audioTimeText}>
-                  {formatTime(globalAudioState.positionMillis || 0)} / {formatTime(globalAudioState.durationMillis || 0)}
+                  {formatTime(globalAudioState.positionMillis || 0)} /{" "}
+                  {formatTime(globalAudioState.durationMillis || 0)}
                 </Text>
               </View>
 
@@ -2367,7 +2374,6 @@ export default function App() {
                   />
                 </TouchableOpacity>
               </View>
-
             </View>
 
             {/* Progress Bar - Scrubbable */}
@@ -2401,7 +2407,9 @@ export default function App() {
               {/* Time display when scrubbing */}
               {isScrubbing && (
                 <Text style={styles.scrubTimeText}>
-                  {formatTime(scrubbingPosition * globalAudioState.durationMillis)}
+                  {formatTime(
+                    scrubbingPosition * globalAudioState.durationMillis
+                  )}
                 </Text>
               )}
             </View>
@@ -2490,7 +2498,9 @@ export default function App() {
                   </View>
                   <Text style={styles.progressText}>
                     {isScrubbing
-                      ? formatTime(scrubbingPosition * globalAudioState.durationMillis)
+                      ? formatTime(
+                          scrubbingPosition * globalAudioState.durationMillis
+                        )
                       : formatTime(globalAudioState.positionMillis)}{" "}
                     / {formatTime(globalAudioState.durationMillis)}
                   </Text>
@@ -2574,14 +2584,22 @@ export default function App() {
 
                 {/* Additional Actions */}
                 <View style={styles.fullScreenActions}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.actionButton}
                     onPress={toggleLike}
                   >
                     <Ionicons
-                      name={globalAudioState.currentTrack?.isLiked ? "heart" : "heart-outline"}
+                      name={
+                        globalAudioState.currentTrack?.isLiked
+                          ? "heart"
+                          : "heart-outline"
+                      }
                       size={20}
-                      color={globalAudioState.currentTrack?.isLiked ? "hsl(0, 100%, 60%)" : "hsl(0, 0%, 70%)"}
+                      color={
+                        globalAudioState.currentTrack?.isLiked
+                          ? "hsl(0, 100%, 60%)"
+                          : "hsl(0, 0%, 70%)"
+                      }
                     />
                   </TouchableOpacity>
 
@@ -2596,9 +2614,14 @@ export default function App() {
                     />
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.actionButton}
-                    onPress={() => Alert.alert("More Options", "Additional options coming soon!")}
+                    onPress={() =>
+                      Alert.alert(
+                        "More Options",
+                        "Additional options coming soon!"
+                      )
+                    }
                   >
                     <Ionicons
                       name="ellipsis-horizontal"
