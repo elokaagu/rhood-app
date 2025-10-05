@@ -16,10 +16,8 @@ const MainNavigation = () => {
 
   const navigationItems = [
     { id: "opportunities", icon: "briefcase-outline", label: "Opportunities" },
-    { id: "listen", icon: "musical-notes-outline", label: "Listen" },
     { id: "connections", icon: "people-outline", label: "Connections" },
-    { id: "messages", icon: "mail-outline", label: "Messages" },
-    { id: "profile", icon: "person-outline", label: "Profile" },
+    { id: "listen", icon: "musical-notes-outline", label: "Listen" },
   ];
 
   return (

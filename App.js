@@ -28,13 +28,14 @@ import RhoodModal from "./components/RhoodModal";
 import BriefForm from "./components/BriefForm";
 import EditProfileScreen from "./components/EditProfileScreen";
 import Header from "./components/Header";
+import SideMenu from "./components/SideMenu";
 
 // Styles
 import { COLORS } from "./lib/sharedStyles";
 
 // Main App Content (wrapped in all providers)
 function AppContent() {
-  const {
+      const {
     user,
     authLoading,
     showAuth,
@@ -101,7 +102,7 @@ function AppContent() {
   }
 
   // Main app interface
-  return (
+    return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <StatusBar style="light" backgroundColor={COLORS.background} />
@@ -112,7 +113,7 @@ function AppContent() {
         {/* Main Content */}
         <View style={{ flex: 1 }}>
           <ScreenRenderer />
-        </View>
+                  </View>
 
         {/* Mini Audio Player */}
         {globalAudioState.currentTrack && <MiniPlayer />}
@@ -125,6 +126,9 @@ function AppContent() {
 
         {/* Brief Form Modal */}
         {showBriefForm && selectedOpportunity && <BriefFormModal />}
+
+        {/* Side Menu */}
+        <SideMenu />
 
         {/* Fade Overlay for transitions */}
         {showFadeOverlay && <FadeOverlay fadeAnim={fadeOverlayAnim} />}
@@ -142,12 +146,12 @@ function FullScreenPlayer() {
     useAudio();
 
   return (
-    <Modal
-      visible={showFullScreenPlayer}
-      animationType="slide"
+          <Modal
+            visible={showFullScreenPlayer}
+            animationType="slide"
       presentationStyle="fullScreen"
-      onRequestClose={() => setShowFullScreenPlayer(false)}
-    >
+            onRequestClose={() => setShowFullScreenPlayer(false)}
+          >
       <View
         style={{
           flex: 1,
@@ -158,11 +162,11 @@ function FullScreenPlayer() {
       >
         <Text style={{ color: COLORS.textPrimary, fontSize: 18 }}>
           Full Screen Player
-        </Text>
+                  </Text>
         <Text style={{ color: COLORS.textSecondary, marginTop: 10 }}>
           {globalAudioState.currentTrack?.title || "No track playing"}
-        </Text>
-      </View>
+                  </Text>
+                </View>
     </Modal>
   );
 }
@@ -180,19 +184,19 @@ function BriefFormModal() {
   if (!selectedOpportunity) return null;
 
   return (
-    <Modal
-      visible={showBriefForm}
-      animationType="slide"
-      presentationStyle="fullScreen"
+        <Modal
+          visible={showBriefForm}
+          animationType="slide"
+          presentationStyle="fullScreen"
       onRequestClose={closeBriefForm}
-    >
-      <BriefForm
-        opportunity={selectedOpportunity}
+        >
+            <BriefForm
+              opportunity={selectedOpportunity}
         onClose={closeBriefForm}
-        onSubmit={handleBriefSubmit}
-        isLoading={isSubmittingBrief}
-      />
-    </Modal>
+              onSubmit={handleBriefSubmit}
+              isLoading={isSubmittingBrief}
+            />
+        </Modal>
   );
 }
 
@@ -201,11 +205,11 @@ function FadeOverlay({ fadeAnim }) {
   return (
     <Animated.View
       style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
         backgroundColor: COLORS.overlay,
         opacity: fadeAnim,
         zIndex: 9999,
