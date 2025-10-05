@@ -207,17 +207,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
+    paddingTop: 60, // Add top padding to push content down
   },
   spinnerContainer: {
-    width: 360,
-    height: 360,
-    marginBottom: 20,
+    width: 480,
+    height: 480,
+    marginBottom: 40,
     alignItems: "center",
     justifyContent: "center",
   },
   spinnerVideo: {
-    width: 360,
-    height: 360,
+    width: 480,
+    height: 480,
   },
   logoImage: {
     height: 60,
