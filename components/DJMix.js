@@ -22,6 +22,7 @@ const DJMix = ({
   onPlayPause,
   onArtistPress,
   onDelete,
+  onAddToQueue,
   currentUserId,
   progress = 0,
 }) => {
@@ -30,7 +31,7 @@ const DJMix = ({
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
-  
+
   // Check if current user owns this mix
   const isOwnMix = currentUserId && mix.user_id === currentUserId;
 
@@ -80,7 +81,11 @@ const DJMix = ({
         onStartShouldSetPanResponderCapture: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) => {
           // Only respond to horizontal swipes (left)
-          return isOwnMix && gestureState.dx < -10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+          return (
+            isOwnMix &&
+            gestureState.dx < -10 &&
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
+          );
         },
         onMoveShouldSetPanResponderCapture: (_, gestureState) => {
           return isOwnMix && gestureState.dx < -10;
@@ -101,7 +106,7 @@ const DJMix = ({
         },
         onPanResponderRelease: (_, gestureState) => {
           swipeAnim.flattenOffset();
-          
+
           if (gestureState.dx < -50) {
             // Swipe threshold reached - show delete button
             Animated.spring(swipeAnim, {
@@ -197,86 +202,100 @@ const DJMix = ({
         >
           {/* Track Number */}
           <View style={styles.trackNumber}>
-            <Text style={styles.trackNumberText}>{mix.trackNumber || mix.id}</Text>
+            <Text style={styles.trackNumberText}>
+              {mix.trackNumber || mix.id}
+            </Text>
           </View>
 
           {/* Album Art */}
           <View style={styles.albumArtContainer}>
-        {!imageError ? (
-          <Image
-            source={getImageSource()}
-            style={styles.albumArt}
-            resizeMode="cover"
-            onError={() => {
-              setImageError(true);
-              console.log(`❌ Failed to load image: ${mix.image}`);
-            }}
-            onLoad={() => {
-              setImageError(false);
-              console.log(`✅ Successfully loaded image: ${mix.image}`);
-            }}
-          />
-        ) : (
-          <View style={styles.fallbackImage}>
-            <Ionicons name="musical-notes" size={24} color="hsl(0, 0%, 60%)" />
-          </View>
-        )}
-        {/* Play Button Overlay */}
-        <View style={styles.playButtonOverlay}>
-          <Animated.View
-            style={[
-              styles.playButton,
-              isPlaying && { transform: [{ scale: pulseAnim }] },
-            ]}
-          >
-            {isLoading ? (
-              <Ionicons name="hourglass" size={16} color="hsl(0, 0%, 100%)" />
-            ) : (
-              <Ionicons
-                name={isPlaying ? "pause" : "play"}
-                size={16}
-                color="hsl(0, 0%, 100%)"
+            {!imageError ? (
+              <Image
+                source={getImageSource()}
+                style={styles.albumArt}
+                resizeMode="cover"
+                onError={() => {
+                  setImageError(true);
+                  console.log(`❌ Failed to load image: ${mix.image}`);
+                }}
+                onLoad={() => {
+                  setImageError(false);
+                  console.log(`✅ Successfully loaded image: ${mix.image}`);
+                }}
               />
+            ) : (
+              <View style={styles.fallbackImage}>
+                <Ionicons
+                  name="musical-notes"
+                  size={24}
+                  color="hsl(0, 0%, 60%)"
+                />
+              </View>
             )}
-          </Animated.View>
-        </View>
-      </View>
-
-      {/* Track Info */}
-      <View style={styles.trackInfo}>
-        <Text style={styles.trackTitle} numberOfLines={1}>
-          {mix.title}
-        </Text>
-        <Text style={styles.trackArtist} numberOfLines={1}>
-          {mix.artist}
-        </Text>
-        <Text style={styles.trackDescription} numberOfLines={1}>
-          {mix.description}
-        </Text>
-        <View style={styles.trackMeta}>
-          <Text style={styles.trackDuration}>{mix.duration}</Text>
-          <View style={styles.genreBadge}>
-            <Text style={styles.genreText}>{mix.genre}</Text>
+            {/* Play Button Overlay */}
+            <View style={styles.playButtonOverlay}>
+              <Animated.View
+                style={[
+                  styles.playButton,
+                  isPlaying && { transform: [{ scale: pulseAnim }] },
+                ]}
+              >
+                {isLoading ? (
+                  <Ionicons
+                    name="hourglass"
+                    size={16}
+                    color="hsl(0, 0%, 100%)"
+                  />
+                ) : (
+                  <Ionicons
+                    name={isPlaying ? "pause" : "play"}
+                    size={16}
+                    color="hsl(0, 0%, 100%)"
+                  />
+                )}
+              </Animated.View>
+            </View>
           </View>
-        </View>
-      </View>
 
-          {/* Options Menu */}
-          {isOwnMix && (
-            <TouchableOpacity
-              style={styles.optionsButton}
-              activeOpacity={0.7}
-              onPress={() => setShowOptionsMenu(true)}
-            >
-              <Ionicons name="ellipsis-vertical" size={20} color="hsl(0, 0%, 70%)" />
-            </TouchableOpacity>
-          )}
+          {/* Track Info */}
+          <View style={styles.trackInfo}>
+            <Text style={styles.trackTitle} numberOfLines={1}>
+              {mix.title}
+            </Text>
+            <Text style={styles.trackArtist} numberOfLines={1}>
+              {mix.artist}
+            </Text>
+            <Text style={styles.trackDescription} numberOfLines={1}>
+              {mix.description}
+            </Text>
+            <View style={styles.trackMeta}>
+              <Text style={styles.trackDuration}>{mix.duration}</Text>
+              <View style={styles.genreBadge}>
+                <Text style={styles.genreText}>{mix.genre}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Options Menu - Show for all mixes */}
+          <TouchableOpacity
+            style={styles.optionsButton}
+            activeOpacity={0.7}
+            onPress={() => setShowOptionsMenu(true)}
+          >
+            <Ionicons
+              name="ellipsis-vertical"
+              size={20}
+              color="hsl(0, 0%, 70%)"
+            />
+          </TouchableOpacity>
 
           {/* Progress Bar - Only show when playing */}
           {isPlaying && (
             <View style={styles.progressContainer}>
               <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                <View
+                  style={[styles.progressFill, { width: `${progress}%` }]}
+                />
               </View>
             </View>
           )}
@@ -296,14 +315,34 @@ const DJMix = ({
           onPress={() => setShowOptionsMenu(false)}
         >
           <View style={styles.optionsModal}>
+            {/* Add to Queue - Show for all mixes */}
             <TouchableOpacity
               style={styles.optionItem}
-              onPress={handleDelete}
+              onPress={() => {
+                setShowOptionsMenu(false);
+                if (onAddToQueue) {
+                  onAddToQueue(mix);
+                }
+              }}
               activeOpacity={0.7}
             >
-              <Ionicons name="trash" size={20} color="hsl(0, 100%, 60%)" />
-              <Text style={styles.optionTextDelete}>Delete Mix</Text>
+              <Ionicons name="list" size={20} color="hsl(75, 100%, 60%)" />
+              <Text style={styles.optionTextGreen}>Add to Queue</Text>
             </TouchableOpacity>
+
+            {/* Delete - Only show for own mixes */}
+            {isOwnMix && (
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={handleDelete}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash" size={20} color="hsl(0, 100%, 60%)" />
+                <Text style={styles.optionTextDelete}>Delete Mix</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Cancel */}
             <TouchableOpacity
               style={styles.optionItem}
               onPress={() => setShowOptionsMenu(false)}
@@ -499,6 +538,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
     fontWeight: "500",
+  },
+  optionTextGreen: {
+    color: "hsl(75, 100%, 60%)",
+    fontSize: 16,
+    marginLeft: 12,
+    fontWeight: "600",
   },
   optionTextDelete: {
     color: "hsl(0, 100%, 60%)",

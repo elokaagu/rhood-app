@@ -379,6 +379,17 @@ export default function ListenScreen({
     setSelectedGenre(genre);
   };
 
+  const handleAddToQueue = (mix) => {
+    // TODO: Implement queue functionality in App.js
+    // For now, show a success message
+    Alert.alert(
+      "Added to Queue",
+      `"${mix.title}" by ${mix.artist} has been added to your queue.`,
+      [{ text: "OK" }]
+    );
+    console.log("🎵 Added to queue:", mix.title);
+  };
+
   // Header component for FlatList
   const renderHeader = () => (
     <>
@@ -484,6 +495,7 @@ export default function ListenScreen({
             onPlayPause={() => handleMixPress(mix)}
             onArtistPress={handleArtistPress}
             onDelete={handleDeleteMix}
+            onAddToQueue={handleAddToQueue}
             currentUserId={user?.id}
             progress={playingMixId === mix.id ? globalAudioState.progress : 0}
           />
