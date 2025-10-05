@@ -1,6 +1,13 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  COLORS,
+  TYPOGRAPHY,
+  SPACING,
+  RADIUS,
+  sharedStyles,
+} from "../lib/sharedStyles";
 
 export default function OpportunityCard({ opportunity, onPress }) {
   return (
@@ -42,20 +49,13 @@ export default function OpportunityCard({ opportunity, onPress }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 16,
+    backgroundColor: COLORS.backgroundSecondary,
+    borderRadius: RADIUS.lg,
     marginHorizontal: 0,
     marginVertical: 0,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    borderColor: COLORS.border,
+    ...sharedStyles.shadow,
     overflow: "hidden",
     flex: 1,
   },
@@ -73,51 +73,49 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    padding: 16,
+    backgroundColor: COLORS.overlay,
+    padding: SPACING.md,
   },
   overlayHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
+    ...sharedStyles.rowBetween,
+    marginBottom: SPACING.xs,
   },
   venueName: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)",
-    fontWeight: "600",
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.semibold,
     flex: 1,
   },
   statusBadge: {
-    backgroundColor: "hsl(0, 100%, 50%)",
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    backgroundColor: COLORS.error,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
   },
   newBadge: {
-    backgroundColor: "hsl(120, 100%, 50%)",
+    backgroundColor: COLORS.success,
   },
   closingBadge: {
-    backgroundColor: "hsl(30, 100%, 50%)",
+    backgroundColor: COLORS.warning,
   },
   statusBadgeText: {
-    fontSize: 10,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 100%)",
-    fontWeight: "700",
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textPrimary,
+    fontWeight: TYPOGRAPHY.bold,
   },
   eventTitle: {
-    fontSize: 20,
-    fontFamily: "TS-Block-Bold",
-    color: "hsl(0, 0%, 100%)",
+    fontSize: TYPOGRAPHY["2xl"],
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
     lineHeight: 26,
   },
   applicationsLeft: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)",
-    marginTop: 4,
-    fontWeight: "600",
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.primary,
+    marginTop: SPACING.xs,
+    fontWeight: TYPOGRAPHY.semibold,
   },
 });

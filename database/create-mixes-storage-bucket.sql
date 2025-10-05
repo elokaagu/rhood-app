@@ -6,7 +6,7 @@
 -- 2. Click "New Bucket"
 -- 3. Name: "mixes"
 -- 4. Public bucket: Yes (so files can be accessed via URL)
--- 5. File size limit: 500 MB (or adjust as needed)
+-- 5. File size limit: 2 GB (2048 MB)
 -- 6. Allowed MIME types: audio/* (or specific: audio/mpeg, audio/mp3, audio/wav, audio/aac)
 
 -- After creating the bucket, run these policies:

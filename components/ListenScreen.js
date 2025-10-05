@@ -391,11 +391,6 @@ export default function ListenScreen({
       {/* Upload CTA */}
       <View style={styles.uploadSection}>
         <View style={styles.uploadCard}>
-          <Ionicons
-            name="add-circle-outline"
-            size={48}
-            color="hsl(75, 100%, 60%)"
-          />
           <Text style={styles.uploadTitle}>Share Your Mix</Text>
           <Text style={styles.uploadDescription}>
             Upload your own 5-minute DJ mix and connect with the community

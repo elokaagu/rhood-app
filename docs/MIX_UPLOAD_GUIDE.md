@@ -86,7 +86,7 @@ This sets up:
 1. **Navigate to Profile** screen in the app
 2. Tap the **"Upload Mix"** button (green gradient button)
 3. Tap **"Tap to select audio file"**
-4. Select an audio file from your device (max 500MB)
+4. Select an audio file from your device (max 2GB)
 5. Fill in mix details:
    - **Title** (required)
    - **Description** (optional)
@@ -99,7 +99,7 @@ This sets up:
 ### File Requirements
 
 - **Supported formats**: MP3, WAV, M4A, AAC
-- **Max file size**: 500 MB
+- **Max file size**: 2 GB
 - **Audio only**: No video files
 
 ### Upload Process

@@ -207,12 +207,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
-    paddingTop: 60, // Add top padding to push content down
+    paddingTop: 0, // Remove top padding to center content
   },
   spinnerContainer: {
     width: 480,
     height: 480,
-    marginBottom: 40,
+    marginBottom: 10,
     alignItems: "center",
     justifyContent: "center",
   },

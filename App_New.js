@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { View, Modal, Animated, Text } from "react-native";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 
@@ -25,8 +24,6 @@ import MainNavigation from "./components/MainNavigation";
 import ScreenRenderer from "./components/ScreenRenderer";
 import MiniPlayer from "./components/AudioPlayer/MiniPlayer";
 import RhoodModal from "./components/RhoodModal";
-import BriefForm from "./components/BriefForm";
-import EditProfileScreen from "./components/EditProfileScreen";
 
 // Styles
 import { COLORS } from "./lib/sharedStyles";
@@ -44,11 +41,9 @@ function AppContent() {
     handleLoginSuccess,
     handleSignupSuccess,
     completeOnboarding,
-    showLogin,
-    showSignup,
   } = useAuth();
   const { showFadeOverlay, fadeOverlayAnim } = useNavigation();
-  const { showFullScreenPlayer, globalAudioState } = useAudio();
+  const { showFullScreenPlayer } = useAudio();
   const { showBriefForm, selectedOpportunity } = useOpportunities();
 
   // Font loading
@@ -70,12 +65,12 @@ function AppContent() {
           {authMode === "login" ? (
             <LoginScreen
               onLoginSuccess={handleLoginSuccess}
-              onSwitchToSignup={showSignup}
+              onSwitchToSignup={() => {}}
             />
           ) : (
             <SignupScreen
               onSignupSuccess={handleSignupSuccess}
-              onSwitchToLogin={showLogin}
+              onSwitchToLogin={() => {}}
             />
           )}
         </SafeAreaView>
@@ -105,13 +100,11 @@ function AppContent() {
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <StatusBar style="light" backgroundColor={COLORS.background} />
 
-        {/* Main Content - This includes the header */}
-        <View style={{ flex: 1 }}>
-          <ScreenRenderer />
-        </View>
+        {/* Main Content */}
+        <ScreenRenderer />
 
         {/* Mini Audio Player */}
-        {globalAudioState.currentTrack && <MiniPlayer />}
+        <MiniPlayer />
 
         {/* Bottom Navigation */}
         <MainNavigation />
@@ -134,86 +127,26 @@ function AppContent() {
 
 // Full Screen Player Component
 function FullScreenPlayer() {
-  const { globalAudioState, showFullScreenPlayer, setShowFullScreenPlayer } =
-    useAudio();
-
-  return (
-    <Modal
-      visible={showFullScreenPlayer}
-      animationType="slide"
-      presentationStyle="fullScreen"
-      onRequestClose={() => setShowFullScreenPlayer(false)}
-    >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: COLORS.background,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ color: COLORS.textPrimary, fontSize: 18 }}>
-          Full Screen Player
-        </Text>
-        <Text style={{ color: COLORS.textSecondary, marginTop: 10 }}>
-          {globalAudioState.currentTrack?.title || "No track playing"}
-        </Text>
-      </View>
-    </Modal>
-  );
+  // This would be extracted to its own component file
+  return null; // Placeholder
 }
 
 // Brief Form Modal Component
 function BriefFormModal() {
-  const {
-    showBriefForm,
-    selectedOpportunity,
-    closeBriefForm,
-    handleBriefSubmit,
-    isSubmittingBrief,
-  } = useOpportunities();
-
-  if (!selectedOpportunity) return null;
-
-  return (
-    <Modal
-      visible={showBriefForm}
-      animationType="slide"
-      presentationStyle="fullScreen"
-      onRequestClose={closeBriefForm}
-    >
-      <BriefForm
-        opportunity={selectedOpportunity}
-        onClose={closeBriefForm}
-        onSubmit={handleBriefSubmit}
-        isLoading={isSubmittingBrief}
-      />
-    </Modal>
-  );
+  // This would be extracted to its own component file
+  return null; // Placeholder
 }
 
 // Fade Overlay Component
 function FadeOverlay({ fadeAnim }) {
-  return (
-    <Animated.View
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: COLORS.overlay,
-        opacity: fadeAnim,
-        zIndex: 9999,
-      }}
-    />
-  );
+  // This would be extracted to its own component file
+  return null; // Placeholder
 }
 
 // Global Modal Component
 function GlobalModal() {
-  // This would be implemented when needed
-  return null;
+  // This would be extracted to its own component file
+  return null; // Placeholder
 }
 
 // Main App with all providers

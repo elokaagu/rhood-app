@@ -79,15 +79,15 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       if (result.type === "success" || !result.canceled) {
         const file = result.assets ? result.assets[0] : result;
 
-        // Check file size (max 1GB)
-        const maxSizeMB = 1024; // 1GB
+        // Check file size (max 2GB)
+        const maxSizeMB = 2048; // 2GB
         const maxSizeBytes = maxSizeMB * 1024 * 1024;
-        
+
         if (file.size > maxSizeBytes) {
           const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
           Alert.alert(
             "File Too Large",
-            `Your file is ${fileSizeMB}MB. Maximum allowed size is ${maxSizeMB}MB (1GB).`,
+            `Your file is ${fileSizeMB}MB. Maximum allowed size is ${maxSizeMB}MB (2GB).`,
             [{ text: "OK" }]
           );
           return;
@@ -331,11 +331,17 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
             const arrayBuffer = await response.arrayBuffer();
             artworkData = new Uint8Array(arrayBuffer);
             contentType = selectedArtwork.type || "image/jpeg";
-            
-            console.log("✅ Artwork converted to Uint8Array, size:", artworkData.length, "bytes");
+
+            console.log(
+              "✅ Artwork converted to Uint8Array, size:",
+              artworkData.length,
+              "bytes"
+            );
           } else {
             // Document picker format - convert to Uint8Array
-            const response = await fetch(selectedArtwork.uri || selectedArtwork.fileCopyUri);
+            const response = await fetch(
+              selectedArtwork.uri || selectedArtwork.fileCopyUri
+            );
             const arrayBuffer = await response.arrayBuffer();
             artworkData = new Uint8Array(arrayBuffer);
             contentType = selectedArtwork.mimeType || "image/jpeg";
@@ -351,7 +357,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
               });
 
           if (artworkUploadError) {
-            console.error("❌ Artwork upload error:", artworkUploadError.message);
+            console.error(
+              "❌ Artwork upload error:",
+              artworkUploadError.message
+            );
             // Continue without artwork rather than failing the entire upload
           } else {
             const { data: artworkUrlData } = supabase.storage
@@ -392,7 +401,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       // Determine artist name from profile
       const artistName =
         userProfile.dj_name ||
-        `${userProfile.first_name || ""} ${userProfile.last_name || ""}`.trim() ||
+        `${userProfile.first_name || ""} ${
+          userProfile.last_name || ""
+        }`.trim() ||
         "Unknown Artist";
 
       setUploadProgress(80);

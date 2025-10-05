@@ -12,6 +12,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import {
+  COLORS,
+  TYPOGRAPHY,
+  SPACING,
+  RADIUS,
+  sharedStyles,
+} from "../lib/sharedStyles";
 
 export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -400,8 +407,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "hsl(0, 0%, 0%)",
+    ...sharedStyles.container,
   },
   scrollView: {
     flex: 1,
@@ -414,15 +420,15 @@ const styles = StyleSheet.create({
     height: 120,
   },
   header: {
-    padding: 20,
-    paddingBottom: 16,
+    padding: SPACING.lg,
+    paddingBottom: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
+    borderBottomColor: COLORS.border,
   },
   headerTitle: {
-    fontSize: 24,
-    fontFamily: "TS-Block-Bold",
-    color: "hsl(0, 0%, 100%)",
+    fontSize: TYPOGRAPHY["3xl"],
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
     textTransform: "uppercase",
     letterSpacing: 1,
   },
