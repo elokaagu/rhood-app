@@ -982,6 +982,40 @@ export default function App() {
     }
   };
 
+  // Scrubbing state for progress bar
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubbingPosition, setScrubbingPosition] = useState(0);
+
+  // Create PanResponder for scrubbing the mini player progress bar
+  const miniPlayerPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        setIsScrubbing(true);
+        // Calculate position from touch
+        const locationX = evt.nativeEvent.locationX;
+        const width = evt.nativeEvent.target?.offsetWidth || 300;
+        const percentage = Math.max(0, Math.min(1, locationX / width));
+        setScrubbingPosition(percentage);
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // Calculate position from touch
+        const locationX = evt.nativeEvent.locationX;
+        const width = evt.nativeEvent.target?.offsetWidth || 300;
+        const percentage = Math.max(0, Math.min(1, locationX / width));
+        setScrubbingPosition(percentage);
+      },
+      onPanResponderRelease: async () => {
+        // Seek to the scrubbed position
+        const newPosition = scrubbingPosition * globalAudioState.durationMillis;
+        await seekToPosition(newPosition);
+        setIsScrubbing(false);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+    })
+  ).current;
+
   // Share functionality
   const shareTrack = async () => {
     if (globalAudioState.currentTrack) {
@@ -2355,16 +2389,40 @@ export default function App() {
                 </TouchableOpacity>
               </View>
 
-              {/* Progress Bar */}
-              <View style={styles.audioProgressContainer}>
+              {/* Progress Bar - Scrubbable */}
+              <View
+                style={styles.audioProgressContainer}
+                {...miniPlayerPanResponder.panHandlers}
+              >
                 <View style={styles.audioProgressBar}>
                   <View
                     style={[
                       styles.audioProgressFill,
-                      { width: `${globalAudioState.progress || 0}%` },
+                      {
+                        width: `${
+                          isScrubbing
+                            ? scrubbingPosition * 100
+                            : globalAudioState.progress || 0
+                        }%`,
+                      },
                     ]}
                   />
+                  {/* Scrubber thumb - shows when scrubbing */}
+                  {isScrubbing && (
+                    <View
+                      style={[
+                        styles.scrubberThumb,
+                        { left: `${scrubbingPosition * 100}%` },
+                      ]}
+                    />
+                  )}
                 </View>
+                {/* Time display when scrubbing */}
+                {isScrubbing && (
+                  <Text style={styles.scrubTimeText}>
+                    {formatTime(scrubbingPosition * globalAudioState.durationMillis)}
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
           </Animated.View>
@@ -2416,30 +2474,45 @@ export default function App() {
                   </Text>
                 </View>
 
-                {/* Progress Section */}
+                {/* Progress Section - Scrubbable */}
                 <View style={styles.fullScreenProgressSection}>
-                  <TouchableOpacity
+                  <View
                     style={styles.fullScreenProgressContainer}
-                    activeOpacity={0.8}
-                    onPress={(e) => {
-                      // Get tap position and calculate new position
-                      const { locationX } = e.nativeEvent;
-                      const containerWidth = e.currentTarget.offsetWidth || 300;
-                      const percentage = locationX / containerWidth;
-                      const newPosition = percentage * globalAudioState.durationMillis;
-                      seekToPosition(newPosition);
-                    }}
+                    {...miniPlayerPanResponder.panHandlers}
                   >
-                    <View
-                      style={[
-                        styles.fullScreenProgressBar,
-                        { width: `${globalAudioState.progress}%` },
-                      ]}
-                    />
-                  </TouchableOpacity>
+                    <View style={styles.fullScreenProgressBarContainer}>
+                      <View
+                        style={[
+                          styles.fullScreenProgressBar,
+                          {
+                            width: `${
+                              isScrubbing
+                                ? scrubbingPosition * 100
+                                : globalAudioState.progress
+                            }%`,
+                          },
+                        ]}
+                      />
+                      {/* Scrubber thumb */}
+                      <View
+                        style={[
+                          styles.fullScreenScrubberThumb,
+                          {
+                            left: `${
+                              isScrubbing
+                                ? scrubbingPosition * 100
+                                : globalAudioState.progress
+                            }%`,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
                   <Text style={styles.progressText}>
-                    {formatTime(globalAudioState.positionMillis)} /{" "}
-                    {formatTime(globalAudioState.durationMillis)}
+                    {isScrubbing
+                      ? formatTime(scrubbingPosition * globalAudioState.durationMillis)
+                      : formatTime(globalAudioState.positionMillis)}{" "}
+                    / {formatTime(globalAudioState.durationMillis)}
                   </Text>
                 </View>
 
@@ -3671,17 +3744,41 @@ const styles = StyleSheet.create({
   },
   audioProgressContainer: {
     marginTop: 12,
+    paddingVertical: 8, // Larger touch area
   },
   audioProgressBar: {
     height: 4,
     backgroundColor: "hsl(0, 0%, 15%)",
     borderRadius: 2,
     marginBottom: 8,
+    position: "relative",
   },
   audioProgressFill: {
     height: "100%",
     backgroundColor: "#C2CC06",
     borderRadius: 2,
+  },
+  scrubberThumb: {
+    position: "absolute",
+    top: -4,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#C2CC06",
+    marginLeft: -6,
+    shadowColor: "#C2CC06",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  scrubTimeText: {
+    fontSize: 10,
+    fontFamily: "Helvetica Neue",
+    color: "#C2CC06",
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 4,
   },
   audioTimeContainer: {
     flexDirection: "row",
@@ -3766,15 +3863,35 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   fullScreenProgressContainer: {
+    paddingVertical: 12, // Larger touch area
+    marginBottom: 12,
+  },
+  fullScreenProgressBarContainer: {
     height: 4,
     backgroundColor: "hsl(0, 0%, 20%)",
     borderRadius: 2,
-    marginBottom: 12,
+    position: "relative",
   },
   fullScreenProgressBar: {
     height: "100%",
     backgroundColor: "#C2CC06",
     borderRadius: 2,
+  },
+  fullScreenScrubberThumb: {
+    position: "absolute",
+    top: -6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#C2CC06",
+    marginLeft: -8,
+    shadowColor: "#C2CC06",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: "hsl(0, 0%, 0%)",
   },
   progressText: {
     fontSize: 14,
