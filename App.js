@@ -27,6 +27,7 @@ import MiniPlayer from "./components/AudioPlayer/MiniPlayer";
 import RhoodModal from "./components/RhoodModal";
 import BriefForm from "./components/BriefForm";
 import EditProfileScreen from "./components/EditProfileScreen";
+import Header from "./components/Header";
 
 // Styles
 import { COLORS } from "./lib/sharedStyles";
@@ -105,7 +106,10 @@ function AppContent() {
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <StatusBar style="light" backgroundColor={COLORS.background} />
 
-        {/* Main Content - This includes the header */}
+        {/* Header */}
+        <Header />
+
+        {/* Main Content */}
         <View style={{ flex: 1 }}>
           <ScreenRenderer />
         </View>
