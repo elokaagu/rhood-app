@@ -2318,12 +2318,7 @@ export default function App() {
             ]}
             {...audioPlayerPanResponder.panHandlers}
           >
-            <TouchableOpacity
-              style={styles.audioPlayerContent}
-              onPress={() => setShowFullScreenPlayer(true)}
-              activeOpacity={0.8}
-              disabled={isAudioPlayerSwiping}
-            >
+            <View style={styles.audioPlayerContent}>
               <View style={styles.audioTrackInfo}>
                 <Text style={styles.audioTrackTitle} numberOfLines={1}>
                   {globalAudioState.currentTrack.title}
@@ -2331,28 +2326,12 @@ export default function App() {
                 <Text style={styles.audioTrackArtist} numberOfLines={1}>
                   {globalAudioState.currentTrack.artist}
                 </Text>
-                {/* Swipe hint indicator */}
-                {!isAudioPlayerSwiping && (
-                  <View style={styles.swipeHint}>
-                    <Ionicons name="chevron-up" size={12} color="#C2CC06" />
-                    <Text style={styles.swipeHintText}>
-                      Swipe up for full player
-                    </Text>
-                    <Ionicons name="chevron-down" size={12} color="#C2CC06" />
-                    <Text style={styles.swipeHintText}>
-                      Swipe down to dismiss
-                    </Text>
-                  </View>
-                )}
               </View>
 
-              {/* Timer in the middle */}
+              {/* Timer - Compact format */}
               <View style={styles.audioTimeContainer}>
                 <Text style={styles.audioTimeText}>
-                  {formatTime(globalAudioState.positionMillis || 0)}
-                </Text>
-                <Text style={styles.audioTimeText}>
-                  {formatTime(globalAudioState.durationMillis || 0)}
+                  {formatTime(globalAudioState.positionMillis || 0)} / {formatTime(globalAudioState.durationMillis || 0)}
                 </Text>
               </View>
 
@@ -2389,42 +2368,43 @@ export default function App() {
                 </TouchableOpacity>
               </View>
 
-              {/* Progress Bar - Scrubbable */}
-              <View
-                style={styles.audioProgressContainer}
-                {...miniPlayerPanResponder.panHandlers}
-              >
-                <View style={styles.audioProgressBar}>
+            </View>
+
+            {/* Progress Bar - Scrubbable */}
+            <View
+              style={styles.audioProgressContainer}
+              {...miniPlayerPanResponder.panHandlers}
+            >
+              <View style={styles.audioProgressBar}>
+                <View
+                  style={[
+                    styles.audioProgressFill,
+                    {
+                      width: `${
+                        isScrubbing
+                          ? scrubbingPosition * 100
+                          : globalAudioState.progress || 0
+                      }%`,
+                    },
+                  ]}
+                />
+                {/* Scrubber thumb - shows when scrubbing */}
+                {isScrubbing && (
                   <View
                     style={[
-                      styles.audioProgressFill,
-                      {
-                        width: `${
-                          isScrubbing
-                            ? scrubbingPosition * 100
-                            : globalAudioState.progress || 0
-                        }%`,
-                      },
+                      styles.scrubberThumb,
+                      { left: `${scrubbingPosition * 100}%` },
                     ]}
                   />
-                  {/* Scrubber thumb - shows when scrubbing */}
-                  {isScrubbing && (
-                    <View
-                      style={[
-                        styles.scrubberThumb,
-                        { left: `${scrubbingPosition * 100}%` },
-                      ]}
-                    />
-                  )}
-                </View>
-                {/* Time display when scrubbing */}
-                {isScrubbing && (
-                  <Text style={styles.scrubTimeText}>
-                    {formatTime(scrubbingPosition * globalAudioState.durationMillis)}
-                  </Text>
                 )}
               </View>
-            </TouchableOpacity>
+              {/* Time display when scrubbing */}
+              {isScrubbing && (
+                <Text style={styles.scrubTimeText}>
+                  {formatTime(scrubbingPosition * globalAudioState.durationMillis)}
+                </Text>
+              )}
+            </View>
           </Animated.View>
         )}
 
