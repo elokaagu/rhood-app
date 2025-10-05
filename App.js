@@ -871,15 +871,18 @@ export default function App() {
   const skipForward = async () => {
     if (globalAudioRef.current) {
       try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const currentPosition = globalAudioState.positionMillis || 0;
         const duration = globalAudioState.durationMillis || 0;
         const newPosition = Math.min(
-          currentPosition + 10000, // Skip 10 seconds
+          currentPosition + 15000, // Skip 15 seconds
           duration
         );
-        await globalAudioRef.current.seekTo(newPosition);
+        await globalAudioRef.current.setPositionAsync(newPosition);
+        console.log(`⏩ Skipped forward to ${newPosition}ms`);
       } catch (error) {
-        console.log("Error skipping forward:", error);
+        console.error("❌ Error skipping forward:", error);
+        Alert.alert("Error", "Failed to skip forward");
       }
     }
   };
@@ -888,14 +891,17 @@ export default function App() {
   const skipBackward = async () => {
     if (globalAudioRef.current) {
       try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const currentPosition = globalAudioState.positionMillis || 0;
         const newPosition = Math.max(
-          currentPosition - 10000, // Skip back 10 seconds
+          currentPosition - 15000, // Skip back 15 seconds
           0
         );
-        await globalAudioRef.current.seekTo(newPosition);
+        await globalAudioRef.current.setPositionAsync(newPosition);
+        console.log(`⏪ Skipped backward to ${newPosition}ms`);
       } catch (error) {
-        console.log("Error skipping backward:", error);
+        console.error("❌ Error skipping backward:", error);
+        Alert.alert("Error", "Failed to skip backward");
       }
     }
   };
@@ -911,6 +917,69 @@ export default function App() {
         repeatMode: modes[nextIndex],
       };
     });
+  };
+
+  // Like/Unlike functionality
+  const toggleLike = async () => {
+    if (!globalAudioState.currentTrack || !user) return;
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      const isLiked = globalAudioState.currentTrack.isLiked;
+      
+      // Optimistically update UI
+      setGlobalAudioState((prev) => ({
+        ...prev,
+        currentTrack: {
+          ...prev.currentTrack,
+          isLiked: !isLiked,
+        },
+      }));
+
+      // Update database
+      if (isLiked) {
+        // Unlike - decrement likes_count
+        const { error } = await supabase
+          .from("mixes")
+          .update({ likes_count: globalAudioState.currentTrack.likes_count - 1 })
+          .eq("id", globalAudioState.currentTrack.id);
+        
+        if (error) throw error;
+        console.log("👎 Unliked mix");
+      } else {
+        // Like - increment likes_count
+        const { error } = await supabase
+          .from("mixes")
+          .update({ likes_count: (globalAudioState.currentTrack.likes_count || 0) + 1 })
+          .eq("id", globalAudioState.currentTrack.id);
+        
+        if (error) throw error;
+        console.log("❤️ Liked mix");
+      }
+    } catch (error) {
+      console.error("❌ Error toggling like:", error);
+      // Revert optimistic update
+      setGlobalAudioState((prev) => ({
+        ...prev,
+        currentTrack: {
+          ...prev.currentTrack,
+          isLiked: !prev.currentTrack.isLiked,
+        },
+      }));
+    }
+  };
+
+  // Seek to position in track
+  const seekToPosition = async (positionMillis) => {
+    if (globalAudioRef.current) {
+      try {
+        await globalAudioRef.current.setPositionAsync(positionMillis);
+        console.log(`⏭️ Seeked to ${positionMillis}ms`);
+      } catch (error) {
+        console.error("❌ Error seeking:", error);
+      }
+    }
   };
 
   // Share functionality
@@ -2273,9 +2342,9 @@ export default function App() {
 
                 <TouchableOpacity
                   style={styles.audioControlButton}
-                  onPress={() => {
-                    // Skip forward 15 seconds
-                    // This would need to be implemented in the audio functions
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    skipForward();
                   }}
                 >
                   <Ionicons
@@ -2349,14 +2418,25 @@ export default function App() {
 
                 {/* Progress Section */}
                 <View style={styles.fullScreenProgressSection}>
-                  <View style={styles.fullScreenProgressContainer}>
+                  <TouchableOpacity
+                    style={styles.fullScreenProgressContainer}
+                    activeOpacity={0.8}
+                    onPress={(e) => {
+                      // Get tap position and calculate new position
+                      const { locationX } = e.nativeEvent;
+                      const containerWidth = e.currentTarget.offsetWidth || 300;
+                      const percentage = locationX / containerWidth;
+                      const newPosition = percentage * globalAudioState.durationMillis;
+                      seekToPosition(newPosition);
+                    }}
+                  >
                     <View
                       style={[
                         styles.fullScreenProgressBar,
                         { width: `${globalAudioState.progress}%` },
                       ]}
                     />
-                  </View>
+                  </TouchableOpacity>
                   <Text style={styles.progressText}>
                     {formatTime(globalAudioState.positionMillis)} /{" "}
                     {formatTime(globalAudioState.durationMillis)}
@@ -2441,11 +2521,14 @@ export default function App() {
 
                 {/* Additional Actions */}
                 <View style={styles.fullScreenActions}>
-                  <TouchableOpacity style={styles.actionButton}>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={toggleLike}
+                  >
                     <Ionicons
-                      name="heart-outline"
+                      name={globalAudioState.currentTrack?.isLiked ? "heart" : "heart-outline"}
                       size={20}
-                      color="hsl(0, 0%, 70%)"
+                      color={globalAudioState.currentTrack?.isLiked ? "hsl(0, 100%, 60%)" : "hsl(0, 0%, 70%)"}
                     />
                   </TouchableOpacity>
 
@@ -2460,7 +2543,10 @@ export default function App() {
                     />
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.actionButton}>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => Alert.alert("More Options", "Additional options coming soon!")}
+                  >
                     <Ionicons
                       name="ellipsis-horizontal"
                       size={20}
