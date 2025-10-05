@@ -300,15 +300,15 @@ export default function MessagesScreen({ navigation, route }) {
         .from("user_profiles")
         .select("*")
         .eq("id", djId)
-        .single();
+        .maybeSingle();
 
-      if (profileError) {
+      if (profileError || !otherUserProfile) {
         console.error("Error fetching user profile:", profileError);
         // Fallback to mock data
         setOtherUser({
           id: djId,
-          dj_name: currentDJ.name,
-          profile_image_url: currentDJ.profileImage,
+          dj_name: currentDJ?.name || "Unknown User",
+          profile_image_url: currentDJ?.profileImage || null,
         });
       } else {
         setOtherUser(otherUserProfile);
