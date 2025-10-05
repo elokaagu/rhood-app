@@ -621,7 +621,8 @@ export default function App() {
       }
 
       // Set up status update listener
-      sound.setOnPlaybackStatusUpdate((status) => {
+      let durationUpdated = false; // Track if we've updated duration in DB
+      sound.setOnPlaybackStatusUpdate(async (status) => {
         console.log("📊 Audio status update:", status);
         if (status.isLoaded) {
           setGlobalAudioState((prev) => ({
@@ -632,6 +633,33 @@ export default function App() {
             positionMillis: status.positionMillis || 0,
             durationMillis: status.durationMillis || 0,
           }));
+
+          // Update duration in database if not already set and we have the duration
+          if (
+            !durationUpdated &&
+            status.durationMillis &&
+            status.durationMillis > 0 &&
+            track.id
+          ) {
+            durationUpdated = true;
+            const durationInSeconds = Math.floor(status.durationMillis / 1000);
+            
+            try {
+              const { error } = await supabase
+                .from("mixes")
+                .update({ duration: durationInSeconds })
+                .eq("id", track.id)
+                .is("duration", null); // Only update if duration is null
+              
+              if (error) {
+                console.error("❌ Error updating duration:", error);
+              } else {
+                console.log(`✅ Updated duration for "${track.title}": ${durationInSeconds}s`);
+              }
+            } catch (err) {
+              console.error("❌ Failed to update duration:", err);
+            }
+          }
         } else if (status.error) {
           console.error("❌ Audio error:", status.error);
           setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
