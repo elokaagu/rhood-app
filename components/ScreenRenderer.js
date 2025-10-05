@@ -21,7 +21,7 @@ import SwipeableOpportunityCard from "./SwipeableOpportunityCard";
 
 const ScreenRenderer = () => {
   const { currentScreen, screenParams, navigateToScreen } = useNavigation();
-  const { user } = useAuth();
+  const { user, handleSignOut } = useAuth();
   const {
     opportunities,
     currentOpportunity,
@@ -83,7 +83,12 @@ const ScreenRenderer = () => {
         return <ConnectionsDiscoveryScreen {...commonProps} />;
 
       case "messages":
-        return <MessagesScreen {...commonProps} />;
+        return (
+          <MessagesScreen
+            navigation={{ goBack: () => navigateToScreen("connections") }}
+            route={{ params: screenParams }}
+          />
+        );
 
       case "notifications":
         return <NotificationsScreen {...commonProps} />;
@@ -95,7 +100,7 @@ const ScreenRenderer = () => {
         return <ProfileScreen {...commonProps} />;
 
       case "settings":
-        return <SettingsScreen {...commonProps} />;
+        return <SettingsScreen {...commonProps} onSignOut={handleSignOut} />;
 
       case "edit-profile":
         return <EditProfileScreen {...commonProps} />;
