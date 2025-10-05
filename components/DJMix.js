@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -73,35 +73,64 @@ const DJMix = ({
   }, [isPlaying, pulseAnim]);
 
   // Swipe to delete gesture handler (only for own mixes)
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => isOwnMix,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return isOwnMix && Math.abs(gestureState.dx) > 10;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dx < 0) {
-          // Only allow left swipe
-          swipeAnim.setValue(Math.max(gestureState.dx, -100));
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -50) {
-          // Swipe threshold reached - show delete button
-          Animated.spring(swipeAnim, {
-            toValue: -80,
-            useNativeDriver: true,
-          }).start();
-        } else {
-          // Reset position
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => isOwnMix,
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          // Only respond to horizontal swipes (left)
+          return isOwnMix && gestureState.dx < -10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        },
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          return isOwnMix && gestureState.dx < -10;
+        },
+        onPanResponderGrant: () => {
+          // Start of gesture
+          if (isOwnMix) {
+            swipeAnim.setOffset(swipeAnim._value);
+            swipeAnim.setValue(0);
+          }
+        },
+        onPanResponderMove: (_, gestureState) => {
+          if (isOwnMix && gestureState.dx < 0) {
+            // Only allow left swipe, max 100px
+            const newValue = Math.max(gestureState.dx, -100);
+            swipeAnim.setValue(newValue);
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          swipeAnim.flattenOffset();
+          
+          if (gestureState.dx < -50) {
+            // Swipe threshold reached - show delete button
+            Animated.spring(swipeAnim, {
+              toValue: -80,
+              useNativeDriver: true,
+              tension: 40,
+              friction: 8,
+            }).start();
+          } else {
+            // Reset position
+            Animated.spring(swipeAnim, {
+              toValue: 0,
+              useNativeDriver: true,
+              tension: 40,
+              friction: 8,
+            }).start();
+          }
+        },
+        onPanResponderTerminate: () => {
+          // Reset if gesture is interrupted
+          swipeAnim.flattenOffset();
           Animated.spring(swipeAnim, {
             toValue: 0,
             useNativeDriver: true,
           }).start();
-        }
-      },
-    })
-  ).current;
+        },
+      }),
+    [isOwnMix, swipeAnim]
+  );
 
   const handleDelete = () => {
     Alert.alert(
@@ -158,12 +187,13 @@ const DJMix = ({
             transform: [{ translateX: swipeAnim }],
           },
         ]}
-        {...(isOwnMix ? panResponder.panHandlers : {})}
+        {...panResponder.panHandlers}
       >
         <TouchableOpacity
           style={styles.mixCard}
           onPress={onPlayPause}
           activeOpacity={0.7}
+          delayPressIn={isOwnMix ? 100 : 0}
         >
           {/* Track Number */}
           <View style={styles.trackNumber}>
