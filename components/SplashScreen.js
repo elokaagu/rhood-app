@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   spinnerContainer: {
     width: 360,
     height: 360,
-    marginBottom: 40,
+    marginBottom: 20,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   logoImage: {
     height: 60,
     width: 220,
-    marginBottom: 20,
+    marginBottom: 15,
   },
   tsBlockBoldSubtitle: {
     fontFamily: "TS-Block-Bold",
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase", // Always uppercase
     lineHeight: 28, // Tight line height for stacked effect
     letterSpacing: 1, // Slight spacing for impact
-    marginBottom: 30,
+    marginBottom: 20,
   },
   subtitle: {
     fontSize: 16,
@@ -249,8 +249,8 @@ const styles = StyleSheet.create({
   progressContainer: {
     width: "80%",
     alignItems: "center",
-    marginTop: 20,
-    marginBottom: 20,
+    marginTop: 15,
+    marginBottom: 15,
   },
   progressBar: {
     width: "100%",
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 15,
   },
   loadingDot: {
     width: 8,

@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import NotificationTest from "./NotificationTest";
 
 export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -285,16 +284,10 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
       >
         <View style={styles.settingLeft}>
           <View style={styles.settingIcon}>
-            <Ionicons
-              name={item.icon}
-              size={20}
-              color="hsl(75, 100%, 60%)"
-            />
+            <Ionicons name={item.icon} size={20} color="hsl(75, 100%, 60%)" />
           </View>
           <View style={styles.settingContent}>
-            <Text style={styles.settingTitle}>
-              {item.title}
-            </Text>
+            <Text style={styles.settingTitle}>{item.title}</Text>
             <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
           </View>
         </View>
@@ -387,9 +380,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
             </View>
           ))}
         </View>
-
-        {/* Notification Test */}
-        <NotificationTest userId={user?.id} />
 
         {/* App Version */}
         <View style={styles.versionContainer}>
