@@ -332,7 +332,7 @@ export default function ConnectionsScreen({ onNavigate }) {
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser();
-      
+
       if (!currentUser) {
         console.log("No current user, using mock data");
         setDiscoverUsers(mockDiscoverUsers);
@@ -349,7 +349,9 @@ export default function ConnectionsScreen({ onNavigate }) {
       if (error) throw error;
 
       // Filter out users we're already connected to
-      const connectedUserIds = connections.map((conn) => conn.connected_user_id);
+      const connectedUserIds = connections.map(
+        (conn) => conn.connected_user_id
+      );
       const discoverUsers =
         allUsers?.filter((user) => !connectedUserIds.includes(user.id)) || [];
 
@@ -559,48 +561,50 @@ export default function ConnectionsScreen({ onNavigate }) {
           </View>
         </View>
 
-        {/* Pinned Group Chat Section */}
-        <View style={styles.pinnedGroup}>
-          <TouchableOpacity
-            style={styles.groupChatItem}
-            onPress={handleGroupChatPress}
-          >
-            {/* Group Avatar */}
-            <View style={styles.groupAvatarContainer}>
-              <View style={styles.groupAvatar}>
-                <Image
-                  source={require("../assets/rhood_logo.webp")}
-                  style={styles.groupLogo}
-                  resizeMode="contain"
-                />
-              </View>
-              {/* Online Status Indicator */}
-              <View style={styles.onlineIndicator} />
-            </View>
-
-            {/* Group Chat Info */}
-            <View style={styles.groupInfo}>
-              <View style={styles.groupHeader}>
-                <Text style={styles.groupName}>RHOOD Group</Text>
-                <Text style={styles.groupTime}>2m</Text>
-              </View>
-              <Text style={styles.groupMessage} numberOfLines={1}>
-                Sofia: Yeah, the set was amazing! 🔥
-              </Text>
-              <View style={styles.groupBadges}>
-                <View style={styles.pinnedBadge}>
-                  <Text style={styles.pinnedBadgeText}>Pinned</Text>
+        {/* Pinned Group Chat Section - Only show on connections tab */}
+        {activeTab === "connections" && (
+          <View style={styles.pinnedGroup}>
+            <TouchableOpacity
+              style={styles.groupChatItem}
+              onPress={handleGroupChatPress}
+            >
+              {/* Group Avatar */}
+              <View style={styles.groupAvatarContainer}>
+                <View style={styles.groupAvatar}>
+                  <Image
+                    source={require("../assets/rhood_logo.webp")}
+                    style={styles.groupLogo}
+                    resizeMode="contain"
+                  />
                 </View>
-                <Text style={styles.memberCount}>12 members</Text>
+                {/* Online Status Indicator */}
+                <View style={styles.onlineIndicator} />
               </View>
-            </View>
 
-            {/* Unread Messages Counter */}
-            <View style={styles.unreadCounter}>
-              <Text style={styles.unreadCount}>3</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+              {/* Group Chat Info */}
+              <View style={styles.groupInfo}>
+                <View style={styles.groupHeader}>
+                  <Text style={styles.groupName}>RHOOD Group</Text>
+                  <Text style={styles.groupTime}>2m</Text>
+                </View>
+                <Text style={styles.groupMessage} numberOfLines={1}>
+                  Sofia: Yeah, the set was amazing! 🔥
+                </Text>
+                <View style={styles.groupBadges}>
+                  <View style={styles.pinnedBadge}>
+                    <Text style={styles.pinnedBadgeText}>Pinned</Text>
+                  </View>
+                  <Text style={styles.memberCount}>12 members</Text>
+                </View>
+              </View>
+
+              {/* Unread Messages Counter */}
+              <View style={styles.unreadCounter}>
+                <Text style={styles.unreadCount}>3</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Content based on active tab */}
         {activeTab === "connections" ? (
@@ -726,7 +730,8 @@ export default function ConnectionsScreen({ onNavigate }) {
                         <View style={styles.djInfo}>
                           <ProgressiveImage
                             source={{
-                              uri: user.profileImage ||
+                              uri:
+                                user.profileImage ||
                                 "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
                             }}
                             style={styles.djAvatar}
@@ -736,8 +741,12 @@ export default function ConnectionsScreen({ onNavigate }) {
                               <Text style={styles.djName}>{user.name}</Text>
                               <View style={styles.onlineIndicator} />
                             </View>
-                            <Text style={styles.djUsername}>{user.username}</Text>
-                            <Text style={styles.djLocation}>{user.location}</Text>
+                            <Text style={styles.djUsername}>
+                              {user.username}
+                            </Text>
+                            <Text style={styles.djLocation}>
+                              {user.location}
+                            </Text>
                           </View>
                         </View>
                         <View style={styles.djActions}>
@@ -749,7 +758,9 @@ export default function ConnectionsScreen({ onNavigate }) {
                             />
                             <Text style={styles.ratingText}>{user.rating}</Text>
                           </View>
-                          <Text style={styles.lastActive}>{user.lastActive}</Text>
+                          <Text style={styles.lastActive}>
+                            {user.lastActive}
+                          </Text>
                         </View>
                       </View>
 
@@ -782,14 +793,20 @@ export default function ConnectionsScreen({ onNavigate }) {
                             size={16}
                             color="hsl(0, 0%, 100%)"
                           />
-                          <Text style={styles.viewProfileText}>View Profile</Text>
+                          <Text style={styles.viewProfileText}>
+                            View Profile
+                          </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.connectButton}
                           onPress={() => handleConnect(user)}
                           disabled={discoverLoading}
                         >
-                          <Ionicons name="add" size={16} color="hsl(0, 0%, 0%)" />
+                          <Ionicons
+                            name="add"
+                            size={16}
+                            color="hsl(0, 0%, 0%)"
+                          />
                           <Text style={styles.connectText}>Connect</Text>
                         </TouchableOpacity>
                       </View>
