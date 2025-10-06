@@ -2194,65 +2194,6 @@ export default function App() {
           </ScrollView>
         );
 
-      case "settings":
-        return (
-          <ScrollView style={styles.screen}>
-            <Text style={styles.tsBlockBoldHeading}>SETTINGS</Text>
-            <View style={styles.settingsCard}>
-              <Text style={styles.settingsTitle}>Account</Text>
-              <TouchableOpacity
-                style={styles.settingsItem}
-                onPress={handleEditProfile}
-              >
-                <Text style={styles.settingsItemText}>Edit Profile</Text>
-                <Text style={styles.settingsArrow}>›</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.settingsItem}>
-                <Text style={styles.settingsItemText}>Privacy Settings</Text>
-                <Text style={styles.settingsArrow}>›</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.settingsItem}>
-                <Text style={styles.settingsItemText}>
-                  Notification Preferences
-                </Text>
-                <Text style={styles.settingsArrow}>›</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.settingsCard}>
-              <Text style={styles.settingsTitle}>App</Text>
-              <TouchableOpacity style={styles.settingsItem}>
-                <Text style={styles.settingsItemText}>Theme</Text>
-                <Text style={styles.settingsArrow}>›</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.settingsItem}>
-                <Text style={styles.settingsItemText}>Language</Text>
-                <Text style={styles.settingsArrow}>›</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.settingsItem}>
-                <Text style={styles.settingsItemText}>About R/HOOD</Text>
-                <Text style={styles.settingsArrow}>›</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.settingsCard}>
-              <Text style={styles.settingsTitle}>Account</Text>
-              <TouchableOpacity
-                style={styles.settingsItem}
-                onPress={handleLogout}
-              >
-                <Text
-                  style={[
-                    styles.settingsItemText,
-                    { color: "hsl(0, 100%, 50%)" },
-                  ]}
-                >
-                  Sign Out
-                </Text>
-                <Text style={styles.settingsArrow}>›</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        );
-
       default:
         return (
           <ListenScreen

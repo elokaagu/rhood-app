@@ -227,7 +227,7 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Text style={styles.headerTitle}>CONNECTIONS</Text>
+            <Text style={styles.tsBlockBoldHeading}>CONNECTIONS</Text>
           </View>
           <Text style={styles.headerSubtitle}>
             {activeTab === "discover"
@@ -455,11 +455,15 @@ const styles = StyleSheet.create({
   headerTop: {
     marginBottom: 8,
   },
-  headerTitle: {
-    fontSize: 24,
+  tsBlockBoldHeading: {
     fontFamily: "TS-Block-Bold",
-    color: "hsl(0, 0%, 100%)",
-    fontWeight: "900",
+    fontSize: 22,
+    color: "#FFFFFF", // Brand white
+    textAlign: "left", // Left aligned as per guidelines
+    textTransform: "uppercase", // Always uppercase
+    lineHeight: 26, // Tight line height for stacked effect
+    letterSpacing: 1, // Slight spacing for impact
+    marginBottom: 16,
   },
   headerSubtitle: {
     fontSize: 16,

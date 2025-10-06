@@ -344,7 +344,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>SETTINGS</Text>
+          <Text style={styles.tsBlockBoldHeading}>SETTINGS</Text>
         </View>
 
         {/* Search Bar */}
@@ -438,12 +438,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  headerTitle: {
-    fontSize: TYPOGRAPHY["3xl"],
-    fontFamily: TYPOGRAPHY.bold,
-    color: COLORS.textPrimary,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+  tsBlockBoldHeading: {
+    fontFamily: "TS-Block-Bold",
+    fontSize: 22,
+    color: "#FFFFFF", // Brand white
+    textAlign: "left", // Left aligned as per guidelines
+    textTransform: "uppercase", // Always uppercase
+    lineHeight: 26, // Tight line height for stacked effect
+    letterSpacing: 1, // Slight spacing for impact
+    marginBottom: 16,
   },
   searchContainer: {
     flexDirection: "row",
