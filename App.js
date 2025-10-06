@@ -1152,6 +1152,7 @@ export default function App() {
 
   // Simple touch handler for progress bar scrubbing
   const handleProgressBarPress = async (event) => {
+    event.stopPropagation();
     console.log(`🎯 Progress bar pressed`);
     console.log(`🎯 Touch event:`, event.nativeEvent);
 
@@ -2619,7 +2620,8 @@ export default function App() {
                 <View style={styles.audioControls}>
                   <TouchableOpacity
                     style={styles.audioControlButton}
-                    onPress={() => {
+                    onPress={(e) => {
+                      e.stopPropagation();
                       if (globalAudioState.isPlaying) {
                         pauseGlobalAudio();
                       } else {
