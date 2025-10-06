@@ -170,24 +170,15 @@ const AutoScrollText = ({ text, style, containerWidth = 200 }) => {
 
   useEffect(() => {
     if (textWidth > containerWidth && shouldScroll) {
-      const scrollDistance = textWidth - containerWidth + 20; // Add some padding
-      const scrollDuration = Math.max(3000, scrollDistance * 15); // Adjust speed based on text length
+      const scrollDistance = textWidth - containerWidth + 40; // Add padding for smooth loop
+      const scrollDuration = Math.max(8000, scrollDistance * 30); // Much slower scroll
 
       const scrollAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.delay(1000), // Wait 1 second before starting
-          Animated.timing(scrollAnim, {
-            toValue: scrollDistance,
-            duration: scrollDuration,
-            useNativeDriver: true,
-          }),
-          Animated.delay(500), // Brief pause at the end
-          Animated.timing(scrollAnim, {
-            toValue: 0,
-            duration: 0, // Instant reset to start
-            useNativeDriver: true,
-          }),
-        ])
+        Animated.timing(scrollAnim, {
+          toValue: scrollDistance,
+          duration: scrollDuration,
+          useNativeDriver: true,
+        })
       );
 
       scrollAnimation.start();
