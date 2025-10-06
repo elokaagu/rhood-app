@@ -57,47 +57,10 @@ import UploadMixScreen from "./components/UploadMixScreen";
 //   setupNotificationListeners,
 // } from "./lib/pushNotifications";
 
-// Animated Album Art Component with pulse effect
+// Static Album Art Component
 const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (isPlaying) {
-      // Pulse animation
-      const pulseAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.05,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-
-      pulseAnimation.start();
-
-      return () => {
-        pulseAnimation.stop();
-      };
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [isPlaying]);
-
   return (
-    <Animated.View
-      style={[
-        style,
-        {
-          transform: [{ scale: pulseAnim }],
-        },
-      ]}
-    >
+    <View style={style}>
       {image ? (
         <Image
           source={{ uri: image }}
@@ -109,7 +72,7 @@ const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
           <Ionicons name="musical-notes" size={48} color="hsl(75, 100%, 60%)" />
         </View>
       )}
-    </Animated.View>
+    </View>
   );
 };
 
