@@ -203,10 +203,6 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
               onPress={handleGoogleSignIn}
               disabled={loading}
             >
-              {/* Google Logo - using text fallback */}
-              <View style={styles.logoContainer}>
-                <Text style={styles.googleLogo}>G</Text>
-              </View>
               <Text style={styles.socialButtonText}>Continue with Google</Text>
             </TouchableOpacity>
 
@@ -221,10 +217,6 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
                 onPress={handleAppleSignIn}
                 disabled={loading}
               >
-                {/* Apple Logo - using text fallback */}
-                <View style={styles.logoContainer}>
-                  <Text style={styles.appleLogo}>●</Text>
-                </View>
                 <Text style={[styles.socialButtonText, styles.appleButtonText]}>
                   Continue with Apple
                 </Text>
@@ -395,23 +387,5 @@ const styles = StyleSheet.create({
   },
   appleButtonText: {
     color: "hsl(0, 0%, 100%)",
-  },
-  logoContainer: {
-    width: 20,
-    height: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  googleLogo: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#4285F4",
-    fontFamily: "Arial",
-  },
-  appleLogo: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#000000",
-    fontFamily: "Arial",
   },
 });
