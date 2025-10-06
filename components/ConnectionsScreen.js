@@ -17,7 +17,7 @@ import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import * as Haptics from "expo-haptics";
 import { connectionsService } from "../lib/connectionsService";
-import { supabase } from "../lib/supabase";
+import { supabase, db } from "../lib/supabase";
 import { SkeletonList } from "./Skeleton";
 
 // Mock discover users data (fallback when database is empty)
@@ -200,7 +200,6 @@ export default function ConnectionsScreen({ onNavigate }) {
       setUser(currentUser);
 
       // Get user's connections from database
-      const { db } = await import("../lib/supabase");
       const connectionsData = await db.getUserConnections(currentUser.id, 'accepted');
       
       if (connectionsData && connectionsData.length > 0) {
@@ -296,7 +295,6 @@ export default function ConnectionsScreen({ onNavigate }) {
       setDiscoverLoading(true);
       
       // Get all users from database (excluding current user and existing connections)
-      const { db } = await import("../lib/supabase");
       const { data: allUsers, error } = await supabase
         .from("user_profiles")
         .select("*")
