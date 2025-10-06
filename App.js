@@ -1131,42 +1131,27 @@ export default function App() {
     }));
   };
 
-  // Skip forward functionality
+  // Skip forward functionality - now navigates to next track
   const skipForward = async () => {
-    if (globalAudioRef.current) {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        const currentPosition = globalAudioState.positionMillis || 0;
-        const duration = globalAudioState.durationMillis || 0;
-        const newPosition = Math.min(
-          currentPosition + 15000, // Skip 15 seconds
-          duration
-        );
-        await globalAudioRef.current.setPositionAsync(newPosition);
-        console.log(`⏩ Skipped forward to ${newPosition}ms`);
-      } catch (error) {
-        console.error("❌ Error skipping forward:", error);
-        Alert.alert("Error", "Failed to skip forward");
-      }
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await playNextTrack();
+      console.log(`⏩ Skipped to next track`);
+    } catch (error) {
+      console.error("❌ Error skipping forward:", error);
+      Alert.alert("Error", "Failed to skip to next track");
     }
   };
 
-  // Skip backward functionality
+  // Skip backward functionality - now navigates to previous track
   const skipBackward = async () => {
-    if (globalAudioRef.current) {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        const currentPosition = globalAudioState.positionMillis || 0;
-        const newPosition = Math.max(
-          currentPosition - 15000, // Skip back 15 seconds
-          0
-        );
-        await globalAudioRef.current.setPositionAsync(newPosition);
-        console.log(`⏪ Skipped backward to ${newPosition}ms`);
-      } catch (error) {
-        console.error("❌ Error skipping backward:", error);
-        Alert.alert("Error", "Failed to skip backward");
-      }
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await playPreviousTrack();
+      console.log(`⏪ Skipped to previous track`);
+    } catch (error) {
+      console.error("❌ Error skipping backward:", error);
+      Alert.alert("Error", "Failed to skip to previous track");
     }
   };
 
@@ -1399,6 +1384,39 @@ export default function App() {
     return queue[nextIndex];
   };
 
+  const getPreviousTrack = () => {
+    const { queue, currentQueueIndex, repeatMode } = globalAudioState;
+
+    if (queue.length === 0) return null;
+
+    // Handle repeat one mode
+    if (repeatMode === "one" && globalAudioState.currentTrack) {
+      return globalAudioState.currentTrack;
+    }
+
+    let prevIndex;
+
+    if (repeatMode === "all") {
+      // Repeat all - cycle back to end
+      prevIndex = currentQueueIndex === 0 ? queue.length - 1 : currentQueueIndex - 1;
+    } else {
+      // Normal progression
+      prevIndex = currentQueueIndex - 1;
+    }
+
+    // Check if we've reached the beginning
+    if (prevIndex < 0) {
+      if (repeatMode === "all") {
+        // Already handled above
+      } else {
+        console.log("🎵 Beginning of queue reached");
+        return null;
+      }
+    }
+
+    return queue[prevIndex];
+  };
+
   const playNextTrack = async () => {
     const nextTrack = getNextTrack();
 
@@ -1417,6 +1435,25 @@ export default function App() {
       console.log("🎵 No more tracks in queue");
       // Stop playback when queue is empty
       await stopGlobalAudio();
+    }
+  };
+
+  const playPreviousTrack = async () => {
+    const prevTrack = getPreviousTrack();
+
+    if (prevTrack) {
+      console.log(`⏮️ Playing previous track: "${prevTrack.title}"`);
+
+      // Update queue index
+      setGlobalAudioState((prev) => ({
+        ...prev,
+        currentQueueIndex: prev.currentQueueIndex - 1,
+      }));
+
+      // Play the previous track
+      await playGlobalAudio(prevTrack);
+    } else {
+      console.log("🎵 No previous tracks in queue");
     }
   };
 
