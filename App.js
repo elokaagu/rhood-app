@@ -1831,7 +1831,7 @@ export default function App() {
 
       case "connections":
         return (
-          <ConnectionsDiscoveryScreen
+          <ConnectionsScreen
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
