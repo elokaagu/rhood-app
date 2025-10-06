@@ -179,16 +179,29 @@ export default function ConnectionsScreen({ onNavigate }) {
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("connections"); // 'connections' or 'discover'
+  const [activeTab, setActiveTab] = useState("discover"); // 'connections' or 'discover'
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [discoverUsers, setDiscoverUsers] = useState([]);
   const [connectionsFadeAnim] = useState(new Animated.Value(0));
   const [discoverFadeAnim] = useState(new Animated.Value(0));
 
-  // Load user and connections on mount
+  // Load user and discover data on mount
   useEffect(() => {
     loadUserAndConnections();
+    loadDiscoverDJs(); // Load discover data initially since we start on discover tab
   }, []);
+
+  // Handle initial discover fade-in
+  useEffect(() => {
+    if (discoverUsers.length > 0 && !discoverLoading) {
+      discoverFadeAnim.setValue(0);
+      Animated.timing(discoverFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [discoverUsers, discoverLoading]);
 
   const loadUserAndConnections = async () => {
     try {
@@ -444,6 +457,8 @@ export default function ConnectionsScreen({ onNavigate }) {
                     useNativeDriver: true,
                   }).start();
                 }
+                // Reset discover fade animation
+                discoverFadeAnim.setValue(0);
               }}
             >
               <Ionicons
