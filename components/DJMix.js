@@ -244,9 +244,14 @@ const DJMix = ({
             <Text style={styles.trackTitle} numberOfLines={1}>
               {mix.title}
             </Text>
-            <Text style={styles.trackArtist} numberOfLines={1}>
-              {mix.artist}
-            </Text>
+            <TouchableOpacity
+              onPress={() => onArtistPress && onArtistPress(mix.artist, mix.user_id)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.trackArtist} numberOfLines={1}>
+                {mix.artist}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Options Menu - Show for all mixes */}

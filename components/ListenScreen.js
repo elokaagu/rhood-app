@@ -230,21 +230,14 @@ export default function ListenScreen({
     }
   };
 
-  const handleArtistPress = (artistName) => {
-    Alert.alert(
-      "Connect with Artist",
-      `Would you like to connect with ${artistName}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Connect",
-          onPress: () => {
-            // Here you would navigate to the artist's profile
-            Alert.alert("Success", `Connection request sent to ${artistName}!`);
-          },
-        },
-      ]
-    );
+  const handleArtistPress = (artistName, userId) => {
+    if (!userId) {
+      Alert.alert("Error", "Unable to find artist profile");
+      return;
+    }
+    
+    // Navigate to the artist's profile
+    onNavigate("user-profile", { userId });
   };
 
   const handleUploadMix = () => {

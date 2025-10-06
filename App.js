@@ -2777,9 +2777,19 @@ export default function App() {
                     style={styles.audioTrackTitle}
                     containerWidth={200}
                   />
-                  <Text style={styles.audioTrackArtist} numberOfLines={1}>
-                    {globalAudioState.currentTrack.artist}
-                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (globalAudioState.currentTrack.user_id) {
+                        setCurrentScreen("user-profile");
+                        setScreenParams({ userId: globalAudioState.currentTrack.user_id });
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.audioTrackArtist} numberOfLines={1}>
+                      {globalAudioState.currentTrack.artist}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 {/* Timer - Compact format */}
@@ -2874,9 +2884,20 @@ export default function App() {
                   <Text style={styles.fullScreenTrackTitle}>
                     {globalAudioState.currentTrack.title}
                   </Text>
-                  <Text style={styles.fullScreenTrackArtist}>
-                    {globalAudioState.currentTrack.artist}
-                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (globalAudioState.currentTrack.user_id) {
+                        setShowFullScreenPlayer(false);
+                        setCurrentScreen("user-profile");
+                        setScreenParams({ userId: globalAudioState.currentTrack.user_id });
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.fullScreenTrackArtist}>
+                      {globalAudioState.currentTrack.artist}
+                    </Text>
+                  </TouchableOpacity>
                   <Text style={styles.fullScreenTrackGenre}>
                     {globalAudioState.currentTrack.genre}
                   </Text>
