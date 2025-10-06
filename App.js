@@ -2506,58 +2506,44 @@ export default function App() {
               ]}
               {...audioPlayerPanResponder.panHandlers}
             >
-            <View style={styles.audioPlayerContent}>
-              {/* Album Art */}
-              <View style={styles.audioAlbumArt}>
-                {globalAudioState.currentTrack.image ? (
-                  <Image
-                    source={{ uri: globalAudioState.currentTrack.image }}
-                    style={styles.albumArtImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.albumArtPlaceholder}>
-                    <Ionicons
-                      name="musical-notes"
-                      size={24}
-                      color="hsl(75, 100%, 60%)"
+              <View style={styles.audioPlayerContent}>
+                {/* Album Art */}
+                <View style={styles.audioAlbumArt}>
+                  {globalAudioState.currentTrack.image ? (
+                    <Image
+                      source={{ uri: globalAudioState.currentTrack.image }}
+                      style={styles.albumArtImage}
+                      resizeMode="cover"
                     />
-                  </View>
-                )}
-              </View>
+                  ) : (
+                    <View style={styles.albumArtPlaceholder}>
+                      <Ionicons
+                        name="musical-notes"
+                        size={24}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                    </View>
+                  )}
+                </View>
 
-              <View style={styles.audioTrackInfo}>
-                <Text style={styles.audioTrackTitle} numberOfLines={1}>
-                  {globalAudioState.currentTrack.title}
-                </Text>
-                <Text style={styles.audioTrackArtist} numberOfLines={1}>
-                  {globalAudioState.currentTrack.artist}
-                </Text>
-              </View>
+                <View style={styles.audioTrackInfo}>
+                  <Text style={styles.audioTrackTitle} numberOfLines={1}>
+                    {globalAudioState.currentTrack.title}
+                  </Text>
+                  <Text style={styles.audioTrackArtist} numberOfLines={1}>
+                    {globalAudioState.currentTrack.artist}
+                  </Text>
+                </View>
 
-              {/* Timer - Compact format */}
-              <View style={styles.audioTimeContainer}>
-                <Text style={styles.audioTimeText}>
-                  {formatTime(globalAudioState.positionMillis || 0)} /{" "}
-                  {formatTime(globalAudioState.durationMillis || 0)}
-                </Text>
-              </View>
+                {/* Timer - Compact format */}
+                <View style={styles.audioTimeContainer}>
+                  <Text style={styles.audioTimeText}>
+                    {formatTime(globalAudioState.positionMillis || 0)} /{" "}
+                    {formatTime(globalAudioState.durationMillis || 0)}
+                  </Text>
+                </View>
 
               <View style={styles.audioControls}>
-                <TouchableOpacity
-                  style={styles.audioControlButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    skipBackward();
-                  }}
-                >
-                  <Ionicons
-                    name="play-skip-back"
-                    size={20}
-                    color="hsl(0, 0%, 100%)"
-                  />
-                </TouchableOpacity>
-
                 <TouchableOpacity
                   style={styles.audioControlButton}
                   onPress={() => {
@@ -2570,46 +2556,31 @@ export default function App() {
                 >
                   <Ionicons
                     name={globalAudioState.isPlaying ? "pause" : "play"}
-                    size={20}
-                    color="hsl(0, 0%, 100%)"
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.audioControlButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    skipForward();
-                  }}
-                >
-                  <Ionicons
-                    name="play-skip-forward"
-                    size={20}
+                    size={24}
                     color="hsl(0, 0%, 100%)"
                   />
                 </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Progress Bar - Scrubbable */}
-            <TouchableOpacity
-              ref={miniProgressBarRef}
-              style={styles.audioProgressContainer}
-              onPress={handleProgressBarPress}
-              activeOpacity={0.8}
-            >
-              <View style={styles.audioProgressBar}>
-                <View
-                  style={[
-                    styles.audioProgressFill,
-                    {
-                      width: `${(globalAudioState.progress || 0) * 100}%`,
-                    },
-                  ]}
-                />
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
+              {/* Progress Bar - Scrubbable */}
+              <TouchableOpacity
+                ref={miniProgressBarRef}
+                style={styles.audioProgressContainer}
+                onPress={handleProgressBarPress}
+                activeOpacity={0.8}
+              >
+                <View style={styles.audioProgressBar}>
+                  <View
+                    style={[
+                      styles.audioProgressFill,
+                      {
+                        width: `${(globalAudioState.progress || 0) * 100}%`,
+                      },
+                    ]}
+                  />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
           </TouchableOpacity>
         )}
 
