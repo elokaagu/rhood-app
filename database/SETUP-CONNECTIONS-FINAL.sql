@@ -6,7 +6,7 @@
 -- 2. Add all missing columns to user_profiles
 -- 3. Create connections table
 -- 4. Insert 12 mock DJ profiles
--- 5. Create connections between them
+-- 5. Create connections between themi
 --
 -- Run this SINGLE file in Supabase SQL Editor
 -- ============================================

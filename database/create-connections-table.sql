@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS connections (
   -- Connection status
   status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'blocked')),
   
-  -- Who initiated the connection
+  -- Who initiated the connectionsetup conne tions
   initiated_by UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   
   -- Metadata

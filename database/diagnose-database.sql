@@ -7,7 +7,7 @@
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_profiles') THEN
-    RAISE NOTICE '✅ user_profiles table EXISTS';
+    RAISE NOTICE '✅ user_profiles table EXISTS';npm run 
   ELSE
     RAISE NOTICE '❌ user_profiles table DOES NOT EXIST - you need to create it first!';
   END IF;

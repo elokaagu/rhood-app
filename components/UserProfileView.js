@@ -41,7 +41,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
     try {
       setLoading(true);
       setError(null);
-      
+
       const profileData = await db.getUserProfile(userId);
       setProfile(profileData);
     } catch (err) {
@@ -56,11 +56,13 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
   const handleConnect = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
+
       // Get current user
       const { supabase } = await import("../lib/supabase");
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
       if (!currentUser) {
         Alert.alert("Error", "Please log in to connect with users");
         return;
@@ -68,7 +70,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
 
       // Create connection request
       await db.createConnection(currentUser.id, userId);
-      
+
       Alert.alert(
         "Connection Sent!",
         `Connection request sent to ${profile.dj_name || profile.full_name}`,
@@ -121,7 +123,10 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           <Text style={styles.errorSubtitle}>
             This user's profile could not be loaded
           </Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadUserProfile}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={loadUserProfile}
+          >
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -138,19 +143,27 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity style={styles.moreButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color="hsl(0, 0%, 100%)" />
+          <Ionicons
+            name="ellipsis-horizontal"
+            size={24}
+            color="hsl(0, 0%, 100%)"
+          />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
           {/* Profile Header */}
           <View style={styles.profileHeader}>
             <View style={styles.profileImageContainer}>
               <ProgressiveImage
                 source={{
-                  uri: profile.profile_image_url || 
-                    "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=200&h=200&fit=crop"
+                  uri:
+                    profile.profile_image_url ||
+                    "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=200&h=200&fit=crop",
                 }}
                 style={styles.profileImage}
               />
@@ -166,11 +179,14 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                 {profile.dj_name || profile.full_name}
               </Text>
               <Text style={styles.profileUsername}>
-                @{profile.username || (profile.dj_name?.toLowerCase().replace(/\s+/g, '') || 'user')}
+                @
+                {profile.username ||
+                  profile.dj_name?.toLowerCase().replace(/\s+/g, "") ||
+                  "user"}
               </Text>
               <Text style={styles.profileLocation}>
                 <Ionicons name="location" size={14} color="hsl(0, 0%, 70%)" />
-                {profile.city || 'Location not set'}
+                {profile.city || "Location not set"}
               </Text>
 
               {/* Rating and Stats */}
@@ -180,11 +196,21 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                   <Text style={styles.statValue}>{profile.rating || 0}</Text>
                 </View>
                 <View style={styles.statItem}>
-                  <Ionicons name="briefcase" size={16} color="hsl(0, 0%, 70%)" />
-                  <Text style={styles.statValue}>{profile.gigs_completed || 0}</Text>
+                  <Ionicons
+                    name="briefcase"
+                    size={16}
+                    color="hsl(0, 0%, 70%)"
+                  />
+                  <Text style={styles.statValue}>
+                    {profile.gigs_completed || 0}
+                  </Text>
                 </View>
                 <View style={styles.statItem}>
-                  <Ionicons name="diamond" size={16} color="hsl(75, 100%, 60%)" />
+                  <Ionicons
+                    name="diamond"
+                    size={16}
+                    color="hsl(75, 100%, 60%)"
+                  />
                   <Text style={styles.statValue}>{profile.credits || 0}</Text>
                 </View>
               </View>
@@ -205,7 +231,11 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               <View style={styles.genresContainer}>
                 {profile.genres.map((genre, index) => (
                   <View key={index} style={styles.genreTag}>
-                    <Ionicons name="musical-notes" size={12} color="hsl(75, 100%, 60%)" />
+                    <Ionicons
+                      name="musical-notes"
+                      size={12}
+                      color="hsl(75, 100%, 60%)"
+                    />
                     <Text style={styles.genreText}>{genre}</Text>
                   </View>
                 ))}
@@ -221,8 +251,9 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                 <View style={styles.mixArtwork}>
                   <ProgressiveImage
                     source={{
-                      uri: profile.primary_mix.artwork_url || 
-                        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop"
+                      uri:
+                        profile.primary_mix.artwork_url ||
+                        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop",
                     }}
                     style={styles.mixImage}
                   />
@@ -231,10 +262,17 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                   </View>
                 </View>
                 <View style={styles.mixInfo}>
-                  <Text style={styles.mixTitle}>{profile.primary_mix.title}</Text>
-                  <Text style={styles.mixGenre}>{profile.primary_mix.genre}</Text>
+                  <Text style={styles.mixTitle}>
+                    {profile.primary_mix.title}
+                  </Text>
+                  <Text style={styles.mixGenre}>
+                    {profile.primary_mix.genre}
+                  </Text>
                   <Text style={styles.mixDuration}>
-                    {Math.floor(profile.primary_mix.duration / 60)}:{(profile.primary_mix.duration % 60).toString().padStart(2, '0')}
+                    {Math.floor(profile.primary_mix.duration / 60)}:
+                    {(profile.primary_mix.duration % 60)
+                      .toString()
+                      .padStart(2, "0")}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -247,7 +285,11 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
             <View style={styles.socialLinks}>
               {profile.instagram && (
                 <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="logo-instagram" size={20} color="hsl(0, 0%, 100%)" />
+                  <Ionicons
+                    name="logo-instagram"
+                    size={20}
+                    color="hsl(0, 0%, 100%)"
+                  />
                   <Text style={styles.socialText}>Instagram</Text>
                 </TouchableOpacity>
               )}
@@ -262,12 +304,18 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
+            <TouchableOpacity
+              style={styles.messageButton}
+              onPress={handleMessage}
+            >
               <Ionicons name="chatbubble" size={20} color="hsl(0, 0%, 100%)" />
               <Text style={styles.messageButtonText}>Message</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.connectButton} onPress={handleConnect}>
+
+            <TouchableOpacity
+              style={styles.connectButton}
+              onPress={handleConnect}
+            >
               <Ionicons name="person-add" size={20} color="hsl(0, 0%, 0%)" />
               <Text style={styles.connectButtonText}>Connect</Text>
             </TouchableOpacity>
