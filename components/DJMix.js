@@ -34,7 +34,7 @@ const DJMix = ({
 
   // Check if current user owns this mix
   const isOwnMix = currentUserId && mix.user_id === currentUserId;
-  
+
   // Debug logging
   useEffect(() => {
     if (currentUserId && mix.user_id) {
@@ -244,29 +244,6 @@ const DJMix = ({
                 />
               </View>
             )}
-            {/* Play Button Overlay */}
-            <View style={styles.playButtonOverlay}>
-              <Animated.View
-                style={[
-                  styles.playButton,
-                  isPlaying && { transform: [{ scale: pulseAnim }] },
-                ]}
-              >
-                {isLoading ? (
-                  <Ionicons
-                    name="hourglass"
-                    size={16}
-                    color="hsl(0, 0%, 100%)"
-                  />
-                ) : (
-                  <Ionicons
-                    name={isPlaying ? "pause" : "play"}
-                    size={16}
-                    color="hsl(0, 0%, 100%)"
-                  />
-                )}
-              </Animated.View>
-            </View>
           </View>
 
           {/* Track Info */}
@@ -277,11 +254,7 @@ const DJMix = ({
             <Text style={styles.trackArtist} numberOfLines={1}>
               {mix.artist}
             </Text>
-            <Text style={styles.trackDescription} numberOfLines={1}>
-              {mix.description}
-            </Text>
             <View style={styles.trackMeta}>
-              <Text style={styles.trackDuration}>{mix.duration}</Text>
               <View style={styles.genreBadge}>
                 <Text style={styles.genreText}>{mix.genre}</Text>
               </View>
@@ -295,7 +268,7 @@ const DJMix = ({
             onPress={() => setShowOptionsMenu(true)}
           >
             <Ionicons
-              name="ellipsis-vertical"
+              name="ellipsis-horizontal"
               size={20}
               color="hsl(0, 0%, 70%)"
             />
