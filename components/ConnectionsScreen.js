@@ -724,68 +724,64 @@ export default function ConnectionsScreen({ onNavigate }) {
               <Animated.View style={{ opacity: discoverFadeAnim }}>
                 {discoverUsers.map((user, index) => (
                   <AnimatedListItem key={user.id} index={index} delay={80}>
-                    <View style={styles.djCard}>
-                      {/* DJ Header */}
-                      <View style={styles.djHeader}>
-                        <View style={styles.djInfo}>
-                          <ProgressiveImage
-                            source={{
-                              uri:
-                                user.profileImage ||
-                                "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
-                            }}
-                            style={styles.djAvatar}
-                          />
-                          <View style={styles.djDetails}>
-                            <View style={styles.djNameRow}>
-                              <Text style={styles.djName}>{user.name}</Text>
-                              <View style={styles.onlineIndicator} />
-                            </View>
-                            <Text style={styles.djUsername}>
-                              {user.username}
-                            </Text>
-                            <Text style={styles.djLocation}>
-                              {user.location}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.djActions}>
-                          <View style={styles.ratingContainer}>
+                    <View style={styles.discoverCard}>
+                      {/* Profile Image with Status */}
+                      <View style={styles.discoverProfileContainer}>
+                        <ProgressiveImage
+                          source={{
+                            uri:
+                              user.profileImage ||
+                              "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
+                          }}
+                          style={styles.discoverProfileImage}
+                        />
+                        <View style={styles.discoverOnlineIndicator} />
+                      </View>
+
+                      {/* Main Content */}
+                      <View style={styles.discoverContent}>
+                        {/* Header Row */}
+                        <View style={styles.discoverHeader}>
+                          <Text style={styles.discoverName}>{user.name}</Text>
+                          <View style={styles.discoverRatingContainer}>
                             <Ionicons
                               name="star"
                               size={14}
-                              color="hsl(75, 100%, 60%)"
+                              color="hsl(45, 100%, 50%)"
                             />
-                            <Text style={styles.ratingText}>{user.rating}</Text>
+                            <Text style={styles.discoverRating}>{user.rating}</Text>
                           </View>
-                          <Text style={styles.lastActive}>
-                            {user.lastActive}
-                          </Text>
                         </View>
-                      </View>
 
-                      {/* DJ Bio */}
-                      <Text style={styles.djBio}>{user.bio}</Text>
+                        {/* Username and Location */}
+                        <Text style={styles.discoverUsername}>{user.username}</Text>
+                        <Text style={styles.discoverLocation}>{user.location}</Text>
 
-                      {/* Genres */}
-                      <View style={styles.genresContainer}>
-                        {user.genres.slice(0, 3).map((genre, index) => (
-                          <View key={index} style={styles.genreTag}>
-                            <Ionicons
-                              name="musical-notes"
-                              size={12}
-                              color="hsl(75, 100%, 60%)"
-                              style={styles.genreIcon}
-                            />
-                            <Text style={styles.genreText}>{genre}</Text>
-                          </View>
-                        ))}
+                        {/* Bio */}
+                        <Text style={styles.discoverBio}>{user.bio}</Text>
+
+                        {/* Genre Tags */}
+                        <View style={styles.discoverGenres}>
+                          {user.genres.slice(0, 3).map((genre, index) => (
+                            <View key={index} style={styles.discoverGenreTag}>
+                              <Ionicons
+                                name="musical-notes"
+                                size={12}
+                                color="hsl(75, 100%, 60%)"
+                              />
+                              <Text style={styles.discoverGenreText}>{genre}</Text>
+                            </View>
+                          ))}
+                        </View>
+
+                        {/* Last Active */}
+                        <Text style={styles.discoverLastActive}>{user.lastActive}</Text>
                       </View>
 
                       {/* Action Buttons */}
-                      <View style={styles.actionButtons}>
+                      <View style={styles.discoverActions}>
                         <TouchableOpacity
-                          style={styles.viewProfileButton}
+                          style={styles.discoverViewProfileButton}
                           onPress={() => handleViewProfile(user)}
                         >
                           <Ionicons
@@ -793,12 +789,10 @@ export default function ConnectionsScreen({ onNavigate }) {
                             size={16}
                             color="hsl(0, 0%, 100%)"
                           />
-                          <Text style={styles.viewProfileText}>
-                            View Profile
-                          </Text>
+                          <Text style={styles.discoverViewProfileText}>View Profile</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={styles.connectButton}
+                          style={styles.discoverConnectButton}
                           onPress={() => handleConnect(user)}
                           disabled={discoverLoading}
                         >
@@ -807,7 +801,7 @@ export default function ConnectionsScreen({ onNavigate }) {
                             size={16}
                             color="hsl(0, 0%, 0%)"
                           />
-                          <Text style={styles.connectText}>Connect</Text>
+                          <Text style={styles.discoverConnectText}>Connect</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1326,119 +1320,146 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 0%)",
   },
 
-  // Original DJ Card Styles
-  djCard: {
+  // Discover Card Styles (matching the image layout)
+  discoverCard: {
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
-  },
-  djHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
+    alignItems: "center",
   },
-  djInfo: {
-    flexDirection: "row",
-    flex: 1,
-  },
-  djAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  discoverProfileContainer: {
+    position: "relative",
     marginRight: 16,
   },
-  djDetails: {
-    flex: 1,
-    justifyContent: "center",
+  discoverProfileImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
-  djNameRow: {
+  discoverOnlineIndicator: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "hsl(120, 100%, 50%)",
+    borderWidth: 3,
+    borderColor: "hsl(0, 0%, 8%)",
+  },
+  discoverContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  discoverHeader: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 4,
   },
-  djName: {
+  discoverName: {
     fontSize: 18,
     fontFamily: "Arial",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     marginRight: 8,
   },
-  onlineIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "hsl(120, 100%, 50%)",
-    borderWidth: 2,
-    borderColor: "hsl(0, 0%, 8%)",
-  },
-  djUsername: {
-    fontSize: 14,
-    fontFamily: "Arial",
-    color: "hsl(75, 100%, 60%)",
-    marginBottom: 4,
-  },
-  djLocation: {
-    fontSize: 14,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 70%)",
-  },
-  djActions: {
-    alignItems: "flex-end",
-  },
-  ratingContainer: {
+  discoverRatingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
   },
-  ratingText: {
+  discoverRating: {
     fontSize: 14,
     fontFamily: "Arial",
     fontWeight: "600",
-    color: "hsl(45, 100%, 50%)",
+    color: "hsl(0, 0%, 100%)",
     marginLeft: 4,
   },
-  lastActive: {
-    fontSize: 12,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 70%)",
-  },
-  djBio: {
+  discoverUsername: {
     fontSize: 14,
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)",
-    lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 2,
   },
-  genresContainer: {
+  discoverLocation: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    marginBottom: 8,
+  },
+  discoverBio: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  discoverGenres: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  genreTag: {
-    backgroundColor: "hsl(0, 0%, 15%)",
+  discoverGenreTag: {
+    backgroundColor: "hsl(75, 100%, 60%)",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginRight: 8,
-    marginBottom: 8,
+    marginRight: 6,
+    marginBottom: 4,
   },
-  genreIcon: {
-    marginRight: 4,
-  },
-  genreText: {
+  discoverGenreText: {
     fontSize: 11,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 70%)",
-    fontWeight: "500",
+    color: "hsl(0, 0%, 0%)",
+    fontWeight: "600",
+    marginLeft: 4,
   },
-  actionButtons: {
+  discoverLastActive: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+  },
+  discoverActions: {
+    flexDirection: "column",
+    gap: 8,
+  },
+  discoverViewProfileButton: {
+    backgroundColor: "hsl(0, 0%, 15%)",
     flexDirection: "row",
-    gap: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+    minWidth: 100,
+  },
+  discoverViewProfileText: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+  },
+  discoverConnectButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+    minWidth: 100,
+  },
+  discoverConnectText: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
   },
 });
