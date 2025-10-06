@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -86,7 +86,7 @@ export default function ProfileScreen({ onNavigate, user }) {
 
     const setupRealtimeSubscription = async () => {
       const { supabase } = await import("../lib/supabase");
-      
+
       const subscription = supabase
         .channel(`profile_${user.id}`)
         .on(
@@ -128,15 +128,22 @@ export default function ProfileScreen({ onNavigate, user }) {
         setProfile({
           ...mockProfile,
           ...userProfile,
-          name: userProfile.dj_name || userProfile.full_name || mockProfile.name,
-          username: `@${userProfile.dj_name?.toLowerCase().replace(/\s+/g, "")}` || mockProfile.username,
+          name:
+            userProfile.dj_name || userProfile.full_name || mockProfile.name,
+          username:
+            `@${userProfile.dj_name?.toLowerCase().replace(/\s+/g, "")}` ||
+            mockProfile.username,
           bio: userProfile.bio || mockProfile.bio,
           location: userProfile.city || mockProfile.location,
           genres: userProfile.genres || mockProfile.genres,
-          profileImage: userProfile.profile_image_url ? { uri: userProfile.profile_image_url } : mockProfile.profileImage,
+          profileImage: userProfile.profile_image_url
+            ? { uri: userProfile.profile_image_url }
+            : mockProfile.profileImage,
           socialLinks: {
-            instagram: userProfile.instagram || mockProfile.socialLinks.instagram,
-            soundcloud: userProfile.soundcloud || mockProfile.socialLinks.soundcloud,
+            instagram:
+              userProfile.instagram || mockProfile.socialLinks.instagram,
+            soundcloud:
+              userProfile.soundcloud || mockProfile.socialLinks.soundcloud,
           },
         });
         console.log("✅ Profile loaded from database");
