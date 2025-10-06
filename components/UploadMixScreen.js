@@ -513,7 +513,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           >
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>UPLOAD MIX</Text>
+          <Text style={styles.tsBlockBoldHeading}>UPLOAD MIX</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -820,11 +820,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "white",
-    letterSpacing: 1,
+  tsBlockBoldHeading: {
+    fontFamily: "TS-Block-Bold",
+    fontSize: 22,
+    color: "#FFFFFF", // Brand white
+    textAlign: "left", // Left aligned as per guidelines
+    textTransform: "uppercase", // Always uppercase
+    lineHeight: 26, // Tight line height for stacked effect
+    letterSpacing: 1, // Slight spacing for impact
+    marginBottom: 16,
   },
   section: {
     marginBottom: 24,

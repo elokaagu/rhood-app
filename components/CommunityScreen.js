@@ -272,7 +272,7 @@ export default function CommunityScreen({ onNavigate }) {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Text style={styles.headerTitle}>COMMUNITY</Text>
+            <Text style={styles.tsBlockBoldHeading}>COMMUNITY</Text>
             <View style={styles.statsContainer}>
               <Text style={styles.statsText}>
                 {joinedCount} joined • {communities.length} total
@@ -589,12 +589,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
-  headerTitle: {
-    fontSize: 24,
+  tsBlockBoldHeading: {
     fontFamily: "TS-Block-Bold",
-    color: "hsl(0, 0%, 100%)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    fontSize: 22,
+    color: "#FFFFFF", // Brand white
+    textAlign: "left", // Left aligned as per guidelines
+    textTransform: "uppercase", // Always uppercase
+    lineHeight: 26, // Tight line height for stacked effect
+    letterSpacing: 1, // Slight spacing for impact
+    marginBottom: 16,
   },
   statsContainer: {
     backgroundColor: "hsl(0, 0%, 8%)",

@@ -183,7 +183,7 @@ export default function NotificationsScreen({ onNavigate }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>NOTIFICATIONS</Text>
+          <Text style={styles.tsBlockBoldHeading}>NOTIFICATIONS</Text>
           <Text style={styles.headerSubtitle}>
             {unreadCount > 0
               ? `${unreadCount} unread notifications`
@@ -347,13 +347,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
   },
-  headerTitle: {
-    fontSize: 24,
+  tsBlockBoldHeading: {
     fontFamily: "TS-Block-Bold",
-    color: "hsl(0, 0%, 100%)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 4,
+    fontSize: 22,
+    color: "#FFFFFF", // Brand white
+    textAlign: "left", // Left aligned as per guidelines
+    textTransform: "uppercase", // Always uppercase
+    lineHeight: 26, // Tight line height for stacked effect
+    letterSpacing: 1, // Slight spacing for impact
+    marginBottom: 16,
   },
   headerSubtitle: {
     fontSize: 14,

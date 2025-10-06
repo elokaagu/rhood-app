@@ -1767,7 +1767,7 @@ export default function App() {
           <View style={[styles.screen, { backgroundColor: "hsl(0, 0%, 0%)" }]}>
             <View style={styles.opportunitiesContainer}>
               <View style={styles.opportunitiesHeader}>
-                <Text style={styles.opportunitiesTitle}>Opportunities</Text>
+                <Text style={styles.tsBlockBoldHeading}>OPPORTUNITIES</Text>
                 <Text style={styles.opportunitiesSubtitle}>
                   Find your next DJ gig
                 </Text>
@@ -3396,12 +3396,6 @@ const styles = StyleSheet.create({
   opportunitiesHeader: {
     padding: 20,
     paddingBottom: 10,
-  },
-  opportunitiesTitle: {
-    fontSize: 24,
-    fontFamily: "TS-Block-Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 8,
   },
   opportunitiesSubtitle: {
     fontSize: 16,
