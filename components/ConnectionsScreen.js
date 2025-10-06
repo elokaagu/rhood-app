@@ -270,19 +270,13 @@ export default function ConnectionsScreen({ onNavigate }) {
 
   const handleViewProfile = async (connection) => {
     try {
-      // Navigate to profile view - you might want to create a separate profile view screen
-      console.log(
-        "Viewing profile for:",
-        connection.dj_name || connection.full_name
-      );
-      // For now, we'll show an alert, but you can navigate to a profile screen
-      Alert.alert(
-        "View Profile",
-        `Viewing profile for ${connection.dj_name || connection.full_name}`,
-        [{ text: "OK" }]
-      );
+      // Navigate to profile view
+      if (onNavigate) {
+        onNavigate("user-profile", { userId: connection.id });
+      }
     } catch (error) {
       console.error("Error viewing profile:", error);
+      Alert.alert("Error", "Failed to open profile");
     }
   };
 

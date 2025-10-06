@@ -46,6 +46,7 @@ import {
 import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";
 import EditProfileScreen from "./components/EditProfileScreen";
+import UserProfileView from "./components/UserProfileView";
 import UploadMixScreen from "./components/UploadMixScreen";
 // Push notifications temporarily disabled for Expo Go
 // import {
@@ -1926,6 +1927,18 @@ export default function App() {
               setCurrentScreen("profile");
             }}
             onCancel={() => setCurrentScreen("profile")}
+          />
+        );
+
+      case "user-profile":
+        return (
+          <UserProfileView
+            userId={screenParams.userId}
+            onBack={() => setCurrentScreen("connections")}
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
           />
         );
 
