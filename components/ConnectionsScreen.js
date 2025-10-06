@@ -20,6 +20,66 @@ import { connectionsService } from "../lib/connectionsService";
 import { supabase } from "../lib/supabase";
 import { SkeletonList } from "./Skeleton";
 
+// Mock discover users data (fallback when database is empty)
+const mockDiscoverUsers = [
+  {
+    id: "discover-1",
+    name: "ELOKA AGU",
+    username: "@elokaagu",
+    location: "Studio",
+    genres: ["Admin", "Studio Management", "Super Admin"],
+    profileImage: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop",
+    rating: 4.5,
+    gigsCompleted: 50,
+    lastActive: "Recently active",
+    status: "online",
+    isVerified: true,
+    bio: "Rhood Studio Super Administrator - Managing all studio operations, opportunities, and community features.",
+  },
+  {
+    id: "discover-2",
+    name: "FATIMA H",
+    username: "@fatimah",
+    location: "London",
+    genres: ["R&B", "Neo-Soul", "Jazz"],
+    profileImage: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
+    rating: 4.6,
+    gigsCompleted: 14,
+    lastActive: "Recently active",
+    status: "online",
+    isVerified: false,
+    bio: "Neo-soul selector with smooth grooves.",
+  },
+  {
+    id: "discover-3",
+    name: "MAYA CHEN",
+    username: "@mayachen",
+    location: "London",
+    genres: ["Techno", "House", "Electronic"],
+    profileImage: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
+    rating: 4.9,
+    gigsCompleted: 28,
+    lastActive: "Recently active",
+    status: "online",
+    isVerified: true,
+    bio: "Techno DJ and producer from London. Resident at Fabric.",
+  },
+  {
+    id: "discover-4",
+    name: "SOPHIE A",
+    username: "@sophiea",
+    location: "Bristol",
+    genres: ["Drum & Bass", "Jungle"],
+    profileImage: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop",
+    rating: 5.0,
+    gigsCompleted: 35,
+    lastActive: "Recently active",
+    status: "online",
+    isVerified: true,
+    bio: "Bristol DnB selector. High-energy sets for the ravers.",
+  },
+];
+
 // Mock connections data
 const mockConnections = [
   {
@@ -115,6 +175,9 @@ export default function ConnectionsScreen({ onNavigate }) {
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('connections'); // 'connections' or 'discover'
+  const [discoverLoading, setDiscoverLoading] = useState(false);
+  const [discoverUsers, setDiscoverUsers] = useState([]);
 
   // Load user and connections on mount
   useEffect(() => {
@@ -192,6 +255,86 @@ export default function ConnectionsScreen({ onNavigate }) {
     onNavigate && onNavigate("community");
   };
 
+  const handleViewProfile = async (connection) => {
+    try {
+      // Navigate to profile view - you might want to create a separate profile view screen
+      console.log("Viewing profile for:", connection.dj_name || connection.full_name);
+      // For now, we'll show an alert, but you can navigate to a profile screen
+      Alert.alert(
+        "View Profile",
+        `Viewing profile for ${connection.dj_name || connection.full_name}`,
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error("Error viewing profile:", error);
+    }
+  };
+
+  const handleConnect = async (connection) => {
+    try {
+      setDiscoverLoading(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Simulate connection request
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      Alert.alert(
+        "Connection Sent!",
+        `Connection request sent to ${connection.dj_name || connection.full_name}`,
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error("Error sending connection request:", error);
+      Alert.alert("Error", "Failed to send connection request");
+    } finally {
+      setDiscoverLoading(false);
+    }
+  };
+
+  const loadDiscoverDJs = async () => {
+    try {
+      setDiscoverLoading(true);
+      
+      // Get all users from database (excluding current user and existing connections)
+      const { db } = await import("../lib/supabase");
+      const { data: allUsers, error } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .neq("id", user?.id)
+        .limit(20);
+      
+      if (error) throw error;
+      
+      // Filter out users we're already connected to
+      const connectedUserIds = connections.map(conn => conn.id);
+      const discoverUsers = allUsers?.filter(user => !connectedUserIds.includes(user.id)) || [];
+      
+      // Transform to match UI format
+      const formattedDiscoverUsers = discoverUsers.map((user) => ({
+        id: user.id,
+        name: user.dj_name || user.full_name,
+        username: `@${user.username || user.dj_name?.toLowerCase().replace(/\s+/g, '')}`,
+        location: user.city,
+        genres: user.genres || [],
+        profileImage: user.profile_image_url || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop',
+        rating: user.rating || 0,
+        gigsCompleted: user.gigs_completed || 0,
+        lastActive: "Recently",
+        status: "online",
+        isVerified: user.is_verified || false,
+        bio: user.bio || "DJ and music producer",
+      }));
+      
+      setDiscoverUsers(formattedDiscoverUsers);
+    } catch (error) {
+      console.error("❌ Error loading discover DJs:", error);
+      // Fallback to mock data
+      setDiscoverUsers(mockDiscoverUsers);
+    } finally {
+      setDiscoverLoading(false);
+    }
+  };
+
   // Filter connections based on search query
   const filteredConnections = useMemo(() => {
     let filtered = connections;
@@ -247,6 +390,63 @@ export default function ConnectionsScreen({ onNavigate }) {
       >
         {/* Header */}
         <View style={styles.header}>
+          <Text style={styles.headerTitle}>CONNECTIONS</Text>
+          <Text style={styles.headerSubtitle}>
+            Discover and connect with DJs worldwide
+          </Text>
+
+          {/* Tab Navigation */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === 'connections' && styles.tabButtonActive,
+              ]}
+              onPress={() => setActiveTab('connections')}
+            >
+              <Ionicons
+                name="people"
+                size={16}
+                color={activeTab === 'connections' ? 'hsl(75, 100%, 60%)' : 'hsl(0, 0%, 70%)'}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === 'connections' && styles.tabTextActive,
+                ]}
+              >
+                Connections
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === 'discover' && styles.tabButtonActive,
+              ]}
+              onPress={() => {
+                setActiveTab('discover');
+                if (discoverUsers.length === 0) {
+                  loadDiscoverDJs();
+                }
+              }}
+            >
+              <Ionicons
+                name="search"
+                size={16}
+                color={activeTab === 'discover' ? 'hsl(75, 100%, 60%)' : 'hsl(0, 0%, 70%)'}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === 'discover' && styles.tabTextActive,
+                ]}
+              >
+                Discover
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Search Bar */}
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
@@ -317,21 +517,23 @@ export default function ConnectionsScreen({ onNavigate }) {
           </TouchableOpacity>
         </View>
 
-        {/* Individual Connections List */}
-        <View style={styles.connectionsList}>
-          {filteredConnections.length === 0 ? (
-            <View style={styles.noResultsContainer}>
-              <Ionicons name="search" size={48} color="hsl(0, 0%, 30%)" />
-              <Text style={styles.noResultsTitle}>No connections found</Text>
-              <Text style={styles.noResultsSubtitle}>
-                {searchQuery.trim()
-                  ? `No results for "${searchQuery}"`
-                  : "Try adjusting your filters"}
-              </Text>
-            </View>
-          ) : loading ? (
-            <SkeletonList count={5} />
-          ) : (
+        {/* Content based on active tab */}
+        {activeTab === 'connections' ? (
+          /* Individual Connections List */
+          <View style={styles.connectionsList}>
+            {filteredConnections.length === 0 ? (
+              <View style={styles.noResultsContainer}>
+                <Ionicons name="search" size={48} color="hsl(0, 0%, 30%)" />
+                <Text style={styles.noResultsTitle}>No connections found</Text>
+                <Text style={styles.noResultsSubtitle}>
+                  {searchQuery.trim()
+                    ? `No results for "${searchQuery}"`
+                    : "Try adjusting your filters"}
+                </Text>
+              </View>
+            ) : loading ? (
+              <SkeletonList count={5} />
+            ) : (
             <>
               {filteredConnections.map((connection, index) => (
                 <AnimatedListItem key={connection.id} index={index} delay={80}>
@@ -423,11 +625,96 @@ export default function ConnectionsScreen({ onNavigate }) {
                 </AnimatedListItem>
               ))}
             </>
-          )}
-        </View>
+            )}
+          </View>
+        ) : (
+          /* Discover Tab */
+          <View style={styles.discoverList}>
+            {discoverLoading ? (
+              <SkeletonList count={4} />
+            ) : discoverUsers.length === 0 ? (
+              <View style={styles.noResultsContainer}>
+                <Ionicons name="people-outline" size={48} color="hsl(0, 0%, 30%)" />
+                <Text style={styles.noResultsTitle}>No DJs found</Text>
+                <Text style={styles.noResultsSubtitle}>
+                  Try adjusting your filters or check back later
+                </Text>
+              </View>
+            ) : (
+              discoverUsers.map((user, index) => (
+                <AnimatedListItem key={user.id} index={index} delay={80}>
+                  <View style={styles.discoverCard}>
+                    {/* Profile Image with Status */}
+                    <View style={styles.discoverProfileContainer}>
+                      <ProgressiveImage
+                        source={{ uri: user.profileImage }}
+                        style={styles.discoverProfileImage}
+                      />
+                      <View
+                        style={[
+                          styles.discoverStatusIndicator,
+                          { backgroundColor: "hsl(120, 100%, 50%)" },
+                        ]}
+                      />
+                    </View>
 
-        {/* Add Connection Call-to-Action */}
-        <View style={styles.ctaSection}>
+                    {/* User Info */}
+                    <View style={styles.discoverUserInfo}>
+                      <View style={styles.discoverHeader}>
+                        <Text style={styles.discoverName}>{user.name}</Text>
+                        <View style={styles.discoverRating}>
+                          <Ionicons name="star" size={16} color="hsl(45, 100%, 50%)" />
+                          <Text style={styles.discoverRatingText}>{user.rating}</Text>
+                          <Text style={styles.discoverLastActive}>{user.lastActive}</Text>
+                        </View>
+                      </View>
+                      
+                      <Text style={styles.discoverUsername}>{user.username}</Text>
+                      <Text style={styles.discoverLocation}>{user.location}</Text>
+                      <Text style={styles.discoverBio} numberOfLines={2}>
+                        {user.bio}
+                      </Text>
+                      
+                      {/* Genre Tags */}
+                      <View style={styles.discoverGenreTags}>
+                        {user.genres.slice(0, 3).map((genre) => (
+                          <View key={genre} style={styles.discoverGenreTag}>
+                            <Ionicons name="musical-notes" size={12} color="hsl(75, 100%, 60%)" />
+                            <Text style={styles.discoverGenreText}>{genre}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+
+                    {/* Action Buttons */}
+                    <View style={styles.discoverActions}>
+                      <TouchableOpacity
+                        style={styles.viewProfileButton}
+                        onPress={() => handleViewProfile(user)}
+                      >
+                        <Ionicons name="person-outline" size={16} color="hsl(0, 0%, 70%)" />
+                        <Text style={styles.viewProfileText}>View Profile</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={styles.connectButton}
+                        onPress={() => handleConnect(user)}
+                        disabled={discoverLoading}
+                      >
+                        <Ionicons name="add" size={16} color="hsl(0, 0%, 0%)" />
+                        <Text style={styles.connectText}>Connect</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </AnimatedListItem>
+              ))
+            )}
+          </View>
+        )}
+
+        {/* Add Connection Call-to-Action - only show on connections tab */}
+        {activeTab === 'connections' && (
+          <View style={styles.ctaSection}>
           <View style={styles.ctaCard}>
             <Ionicons name="person-add" size={24} color="hsl(0, 0%, 70%)" />
             <Text style={styles.ctaTitle}>Find More Connections</Text>
@@ -756,5 +1043,179 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
+  },
+
+  // Tab Navigation Styles
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
+  },
+  tabButtonActive: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  tabText: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 70%)",
+  },
+  tabTextActive: {
+    color: "hsl(0, 0%, 0%)",
+  },
+
+  // Discover Tab Styles
+  discoverList: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  discoverCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  discoverProfileContainer: {
+    position: "relative",
+    marginRight: 12,
+  },
+  discoverProfileImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  discoverStatusIndicator: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "hsl(0, 0%, 8%)",
+  },
+  discoverUserInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  discoverHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 4,
+  },
+  discoverName: {
+    fontSize: 16,
+    fontFamily: "Arial",
+    fontWeight: "700",
+    color: "hsl(0, 0%, 100%)",
+    flex: 1,
+  },
+  discoverRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  discoverRatingText: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(45, 100%, 50%)",
+  },
+  discoverLastActive: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    marginLeft: 8,
+  },
+  discoverUsername: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(75, 100%, 60%)",
+    marginBottom: 2,
+  },
+  discoverLocation: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 8,
+  },
+  discoverBio: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  discoverGenreTags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  discoverGenreTag: {
+    backgroundColor: "hsl(0, 0%, 15%)",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  discoverGenreText: {
+    fontSize: 10,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+  },
+  discoverActions: {
+    flexDirection: "column",
+    gap: 8,
+  },
+  viewProfileButton: {
+    backgroundColor: "hsl(0, 0%, 15%)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+    minWidth: 100,
+  },
+  viewProfileText: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 70%)",
+  },
+  connectButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+    minWidth: 100,
+  },
+  connectText: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
   },
 });
