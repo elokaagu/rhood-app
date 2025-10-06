@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   logoImage: {
     height: 60,
     width: 220,
-    marginBottom: 10,
+    marginBottom: 50, // Lifted by 40px (10 + 40 = 50)
   },
   tsBlockBoldSubtitle: {
     fontFamily: "TS-Block-Bold",
