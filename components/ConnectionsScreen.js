@@ -725,8 +725,8 @@ export default function ConnectionsScreen({ onNavigate }) {
                 {discoverUsers.map((user, index) => (
                   <AnimatedListItem key={user.id} index={index} delay={80}>
                     <View style={styles.discoverCard}>
-                      {/* Top Row: Profile Image + Main Info + Rating */}
-                      <View style={styles.discoverTopRow}>
+                      {/* Main Content Row */}
+                      <View style={styles.discoverMainRow}>
                         {/* Profile Image */}
                         <View style={styles.discoverProfileContainer}>
                           <ProgressiveImage
@@ -739,7 +739,7 @@ export default function ConnectionsScreen({ onNavigate }) {
                           />
                         </View>
 
-                        {/* Main Content */}
+                        {/* Content Area - Takes up most width */}
                         <View style={styles.discoverContent}>
                           {/* Header Row with Name and Online Indicator */}
                           <View style={styles.discoverHeader}>
@@ -775,7 +775,7 @@ export default function ConnectionsScreen({ onNavigate }) {
                           </View>
                         </View>
 
-                        {/* Rating and Activity */}
+                        {/* Rating and Activity - Top Right */}
                         <View style={styles.discoverRatingSection}>
                           <View style={styles.discoverRatingContainer}>
                             <Ionicons
@@ -1348,12 +1348,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
   },
-  discoverTopRow: {
+  discoverMainRow: {
     flexDirection: "row",
     marginBottom: 12,
   },
   discoverProfileContainer: {
     marginRight: 16,
+    alignSelf: "flex-start",
   },
   discoverProfileImage: {
     width: 80,
@@ -1364,7 +1365,7 @@ const styles = StyleSheet.create({
   },
   discoverContent: {
     flex: 1,
-    marginRight: 12,
+    marginRight: 8,
   },
   discoverHeader: {
     flexDirection: "row",
@@ -1429,6 +1430,7 @@ const styles = StyleSheet.create({
   },
   discoverRatingSection: {
     alignItems: "flex-end",
+    minWidth: 60,
   },
   discoverRatingContainer: {
     flexDirection: "row",
