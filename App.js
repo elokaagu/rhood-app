@@ -2275,11 +2275,18 @@ export default function App() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Image
-              source={require("./assets/RHOOD_Lettering_Logo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+            <View style={styles.logoContainer}>
+              <Image
+                source={require("./assets/rhood_logo.png")}
+                style={styles.logoIcon}
+                resizeMode="contain"
+              />
+              <Image
+                source={require("./assets/RHOOD_Lettering_White.png")}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.menuButton} onPress={openMenu}>
@@ -2978,6 +2985,16 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 1.5,
     textTransform: "uppercase",
+  },
+  logoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  logoIcon: {
+    height: 32,
+    width: 32,
+    marginRight: 8,
   },
   logoImage: {
     height: 36,
