@@ -2482,26 +2482,30 @@ export default function App() {
 
         {/* Global Audio Player - shows when there's a current track */}
         {globalAudioState.currentTrack && (
-          <Animated.View
-            style={[
-              styles.globalAudioPlayer,
-              {
-                opacity: Animated.multiply(
-                  audioPlayerOpacity,
-                  audioPlayerSwipeOpacity
-                ),
-                transform: [
-                  {
-                    translateY: Animated.add(
-                      audioPlayerTranslateY,
-                      audioPlayerSwipeTranslateY
-                    ),
-                  },
-                ],
-              },
-            ]}
-            {...audioPlayerPanResponder.panHandlers}
+          <TouchableOpacity
+            onPress={() => setShowFullScreenPlayer(true)}
+            activeOpacity={0.9}
           >
+            <Animated.View
+              style={[
+                styles.globalAudioPlayer,
+                {
+                  opacity: Animated.multiply(
+                    audioPlayerOpacity,
+                    audioPlayerSwipeOpacity
+                  ),
+                  transform: [
+                    {
+                      translateY: Animated.add(
+                        audioPlayerTranslateY,
+                        audioPlayerSwipeTranslateY
+                      ),
+                    },
+                  ],
+                },
+              ]}
+              {...audioPlayerPanResponder.panHandlers}
+            >
             <View style={styles.audioPlayerContent}>
               {/* Album Art */}
               <View style={styles.audioAlbumArt}>
@@ -2584,20 +2588,6 @@ export default function App() {
                     color="hsl(0, 0%, 100%)"
                   />
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.audioShareButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    shareTrack();
-                  }}
-                >
-                  <Ionicons
-                    name="share-outline"
-                    size={18}
-                    color="hsl(0, 0%, 70%)"
-                  />
-                </TouchableOpacity>
               </View>
             </View>
 
@@ -2620,6 +2610,7 @@ export default function App() {
               </View>
             </TouchableOpacity>
           </Animated.View>
+          </TouchableOpacity>
         )}
 
         {/* Full-Screen Audio Player Modal */}
@@ -3943,15 +3934,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
-    marginLeft: 8,
-  },
-  audioShareButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
     marginLeft: 8,
   },
   audioCloseButton: {
