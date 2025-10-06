@@ -261,17 +261,6 @@ const DJMix = ({
               color="hsl(0, 0%, 70%)"
             />
           </TouchableOpacity>
-
-          {/* Progress Bar - Only show when playing */}
-          {isPlaying && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View
-                  style={[styles.progressFill, { width: `${progress}%` }]}
-                />
-              </View>
-            </View>
-          )}
         </TouchableOpacity>
       </Animated.View>
 
@@ -460,21 +449,6 @@ const styles = StyleSheet.create({
   optionsButton: {
     padding: 8,
     marginLeft: 8,
-  },
-  progressContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-  },
-  progressBar: {
-    height: 2,
-    backgroundColor: "hsl(0, 0%, 15%)",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "hsl(75, 100%, 60%)",
   },
   modalOverlay: {
     flex: 1,
