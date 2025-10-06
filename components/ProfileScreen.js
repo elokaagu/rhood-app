@@ -70,11 +70,85 @@ const mockProfile = {
 
 export default function ProfileScreen({ onNavigate, user }) {
   const [profile, setProfile] = useState(mockProfile);
+  const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackPosition, setPlaybackPosition] = useState(0);
   const [playbackDuration, setPlaybackDuration] = useState(0);
   const soundRef = useRef(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
+
+  // Load user profile from database and set up real-time subscription
+  useEffect(() => {
+    loadProfile();
+
+    // Set up real-time subscription for profile updates
+    if (!user?.id) return;
+
+    const setupRealtimeSubscription = async () => {
+      const { supabase } = await import("../lib/supabase");
+      
+      const subscription = supabase
+        .channel(`profile_${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*", // Listen to all events (INSERT, UPDATE, DELETE)
+            schema: "public",
+            table: "user_profiles",
+            filter: `id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log("🔄 Profile updated in real-time:", payload);
+            // Reload profile when changes detected
+            loadProfile();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    };
+
+    setupRealtimeSubscription();
+  }, [user]);
+
+  const loadProfile = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { db } = await import("../lib/supabase");
+      const userProfile = await db.getUserProfile(user.id);
+
+      if (userProfile) {
+        setProfile({
+          ...mockProfile,
+          ...userProfile,
+          name: userProfile.dj_name || userProfile.full_name || mockProfile.name,
+          username: `@${userProfile.dj_name?.toLowerCase().replace(/\s+/g, "")}` || mockProfile.username,
+          bio: userProfile.bio || mockProfile.bio,
+          location: userProfile.city || mockProfile.location,
+          genres: userProfile.genres || mockProfile.genres,
+          profileImage: userProfile.profile_image_url ? { uri: userProfile.profile_image_url } : mockProfile.profileImage,
+          socialLinks: {
+            instagram: userProfile.instagram || mockProfile.socialLinks.instagram,
+            soundcloud: userProfile.soundcloud || mockProfile.socialLinks.soundcloud,
+          },
+        });
+        console.log("✅ Profile loaded from database");
+      } else {
+        console.log("📝 No profile found, using mock data");
+      }
+    } catch (error) {
+      console.error("❌ Error loading profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEditProfile = () => {
     onNavigate && onNavigate("edit-profile");

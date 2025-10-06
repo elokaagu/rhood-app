@@ -1907,6 +1907,28 @@ export default function App() {
           />
         );
 
+      case "edit-profile":
+        return (
+          <EditProfileScreen
+            user={user}
+            onSave={(updatedProfile) => {
+              console.log("Profile updated:", updatedProfile);
+              // Refresh user profile data
+              if (user) {
+                db.getUserProfile(user.id)
+                  .then((profile) => {
+                    console.log("✅ Profile refreshed after save");
+                  })
+                  .catch((error) => {
+                    console.error("❌ Error refreshing profile:", error);
+                  });
+              }
+              setCurrentScreen("profile");
+            }}
+            onCancel={() => setCurrentScreen("profile")}
+          />
+        );
+
       case "listen":
         return (
           <ListenScreen

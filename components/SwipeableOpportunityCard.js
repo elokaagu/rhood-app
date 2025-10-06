@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from "react";
+import React, { useRef, useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -30,122 +30,144 @@ export default function SwipeableOpportunityCard({
   const rotate = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(isNextCard ? 0.8 : 1)).current;
   const fadeOverlay = useRef(new Animated.Value(0)).current;
+  const entranceOpacity = useRef(new Animated.Value(0)).current;
+  const entranceTranslateY = useRef(new Animated.Value(30)).current;
 
-  const panResponder = useMemo(() => 
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => isTopCard,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return (
-          isTopCard &&
-          (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5)
-        );
-      },
-      onPanResponderGrant: () => {
-        if (isTopCard) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          position.setOffset({
-            x: position.x._value,
-            y: position.y._value,
-          });
-        }
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (isTopCard) {
-          position.setValue({ x: gestureState.dx, y: gestureState.dy });
-
-          // Add rotation based on horizontal movement
-          const rotation = (gestureState.dx / screenWidth) * 0.3;
-          rotate.setValue(rotation);
-
-          // Add scale effect
-          const scaleValue =
-            1 - (Math.abs(gestureState.dx) / screenWidth) * 0.1;
-          scale.setValue(Math.max(0.9, scaleValue));
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (isTopCard) {
-          position.flattenOffset();
-
-          const { dx, vx } = gestureState;
-          const shouldSwipeLeft = dx < -SWIPE_THRESHOLD || vx < -0.5;
-          const shouldSwipeRight = dx > SWIPE_THRESHOLD || vx > 0.5;
-
-          if (shouldSwipeLeft) {
-            // Swipe left (pass)
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-            // Call swipe handler immediately to show next card
-            onSwipeLeft && onSwipeLeft();
-
-            Animated.parallel([
-              Animated.timing(position, {
-                toValue: { x: -screenWidth * 1.5, y: dx * 0.5 },
-                duration: SWIPE_OUT_DURATION,
-                useNativeDriver: true,
-              }),
-              Animated.timing(opacity, {
-                toValue: 0,
-                duration: SWIPE_OUT_DURATION,
-                useNativeDriver: true,
-              }),
-              Animated.timing(fadeOverlay, {
-                toValue: 1,
-                duration: SWIPE_OUT_DURATION * 0.7,
-                useNativeDriver: true,
-              }),
-            ]).start();
-          } else if (shouldSwipeRight) {
-            // Swipe right (like/apply)
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-            // Call swipe handler immediately to show next card
-            onSwipeRight && onSwipeRight();
-
-            Animated.parallel([
-              Animated.timing(position, {
-                toValue: { x: screenWidth * 1.5, y: dx * 0.5 },
-                duration: SWIPE_OUT_DURATION,
-                useNativeDriver: true,
-              }),
-              Animated.timing(opacity, {
-                toValue: 0,
-                duration: SWIPE_OUT_DURATION,
-                useNativeDriver: true,
-              }),
-              Animated.timing(fadeOverlay, {
-                toValue: 1,
-                duration: SWIPE_OUT_DURATION * 0.7,
-                useNativeDriver: true,
-              }),
-            ]).start();
-          } else {
-            // Return to center
-            Animated.parallel([
-              Animated.spring(position, {
-                toValue: { x: 0, y: 0 },
-                useNativeDriver: true,
-                tension: 100,
-                friction: 8,
-              }),
-              Animated.spring(scale, {
-                toValue: 1,
-                useNativeDriver: true,
-                tension: 100,
-                friction: 8,
-              }),
-              Animated.spring(rotate, {
-                toValue: 0,
-                useNativeDriver: true,
-                tension: 100,
-                friction: 8,
-              }),
-            ]).start();
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => isTopCard,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return (
+            isTopCard &&
+            (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5)
+          );
+        },
+        onPanResponderGrant: () => {
+          if (isTopCard) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            position.setOffset({
+              x: position.x._value,
+              y: position.y._value,
+            });
           }
-        }
-      },
-    }), [isTopCard, onSwipeLeft, onSwipeRight]
+        },
+        onPanResponderMove: (_, gestureState) => {
+          if (isTopCard) {
+            position.setValue({ x: gestureState.dx, y: gestureState.dy });
+
+            // Add rotation based on horizontal movement
+            const rotation = (gestureState.dx / screenWidth) * 0.3;
+            rotate.setValue(rotation);
+
+            // Add scale effect
+            const scaleValue =
+              1 - (Math.abs(gestureState.dx) / screenWidth) * 0.1;
+            scale.setValue(Math.max(0.9, scaleValue));
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (isTopCard) {
+            position.flattenOffset();
+
+            const { dx, vx } = gestureState;
+            const shouldSwipeLeft = dx < -SWIPE_THRESHOLD || vx < -0.5;
+            const shouldSwipeRight = dx > SWIPE_THRESHOLD || vx > 0.5;
+
+            if (shouldSwipeLeft) {
+              // Swipe left (pass)
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+              // Call swipe handler immediately to show next card
+              onSwipeLeft && onSwipeLeft();
+
+              Animated.parallel([
+                Animated.timing(position, {
+                  toValue: { x: -screenWidth * 1.5, y: dx * 0.5 },
+                  duration: SWIPE_OUT_DURATION,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(opacity, {
+                  toValue: 0,
+                  duration: SWIPE_OUT_DURATION,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(fadeOverlay, {
+                  toValue: 1,
+                  duration: SWIPE_OUT_DURATION * 0.7,
+                  useNativeDriver: true,
+                }),
+              ]).start();
+            } else if (shouldSwipeRight) {
+              // Swipe right (like/apply)
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+              // Call swipe handler immediately to show next card
+              onSwipeRight && onSwipeRight();
+
+              Animated.parallel([
+                Animated.timing(position, {
+                  toValue: { x: screenWidth * 1.5, y: dx * 0.5 },
+                  duration: SWIPE_OUT_DURATION,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(opacity, {
+                  toValue: 0,
+                  duration: SWIPE_OUT_DURATION,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(fadeOverlay, {
+                  toValue: 1,
+                  duration: SWIPE_OUT_DURATION * 0.7,
+                  useNativeDriver: true,
+                }),
+              ]).start();
+            } else {
+              // Return to center
+              Animated.parallel([
+                Animated.spring(position, {
+                  toValue: { x: 0, y: 0 },
+                  useNativeDriver: true,
+                  tension: 100,
+                  friction: 8,
+                }),
+                Animated.spring(scale, {
+                  toValue: 1,
+                  useNativeDriver: true,
+                  tension: 100,
+                  friction: 8,
+                }),
+                Animated.spring(rotate, {
+                  toValue: 0,
+                  useNativeDriver: true,
+                  tension: 100,
+                  friction: 8,
+                }),
+              ]).start();
+            }
+          }
+        },
+      }),
+    [isTopCard, onSwipeLeft, onSwipeRight]
   );
+
+  // Entrance animation when card becomes visible
+  useEffect(() => {
+    // Animate entrance when card first appears or becomes top card
+    Animated.parallel([
+      Animated.timing(entranceOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(entranceTranslateY, {
+        toValue: 0,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opportunity.id]); // Re-run when opportunity changes
 
   const handleLike = () => {
     if (isTopCard) {
@@ -214,10 +236,11 @@ export default function SwipeableOpportunityCard({
           transform: [
             { translateX: position.x },
             { translateY: position.y },
+            { translateY: entranceTranslateY },
             { scale: scale },
             { rotate: rotateInterpolate },
           ],
-          opacity: opacity,
+          opacity: Animated.multiply(opacity, entranceOpacity),
           zIndex: isTopCard ? 10 : 1,
         },
       ]}
