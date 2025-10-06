@@ -57,7 +57,7 @@ import UploadMixScreen from "./components/UploadMixScreen";
 //   setupNotificationListeners,
 // } from "./lib/pushNotifications";
 
-// Animated Album Art Component with pulse effect
+// Animated Album Art Component with pulse and spin effects
 const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -80,11 +80,11 @@ const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
         ])
       );
 
-      // Subtle rotation animation
+      // Continuous spinning animation - faster for more dynamic effect
       const rotateAnimation = Animated.loop(
         Animated.timing(rotateAnim, {
           toValue: 1,
-          duration: 20000,
+          duration: 8000, // Reduced from 20000 for faster spinning
           useNativeDriver: true,
         })
       );
