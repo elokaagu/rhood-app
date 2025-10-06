@@ -297,7 +297,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-RAISE NOTICE '✅ Connections table and functions created';
+DO $$
+BEGIN
+  RAISE NOTICE '✅ Connections table and functions created';
+END $$;
 
 -- ============================================
 -- STEP 2: Insert mock DJ profiles
@@ -551,7 +554,10 @@ INSERT INTO user_profiles (
 )
 ON CONFLICT (id) DO NOTHING;
 
-RAISE NOTICE '✅ 12 mock DJ profiles created';
+DO $$
+BEGIN
+  RAISE NOTICE '✅ 12 mock DJ profiles created';
+END $$;
 
 -- ============================================
 -- STEP 3: Create connections between DJs
