@@ -340,7 +340,8 @@ export default function ListenScreen({
       <View style={styles.header}>
         <Text style={styles.tsBlockBoldHeading}>LISTEN</Text>
         <Text style={styles.headerSubtitle}>
-          5 minute sets from DJs in R/HOOD
+          DJ mixes from the R/HOOD community
+          {refreshing && " • Refreshing..."}
         </Text>
       </View>
 
@@ -404,7 +405,7 @@ export default function ListenScreen({
         <View style={styles.uploadCard}>
           <Text style={styles.uploadTitle}>Share Your Mix</Text>
           <Text style={styles.uploadDescription}>
-            Upload your own 5-minute DJ mix and connect with the community
+            Upload your own DJ mix and connect with the community
           </Text>
           <TouchableOpacity
             style={styles.uploadButton}
@@ -465,8 +466,8 @@ export default function ListenScreen({
               <Text style={styles.emptyStateTitle}>No mixes found</Text>
               <Text style={styles.emptyStateSubtitle}>
                 {searchQuery.trim()
-                  ? `No results for "${searchQuery}"`
-                  : "Try adjusting your filters"}
+                  ? `No results for "${searchQuery}". Try a different search term or genre filter.`
+                  : "No mixes available. Try adjusting your filters or upload your own mix!"}
               </Text>
             </View>
           );
