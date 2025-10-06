@@ -10,10 +10,13 @@ import {
   RefreshControl,
   FlatList,
   Modal,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import DJMix from "./DJMix";
+import AnimatedListItem from "./AnimatedListItem";
+import { SkeletonMix } from "./Skeleton";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 import { supabase } from "../lib/supabase";
 
@@ -169,6 +172,13 @@ export default function ListenScreen({
       setMixes([]);
     } finally {
       setLoading(false);
+
+      // Fade in content after loading
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
     }
   };
 
@@ -238,6 +248,7 @@ export default function ListenScreen({
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    fadeAnim.setValue(0); // Reset fade animation
     await fetchMixes();
     setRefreshing(false);
   };
@@ -412,34 +423,54 @@ export default function ListenScreen({
   return (
     <View style={styles.container}>
       <FlatList
-        data={filteredMixes}
+        data={loading ? [] : filteredMixes}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item: mix, index }) => (
-          <DJMix
-            mix={{ ...mix, trackNumber: index + 1 }}
-            isPlaying={playingMixId === mix.id}
-            isLoading={globalAudioState.isLoading && playingMixId === mix.id}
-            onPlayPause={() => handleMixPress(mix)}
-            onArtistPress={handleArtistPress}
-            onDelete={handleDeleteMix}
-            onAddToQueue={handleAddToQueue}
-            currentUserId={user?.id}
-            progress={playingMixId === mix.id ? globalAudioState.progress : 0}
-          />
+          <AnimatedListItem index={index} delay={80}>
+            <DJMix
+              mix={{ ...mix, trackNumber: index + 1 }}
+              isPlaying={playingMixId === mix.id}
+              isLoading={globalAudioState.isLoading && playingMixId === mix.id}
+              onPlayPause={() => handleMixPress(mix)}
+              onArtistPress={handleArtistPress}
+              onDelete={handleDeleteMix}
+              onAddToQueue={handleAddToQueue}
+              currentUserId={user?.id}
+              progress={playingMixId === mix.id ? globalAudioState.progress : 0}
+            />
+          </AnimatedListItem>
         )}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Ionicons name="musical-notes" size={48} color="hsl(0, 0%, 30%)" />
-            <Text style={styles.emptyStateTitle}>No mixes found</Text>
-            <Text style={styles.emptyStateSubtitle}>
-              {searchQuery.trim()
-                ? `No results for "${searchQuery}"`
-                : "Try adjusting your filters"}
-            </Text>
-          </View>
-        )}
+        ListEmptyComponent={() => {
+          if (loading) {
+            return (
+              <View style={styles.skeletonContainer}>
+                <SkeletonMix />
+                <SkeletonMix />
+                <SkeletonMix />
+                <SkeletonMix />
+                <SkeletonMix />
+              </View>
+            );
+          }
+
+          return (
+            <View style={styles.emptyState}>
+              <Ionicons
+                name="musical-notes"
+                size={48}
+                color="hsl(0, 0%, 30%)"
+              />
+              <Text style={styles.emptyStateTitle}>No mixes found</Text>
+              <Text style={styles.emptyStateSubtitle}>
+                {searchQuery.trim()
+                  ? `No results for "${searchQuery}"`
+                  : "Try adjusting your filters"}
+              </Text>
+            </View>
+          );
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -704,6 +735,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   // Empty State Styles
+  skeletonContainer: {
+    padding: 20,
+  },
   emptyState: {
     alignItems: "center",
     paddingVertical: 40,

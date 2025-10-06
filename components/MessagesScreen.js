@@ -302,16 +302,24 @@ export default function MessagesScreen({ navigation, route }) {
         .eq("id", djId)
         .maybeSingle();
 
-      if (profileError || !otherUserProfile) {
+      if (profileError) {
         console.error("Error fetching user profile:", profileError);
         // Fallback to mock data
         setOtherUser({
           id: djId,
-          dj_name: currentDJ?.name || "Unknown User",
-          profile_image_url: currentDJ?.profileImage || null,
+          dj_name: currentDJ.name,
+          profile_image_url: currentDJ.profileImage,
         });
-      } else {
+      } else if (otherUserProfile) {
         setOtherUser(otherUserProfile);
+      } else {
+        // No profile found, use mock data
+        console.log("No user profile found, using mock data");
+        setOtherUser({
+          id: djId,
+          dj_name: currentDJ.name,
+          profile_image_url: currentDJ.profileImage,
+        });
       }
 
       // Get or create message thread

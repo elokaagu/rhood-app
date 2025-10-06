@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,9 +14,11 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
+import AnimatedListItem from "./AnimatedListItem";
 import * as Haptics from "expo-haptics";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase } from "../lib/supabase";
+import { SkeletonList } from "./Skeleton";
 
 // Mock connections data
 const mockConnections = [
@@ -303,89 +305,100 @@ export default function ConnectionsScreen({ onNavigate }) {
                   : "Try adjusting your filters"}
               </Text>
             </View>
+          ) : loading ? (
+            <SkeletonList count={5} />
           ) : (
-            filteredConnections.map((connection) => (
-              <TouchableOpacity
-                key={connection.id}
-                style={styles.connectionItem}
-                onPress={() => handleConnectionPress(connection)}
-              >
-                <View style={styles.connectionContent}>
-                  {/* Profile Image with Online Status */}
-                  <View style={styles.profileContainer}>
-                    <ProgressiveImage
-                      source={{
-                        uri:
-                          connection.profile_image_url ||
-                          "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face",
-                      }}
-                      style={styles.profileImage}
-                    />
-                    {/* For now, show all as online. In a real app, you'd track online status */}
-                    <View
-                      style={[
-                        styles.statusIndicator,
-                        {
-                          backgroundColor: "hsl(120, 100%, 50%)", // Always online for now
-                        },
-                      ]}
-                    />
-                  </View>
+            <>
+              {filteredConnections.map((connection, index) => (
+                <AnimatedListItem key={connection.id} index={index} delay={80}>
+                  <TouchableOpacity
+                    style={styles.connectionItem}
+                    onPress={() => handleConnectionPress(connection)}
+                  >
+                    <View style={styles.connectionContent}>
+                      {/* Profile Image with Online Status */}
+                      <View style={styles.profileContainer}>
+                        <ProgressiveImage
+                          source={{
+                            uri:
+                              connection.profile_image_url ||
+                              "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face",
+                          }}
+                          style={styles.profileImage}
+                        />
+                        {/* For now, show all as online. In a real app, you'd track online status */}
+                        <View
+                          style={[
+                            styles.statusIndicator,
+                            {
+                              backgroundColor: "hsl(120, 100%, 50%)", // Always online for now
+                            },
+                          ]}
+                        />
+                      </View>
 
-                  {/* Connection Info */}
-                  <View style={styles.connectionInfo}>
-                    {/* Name and Last Active Time */}
-                    <View style={styles.connectionHeader}>
-                      <Text style={styles.connectionName} numberOfLines={1}>
-                        {connection.dj_name || connection.full_name}
-                      </Text>
-                      <Text style={styles.lastActive}>
-                        {connection.followedAt
-                          ? new Date(connection.followedAt).toLocaleDateString()
-                          : "Recently"}
-                      </Text>
-                    </View>
-
-                    {/* Last Message Preview */}
-                    <Text style={styles.lastMessage} numberOfLines={1}>
-                      {getLastMessage(connection.id)}
-                    </Text>
-
-                    {/* Genre Tags */}
-                    <View style={styles.genreTags}>
-                      {(connection.genres || []).slice(0, 2).map((genre) => (
-                        <View key={genre} style={styles.genreTag}>
-                          <Text style={styles.genreTagText}>{genre}</Text>
+                      {/* Connection Info */}
+                      <View style={styles.connectionInfo}>
+                        {/* Name and Last Active Time */}
+                        <View style={styles.connectionHeader}>
+                          <Text style={styles.connectionName} numberOfLines={1}>
+                            {connection.dj_name || connection.full_name}
+                          </Text>
+                          <Text style={styles.lastActive}>
+                            {connection.followedAt
+                              ? new Date(
+                                  connection.followedAt
+                                ).toLocaleDateString()
+                              : "Recently"}
+                          </Text>
                         </View>
-                      ))}
-                      {(!connection.genres ||
-                        connection.genres.length === 0) && (
-                        <View style={styles.genreTag}>
-                          <Text style={styles.genreTagText}>Electronic</Text>
+
+                        {/* Last Message Preview */}
+                        <Text style={styles.lastMessage} numberOfLines={1}>
+                          {getLastMessage(connection.id)}
+                        </Text>
+
+                        {/* Genre Tags */}
+                        <View style={styles.genreTags}>
+                          {(connection.genres || [])
+                            .slice(0, 2)
+                            .map((genre) => (
+                              <View key={genre} style={styles.genreTag}>
+                                <Text style={styles.genreTagText}>{genre}</Text>
+                              </View>
+                            ))}
+                          {(!connection.genres ||
+                            connection.genres.length === 0) && (
+                            <View style={styles.genreTag}>
+                              <Text style={styles.genreTagText}>
+                                Electronic
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+
+                      {/* Unread Message Indicator */}
+                      {connection.id === 1 && (
+                        <View style={styles.unreadCounter}>
+                          <Text style={styles.unreadCount}>2</Text>
+                        </View>
+                      )}
+                      {connection.id === 2 && (
+                        <View style={styles.unreadCounter}>
+                          <Text style={styles.unreadCount}>1</Text>
+                        </View>
+                      )}
+                      {connection.id === 6 && (
+                        <View style={styles.unreadCounter}>
+                          <Text style={styles.unreadCount}>3</Text>
                         </View>
                       )}
                     </View>
-                  </View>
-
-                  {/* Unread Message Indicator */}
-                  {connection.id === 1 && (
-                    <View style={styles.unreadCounter}>
-                      <Text style={styles.unreadCount}>2</Text>
-                    </View>
-                  )}
-                  {connection.id === 2 && (
-                    <View style={styles.unreadCounter}>
-                      <Text style={styles.unreadCount}>1</Text>
-                    </View>
-                  )}
-                  {connection.id === 6 && (
-                    <View style={styles.unreadCounter}>
-                      <Text style={styles.unreadCount}>3</Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))
+                  </TouchableOpacity>
+                </AnimatedListItem>
+              ))}
+            </>
           )}
         </View>
 

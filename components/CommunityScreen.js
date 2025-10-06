@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
+import AnimatedListItem from "./AnimatedListItem";
 import { connectionsService } from "../lib/connectionsService";
 
 // Mock communities data
@@ -406,133 +407,146 @@ export default function CommunityScreen({ onNavigate }) {
               </Text>
             </View>
           ) : (
-            filteredCommunities.map((community) => (
-              <TouchableOpacity
-                key={community.id}
-                style={styles.communityCard}
-                onPress={() => handleCommunityPress(community)}
-                activeOpacity={0.7}
-              >
-                {/* Community Header */}
-                <View style={styles.communityHeader}>
-                  <View style={styles.communityInfo}>
-                    <View style={styles.communityTitleRow}>
-                      <Ionicons
-                        name={getGenreIcon(community.genre)}
-                        size={20}
-                        color="hsl(75, 100%, 60%)"
-                        style={styles.genreIcon}
-                      />
-                      <Text style={styles.communityName}>{community.name}</Text>
-                      {community.isTrending && (
-                        <View style={styles.trendingBadge}>
-                          <Text style={styles.trendingText}>🔥</Text>
-                        </View>
-                      )}
+            filteredCommunities.map((community, index) => (
+              <AnimatedListItem key={community.id} index={index} delay={70}>
+                <TouchableOpacity
+                  style={styles.communityCard}
+                  onPress={() => handleCommunityPress(community)}
+                  activeOpacity={0.7}
+                >
+                  {/* Community Header */}
+                  <View style={styles.communityHeader}>
+                    <View style={styles.communityInfo}>
+                      <View style={styles.communityTitleRow}>
+                        <Ionicons
+                          name={getGenreIcon(community.genre)}
+                          size={20}
+                          color="hsl(75, 100%, 60%)"
+                          style={styles.genreIcon}
+                        />
+                        <Text style={styles.communityName}>
+                          {community.name}
+                        </Text>
+                        {community.isTrending && (
+                          <View style={styles.trendingBadge}>
+                            <Text style={styles.trendingText}>🔥</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.communityDescription}>
+                        {community.description}
+                      </Text>
                     </View>
-                    <Text style={styles.communityDescription}>
-                      {community.description}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[
-                      styles.joinButton,
-                      community.isJoined && styles.joinedButton,
-                    ]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleJoinCommunity(community.id);
-                    }}
-                  >
-                    <Ionicons
-                      name={community.isJoined ? "checkmark" : "add"}
-                      size={16}
-                      color={
-                        community.isJoined
-                          ? "hsl(0, 0%, 0%)"
-                          : "hsl(75, 100%, 60%)"
-                      }
-                    />
-                    <Text
+                    <TouchableOpacity
                       style={[
-                        styles.joinButtonText,
-                        community.isJoined && styles.joinedButtonText,
+                        styles.joinButton,
+                        community.isJoined && styles.joinedButton,
                       ]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleJoinCommunity(community.id);
+                      }}
                     >
-                      {community.isJoined ? "Joined" : "Join"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                      <Ionicons
+                        name={community.isJoined ? "checkmark" : "add"}
+                        size={16}
+                        color={
+                          community.isJoined
+                            ? "hsl(0, 0%, 0%)"
+                            : "hsl(75, 100%, 60%)"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.joinButtonText,
+                          community.isJoined && styles.joinedButtonText,
+                        ]}
+                      >
+                        {community.isJoined ? "Joined" : "Join"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
 
-                {/* Community Stats */}
-                <View style={styles.communityStats}>
-                  <View style={styles.statItem}>
-                    <Ionicons name="people" size={14} color="hsl(0, 0%, 70%)" />
-                    <Text style={styles.statText}>
-                      {formatMemberCount(community.memberCount)} members
-                    </Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Ionicons
-                      name="location"
-                      size={14}
-                      color="hsl(0, 0%, 70%)"
-                    />
-                    <Text style={styles.statText}>{community.location}</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Ionicons name="time" size={14} color="hsl(0, 0%, 70%)" />
-                    <Text style={styles.statText}>
-                      Active {community.recentActivity}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Member Avatars */}
-                {community.memberAvatars.length > 0 && (
-                  <View style={styles.memberAvatars}>
-                    <Text style={styles.memberAvatarsLabel}>
-                      Recent members:
-                    </Text>
-                    <View style={styles.avatarContainer}>
-                      {community.memberAvatars
-                        .slice(0, 5)
-                        .map((avatar, index) => (
-                          <ProgressiveImage
-                            key={index}
-                            source={{ uri: avatar }}
-                            style={[
-                              styles.memberAvatar,
-                              { marginLeft: index > 0 ? -8 : 0 },
-                            ]}
-                          />
-                        ))}
-                      {community.memberAvatars.length > 5 && (
-                        <View style={[styles.memberAvatar, styles.moreAvatars]}>
-                          <Text style={styles.moreAvatarsText}>
-                            +{community.memberAvatars.length - 5}
-                          </Text>
-                        </View>
-                      )}
+                  {/* Community Stats */}
+                  <View style={styles.communityStats}>
+                    <View style={styles.statItem}>
+                      <Ionicons
+                        name="people"
+                        size={14}
+                        color="hsl(0, 0%, 70%)"
+                      />
+                      <Text style={styles.statText}>
+                        {formatMemberCount(community.memberCount)} members
+                      </Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Ionicons
+                        name="location"
+                        size={14}
+                        color="hsl(0, 0%, 70%)"
+                      />
+                      <Text style={styles.statText}>{community.location}</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Ionicons name="time" size={14} color="hsl(0, 0%, 70%)" />
+                      <Text style={styles.statText}>
+                        Active {community.recentActivity}
+                      </Text>
                     </View>
                   </View>
-                )}
 
-                {/* Featured Content */}
-                <View style={styles.featuredContent}>
-                  <Ionicons name="star" size={14} color="hsl(75, 100%, 60%)" />
-                  <Text style={styles.featuredText}>
-                    {community.featuredContent}
-                  </Text>
-                </View>
+                  {/* Member Avatars */}
+                  {community.memberAvatars.length > 0 && (
+                    <View style={styles.memberAvatars}>
+                      <Text style={styles.memberAvatarsLabel}>
+                        Recent members:
+                      </Text>
+                      <View style={styles.avatarContainer}>
+                        {community.memberAvatars
+                          .slice(0, 5)
+                          .map((avatar, index) => (
+                            <ProgressiveImage
+                              key={index}
+                              source={{ uri: avatar }}
+                              style={[
+                                styles.memberAvatar,
+                                { marginLeft: index > 0 ? -8 : 0 },
+                              ]}
+                            />
+                          ))}
+                        {community.memberAvatars.length > 5 && (
+                          <View
+                            style={[styles.memberAvatar, styles.moreAvatars]}
+                          >
+                            <Text style={styles.moreAvatarsText}>
+                              +{community.memberAvatars.length - 5}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
 
-                {/* Last Post */}
-                <View style={styles.lastPost}>
-                  <Text style={styles.lastPostText} numberOfLines={1}>
-                    {community.lastPost}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                  {/* Featured Content */}
+                  <View style={styles.featuredContent}>
+                    <Ionicons
+                      name="star"
+                      size={14}
+                      color="hsl(75, 100%, 60%)"
+                    />
+                    <Text style={styles.featuredText}>
+                      {community.featuredContent}
+                    </Text>
+                  </View>
+
+                  {/* Last Post */}
+                  <View style={styles.lastPost}>
+                    <Text style={styles.lastPostText} numberOfLines={1}>
+                      {community.lastPost}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </AnimatedListItem>
             ))
           )}
         </View>

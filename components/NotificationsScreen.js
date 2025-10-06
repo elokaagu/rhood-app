@@ -10,6 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
+import AnimatedListItem from "./AnimatedListItem";
 
 // Mock notifications data
 const mockNotifications = [
@@ -205,110 +206,111 @@ export default function NotificationsScreen({ onNavigate }) {
               </Text>
             </View>
           ) : (
-            sortedNotifications.map((notification) => (
-              <TouchableOpacity
-                key={notification.id}
-                style={[
-                  styles.notificationCard,
-                  !notification.isRead && styles.unreadCard,
-                ]}
-                onPress={() => handleNotificationPress(notification)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.notificationContent}>
-                  {/* Left Side - Icon and Status */}
-                  <View style={styles.notificationLeft}>
-                    <View style={styles.iconContainer}>
-                      <Ionicons
-                        name={getNotificationIcon(notification.type)}
-                        size={24}
-                        color={
-                          notification.isRead
-                            ? "hsl(0, 0%, 50%)"
-                            : "hsl(75, 100%, 60%)"
-                        }
-                      />
-                      {!notification.isRead && (
-                        <View style={styles.unreadDot} />
+            sortedNotifications.map((notification, index) => (
+              <AnimatedListItem key={notification.id} index={index} delay={60}>
+                <TouchableOpacity
+                  style={[
+                    styles.notificationCard,
+                    !notification.isRead && styles.unreadCard,
+                  ]}
+                  onPress={() => handleNotificationPress(notification)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.notificationContent}>
+                    {/* Left Side - Icon and Status */}
+                    <View style={styles.notificationLeft}>
+                      <View style={styles.iconContainer}>
+                        <Ionicons
+                          name={getNotificationIcon(notification.type)}
+                          size={24}
+                          color={
+                            notification.isRead
+                              ? "hsl(0, 0%, 50%)"
+                              : "hsl(75, 100%, 60%)"
+                          }
+                        />
+                        {!notification.isRead && (
+                          <View style={styles.unreadDot} />
+                        )}
+                      </View>
+                      {notification.senderImage && (
+                        <ProgressiveImage
+                          source={{ uri: notification.senderImage }}
+                          style={styles.senderImage}
+                        />
                       )}
                     </View>
-                    {notification.senderImage && (
-                      <ProgressiveImage
-                        source={{ uri: notification.senderImage }}
-                        style={styles.senderImage}
-                      />
-                    )}
-                  </View>
 
-                  {/* Center - Content */}
-                  <View style={styles.notificationCenter}>
-                    <View style={styles.notificationHeader}>
-                      <Text
-                        style={[
-                          styles.notificationTitle,
-                          !notification.isRead && styles.unreadTitle,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {notification.title}
-                      </Text>
-                      <View style={styles.notificationActions}>
-                        {!notification.isRead && (
+                    {/* Center - Content */}
+                    <View style={styles.notificationCenter}>
+                      <View style={styles.notificationHeader}>
+                        <Text
+                          style={[
+                            styles.notificationTitle,
+                            !notification.isRead && styles.unreadTitle,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {notification.title}
+                        </Text>
+                        <View style={styles.notificationActions}>
+                          {!notification.isRead && (
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleMarkAsRead(notification.id);
+                              }}
+                              style={styles.actionButton}
+                            >
+                              <Ionicons
+                                name="checkmark"
+                                size={16}
+                                color="hsl(0, 0%, 50%)"
+                              />
+                            </TouchableOpacity>
+                          )}
                           <TouchableOpacity
                             onPress={(e) => {
                               e.stopPropagation();
-                              handleMarkAsRead(notification.id);
+                              handleDismiss(notification.id);
                             }}
                             style={styles.actionButton}
                           >
                             <Ionicons
-                              name="checkmark"
+                              name="close"
                               size={16}
                               color="hsl(0, 0%, 50%)"
                             />
                           </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            handleDismiss(notification.id);
-                          }}
-                          style={styles.actionButton}
-                        >
-                          <Ionicons
-                            name="close"
-                            size={16}
-                            color="hsl(0, 0%, 50%)"
-                          />
-                        </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      <Text
+                        style={styles.notificationDescription}
+                        numberOfLines={2}
+                      >
+                        {notification.description}
+                      </Text>
+
+                      <View style={styles.notificationFooter}>
+                        <Text style={styles.notificationTimestamp}>
+                          {notification.timestamp}
+                        </Text>
+                        <View
+                          style={[
+                            styles.priorityIndicator,
+                            {
+                              backgroundColor: getPriorityColor(
+                                notification.priority
+                              ),
+                            },
+                          ]}
+                        />
                       </View>
                     </View>
-
-                    <Text
-                      style={styles.notificationDescription}
-                      numberOfLines={2}
-                    >
-                      {notification.description}
-                    </Text>
-
-                    <View style={styles.notificationFooter}>
-                      <Text style={styles.notificationTimestamp}>
-                        {notification.timestamp}
-                      </Text>
-                      <View
-                        style={[
-                          styles.priorityIndicator,
-                          {
-                            backgroundColor: getPriorityColor(
-                              notification.priority
-                            ),
-                          },
-                        ]}
-                      />
-                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </AnimatedListItem>
             ))
           )}
         </View>

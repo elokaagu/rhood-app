@@ -14,6 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import ProgressiveImage from "./ProgressiveImage";
+import AnimatedListItem from "./AnimatedListItem";
+import { SkeletonProfile, SkeletonMix } from "./Skeleton";
 
 // Mock profile data
 const mockProfile = {
@@ -416,25 +418,30 @@ export default function ProfileScreen({ onNavigate, user }) {
         {/* Recent Gigs */}
         <View style={styles.gigsContainer}>
           <Text style={styles.sectionTitle}>Recent Gigs</Text>
-          {profile.recentGigs.map((gig) => (
-            <TouchableOpacity
-              key={gig.id}
-              style={styles.gigCard}
-              onPress={() => handleGigPress(gig)}
-            >
-              <View style={styles.gigHeader}>
-                <Text style={styles.gigName}>{gig.name}</Text>
-                <Text style={styles.gigPrice}>{gig.price}</Text>
-              </View>
-              <Text style={styles.gigVenue}>{gig.venue}</Text>
-              <View style={styles.gigFooter}>
-                <Text style={styles.gigDate}>{gig.date}</Text>
-                <View style={styles.gigRating}>
-                  <Ionicons name="star" size={14} color="hsl(45, 100%, 60%)" />
-                  <Text style={styles.gigRatingText}>{gig.rating}</Text>
+          {profile.recentGigs.map((gig, index) => (
+            <AnimatedListItem key={gig.id} index={index} delay={70}>
+              <TouchableOpacity
+                style={styles.gigCard}
+                onPress={() => handleGigPress(gig)}
+              >
+                <View style={styles.gigHeader}>
+                  <Text style={styles.gigName}>{gig.name}</Text>
+                  <Text style={styles.gigPrice}>{gig.price}</Text>
                 </View>
-              </View>
-            </TouchableOpacity>
+                <Text style={styles.gigVenue}>{gig.venue}</Text>
+                <View style={styles.gigFooter}>
+                  <Text style={styles.gigDate}>{gig.date}</Text>
+                  <View style={styles.gigRating}>
+                    <Ionicons
+                      name="star"
+                      size={14}
+                      color="hsl(45, 100%, 60%)"
+                    />
+                    <Text style={styles.gigRatingText}>{gig.rating}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </AnimatedListItem>
           ))}
         </View>
 
