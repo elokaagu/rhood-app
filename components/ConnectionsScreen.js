@@ -737,14 +737,14 @@ export default function ConnectionsScreen({ onNavigate }) {
                             }}
                             style={styles.discoverProfileImage}
                           />
+                          <View style={styles.discoverOnlineIndicator} />
                         </View>
 
                         {/* Content Area - Takes up most width */}
                         <View style={styles.discoverContent}>
-                          {/* Header Row with Name and Online Indicator */}
+                          {/* Header Row with Name */}
                           <View style={styles.discoverHeader}>
                             <Text style={styles.discoverName}>{user.name}</Text>
-                            <View style={styles.discoverOnlineIndicator} />
                           </View>
 
                           {/* Username and Location */}
@@ -781,7 +781,7 @@ export default function ConnectionsScreen({ onNavigate }) {
                             <Ionicons
                               name="star"
                               size={16}
-                              color="hsl(75, 100%, 60%)"
+                              color="hsl(45, 100%, 50%)"
                             />
                             <Text style={styles.discoverRating}>
                               {user.rating}
@@ -1355,6 +1355,7 @@ const styles = StyleSheet.create({
   discoverProfileContainer: {
     marginRight: 16,
     alignSelf: "flex-start",
+    position: "relative",
   },
   discoverProfileImage: {
     width: 80,
@@ -1368,8 +1369,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   discoverHeader: {
-    flexDirection: "row",
-    alignItems: "center",
     marginBottom: 4,
   },
   discoverName: {
@@ -1377,13 +1376,17 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
-    marginRight: 8,
   },
   discoverOnlineIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: "hsl(120, 100%, 50%)",
+    borderWidth: 3,
+    borderColor: "hsl(0, 0%, 8%)",
   },
   discoverUsername: {
     fontSize: 14,
@@ -1424,7 +1427,7 @@ const styles = StyleSheet.create({
   discoverGenreText: {
     fontSize: 11,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 70%)",
+    color: "hsl(0, 0%, 100%)",
     fontWeight: "500",
     marginLeft: 4,
   },
@@ -1441,7 +1444,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Arial",
     fontWeight: "600",
-    color: "hsl(75, 100%, 60%)",
+    color: "hsl(45, 100%, 50%)",
     marginLeft: 4,
   },
   discoverLastActive: {
