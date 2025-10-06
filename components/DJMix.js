@@ -247,11 +247,6 @@ const DJMix = ({
             <Text style={styles.trackArtist} numberOfLines={1}>
               {mix.artist}
             </Text>
-            <View style={styles.trackMeta}>
-              <View style={styles.genreBadge}>
-                <Text style={styles.genreText}>{mix.genre}</Text>
-              </View>
-            </View>
           </View>
 
           {/* Options Menu - Show for all mixes */}
@@ -457,28 +452,10 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 60%)",
     marginBottom: 4,
   },
-  trackMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
   trackDuration: {
     fontSize: 12,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
-  },
-  genreBadge: {
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  genreText: {
-    fontSize: 10,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 0%)",
-    textTransform: "uppercase",
   },
   optionsButton: {
     padding: 8,
