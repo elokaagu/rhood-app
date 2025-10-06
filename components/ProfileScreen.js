@@ -16,6 +16,7 @@ import { Audio } from "expo-av";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import { SkeletonProfile, SkeletonMix } from "./Skeleton";
+import { generateGenreWaveform } from "../lib/audioWaveform";
 
 // Mock profile data
 const mockProfile = {
@@ -124,6 +125,50 @@ export default function ProfileScreen({ onNavigate, user }) {
       const { db } = await import("../lib/supabase");
       const userProfile = await db.getUserProfile(user.id);
 
+      // Load user's gigs
+      let recentGigs = mockProfile.recentGigs;
+      try {
+        const gigsData = await db.getUserGigs(user.id);
+        if (gigsData && gigsData.length > 0) {
+          recentGigs = gigsData.slice(0, 5).map((gig) => ({
+            id: gig.id,
+            name: gig.name,
+            venue: gig.venue,
+            date: gig.event_date,
+            price: gig.payment
+              ? `£${gig.payment.toFixed(0)}`
+              : mockProfile.recentGigs[0].price,
+            rating: gig.dj_rating || 0,
+          }));
+        }
+      } catch (gigsError) {
+        console.error("❌ Error loading gigs:", gigsError);
+      }
+
+      // Load user's achievements
+      let achievements = mockProfile.achievements;
+      try {
+        const [allAchievements, userAchievements] = await Promise.all([
+          db.getAchievements(),
+          db.getUserAchievements(user.id),
+        ]);
+
+        if (allAchievements && allAchievements.length > 0) {
+          const earnedIds = new Set(
+            userAchievements.map((ua) => ua.achievement_id)
+          );
+
+          achievements = allAchievements.slice(0, 4).map((achievement) => ({
+            id: achievement.id,
+            name: achievement.name,
+            icon: achievement.icon || "trophy",
+            earned: earnedIds.has(achievement.id),
+          }));
+        }
+      } catch (achievementsError) {
+        console.error("❌ Error loading achievements:", achievementsError);
+      }
+
       if (userProfile) {
         // Fetch primary mix if exists
         let primaryMix = null;
@@ -138,6 +183,13 @@ export default function ProfileScreen({ onNavigate, user }) {
                   .single()
             );
             if (mixData) {
+              // Generate waveform based on genre and duration
+              const waveform = generateGenreWaveform(
+                mixData.duration || 300,
+                mixData.genre || "electronic",
+                16
+              );
+
               primaryMix = {
                 title: mixData.title,
                 duration: mixData.duration
@@ -149,7 +201,7 @@ export default function ProfileScreen({ onNavigate, user }) {
                   : "0:00",
                 genre: mixData.genre || "Electronic",
                 audioUrl: mixData.file_url,
-                waveform: mockProfile.audioId.waveform, // Keep mock waveform for now
+                waveform: waveform,
               };
             }
           } catch (mixError) {
@@ -191,8 +243,11 @@ export default function ProfileScreen({ onNavigate, user }) {
             userProfile.join_date ||
             userProfile.created_at ||
             mockProfile.joinDate,
+          recentGigs: recentGigs,
+          achievements: achievements,
         });
         console.log("✅ Profile loaded from database");
+        console.log(`📊 Loaded ${recentGigs.length} gigs and ${achievements.length} achievements`);
       } else {
         console.log("📝 No profile found, using mock data");
       }
