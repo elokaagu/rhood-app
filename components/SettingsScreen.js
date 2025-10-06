@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import RhoodModal from "./RhoodModal";
 import {
   COLORS,
   TYPOGRAPHY,
@@ -22,6 +23,7 @@ import {
 
 export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [settings, setSettings] = useState({
     // Account Settings
     profileVisibility: "public",
@@ -55,14 +57,12 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   };
 
   const handleSignOut = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: () => onSignOut && onSignOut(),
-      },
-    ]);
+    setShowSignOutModal(true);
+  };
+
+  const confirmSignOut = () => {
+    setShowSignOutModal(false);
+    onSignOut && onSignOut();
   };
 
   const handleOpenLink = (url) => {
@@ -400,6 +400,19 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
         colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)"]}
         style={styles.bottomGradient}
         pointerEvents="none"
+      />
+
+      {/* Sign Out Modal */}
+      <RhoodModal
+        visible={showSignOutModal}
+        onClose={() => setShowSignOutModal(false)}
+        type="warning"
+        title="Sign Out"
+        message="Are you sure you want to sign out?"
+        primaryButtonText="Sign Out"
+        secondaryButtonText="Cancel"
+        onPrimaryPress={confirmSignOut}
+        onSecondaryPress={() => setShowSignOutModal(false)}
       />
     </View>
   );
