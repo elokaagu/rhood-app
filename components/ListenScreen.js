@@ -11,6 +11,7 @@ import {
   FlatList,
   Modal,
   Animated,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -259,11 +260,11 @@ export default function ListenScreen({
   // Load more mixes for infinite scroll
   const loadMoreMixes = async () => {
     if (loadingMore || !hasMoreData) return;
-    
+
     try {
       setLoadingMore(true);
       const nextPage = currentPage + 1;
-      
+
       // Simulate API call with pagination
       const { data: newMixes, error } = await supabase
         .from("mixes")
@@ -274,7 +275,7 @@ export default function ListenScreen({
       if (error) throw error;
 
       if (newMixes && newMixes.length > 0) {
-        setMixes(prev => [...prev, ...newMixes]);
+        setMixes((prev) => [...prev, ...newMixes]);
         setCurrentPage(nextPage);
       } else {
         setHasMoreData(false);
@@ -514,7 +515,9 @@ export default function ListenScreen({
             {loadingMore && (
               <View style={styles.loadingMoreContainer}>
                 <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
-                <Text style={styles.loadingMoreText}>Loading more mixes...</Text>
+                <Text style={styles.loadingMoreText}>
+                  Loading more mixes...
+                </Text>
               </View>
             )}
           </>
@@ -550,7 +553,9 @@ export default function ListenScreen({
                   style={styles.emptyStateButton}
                   onPress={handleUploadMix}
                 >
-                  <Text style={styles.emptyStateButtonText}>Upload Your First Mix</Text>
+                  <Text style={styles.emptyStateButtonText}>
+                    Upload Your First Mix
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
