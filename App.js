@@ -104,7 +104,7 @@ const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
 
   const rotateInterpolate = rotateAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+    outputRange: ["0deg", "360deg"],
   });
 
   return (
@@ -112,10 +112,7 @@ const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
       style={[
         style,
         {
-          transform: [
-            { scale: pulseAnim },
-            { rotate: rotateInterpolate },
-          ],
+          transform: [{ scale: pulseAnim }, { rotate: rotateInterpolate }],
         },
       ]}
     >
@@ -127,11 +124,7 @@ const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
         />
       ) : (
         <View style={styles.albumArtPlaceholder}>
-          <Ionicons
-            name="musical-notes"
-            size={48}
-            color="hsl(75, 100%, 60%)"
-          />
+          <Ionicons name="musical-notes" size={48} color="hsl(75, 100%, 60%)" />
         </View>
       )}
     </Animated.View>
@@ -139,9 +132,24 @@ const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
 };
 
 // Enhanced Progress Bar Component
-const EnhancedProgressBar = ({ progress, duration, position, onSeek, isPlaying }) => {
+const EnhancedProgressBar = ({
+  progress,
+  duration,
+  position,
+  onSeek,
+  isPlaying,
+}) => {
   const progressAnim = useRef(new Animated.Value(progress)).current;
   const [isScrubbing, setIsScrubbing] = useState(false);
+
+  // Format time helper function
+  const formatTime = (milliseconds) => {
+    if (!milliseconds || milliseconds < 0) return "0:00";
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
 
   useEffect(() => {
     if (!isScrubbing) {
@@ -157,13 +165,13 @@ const EnhancedProgressBar = ({ progress, duration, position, onSeek, isPlaying }
     const { locationX } = event.nativeEvent;
     const progressBarWidth = 300; // Approximate width
     const newProgress = Math.max(0, Math.min(1, locationX / progressBarWidth));
-    
+
     setIsScrubbing(true);
     onSeek(newProgress);
-    
+
     // Haptic feedback
     Vibration.vibrate(50);
-    
+
     setTimeout(() => setIsScrubbing(false), 200);
   };
 
@@ -181,7 +189,7 @@ const EnhancedProgressBar = ({ progress, duration, position, onSeek, isPlaying }
               {
                 width: progressAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
+                  outputRange: ["0%", "100%"],
                 }),
               },
             ]}
@@ -199,7 +207,7 @@ const EnhancedProgressBar = ({ progress, duration, position, onSeek, isPlaying }
           />
         </View>
       </TouchableOpacity>
-      
+
       <View style={styles.timeContainer}>
         <Text style={styles.timeText}>{formatTime(position)}</Text>
         <Text style={styles.timeText}>{formatTime(duration)}</Text>
@@ -2852,7 +2860,7 @@ export default function App() {
             onRequestClose={() => setShowFullScreenPlayer(false)}
           >
             <View style={styles.fullScreenPlayerOverlay}>
-              <View 
+              <View
                 style={styles.fullScreenPlayer}
                 {...createGestureHandlers()}
               >
@@ -2899,7 +2907,8 @@ export default function App() {
                     duration={globalAudioState.durationMillis || 0}
                     position={globalAudioState.positionMillis || 0}
                     onSeek={(newProgress) => {
-                      const newPosition = newProgress * globalAudioState.durationMillis;
+                      const newPosition =
+                        newProgress * globalAudioState.durationMillis;
                       if (globalAudioState.sound) {
                         globalAudioState.sound.setPositionAsync(newPosition);
                       }
