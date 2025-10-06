@@ -248,7 +248,7 @@ export default function ConnectionsScreen({ onNavigate }) {
       setConnections([]);
     } finally {
       setLoading(false);
-      // Fade in connections after loading completes
+      // Always fade in connections after loading completes (even if empty)
       Animated.timing(connectionsFadeAnim, {
         toValue: 1,
         duration: 300,
@@ -356,7 +356,7 @@ export default function ConnectionsScreen({ onNavigate }) {
       setDiscoverUsers(mockDiscoverUsers);
     } finally {
       setDiscoverLoading(false);
-      // Fade in discover users after loading completes
+      // Always fade in discover users after loading completes (even if empty)
       Animated.timing(discoverFadeAnim, {
         toValue: 1,
         duration: 300,
@@ -582,16 +582,6 @@ export default function ConnectionsScreen({ onNavigate }) {
           <View style={styles.connectionsList}>
             {loading ? (
               <SkeletonList count={5} />
-            ) : filteredConnections.length === 0 ? (
-              <View style={styles.noResultsContainer}>
-                <Ionicons name="search" size={48} color="hsl(0, 0%, 30%)" />
-                <Text style={styles.noResultsTitle}>No connections found</Text>
-                <Text style={styles.noResultsSubtitle}>
-                  {searchQuery.trim()
-                    ? `No results for "${searchQuery}"`
-                    : "Try adjusting your filters"}
-                </Text>
-              </View>
             ) : (
               <Animated.View style={{ opacity: connectionsFadeAnim }}>
                 {filteredConnections.map((connection, index) => (
@@ -700,109 +690,103 @@ export default function ConnectionsScreen({ onNavigate }) {
           <View style={styles.discoverList}>
             {discoverLoading ? (
               <SkeletonList count={4} />
-            ) : discoverUsers.length === 0 ? (
-              <View style={styles.noResultsContainer}>
-                <Ionicons
-                  name="people-outline"
-                  size={48}
-                  color="hsl(0, 0%, 30%)"
-                />
-                <Text style={styles.noResultsTitle}>No DJs found</Text>
-                <Text style={styles.noResultsSubtitle}>
-                  Try adjusting your filters or check back later
-                </Text>
-              </View>
             ) : (
               <Animated.View style={{ opacity: discoverFadeAnim }}>
                 {discoverUsers.map((user, index) => (
-                <AnimatedListItem key={user.id} index={index} delay={80}>
-                  <View style={styles.discoverCard}>
-                    {/* Profile Image with Status */}
-                    <View style={styles.discoverProfileContainer}>
-                      <ProgressiveImage
-                        source={{ uri: user.profileImage }}
-                        style={styles.discoverProfileImage}
-                      />
-                      <View
-                        style={[
-                          styles.discoverStatusIndicator,
-                          { backgroundColor: "hsl(120, 100%, 50%)" },
-                        ]}
-                      />
-                    </View>
+                  <AnimatedListItem key={user.id} index={index} delay={80}>
+                    <View style={styles.discoverCard}>
+                      {/* Profile Image with Status */}
+                      <View style={styles.discoverProfileContainer}>
+                        <ProgressiveImage
+                          source={{ uri: user.profileImage }}
+                          style={styles.discoverProfileImage}
+                        />
+                        <View
+                          style={[
+                            styles.discoverStatusIndicator,
+                            { backgroundColor: "hsl(120, 100%, 50%)" },
+                          ]}
+                        />
+                      </View>
 
-                    {/* User Info */}
-                    <View style={styles.discoverUserInfo}>
-                      <View style={styles.discoverHeader}>
-                        <Text style={styles.discoverName}>{user.name}</Text>
-                        <View style={styles.discoverRating}>
-                          <Ionicons
-                            name="star"
-                            size={16}
-                            color="hsl(45, 100%, 50%)"
-                          />
-                          <Text style={styles.discoverRatingText}>
-                            {user.rating}
-                          </Text>
-                          <Text style={styles.discoverLastActive}>
-                            {user.lastActive}
-                          </Text>
+                      {/* User Info */}
+                      <View style={styles.discoverUserInfo}>
+                        <View style={styles.discoverHeader}>
+                          <Text style={styles.discoverName}>{user.name}</Text>
+                          <View style={styles.discoverRating}>
+                            <Ionicons
+                              name="star"
+                              size={16}
+                              color="hsl(45, 100%, 50%)"
+                            />
+                            <Text style={styles.discoverRatingText}>
+                              {user.rating}
+                            </Text>
+                            <Text style={styles.discoverLastActive}>
+                              {user.lastActive}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <Text style={styles.discoverUsername}>
+                          {user.username}
+                        </Text>
+                        <Text style={styles.discoverLocation}>
+                          {user.location}
+                        </Text>
+                        <Text style={styles.discoverBio} numberOfLines={2}>
+                          {user.bio}
+                        </Text>
+
+                        {/* Genre Tags */}
+                        <View style={styles.discoverGenreTags}>
+                          {user.genres.slice(0, 3).map((genre) => (
+                            <View key={genre} style={styles.discoverGenreTag}>
+                              <Ionicons
+                                name="musical-notes"
+                                size={12}
+                                color="hsl(75, 100%, 60%)"
+                              />
+                              <Text style={styles.discoverGenreText}>
+                                {genre}
+                              </Text>
+                            </View>
+                          ))}
                         </View>
                       </View>
 
-                      <Text style={styles.discoverUsername}>
-                        {user.username}
-                      </Text>
-                      <Text style={styles.discoverLocation}>
-                        {user.location}
-                      </Text>
-                      <Text style={styles.discoverBio} numberOfLines={2}>
-                        {user.bio}
-                      </Text>
+                      {/* Action Buttons */}
+                      <View style={styles.discoverActions}>
+                        <TouchableOpacity
+                          style={styles.viewProfileButton}
+                          onPress={() => handleViewProfile(user)}
+                        >
+                          <Ionicons
+                            name="person-outline"
+                            size={16}
+                            color="hsl(0, 0%, 70%)"
+                          />
+                          <Text style={styles.viewProfileText}>
+                            View Profile
+                          </Text>
+                        </TouchableOpacity>
 
-                      {/* Genre Tags */}
-                      <View style={styles.discoverGenreTags}>
-                        {user.genres.slice(0, 3).map((genre) => (
-                          <View key={genre} style={styles.discoverGenreTag}>
-                            <Ionicons
-                              name="musical-notes"
-                              size={12}
-                              color="hsl(75, 100%, 60%)"
-                            />
-                            <Text style={styles.discoverGenreText}>
-                              {genre}
-                            </Text>
-                          </View>
-                        ))}
+                        <TouchableOpacity
+                          style={styles.connectButton}
+                          onPress={() => handleConnect(user)}
+                          disabled={discoverLoading}
+                        >
+                          <Ionicons
+                            name="add"
+                            size={16}
+                            color="hsl(0, 0%, 0%)"
+                          />
+                          <Text style={styles.connectText}>Connect</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-
-                    {/* Action Buttons */}
-                    <View style={styles.discoverActions}>
-                      <TouchableOpacity
-                        style={styles.viewProfileButton}
-                        onPress={() => handleViewProfile(user)}
-                      >
-                        <Ionicons
-                          name="person-outline"
-                          size={16}
-                          color="hsl(0, 0%, 70%)"
-                        />
-                        <Text style={styles.viewProfileText}>View Profile</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.connectButton}
-                        onPress={() => handleConnect(user)}
-                        disabled={discoverLoading}
-                      >
-                        <Ionicons name="add" size={16} color="hsl(0, 0%, 0%)" />
-                        <Text style={styles.connectText}>Connect</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </AnimatedListItem>
-              ))}
+                  </AnimatedListItem>
+                ))}
               </Animated.View>
             )}
           </View>
