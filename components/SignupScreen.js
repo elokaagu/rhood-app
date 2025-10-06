@@ -106,6 +106,70 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      const { user } = await auth.signInWithGoogle();
+      if (user) {
+        // For social sign-in, we'll need to create a basic profile
+        // The user can complete their profile during onboarding
+        const profileData = {
+          id: user.id,
+          email: user.email || "",
+          dj_name: user.user_metadata?.full_name || "",
+          first_name: user.user_metadata?.given_name || "",
+          last_name: user.user_metadata?.family_name || "",
+          city: "", // Will be set during onboarding
+          genres: [],
+          bio: "DJ from the underground",
+        };
+
+        await db.createUserProfile(profileData);
+        onSignupSuccess(user);
+      }
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      Alert.alert(
+        "Sign-Up Failed",
+        error.message || "Google sign-up was cancelled"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setLoading(true);
+      const { user } = await auth.signInWithApple();
+      if (user) {
+        // For social sign-in, we'll need to create a basic profile
+        // The user can complete their profile during onboarding
+        const profileData = {
+          id: user.id,
+          email: user.email || "",
+          dj_name: user.user_metadata?.full_name || "",
+          first_name: user.user_metadata?.given_name || "",
+          last_name: user.user_metadata?.family_name || "",
+          city: "", // Will be set during onboarding
+          genres: [],
+          bio: "DJ from the underground",
+        };
+
+        await db.createUserProfile(profileData);
+        onSignupSuccess(user);
+      }
+    } catch (error) {
+      console.error("Apple sign-in error:", error);
+      Alert.alert(
+        "Sign-Up Failed",
+        error.message || "Apple sign-up was cancelled"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -262,6 +326,48 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
             )}
           </TouchableOpacity>
 
+          {/* Divider */}
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Social Sign-In Buttons */}
+          <View style={styles.socialButtonsContainer}>
+            {/* Google Sign-In */}
+            <TouchableOpacity
+              style={[
+                styles.socialButton,
+                styles.googleButton,
+                loading && styles.buttonDisabled,
+              ]}
+              onPress={handleGoogleSignIn}
+              disabled={loading}
+            >
+              <Ionicons name="logo-google" size={20} color="hsl(0, 0%, 100%)" />
+              <Text style={styles.socialButtonText}>Continue with Google</Text>
+            </TouchableOpacity>
+
+            {/* Apple Sign-In */}
+            {Platform.OS === "ios" && (
+              <TouchableOpacity
+                style={[
+                  styles.socialButton,
+                  styles.appleButton,
+                  loading && styles.buttonDisabled,
+                ]}
+                onPress={handleAppleSignIn}
+                disabled={loading}
+              >
+                <Ionicons name="logo-apple" size={20} color="hsl(0, 0%, 0%)" />
+                <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                  Continue with Apple
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* Switch to Login */}
           <View style={styles.switchContainer}>
             <Text style={styles.switchText}>Already have an account? </Text>
@@ -397,5 +503,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Helvetica Neue",
     fontWeight: "600",
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "hsl(0, 0%, 15%)",
+  },
+  dividerText: {
+    color: "hsl(0, 0%, 70%)",
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    marginHorizontal: 16,
+  },
+  socialButtonsContainer: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  socialButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderWidth: 1,
+    gap: 12,
+  },
+  googleButton: {
+    backgroundColor: "hsl(0, 0%, 100%)",
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  appleButton: {
+    backgroundColor: "hsl(0, 0%, 0%)",
+    borderColor: "hsl(0, 0%, 100%)",
+  },
+  socialButtonText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+  },
+  appleButtonText: {
+    color: "hsl(0, 0%, 100%)",
   },
 });

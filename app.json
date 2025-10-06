@@ -17,6 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.rhoodapp.mobile",
       "newArchEnabled": true,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["audio"],

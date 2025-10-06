@@ -67,6 +67,42 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      const { user } = await auth.signInWithGoogle();
+      if (user) {
+        onLoginSuccess(user);
+      }
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      Alert.alert(
+        "Sign-In Failed",
+        error.message || "Google sign-in was cancelled"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setLoading(true);
+      const { user } = await auth.signInWithApple();
+      if (user) {
+        onLoginSuccess(user);
+      }
+    } catch (error) {
+      console.error("Apple sign-in error:", error);
+      Alert.alert(
+        "Sign-In Failed",
+        error.message || "Apple sign-in was cancelled"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -147,6 +183,48 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
               <Text style={styles.buttonText}>Sign In</Text>
             )}
           </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Social Sign-In Buttons */}
+          <View style={styles.socialButtonsContainer}>
+            {/* Google Sign-In */}
+            <TouchableOpacity
+              style={[
+                styles.socialButton,
+                styles.googleButton,
+                loading && styles.buttonDisabled,
+              ]}
+              onPress={handleGoogleSignIn}
+              disabled={loading}
+            >
+              <Ionicons name="logo-google" size={20} color="hsl(0, 0%, 100%)" />
+              <Text style={styles.socialButtonText}>Continue with Google</Text>
+            </TouchableOpacity>
+
+            {/* Apple Sign-In */}
+            {Platform.OS === "ios" && (
+              <TouchableOpacity
+                style={[
+                  styles.socialButton,
+                  styles.appleButton,
+                  loading && styles.buttonDisabled,
+                ]}
+                onPress={handleAppleSignIn}
+                disabled={loading}
+              >
+                <Ionicons name="logo-apple" size={20} color="hsl(0, 0%, 0%)" />
+                <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                  Continue with Apple
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* Switch to Signup */}
           <View style={styles.switchContainer}>
@@ -264,5 +342,52 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sm,
     fontFamily: TYPOGRAPHY.primary,
     fontWeight: TYPOGRAPHY.semibold,
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: SPACING.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  dividerText: {
+    color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    marginHorizontal: SPACING.md,
+  },
+  socialButtonsContainer: {
+    gap: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  socialButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderWidth: 1,
+    gap: SPACING.sm,
+  },
+  googleButton: {
+    backgroundColor: "hsl(0, 0%, 100%)",
+    borderColor: COLORS.border,
+  },
+  appleButton: {
+    backgroundColor: "hsl(0, 0%, 0%)",
+    borderColor: "hsl(0, 0%, 100%)",
+  },
+  socialButtonText: {
+    fontSize: TYPOGRAPHY.md,
+    fontFamily: TYPOGRAPHY.primary,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: "hsl(0, 0%, 0%)",
+  },
+  appleButtonText: {
+    color: "hsl(0, 0%, 100%)",
   },
 });
