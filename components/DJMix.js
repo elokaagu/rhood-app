@@ -258,39 +258,21 @@ const DJMix = ({
               <View style={styles.socialStats}>
                 <View style={styles.statItem}>
                   <Ionicons name="play" size={12} color="hsl(0, 0%, 50%)" />
-                  <Text style={styles.statText}>{mix.playCount || Math.floor(Math.random() * 1000) + 100}</Text>
+                  <Text style={styles.statText}>
+                    {mix.playCount || Math.floor(Math.random() * 1000) + 100}
+                  </Text>
                 </View>
                 <View style={styles.statItem}>
                   <Ionicons name="heart" size={12} color="hsl(0, 0%, 50%)" />
-                  <Text style={styles.statText}>{mix.likeCount || Math.floor(Math.random() * 100) + 10}</Text>
+                  <Text style={styles.statText}>
+                    {mix.likeCount || Math.floor(Math.random() * 100) + 10}
+                  </Text>
                 </View>
               </View>
               <View style={styles.genreBadge}>
                 <Text style={styles.genreText}>{mix.genre}</Text>
               </View>
             </View>
-          </View>
-
-          {/* Swipe Actions */}
-          <View style={styles.swipeActions}>
-            <TouchableOpacity
-              style={styles.swipeActionButton}
-              onPress={() => {
-                // Handle like action
-                console.log("Liked mix:", mix.title);
-              }}
-            >
-              <Ionicons name="heart" size={20} color="hsl(0, 100%, 60%)" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.swipeActionButton}
-              onPress={() => {
-                // Handle add to playlist action
-                console.log("Add to playlist:", mix.title);
-              }}
-            >
-              <Ionicons name="add" size={20} color="hsl(75, 100%, 60%)" />
-            </TouchableOpacity>
           </View>
 
           {/* Options Menu - Show for all mixes */}
@@ -550,26 +532,6 @@ const styles = StyleSheet.create({
   optionsButton: {
     padding: 8,
     marginLeft: 8,
-  },
-  swipeActions: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "hsl(0, 0%, 8%)",
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  swipeActionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "hsl(0, 0%, 15%)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginHorizontal: 4,
   },
   progressContainer: {
     position: "absolute",
