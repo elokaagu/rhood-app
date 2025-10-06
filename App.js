@@ -171,7 +171,7 @@ const AutoScrollText = ({ text, style, containerWidth = 200 }) => {
   useEffect(() => {
     if (textWidth > containerWidth && shouldScroll) {
       const scrollDistance = textWidth - containerWidth + 20; // Add some padding
-      const scrollDuration = Math.max(2000, scrollDistance * 20); // Adjust speed based on text length
+      const scrollDuration = Math.max(3000, scrollDistance * 15); // Adjust speed based on text length
 
       const scrollAnimation = Animated.loop(
         Animated.sequence([
@@ -181,13 +181,12 @@ const AutoScrollText = ({ text, style, containerWidth = 200 }) => {
             duration: scrollDuration,
             useNativeDriver: true,
           }),
-          Animated.delay(1000), // Wait 1 second at the end
+          Animated.delay(500), // Brief pause at the end
           Animated.timing(scrollAnim, {
             toValue: 0,
-            duration: scrollDuration,
+            duration: 0, // Instant reset to start
             useNativeDriver: true,
           }),
-          Animated.delay(2000), // Wait 2 seconds before repeating
         ])
       );
 
@@ -1398,7 +1397,8 @@ export default function App() {
 
     if (repeatMode === "all") {
       // Repeat all - cycle back to end
-      prevIndex = currentQueueIndex === 0 ? queue.length - 1 : currentQueueIndex - 1;
+      prevIndex =
+        currentQueueIndex === 0 ? queue.length - 1 : currentQueueIndex - 1;
     } else {
       // Normal progression
       prevIndex = currentQueueIndex - 1;
@@ -2781,7 +2781,9 @@ export default function App() {
                     onPress={() => {
                       if (globalAudioState.currentTrack.user_id) {
                         setCurrentScreen("user-profile");
-                        setScreenParams({ userId: globalAudioState.currentTrack.user_id });
+                        setScreenParams({
+                          userId: globalAudioState.currentTrack.user_id,
+                        });
                       }
                     }}
                     activeOpacity={0.7}
@@ -2889,7 +2891,9 @@ export default function App() {
                       if (globalAudioState.currentTrack.user_id) {
                         setShowFullScreenPlayer(false);
                         setCurrentScreen("user-profile");
-                        setScreenParams({ userId: globalAudioState.currentTrack.user_id });
+                        setScreenParams({
+                          userId: globalAudioState.currentTrack.user_id,
+                        });
                       }
                     }}
                     activeOpacity={0.7}
