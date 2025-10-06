@@ -713,20 +713,21 @@ export default function ConnectionsScreen({ onNavigate }) {
         {/* Add Connection Call-to-Action - only show on connections tab */}
         {activeTab === 'connections' && (
           <View style={styles.ctaSection}>
-          <View style={styles.ctaCard}>
-            <Ionicons name="person-add" size={24} color="hsl(0, 0%, 70%)" />
-            <Text style={styles.ctaTitle}>Find More Connections</Text>
-            <Text style={styles.ctaDescription}>
-              Discover DJs and industry professionals
-            </Text>
-            <TouchableOpacity
-              style={styles.ctaButton}
-              onPress={handleBrowseCommunity}
-            >
-              <Text style={styles.ctaButtonText}>Browse Community</Text>
-            </TouchableOpacity>
+            <View style={styles.ctaCard}>
+              <Ionicons name="person-add" size={24} color="hsl(0, 0%, 70%)" />
+              <Text style={styles.ctaTitle}>Find More Connections</Text>
+              <Text style={styles.ctaDescription}>
+                Discover DJs and industry professionals
+              </Text>
+              <TouchableOpacity
+                style={styles.ctaButton}
+                onPress={handleBrowseCommunity}
+              >
+                <Text style={styles.ctaButtonText}>Browse Community</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
 
       {/* Bottom gradient fade overlay */}
