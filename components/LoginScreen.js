@@ -318,6 +318,7 @@ const styles = StyleSheet.create({
   },
   button: {
     ...sharedStyles.buttonPrimary,
+    borderRadius: RADIUS.md,
     marginBottom: SPACING.xl,
   },
   buttonDisabled: {
