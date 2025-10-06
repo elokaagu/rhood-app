@@ -16,6 +16,8 @@ import {
   RefreshControl,
   PanResponder,
   Dimensions,
+  AccessibilityInfo,
+  Vibration,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -55,6 +57,157 @@ import UploadMixScreen from "./components/UploadMixScreen";
 //   setupNotificationListeners,
 // } from "./lib/pushNotifications";
 
+// Animated Album Art Component with pulse effect
+const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isPlaying) {
+      // Pulse animation
+      const pulseAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+
+      // Subtle rotation animation
+      const rotateAnimation = Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 20000,
+          useNativeDriver: true,
+        })
+      );
+
+      pulseAnimation.start();
+      rotateAnimation.start();
+
+      return () => {
+        pulseAnimation.stop();
+        rotateAnimation.stop();
+      };
+    } else {
+      pulseAnim.setValue(1);
+      rotateAnim.setValue(0);
+    }
+  }, [isPlaying]);
+
+  const rotateInterpolate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          transform: [
+            { scale: pulseAnim },
+            { rotate: rotateInterpolate },
+          ],
+        },
+      ]}
+    >
+      {image ? (
+        <Image
+          source={{ uri: image }}
+          style={styles.albumArtImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={styles.albumArtPlaceholder}>
+          <Ionicons
+            name="musical-notes"
+            size={48}
+            color="hsl(75, 100%, 60%)"
+          />
+        </View>
+      )}
+    </Animated.View>
+  );
+};
+
+// Enhanced Progress Bar Component
+const EnhancedProgressBar = ({ progress, duration, position, onSeek, isPlaying }) => {
+  const progressAnim = useRef(new Animated.Value(progress)).current;
+  const [isScrubbing, setIsScrubbing] = useState(false);
+
+  useEffect(() => {
+    if (!isScrubbing) {
+      Animated.timing(progressAnim, {
+        toValue: progress,
+        duration: 100,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [progress, isScrubbing]);
+
+  const handleSeek = (event) => {
+    const { locationX } = event.nativeEvent;
+    const progressBarWidth = 300; // Approximate width
+    const newProgress = Math.max(0, Math.min(1, locationX / progressBarWidth));
+    
+    setIsScrubbing(true);
+    onSeek(newProgress);
+    
+    // Haptic feedback
+    Vibration.vibrate(50);
+    
+    setTimeout(() => setIsScrubbing(false), 200);
+  };
+
+  return (
+    <View style={styles.enhancedProgressContainer}>
+      <TouchableOpacity
+        style={styles.enhancedProgressBar}
+        onPress={handleSeek}
+        activeOpacity={0.8}
+      >
+        <View style={styles.progressTrack}>
+          <Animated.View
+            style={[
+              styles.progressFill,
+              {
+                width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%'],
+                }),
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.progressThumb,
+              {
+                left: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 280], // Adjust based on bar width
+                }),
+              },
+            ]}
+          />
+        </View>
+      </TouchableOpacity>
+      
+      <View style={styles.timeContainer}>
+        <Text style={styles.timeText}>{formatTime(position)}</Text>
+        <Text style={styles.timeText}>{formatTime(duration)}</Text>
+      </View>
+    </View>
+  );
+};
+
 // Auto-scrolling text component for long titles
 const AutoScrollText = ({ text, style, containerWidth = 200 }) => {
   const scrollViewRef = useRef(null);
@@ -66,7 +219,7 @@ const AutoScrollText = ({ text, style, containerWidth = 200 }) => {
     if (textWidth > containerWidth && shouldScroll) {
       const scrollDistance = textWidth - containerWidth + 20; // Add some padding
       const scrollDuration = Math.max(2000, scrollDistance * 20); // Adjust speed based on text length
-      
+
       const scrollAnimation = Animated.loop(
         Animated.sequence([
           Animated.delay(1000), // Wait 1 second before starting
@@ -84,9 +237,9 @@ const AutoScrollText = ({ text, style, containerWidth = 200 }) => {
           Animated.delay(2000), // Wait 2 seconds before repeating
         ])
       );
-      
+
       scrollAnimation.start();
-      
+
       return () => scrollAnimation.stop();
     }
   }, [textWidth, containerWidth, shouldScroll]);
@@ -98,25 +251,21 @@ const AutoScrollText = ({ text, style, containerWidth = 200 }) => {
   };
 
   return (
-    <View style={{ width: containerWidth, overflow: 'hidden' }}>
+    <View style={{ width: containerWidth, overflow: "hidden" }}>
       <Animated.ScrollView
         ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         scrollEnabled={false}
         style={{ width: containerWidth }}
-        contentContainerStyle={{ alignItems: 'center' }}
+        contentContainerStyle={{ alignItems: "center" }}
       >
         <Animated.View
           style={{
             transform: [{ translateX: scrollAnim }],
           }}
         >
-          <Text
-            style={style}
-            onLayout={handleTextLayout}
-            numberOfLines={1}
-          >
+          <Text style={style} onLayout={handleTextLayout} numberOfLines={1}>
             {text}
           </Text>
         </Animated.View>
@@ -165,6 +314,40 @@ export default function App() {
 
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
+
+  // Gesture handlers for full-screen player
+  const createGestureHandlers = () => {
+    const panResponder = PanResponder.create({
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        return Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20;
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // Handle horizontal swipes for track navigation
+        if (Math.abs(gestureState.dx) > Math.abs(gestureState.dy)) {
+          if (gestureState.dx > 50) {
+            // Swipe right - previous track
+            skipBackward();
+            Vibration.vibrate(100);
+          } else if (gestureState.dx < -50) {
+            // Swipe left - next track
+            skipForward();
+            Vibration.vibrate(100);
+          }
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        // Handle vertical swipes
+        if (Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
+          if (gestureState.dy > 100) {
+            // Swipe down - close player
+            setShowFullScreenPlayer(false);
+            Vibration.vibrate(50);
+          }
+        }
+      },
+    });
+    return panResponder.panHandlers;
+  };
 
   // Opportunities state - now using live data from Supabase
   const [opportunities, setOpportunities] = useState([]);
@@ -2669,7 +2852,10 @@ export default function App() {
             onRequestClose={() => setShowFullScreenPlayer(false)}
           >
             <View style={styles.fullScreenPlayerOverlay}>
-              <View style={styles.fullScreenPlayer}>
+              <View 
+                style={styles.fullScreenPlayer}
+                {...createGestureHandlers()}
+              >
                 {/* Header with close button */}
                 <View style={styles.fullScreenHeader}>
                   <TouchableOpacity
@@ -2686,10 +2872,10 @@ export default function App() {
 
                 {/* Album Artwork */}
                 <View style={styles.albumArtContainer}>
-                  <Image
-                    source={{ uri: globalAudioState.currentTrack.image }}
+                  <AnimatedAlbumArt
+                    image={globalAudioState.currentTrack.image}
+                    isPlaying={globalAudioState.isPlaying}
                     style={styles.albumArt}
-                    resizeMode="cover"
                   />
                 </View>
 
@@ -2706,29 +2892,20 @@ export default function App() {
                   </Text>
                 </View>
 
-                {/* Progress Section - Scrubbable */}
+                {/* Enhanced Progress Section */}
                 <View style={styles.fullScreenProgressSection}>
-                  <TouchableOpacity
-                    ref={fullScreenProgressBarRef}
-                    style={styles.fullScreenProgressContainer}
-                    onPress={handleProgressBarPress}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.fullScreenProgressBarContainer}>
-                      <View
-                        style={[
-                          styles.fullScreenProgressBar,
-                          {
-                            width: `${(globalAudioState.progress || 0) * 100}%`,
-                          },
-                        ]}
-                      />
-                    </View>
-                  </TouchableOpacity>
-                  <Text style={styles.progressText}>
-                    {formatTime(globalAudioState.positionMillis || 0)} /{" "}
-                    {formatTime(globalAudioState.durationMillis || 0)}
-                  </Text>
+                  <EnhancedProgressBar
+                    progress={globalAudioState.progress || 0}
+                    duration={globalAudioState.durationMillis || 0}
+                    position={globalAudioState.positionMillis || 0}
+                    onSeek={(newProgress) => {
+                      const newPosition = newProgress * globalAudioState.durationMillis;
+                      if (globalAudioState.sound) {
+                        globalAudioState.sound.setPositionAsync(newPosition);
+                      }
+                    }}
+                    isPlaying={globalAudioState.isPlaying}
+                  />
                 </View>
 
                 {/* Control Buttons */}
@@ -4505,5 +4682,72 @@ const styles = StyleSheet.create({
     color: "#C2CC06",
     marginHorizontal: 4,
     fontFamily: "Helvetica Neue",
+  },
+
+  // Enhanced Progress Bar Styles
+  enhancedProgressContainer: {
+    width: "100%",
+    paddingHorizontal: 20,
+    marginVertical: 20,
+  },
+  enhancedProgressBar: {
+    width: "100%",
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  progressTrack: {
+    width: "100%",
+    height: 8,
+    backgroundColor: "hsl(0, 0%, 20%)",
+    borderRadius: 4,
+    position: "relative",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 4,
+    position: "absolute",
+    left: 0,
+    top: 0,
+  },
+  progressThumb: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    position: "absolute",
+    top: -4,
+    shadowColor: "#C2CC06",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  timeContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  timeText: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+  },
+
+  // Enhanced Album Art Styles
+  albumArtImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
+  },
+  albumArtPlaceholder: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 12,
   },
 });
