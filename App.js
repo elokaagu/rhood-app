@@ -15,6 +15,7 @@ import {
   Alert,
   RefreshControl,
   PanResponder,
+  Dimensions,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -53,6 +54,76 @@ import UploadMixScreen from "./components/UploadMixScreen";
 //   registerForPushNotifications,
 //   setupNotificationListeners,
 // } from "./lib/pushNotifications";
+
+// Auto-scrolling text component for long titles
+const AutoScrollText = ({ text, style, containerWidth = 200 }) => {
+  const scrollViewRef = useRef(null);
+  const scrollAnim = useRef(new Animated.Value(0)).current;
+  const [textWidth, setTextWidth] = useState(0);
+  const [shouldScroll, setShouldScroll] = useState(false);
+
+  useEffect(() => {
+    if (textWidth > containerWidth && shouldScroll) {
+      const scrollDistance = textWidth - containerWidth + 20; // Add some padding
+      const scrollDuration = Math.max(2000, scrollDistance * 20); // Adjust speed based on text length
+      
+      const scrollAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.delay(1000), // Wait 1 second before starting
+          Animated.timing(scrollAnim, {
+            toValue: scrollDistance,
+            duration: scrollDuration,
+            useNativeDriver: true,
+          }),
+          Animated.delay(1000), // Wait 1 second at the end
+          Animated.timing(scrollAnim, {
+            toValue: 0,
+            duration: scrollDuration,
+            useNativeDriver: true,
+          }),
+          Animated.delay(2000), // Wait 2 seconds before repeating
+        ])
+      );
+      
+      scrollAnimation.start();
+      
+      return () => scrollAnimation.stop();
+    }
+  }, [textWidth, containerWidth, shouldScroll]);
+
+  const handleTextLayout = (event) => {
+    const { width } = event.nativeEvent.layout;
+    setTextWidth(width);
+    setShouldScroll(width > containerWidth);
+  };
+
+  return (
+    <View style={{ width: containerWidth, overflow: 'hidden' }}>
+      <Animated.ScrollView
+        ref={scrollViewRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        scrollEnabled={false}
+        style={{ width: containerWidth }}
+        contentContainerStyle={{ alignItems: 'center' }}
+      >
+        <Animated.View
+          style={{
+            transform: [{ translateX: scrollAnim }],
+          }}
+        >
+          <Text
+            style={style}
+            onLayout={handleTextLayout}
+            numberOfLines={1}
+          >
+            {text}
+          </Text>
+        </Animated.View>
+      </Animated.ScrollView>
+    </View>
+  );
+};
 
 export default function App() {
   // Load custom fonts
@@ -2527,15 +2598,11 @@ export default function App() {
                 </View>
 
                 <View style={styles.audioTrackInfo}>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.audioTitleScroll}
-                  >
-                    <Text style={styles.audioTrackTitle}>
-                      {globalAudioState.currentTrack.title}
-                    </Text>
-                  </ScrollView>
+                  <AutoScrollText
+                    text={globalAudioState.currentTrack.title}
+                    style={styles.audioTrackTitle}
+                    containerWidth={200}
+                  />
                   <Text style={styles.audioTrackArtist} numberOfLines={1}>
                     {globalAudioState.currentTrack.artist}
                   </Text>
@@ -2549,44 +2616,44 @@ export default function App() {
                   </Text>
                 </View>
 
-              <View style={styles.audioControls}>
+                <View style={styles.audioControls}>
+                  <TouchableOpacity
+                    style={styles.audioControlButton}
+                    onPress={() => {
+                      if (globalAudioState.isPlaying) {
+                        pauseGlobalAudio();
+                      } else {
+                        resumeGlobalAudio();
+                      }
+                    }}
+                  >
+                    <Ionicons
+                      name={globalAudioState.isPlaying ? "pause" : "play"}
+                      size={24}
+                      color="hsl(0, 0%, 100%)"
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Progress Bar - Scrubbable */}
                 <TouchableOpacity
-                  style={styles.audioControlButton}
-                  onPress={() => {
-                    if (globalAudioState.isPlaying) {
-                      pauseGlobalAudio();
-                    } else {
-                      resumeGlobalAudio();
-                    }
-                  }}
+                  ref={miniProgressBarRef}
+                  style={styles.audioProgressContainer}
+                  onPress={handleProgressBarPress}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons
-                    name={globalAudioState.isPlaying ? "pause" : "play"}
-                    size={24}
-                    color="hsl(0, 0%, 100%)"
-                  />
+                  <View style={styles.audioProgressBar}>
+                    <View
+                      style={[
+                        styles.audioProgressFill,
+                        {
+                          width: `${(globalAudioState.progress || 0) * 100}%`,
+                        },
+                      ]}
+                    />
+                  </View>
                 </TouchableOpacity>
               </View>
-
-              {/* Progress Bar - Scrubbable */}
-              <TouchableOpacity
-                ref={miniProgressBarRef}
-                style={styles.audioProgressContainer}
-                onPress={handleProgressBarPress}
-                activeOpacity={0.8}
-              >
-                <View style={styles.audioProgressBar}>
-                  <View
-                    style={[
-                      styles.audioProgressFill,
-                      {
-                        width: `${(globalAudioState.progress || 0) * 100}%`,
-                      },
-                    ]}
-                  />
-                </View>
-              </TouchableOpacity>
-            </View>
             </Animated.View>
           </TouchableOpacity>
         )}
@@ -3888,9 +3955,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
-  },
-  audioTitleScroll: {
-    maxHeight: 20,
   },
   audioTrackArtist: {
     fontSize: 14,
