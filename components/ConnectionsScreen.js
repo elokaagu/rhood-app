@@ -182,6 +182,8 @@ export default function ConnectionsScreen({ onNavigate }) {
   const [activeTab, setActiveTab] = useState("connections"); // 'connections' or 'discover'
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [discoverUsers, setDiscoverUsers] = useState([]);
+  const [connectionsFadeAnim] = useState(new Animated.Value(0));
+  const [discoverFadeAnim] = useState(new Animated.Value(0));
 
   // Load user and connections on mount
   useEffect(() => {
@@ -246,6 +248,12 @@ export default function ConnectionsScreen({ onNavigate }) {
       setConnections([]);
     } finally {
       setLoading(false);
+      // Fade in connections after loading completes
+      Animated.timing(connectionsFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     }
   };
 
@@ -348,6 +356,12 @@ export default function ConnectionsScreen({ onNavigate }) {
       setDiscoverUsers(mockDiscoverUsers);
     } finally {
       setDiscoverLoading(false);
+      // Fade in discover users after loading completes
+      Animated.timing(discoverFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     }
   };
 
@@ -418,7 +432,19 @@ export default function ConnectionsScreen({ onNavigate }) {
                 styles.tabButton,
                 activeTab === "connections" && styles.tabButtonActive,
               ]}
-              onPress={() => setActiveTab("connections")}
+              onPress={() => {
+                setActiveTab("connections");
+                // Reset fade animation for connections tab
+                connectionsFadeAnim.setValue(0);
+                // Fade in connections if they exist
+                if (connections.length > 0) {
+                  Animated.timing(connectionsFadeAnim, {
+                    toValue: 1,
+                    duration: 300,
+                    useNativeDriver: true,
+                  }).start();
+                }
+              }}
             >
               <Ionicons
                 name="people"
@@ -446,8 +472,17 @@ export default function ConnectionsScreen({ onNavigate }) {
               ]}
               onPress={() => {
                 setActiveTab("discover");
+                // Reset fade animation for discover tab
+                discoverFadeAnim.setValue(0);
                 if (discoverUsers.length === 0) {
                   loadDiscoverDJs();
+                } else {
+                  // If data already exists, fade it in
+                  Animated.timing(discoverFadeAnim, {
+                    toValue: 1,
+                    duration: 300,
+                    useNativeDriver: true,
+                  }).start();
                 }
               }}
             >
@@ -558,7 +593,7 @@ export default function ConnectionsScreen({ onNavigate }) {
                 </Text>
               </View>
             ) : (
-              <>
+              <Animated.View style={{ opacity: connectionsFadeAnim }}>
                 {filteredConnections.map((connection, index) => (
                   <AnimatedListItem
                     key={connection.id}
@@ -657,7 +692,7 @@ export default function ConnectionsScreen({ onNavigate }) {
                     </TouchableOpacity>
                   </AnimatedListItem>
                 ))}
-              </>
+              </Animated.View>
             )}
           </View>
         ) : (
@@ -678,7 +713,8 @@ export default function ConnectionsScreen({ onNavigate }) {
                 </Text>
               </View>
             ) : (
-              discoverUsers.map((user, index) => (
+              <Animated.View style={{ opacity: discoverFadeAnim }}>
+                {discoverUsers.map((user, index) => (
                 <AnimatedListItem key={user.id} index={index} delay={80}>
                   <View style={styles.discoverCard}>
                     {/* Profile Image with Status */}
@@ -766,7 +802,8 @@ export default function ConnectionsScreen({ onNavigate }) {
                     </View>
                   </View>
                 </AnimatedListItem>
-              ))
+              ))}
+              </Animated.View>
             )}
           </View>
         )}
