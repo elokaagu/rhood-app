@@ -463,19 +463,24 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      Alert.alert("Success!", "Your mix has been uploaded successfully" + (mixData.setAsPrimary ? " and set as your primary mix!" : "!"), [
-        {
-          text: "OK",
-          onPress: () => {
-            if (onUploadComplete) {
-              onUploadComplete(mixRecord);
-            }
-            if (onBack) {
-              onBack();
-            }
+      Alert.alert(
+        "Success!",
+        "Your mix has been uploaded successfully" +
+          (mixData.setAsPrimary ? " and set as your primary mix!" : "!"),
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              if (onUploadComplete) {
+                onUploadComplete(mixRecord);
+              }
+              if (onBack) {
+                onBack();
+              }
+            },
           },
-        },
-      ]);
+        ]
+      );
     } catch (error) {
       console.error("Error uploading mix:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -688,24 +693,26 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
               style={styles.toggleRow}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setMixData((prev) => ({ ...prev, setAsPrimary: !prev.setAsPrimary }));
+                setMixData((prev) => ({
+                  ...prev,
+                  setAsPrimary: !prev.setAsPrimary,
+                }));
               }}
               disabled={uploading}
             >
               <View style={styles.toggleLeft}>
                 <Ionicons
-                  name={
-                    mixData.setAsPrimary ? "star" : "star-outline"
-                  }
+                  name={mixData.setAsPrimary ? "star" : "star-outline"}
                   size={20}
                   color={mixData.setAsPrimary ? "hsl(75, 100%, 60%)" : "white"}
                 />
-                <Text style={styles.toggleLabel}>
-                  Set as Primary Mix
-                </Text>
+                <Text style={styles.toggleLabel}>Set as Primary Mix</Text>
               </View>
               <View
-                style={[styles.toggle, mixData.setAsPrimary && styles.toggleActive]}
+                style={[
+                  styles.toggle,
+                  mixData.setAsPrimary && styles.toggleActive,
+                ]}
               >
                 <View
                   style={[

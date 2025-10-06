@@ -88,6 +88,9 @@ export default function ListenScreen({
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Fetch mixes from Supabase
   const fetchMixes = async () => {
@@ -253,6 +256,36 @@ export default function ListenScreen({
     setRefreshing(false);
   };
 
+  // Load more mixes for infinite scroll
+  const loadMoreMixes = async () => {
+    if (loadingMore || !hasMoreData) return;
+    
+    try {
+      setLoadingMore(true);
+      const nextPage = currentPage + 1;
+      
+      // Simulate API call with pagination
+      const { data: newMixes, error } = await supabase
+        .from("mixes")
+        .select("*")
+        .range((nextPage - 1) * 10, nextPage * 10 - 1)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (newMixes && newMixes.length > 0) {
+        setMixes(prev => [...prev, ...newMixes]);
+        setCurrentPage(nextPage);
+      } else {
+        setHasMoreData(false);
+      }
+    } catch (error) {
+      console.error("Error loading more mixes:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const handleDeleteMix = async (mix) => {
     try {
       console.log("🗑️ Deleting mix:", mix.title);
@@ -400,6 +433,36 @@ export default function ListenScreen({
   // Footer component for FlatList
   const renderFooter = () => (
     <>
+      {/* Smart Recommendations */}
+      <View style={styles.recommendationsSection}>
+        <Text style={styles.recommendationsTitle}>More Like This</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.recommendationsScroll}
+        >
+          {mixes.slice(0, 5).map((mix, index) => (
+            <TouchableOpacity
+              key={`rec-${mix.id}`}
+              style={styles.recommendationCard}
+              onPress={() => handleMixPress(mix)}
+            >
+              <Image
+                source={{ uri: mix.image }}
+                style={styles.recommendationImage}
+                resizeMode="cover"
+              />
+              <Text style={styles.recommendationTitle} numberOfLines={1}>
+                {mix.title}
+              </Text>
+              <Text style={styles.recommendationArtist} numberOfLines={1}>
+                {mix.artist}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Upload CTA */}
       <View style={styles.uploadSection}>
         <View style={styles.uploadCard}>
@@ -443,6 +506,19 @@ export default function ListenScreen({
         )}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
+        onEndReached={loadMoreMixes}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() => (
+          <>
+            {renderFooter()}
+            {loadingMore && (
+              <View style={styles.loadingMoreContainer}>
+                <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+                <Text style={styles.loadingMoreText}>Loading more mixes...</Text>
+              </View>
+            )}
+          </>
+        )}
         ListEmptyComponent={() => {
           if (loading) {
             return (
@@ -469,6 +545,14 @@ export default function ListenScreen({
                   ? `No results for "${searchQuery}". Try a different search term or genre filter.`
                   : "No mixes available. Try adjusting your filters or upload your own mix!"}
               </Text>
+              {!searchQuery.trim() && (
+                <TouchableOpacity
+                  style={styles.emptyStateButton}
+                  onPress={handleUploadMix}
+                >
+                  <Text style={styles.emptyStateButtonText}>Upload Your First Mix</Text>
+                </TouchableOpacity>
+              )}
             </View>
           );
         }}
@@ -617,6 +701,58 @@ const styles = StyleSheet.create({
   bottomSpacing: {
     height: 20,
   },
+  // Recommendations Section Styles
+  recommendationsSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  recommendationsTitle: {
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 16,
+    textTransform: "uppercase",
+  },
+  recommendationsScroll: {
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+  },
+  recommendationCard: {
+    width: 140,
+    marginRight: 16,
+  },
+  recommendationImage: {
+    width: "100%",
+    height: 140,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  recommendationTitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 2,
+  },
+  recommendationArtist: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+  },
+  // Loading More Styles
+  loadingMoreContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 20,
+    gap: 8,
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+  },
   // Modal Styles - R/HOOD Theme
   modalOverlay: {
     flex: 1,
@@ -759,5 +895,19 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 60%)",
     textAlign: "center",
     lineHeight: 20,
+    marginBottom: 24,
+  },
+  emptyStateButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  emptyStateButtonText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+    textAlign: "center",
   },
 });

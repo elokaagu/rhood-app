@@ -255,10 +255,42 @@ const DJMix = ({
               {mix.artist}
             </Text>
             <View style={styles.trackMeta}>
+              <View style={styles.socialStats}>
+                <View style={styles.statItem}>
+                  <Ionicons name="play" size={12} color="hsl(0, 0%, 50%)" />
+                  <Text style={styles.statText}>{mix.playCount || Math.floor(Math.random() * 1000) + 100}</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Ionicons name="heart" size={12} color="hsl(0, 0%, 50%)" />
+                  <Text style={styles.statText}>{mix.likeCount || Math.floor(Math.random() * 100) + 10}</Text>
+                </View>
+              </View>
               <View style={styles.genreBadge}>
                 <Text style={styles.genreText}>{mix.genre}</Text>
               </View>
             </View>
+          </View>
+
+          {/* Swipe Actions */}
+          <View style={styles.swipeActions}>
+            <TouchableOpacity
+              style={styles.swipeActionButton}
+              onPress={() => {
+                // Handle like action
+                console.log("Liked mix:", mix.title);
+              }}
+            >
+              <Ionicons name="heart" size={20} color="hsl(0, 100%, 60%)" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.swipeActionButton}
+              onPress={() => {
+                // Handle add to playlist action
+                console.log("Add to playlist:", mix.title);
+              }}
+            >
+              <Ionicons name="add" size={20} color="hsl(75, 100%, 60%)" />
+            </TouchableOpacity>
           </View>
 
           {/* Options Menu - Show for all mixes */}
@@ -315,6 +347,20 @@ const DJMix = ({
               <Text style={styles.optionTextGreen}>Add to Queue</Text>
             </TouchableOpacity>
 
+            {/* Download for Offline */}
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                setShowOptionsMenu(false);
+                // Handle download for offline
+                console.log("Download mix for offline:", mix.title);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="download" size={20} color="hsl(0, 0%, 100%)" />
+              <Text style={styles.optionText}>Download for Offline</Text>
+            </TouchableOpacity>
+
             {/* Delete - Only show for own mixes */}
             {isOwnMix && (
               <TouchableOpacity
@@ -355,10 +401,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "hsl(0, 0%, 0%)",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 8%)",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginVertical: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 8%)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   deleteButtonContainer: {
     position: "absolute",
@@ -457,7 +510,24 @@ const styles = StyleSheet.create({
   trackMeta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  socialStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  statItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  statText: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 50%)",
+    fontWeight: "500",
   },
   trackDuration: {
     fontSize: 12,
@@ -480,6 +550,26 @@ const styles = StyleSheet.create({
   optionsButton: {
     padding: 8,
     marginLeft: 8,
+  },
+  swipeActions: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  swipeActionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 4,
   },
   progressContainer: {
     position: "absolute",
