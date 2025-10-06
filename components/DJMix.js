@@ -212,13 +212,6 @@ const DJMix = ({
           activeOpacity={0.7}
           delayPressIn={isOwnMix ? 100 : 0}
         >
-          {/* Track Number */}
-          <View style={styles.trackNumber}>
-            <Text style={styles.trackNumberText}>
-              {mix.trackNumber || mix.id}
-            </Text>
-          </View>
-
           {/* Album Art */}
           <View style={styles.albumArtContainer}>
             {!imageError ? (
@@ -255,20 +248,6 @@ const DJMix = ({
               {mix.artist}
             </Text>
             <View style={styles.trackMeta}>
-              <View style={styles.socialStats}>
-                <View style={styles.statItem}>
-                  <Ionicons name="play" size={12} color="hsl(0, 0%, 50%)" />
-                  <Text style={styles.statText}>
-                    {mix.playCount || Math.floor(Math.random() * 1000) + 100}
-                  </Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Ionicons name="heart" size={12} color="hsl(0, 0%, 50%)" />
-                  <Text style={styles.statText}>
-                    {mix.likeCount || Math.floor(Math.random() * 100) + 10}
-                  </Text>
-                </View>
-              </View>
               <View style={styles.genreBadge}>
                 <Text style={styles.genreText}>{mix.genre}</Text>
               </View>
@@ -416,17 +395,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 4,
   },
-  trackNumber: {
-    width: 32,
-    alignItems: "center",
-    marginRight: 16,
-  },
-  trackNumberText: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
-  },
   albumArtContainer: {
     position: "relative",
     width: 50,
@@ -492,24 +460,7 @@ const styles = StyleSheet.create({
   trackMeta: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     marginTop: 8,
-  },
-  socialStats: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  statText: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 50%)",
-    fontWeight: "500",
   },
   trackDuration: {
     fontSize: 12,
