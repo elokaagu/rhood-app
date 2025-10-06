@@ -177,11 +177,18 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Image
-            source={require("../assets/RHOOD_Lettering_White.png")}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+          <View style={styles.logoContainer}>
+            <Image
+              source={require("../assets/rhood_logo.png")}
+              style={styles.logoIcon}
+              resizeMode="contain"
+            />
+            <Image
+              source={require("../assets/RHOOD_Lettering_White.png")}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
           <Text style={styles.subtitle}>
             Join the underground music community
           </Text>
@@ -401,11 +408,20 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 10,
   },
+  logoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  logoIcon: {
+    height: 40,
+    width: 40,
+    marginRight: 8,
+  },
   logoImage: {
     height: 48,
     width: 180,
-    marginBottom: 10,
-    alignSelf: "center",
   },
   subtitle: {
     color: "hsl(0, 0%, 70%)",

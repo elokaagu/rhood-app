@@ -110,11 +110,18 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Image
-            source={require("../assets/RHOOD_Lettering_White.png")}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+          <View style={styles.logoContainer}>
+            <Image
+              source={require("../assets/rhood_logo.png")}
+              style={styles.logoIcon}
+              resizeMode="contain"
+            />
+            <Image
+              source={require("../assets/RHOOD_Lettering_White.png")}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
           <Text style={styles.subtitle}>Welcome back to R/HOOD</Text>
         </View>
 
@@ -258,10 +265,20 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: SPACING.base,
   },
+  logoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: SPACING.base,
+  },
+  logoIcon: {
+    height: 40,
+    width: 40,
+    marginRight: SPACING.sm,
+  },
   logoImage: {
     height: 48,
     width: 180,
-    marginBottom: SPACING.base,
   },
   subtitle: {
     ...sharedStyles.textSecondary,
