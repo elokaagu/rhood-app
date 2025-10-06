@@ -328,17 +328,28 @@ export default function ConnectionsScreen({ onNavigate }) {
     try {
       setDiscoverLoading(true);
 
+      // Ensure we have a current user first
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      
+      if (!currentUser) {
+        console.log("No current user, using mock data");
+        setDiscoverUsers(mockDiscoverUsers);
+        return;
+      }
+
       // Get all users from database (excluding current user and existing connections)
       const { data: allUsers, error } = await supabase
         .from("user_profiles")
         .select("*")
-        .neq("id", user?.id)
+        .neq("id", currentUser.id)
         .limit(20);
 
       if (error) throw error;
 
       // Filter out users we're already connected to
-      const connectedUserIds = connections.map((conn) => conn.id);
+      const connectedUserIds = connections.map((conn) => conn.connected_user_id);
       const discoverUsers =
         allUsers?.filter((user) => !connectedUserIds.includes(user.id)) || [];
 
@@ -709,69 +720,59 @@ export default function ConnectionsScreen({ onNavigate }) {
               <Animated.View style={{ opacity: discoverFadeAnim }}>
                 {discoverUsers.map((user, index) => (
                   <AnimatedListItem key={user.id} index={index} delay={80}>
-                    <View style={styles.discoverCard}>
-                      {/* Profile Image with Status */}
-                      <View style={styles.discoverProfileContainer}>
-                        <ProgressiveImage
-                          source={{ uri: user.profileImage }}
-                          style={styles.discoverProfileImage}
-                        />
-                        <View
-                          style={[
-                            styles.discoverStatusIndicator,
-                            { backgroundColor: "hsl(120, 100%, 50%)" },
-                          ]}
-                        />
-                      </View>
-
-                      {/* User Info */}
-                      <View style={styles.discoverUserInfo}>
-                        <View style={styles.discoverHeader}>
-                          <Text style={styles.discoverName}>{user.name}</Text>
-                          <View style={styles.discoverRating}>
-                            <Ionicons
-                              name="star"
-                              size={16}
-                              color="hsl(45, 100%, 50%)"
-                            />
-                            <Text style={styles.discoverRatingText}>
-                              {user.rating}
-                            </Text>
-                            <Text style={styles.discoverLastActive}>
-                              {user.lastActive}
-                            </Text>
+                    <View style={styles.djCard}>
+                      {/* DJ Header */}
+                      <View style={styles.djHeader}>
+                        <View style={styles.djInfo}>
+                          <ProgressiveImage
+                            source={{
+                              uri: user.profileImage ||
+                                "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
+                            }}
+                            style={styles.djAvatar}
+                          />
+                          <View style={styles.djDetails}>
+                            <View style={styles.djNameRow}>
+                              <Text style={styles.djName}>{user.name}</Text>
+                              <View style={styles.onlineIndicator} />
+                            </View>
+                            <Text style={styles.djUsername}>{user.username}</Text>
+                            <Text style={styles.djLocation}>{user.location}</Text>
                           </View>
                         </View>
-
-                        <Text style={styles.discoverUsername}>
-                          {user.username}
-                        </Text>
-                        <Text style={styles.discoverLocation}>
-                          {user.location}
-                        </Text>
-                        <Text style={styles.discoverBio} numberOfLines={2}>
-                          {user.bio}
-                        </Text>
-
-                        {/* Genre Tags */}
-                        <View style={styles.discoverGenreTags}>
-                          {user.genres.slice(0, 3).map((genre) => (
-                            <View key={genre} style={styles.discoverGenreTag}>
-                              <Ionicons
-                                name="musical-notes"
-                                size={12}
-                                color="hsl(75, 100%, 60%)"
-                              />
-                              <Text style={styles.discoverGenreText}>
-                                {genre}
-                              </Text>
-                            </View>
-                          ))}
+                        <View style={styles.djActions}>
+                          <View style={styles.ratingContainer}>
+                            <Ionicons
+                              name="star"
+                              size={14}
+                              color="hsl(75, 100%, 60%)"
+                            />
+                            <Text style={styles.ratingText}>{user.rating}</Text>
+                          </View>
+                          <Text style={styles.lastActive}>{user.lastActive}</Text>
                         </View>
+                      </View>
+
+                      {/* DJ Bio */}
+                      <Text style={styles.djBio}>{user.bio}</Text>
+
+                      {/* Genres */}
+                      <View style={styles.genresContainer}>
+                        {user.genres.slice(0, 3).map((genre, index) => (
+                          <View key={index} style={styles.genreTag}>
+                            <Ionicons
+                              name="musical-notes"
+                              size={12}
+                              color="hsl(75, 100%, 60%)"
+                              style={styles.genreIcon}
+                            />
+                            <Text style={styles.genreText}>{genre}</Text>
+                          </View>
+                        ))}
                       </View>
 
                       {/* Action Buttons */}
-                      <View style={styles.discoverActions}>
+                      <View style={styles.actionButtons}>
                         <TouchableOpacity
                           style={styles.viewProfileButton}
                           onPress={() => handleViewProfile(user)}
@@ -779,23 +780,16 @@ export default function ConnectionsScreen({ onNavigate }) {
                           <Ionicons
                             name="person-outline"
                             size={16}
-                            color="hsl(0, 0%, 70%)"
+                            color="hsl(0, 0%, 100%)"
                           />
-                          <Text style={styles.viewProfileText}>
-                            View Profile
-                          </Text>
+                          <Text style={styles.viewProfileText}>View Profile</Text>
                         </TouchableOpacity>
-
                         <TouchableOpacity
                           style={styles.connectButton}
                           onPress={() => handleConnect(user)}
                           disabled={discoverLoading}
                         >
-                          <Ionicons
-                            name="add"
-                            size={16}
-                            color="hsl(0, 0%, 0%)"
-                          />
+                          <Ionicons name="add" size={16} color="hsl(0, 0%, 0%)" />
                           <Text style={styles.connectText}>Connect</Text>
                         </TouchableOpacity>
                       </View>
@@ -1313,5 +1307,121 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
+  },
+
+  // Original DJ Card Styles
+  djCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  djHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  djInfo: {
+    flexDirection: "row",
+    flex: 1,
+  },
+  djAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 16,
+  },
+  djDetails: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  djNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  djName: {
+    fontSize: 18,
+    fontFamily: "Arial",
+    fontWeight: "700",
+    color: "hsl(0, 0%, 100%)",
+    marginRight: 8,
+  },
+  onlineIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "hsl(120, 100%, 50%)",
+    borderWidth: 2,
+    borderColor: "hsl(0, 0%, 8%)",
+  },
+  djUsername: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(75, 100%, 60%)",
+    marginBottom: 4,
+  },
+  djLocation: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+  },
+  djActions: {
+    alignItems: "flex-end",
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  ratingText: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(45, 100%, 50%)",
+    marginLeft: 4,
+  },
+  lastActive: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+  },
+  djBio: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  genresContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 16,
+  },
+  genreTag: {
+    backgroundColor: "hsl(0, 0%, 15%)",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  genreIcon: {
+    marginRight: 4,
+  },
+  genreText: {
+    fontSize: 11,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    fontWeight: "500",
+  },
+  actionButtons: {
+    flexDirection: "row",
+    gap: 12,
   },
 });
