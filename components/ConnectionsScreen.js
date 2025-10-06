@@ -28,7 +28,8 @@ const mockDiscoverUsers = [
     username: "@elokaagu",
     location: "Studio",
     genres: ["Admin", "Studio Management", "Super Admin"],
-    profileImage: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop",
+    profileImage:
+      "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop",
     rating: 4.5,
     gigsCompleted: 50,
     lastActive: "Recently active",
@@ -42,7 +43,8 @@ const mockDiscoverUsers = [
     username: "@fatimah",
     location: "London",
     genres: ["R&B", "Neo-Soul", "Jazz"],
-    profileImage: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
+    profileImage:
+      "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
     rating: 4.6,
     gigsCompleted: 14,
     lastActive: "Recently active",
@@ -56,7 +58,8 @@ const mockDiscoverUsers = [
     username: "@mayachen",
     location: "London",
     genres: ["Techno", "House", "Electronic"],
-    profileImage: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
+    profileImage:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
     rating: 4.9,
     gigsCompleted: 28,
     lastActive: "Recently active",
@@ -70,7 +73,8 @@ const mockDiscoverUsers = [
     username: "@sophiea",
     location: "Bristol",
     genres: ["Drum & Bass", "Jungle"],
-    profileImage: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop",
+    profileImage:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop",
     rating: 5.0,
     gigsCompleted: 35,
     lastActive: "Recently active",
@@ -175,7 +179,7 @@ export default function ConnectionsScreen({ onNavigate }) {
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('connections'); // 'connections' or 'discover'
+  const [activeTab, setActiveTab] = useState("connections"); // 'connections' or 'discover'
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [discoverUsers, setDiscoverUsers] = useState([]);
 
@@ -200,17 +204,25 @@ export default function ConnectionsScreen({ onNavigate }) {
       setUser(currentUser);
 
       // Get user's connections from database
-      const connectionsData = await db.getUserConnections(currentUser.id, 'accepted');
-      
+      const connectionsData = await db.getUserConnections(
+        currentUser.id,
+        "accepted"
+      );
+
       if (connectionsData && connectionsData.length > 0) {
         // Transform database connections to match UI format
         const formattedConnections = connectionsData.map((conn) => ({
           id: conn.connected_user_id,
           name: conn.connected_user_name,
-          username: `@${conn.connected_user_username || conn.connected_user_name.toLowerCase().replace(/\s+/g, '')}`,
+          username: `@${
+            conn.connected_user_username ||
+            conn.connected_user_name.toLowerCase().replace(/\s+/g, "")
+          }`,
           location: conn.connected_user_city,
           genres: conn.connected_user_genres || [],
-          profileImage: conn.connected_user_image || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop',
+          profileImage:
+            conn.connected_user_image ||
+            "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop",
           rating: conn.connected_user_rating || 0,
           gigsCompleted: conn.connected_user_gigs || 0,
           lastActive: "Recently", // Could calculate from last_seen if we add that field
@@ -218,9 +230,11 @@ export default function ConnectionsScreen({ onNavigate }) {
           status: "online", // Could be based on last_seen
           isVerified: conn.connected_user_verified || false,
         }));
-        
+
         setConnections(formattedConnections);
-        console.log(`✅ Loaded ${formattedConnections.length} connections from database`);
+        console.log(
+          `✅ Loaded ${formattedConnections.length} connections from database`
+        );
       } else {
         // No connections yet, show empty state
         setConnections([]);
@@ -257,7 +271,10 @@ export default function ConnectionsScreen({ onNavigate }) {
   const handleViewProfile = async (connection) => {
     try {
       // Navigate to profile view - you might want to create a separate profile view screen
-      console.log("Viewing profile for:", connection.dj_name || connection.full_name);
+      console.log(
+        "Viewing profile for:",
+        connection.dj_name || connection.full_name
+      );
       // For now, we'll show an alert, but you can navigate to a profile screen
       Alert.alert(
         "View Profile",
@@ -273,13 +290,15 @@ export default function ConnectionsScreen({ onNavigate }) {
     try {
       setDiscoverLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
+
       // Simulate connection request
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       Alert.alert(
         "Connection Sent!",
-        `Connection request sent to ${connection.dj_name || connection.full_name}`,
+        `Connection request sent to ${
+          connection.dj_name || connection.full_name
+        }`,
         [{ text: "OK" }]
       );
     } catch (error) {
@@ -293,28 +312,33 @@ export default function ConnectionsScreen({ onNavigate }) {
   const loadDiscoverDJs = async () => {
     try {
       setDiscoverLoading(true);
-      
+
       // Get all users from database (excluding current user and existing connections)
       const { data: allUsers, error } = await supabase
         .from("user_profiles")
         .select("*")
         .neq("id", user?.id)
         .limit(20);
-      
+
       if (error) throw error;
-      
+
       // Filter out users we're already connected to
-      const connectedUserIds = connections.map(conn => conn.id);
-      const discoverUsers = allUsers?.filter(user => !connectedUserIds.includes(user.id)) || [];
-      
+      const connectedUserIds = connections.map((conn) => conn.id);
+      const discoverUsers =
+        allUsers?.filter((user) => !connectedUserIds.includes(user.id)) || [];
+
       // Transform to match UI format
       const formattedDiscoverUsers = discoverUsers.map((user) => ({
         id: user.id,
         name: user.dj_name || user.full_name,
-        username: `@${user.username || user.dj_name?.toLowerCase().replace(/\s+/g, '')}`,
+        username: `@${
+          user.username || user.dj_name?.toLowerCase().replace(/\s+/g, "")
+        }`,
         location: user.city,
         genres: user.genres || [],
-        profileImage: user.profile_image_url || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop',
+        profileImage:
+          user.profile_image_url ||
+          "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop",
         rating: user.rating || 0,
         gigsCompleted: user.gigs_completed || 0,
         lastActive: "Recently",
@@ -322,7 +346,7 @@ export default function ConnectionsScreen({ onNavigate }) {
         isVerified: user.is_verified || false,
         bio: user.bio || "DJ and music producer",
       }));
-      
+
       setDiscoverUsers(formattedDiscoverUsers);
     } catch (error) {
       console.error("❌ Error loading discover DJs:", error);
@@ -398,19 +422,23 @@ export default function ConnectionsScreen({ onNavigate }) {
             <TouchableOpacity
               style={[
                 styles.tabButton,
-                activeTab === 'connections' && styles.tabButtonActive,
+                activeTab === "connections" && styles.tabButtonActive,
               ]}
-              onPress={() => setActiveTab('connections')}
+              onPress={() => setActiveTab("connections")}
             >
               <Ionicons
                 name="people"
                 size={16}
-                color={activeTab === 'connections' ? 'hsl(75, 100%, 60%)' : 'hsl(0, 0%, 70%)'}
+                color={
+                  activeTab === "connections"
+                    ? "hsl(75, 100%, 60%)"
+                    : "hsl(0, 0%, 70%)"
+                }
               />
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === 'connections' && styles.tabTextActive,
+                  activeTab === "connections" && styles.tabTextActive,
                 ]}
               >
                 Connections
@@ -420,10 +448,10 @@ export default function ConnectionsScreen({ onNavigate }) {
             <TouchableOpacity
               style={[
                 styles.tabButton,
-                activeTab === 'discover' && styles.tabButtonActive,
+                activeTab === "discover" && styles.tabButtonActive,
               ]}
               onPress={() => {
-                setActiveTab('discover');
+                setActiveTab("discover");
                 if (discoverUsers.length === 0) {
                   loadDiscoverDJs();
                 }
@@ -432,12 +460,16 @@ export default function ConnectionsScreen({ onNavigate }) {
               <Ionicons
                 name="search"
                 size={16}
-                color={activeTab === 'discover' ? 'hsl(75, 100%, 60%)' : 'hsl(0, 0%, 70%)'}
+                color={
+                  activeTab === "discover"
+                    ? "hsl(75, 100%, 60%)"
+                    : "hsl(0, 0%, 70%)"
+                }
               />
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === 'discover' && styles.tabTextActive,
+                  activeTab === "discover" && styles.tabTextActive,
                 ]}
               >
                 Discover
@@ -516,10 +548,12 @@ export default function ConnectionsScreen({ onNavigate }) {
         </View>
 
         {/* Content based on active tab */}
-        {activeTab === 'connections' ? (
+        {activeTab === "connections" ? (
           /* Individual Connections List */
           <View style={styles.connectionsList}>
-            {filteredConnections.length === 0 ? (
+            {loading ? (
+              <SkeletonList count={5} />
+            ) : filteredConnections.length === 0 ? (
               <View style={styles.noResultsContainer}>
                 <Ionicons name="search" size={48} color="hsl(0, 0%, 30%)" />
                 <Text style={styles.noResultsTitle}>No connections found</Text>
@@ -529,100 +563,107 @@ export default function ConnectionsScreen({ onNavigate }) {
                     : "Try adjusting your filters"}
                 </Text>
               </View>
-            ) : loading ? (
-              <SkeletonList count={5} />
             ) : (
-            <>
-              {filteredConnections.map((connection, index) => (
-                <AnimatedListItem key={connection.id} index={index} delay={80}>
-                  <TouchableOpacity
-                    style={styles.connectionItem}
-                    onPress={() => handleConnectionPress(connection)}
+              <>
+                {filteredConnections.map((connection, index) => (
+                  <AnimatedListItem
+                    key={connection.id}
+                    index={index}
+                    delay={80}
                   >
-                    <View style={styles.connectionContent}>
-                      {/* Profile Image with Online Status */}
-                      <View style={styles.profileContainer}>
-                        <ProgressiveImage
-                          source={{
-                            uri:
-                              connection.profile_image_url ||
-                              "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face",
-                          }}
-                          style={styles.profileImage}
-                        />
-                        {/* For now, show all as online. In a real app, you'd track online status */}
-                        <View
-                          style={[
-                            styles.statusIndicator,
-                            {
-                              backgroundColor: "hsl(120, 100%, 50%)", // Always online for now
-                            },
-                          ]}
-                        />
-                      </View>
-
-                      {/* Connection Info */}
-                      <View style={styles.connectionInfo}>
-                        {/* Name and Last Active Time */}
-                        <View style={styles.connectionHeader}>
-                          <Text style={styles.connectionName} numberOfLines={1}>
-                            {connection.dj_name || connection.full_name}
-                          </Text>
-                          <Text style={styles.lastActive}>
-                            {connection.followedAt
-                              ? new Date(
-                                  connection.followedAt
-                                ).toLocaleDateString()
-                              : "Recently"}
-                          </Text>
+                    <TouchableOpacity
+                      style={styles.connectionItem}
+                      onPress={() => handleConnectionPress(connection)}
+                    >
+                      <View style={styles.connectionContent}>
+                        {/* Profile Image with Online Status */}
+                        <View style={styles.profileContainer}>
+                          <ProgressiveImage
+                            source={{
+                              uri:
+                                connection.profile_image_url ||
+                                "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face",
+                            }}
+                            style={styles.profileImage}
+                          />
+                          {/* For now, show all as online. In a real app, you'd track online status */}
+                          <View
+                            style={[
+                              styles.statusIndicator,
+                              {
+                                backgroundColor: "hsl(120, 100%, 50%)", // Always online for now
+                              },
+                            ]}
+                          />
                         </View>
 
-                        {/* Last Message Preview */}
-                        <Text style={styles.lastMessage} numberOfLines={1}>
-                          {getLastMessage(connection.id)}
-                        </Text>
+                        {/* Connection Info */}
+                        <View style={styles.connectionInfo}>
+                          {/* Name and Last Active Time */}
+                          <View style={styles.connectionHeader}>
+                            <Text
+                              style={styles.connectionName}
+                              numberOfLines={1}
+                            >
+                              {connection.dj_name || connection.full_name}
+                            </Text>
+                            <Text style={styles.lastActive}>
+                              {connection.followedAt
+                                ? new Date(
+                                    connection.followedAt
+                                  ).toLocaleDateString()
+                                : "Recently"}
+                            </Text>
+                          </View>
 
-                        {/* Genre Tags */}
-                        <View style={styles.genreTags}>
-                          {(connection.genres || [])
-                            .slice(0, 2)
-                            .map((genre) => (
-                              <View key={genre} style={styles.genreTag}>
-                                <Text style={styles.genreTagText}>{genre}</Text>
+                          {/* Last Message Preview */}
+                          <Text style={styles.lastMessage} numberOfLines={1}>
+                            {getLastMessage(connection.id)}
+                          </Text>
+
+                          {/* Genre Tags */}
+                          <View style={styles.genreTags}>
+                            {(connection.genres || [])
+                              .slice(0, 2)
+                              .map((genre) => (
+                                <View key={genre} style={styles.genreTag}>
+                                  <Text style={styles.genreTagText}>
+                                    {genre}
+                                  </Text>
+                                </View>
+                              ))}
+                            {(!connection.genres ||
+                              connection.genres.length === 0) && (
+                              <View style={styles.genreTag}>
+                                <Text style={styles.genreTagText}>
+                                  Electronic
+                                </Text>
                               </View>
-                            ))}
-                          {(!connection.genres ||
-                            connection.genres.length === 0) && (
-                            <View style={styles.genreTag}>
-                              <Text style={styles.genreTagText}>
-                                Electronic
-                              </Text>
-                            </View>
-                          )}
+                            )}
+                          </View>
                         </View>
-                      </View>
 
-                      {/* Unread Message Indicator */}
-                      {connection.id === 1 && (
-                        <View style={styles.unreadCounter}>
-                          <Text style={styles.unreadCount}>2</Text>
-                        </View>
-                      )}
-                      {connection.id === 2 && (
-                        <View style={styles.unreadCounter}>
-                          <Text style={styles.unreadCount}>1</Text>
-                        </View>
-                      )}
-                      {connection.id === 6 && (
-                        <View style={styles.unreadCounter}>
-                          <Text style={styles.unreadCount}>3</Text>
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                </AnimatedListItem>
-              ))}
-            </>
+                        {/* Unread Message Indicator */}
+                        {connection.id === 1 && (
+                          <View style={styles.unreadCounter}>
+                            <Text style={styles.unreadCount}>2</Text>
+                          </View>
+                        )}
+                        {connection.id === 2 && (
+                          <View style={styles.unreadCounter}>
+                            <Text style={styles.unreadCount}>1</Text>
+                          </View>
+                        )}
+                        {connection.id === 6 && (
+                          <View style={styles.unreadCounter}>
+                            <Text style={styles.unreadCount}>3</Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  </AnimatedListItem>
+                ))}
+              </>
             )}
           </View>
         ) : (
@@ -632,7 +673,11 @@ export default function ConnectionsScreen({ onNavigate }) {
               <SkeletonList count={4} />
             ) : discoverUsers.length === 0 ? (
               <View style={styles.noResultsContainer}>
-                <Ionicons name="people-outline" size={48} color="hsl(0, 0%, 30%)" />
+                <Ionicons
+                  name="people-outline"
+                  size={48}
+                  color="hsl(0, 0%, 30%)"
+                />
                 <Text style={styles.noResultsTitle}>No DJs found</Text>
                 <Text style={styles.noResultsSubtitle}>
                   Try adjusting your filters or check back later
@@ -661,24 +706,42 @@ export default function ConnectionsScreen({ onNavigate }) {
                       <View style={styles.discoverHeader}>
                         <Text style={styles.discoverName}>{user.name}</Text>
                         <View style={styles.discoverRating}>
-                          <Ionicons name="star" size={16} color="hsl(45, 100%, 50%)" />
-                          <Text style={styles.discoverRatingText}>{user.rating}</Text>
-                          <Text style={styles.discoverLastActive}>{user.lastActive}</Text>
+                          <Ionicons
+                            name="star"
+                            size={16}
+                            color="hsl(45, 100%, 50%)"
+                          />
+                          <Text style={styles.discoverRatingText}>
+                            {user.rating}
+                          </Text>
+                          <Text style={styles.discoverLastActive}>
+                            {user.lastActive}
+                          </Text>
                         </View>
                       </View>
-                      
-                      <Text style={styles.discoverUsername}>{user.username}</Text>
-                      <Text style={styles.discoverLocation}>{user.location}</Text>
+
+                      <Text style={styles.discoverUsername}>
+                        {user.username}
+                      </Text>
+                      <Text style={styles.discoverLocation}>
+                        {user.location}
+                      </Text>
                       <Text style={styles.discoverBio} numberOfLines={2}>
                         {user.bio}
                       </Text>
-                      
+
                       {/* Genre Tags */}
                       <View style={styles.discoverGenreTags}>
                         {user.genres.slice(0, 3).map((genre) => (
                           <View key={genre} style={styles.discoverGenreTag}>
-                            <Ionicons name="musical-notes" size={12} color="hsl(75, 100%, 60%)" />
-                            <Text style={styles.discoverGenreText}>{genre}</Text>
+                            <Ionicons
+                              name="musical-notes"
+                              size={12}
+                              color="hsl(75, 100%, 60%)"
+                            />
+                            <Text style={styles.discoverGenreText}>
+                              {genre}
+                            </Text>
                           </View>
                         ))}
                       </View>
@@ -690,10 +753,14 @@ export default function ConnectionsScreen({ onNavigate }) {
                         style={styles.viewProfileButton}
                         onPress={() => handleViewProfile(user)}
                       >
-                        <Ionicons name="person-outline" size={16} color="hsl(0, 0%, 70%)" />
+                        <Ionicons
+                          name="person-outline"
+                          size={16}
+                          color="hsl(0, 0%, 70%)"
+                        />
                         <Text style={styles.viewProfileText}>View Profile</Text>
                       </TouchableOpacity>
-                      
+
                       <TouchableOpacity
                         style={styles.connectButton}
                         onPress={() => handleConnect(user)}
@@ -711,7 +778,7 @@ export default function ConnectionsScreen({ onNavigate }) {
         )}
 
         {/* Add Connection Call-to-Action - only show on connections tab */}
-        {activeTab === 'connections' && (
+        {activeTab === "connections" && (
           <View style={styles.ctaSection}>
             <View style={styles.ctaCard}>
               <Ionicons name="person-add" size={24} color="hsl(0, 0%, 70%)" />
