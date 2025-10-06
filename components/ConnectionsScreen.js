@@ -456,46 +456,6 @@ export default function ConnectionsScreen({ onNavigate }) {
             <TouchableOpacity
               style={[
                 styles.tabButton,
-                activeTab === "connections" && styles.tabButtonActive,
-              ]}
-              onPress={() => {
-                setActiveTab("connections");
-                // Reset fade animation for connections tab
-                connectionsFadeAnim.setValue(0);
-                // Fade in connections if they exist
-                if (connections.length > 0) {
-                  Animated.timing(connectionsFadeAnim, {
-                    toValue: 1,
-                    duration: 300,
-                    useNativeDriver: true,
-                  }).start();
-                }
-                // Reset discover fade animation
-                discoverFadeAnim.setValue(0);
-              }}
-            >
-              <Ionicons
-                name="people"
-                size={16}
-                color={
-                  activeTab === "connections"
-                    ? "hsl(75, 100%, 60%)"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === "connections" && styles.tabTextActive,
-                ]}
-              >
-                Connections
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
                 activeTab === "discover" && styles.tabButtonActive,
               ]}
               onPress={() => {
@@ -530,6 +490,46 @@ export default function ConnectionsScreen({ onNavigate }) {
                 ]}
               >
                 Discover
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === "connections" && styles.tabButtonActive,
+              ]}
+              onPress={() => {
+                setActiveTab("connections");
+                // Reset fade animation for connections tab
+                connectionsFadeAnim.setValue(0);
+                // Fade in connections if they exist
+                if (connections.length > 0) {
+                  Animated.timing(connectionsFadeAnim, {
+                    toValue: 1,
+                    duration: 300,
+                    useNativeDriver: true,
+                  }).start();
+                }
+                // Reset discover fade animation
+                discoverFadeAnim.setValue(0);
+              }}
+            >
+              <Ionicons
+                name="people"
+                size={16}
+                color={
+                  activeTab === "connections"
+                    ? "hsl(75, 100%, 60%)"
+                    : "hsl(0, 0%, 70%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "connections" && styles.tabTextActive,
+                ]}
+              >
+                Connections
               </Text>
             </TouchableOpacity>
           </View>
