@@ -2503,6 +2503,25 @@ export default function App() {
             {...audioPlayerPanResponder.panHandlers}
           >
             <View style={styles.audioPlayerContent}>
+              {/* Album Art */}
+              <View style={styles.audioAlbumArt}>
+                {globalAudioState.currentTrack.image ? (
+                  <Image
+                    source={{ uri: globalAudioState.currentTrack.image }}
+                    style={styles.albumArtImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.albumArtPlaceholder}>
+                    <Ionicons
+                      name="musical-notes"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
+                    />
+                  </View>
+                )}
+              </View>
+
               <View style={styles.audioTrackInfo}>
                 <Text style={styles.audioTrackTitle} numberOfLines={1}>
                   {globalAudioState.currentTrack.title}
@@ -2521,6 +2540,20 @@ export default function App() {
               </View>
 
               <View style={styles.audioControls}>
+                <TouchableOpacity
+                  style={styles.audioControlButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    skipBackward();
+                  }}
+                >
+                  <Ionicons
+                    name="play-skip-back"
+                    size={20}
+                    color="hsl(0, 0%, 100%)"
+                  />
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   style={styles.audioControlButton}
                   onPress={() => {
@@ -2549,6 +2582,20 @@ export default function App() {
                     name="play-skip-forward"
                     size={20}
                     color="hsl(0, 0%, 100%)"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.audioShareButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    shareTrack();
+                  }}
+                >
+                  <Ionicons
+                    name="share-outline"
+                    size={18}
+                    color="hsl(0, 0%, 70%)"
                   />
                 </TouchableOpacity>
               </View>
@@ -3844,6 +3891,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  audioAlbumArt: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
+    overflow: "hidden",
+  },
+  albumArtImage: {
+    width: "100%",
+    height: "100%",
+  },
+  albumArtPlaceholder: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   audioTrackInfo: {
     flex: 1,
     marginRight: 16,
@@ -3880,6 +3945,15 @@ const styles = StyleSheet.create({
     elevation: 4,
     marginLeft: 8,
   },
+  audioShareButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
+  },
   audioCloseButton: {
     width: 40,
     height: 40,
@@ -3894,9 +3968,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8, // Larger touch area
   },
   audioProgressBar: {
-    height: 4,
+    height: 6,
     backgroundColor: "hsl(0, 0%, 15%)",
-    borderRadius: 2,
+    borderRadius: 3,
     marginBottom: 8,
     position: "relative",
   },
