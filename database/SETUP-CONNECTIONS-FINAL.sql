@@ -333,54 +333,54 @@ END $$;
 -- ============================================
 
 INSERT INTO user_profiles (
-  id, email, dj_name, full_name, username, instagram, soundcloud, city, genres, bio,
+  id, email, dj_name, first_name, full_name, username, instagram, soundcloud, city, genres, bio,
   profile_image_url, rating, gigs_completed, credits, is_verified, created_at, updated_at
 ) VALUES 
-('11111111-1111-1111-1111-111111111111'::uuid, 'maya.chen@rhoodapp.com', 'Maya Chen', 'Maya Chen', 'mayachen', '@mayachenmusic', 'soundcloud.com/mayachen', 'London', 
+('11111111-1111-1111-1111-111111111111'::uuid, 'maya.chen@rhoodapp.com', 'Maya Chen', 'Maya', 'Maya Chen', 'mayachen', '@mayachenmusic', 'soundcloud.com/mayachen', 'London', 
   ARRAY['Techno', 'House', 'Electronic'], 'Techno DJ and producer from London. Resident at Fabric.',
   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400', 4.9, 28, 420, true, NOW() - INTERVAL '6 months', NOW()),
   
-('22222222-2222-2222-2222-222222222222'::uuid, 'james.martinez@rhoodapp.com', 'DJ Smooth', 'James Martinez', 'djsmooth', '@djsmoothofficial', 'soundcloud.com/djsmooth', 'Manchester',
+('22222222-2222-2222-2222-222222222222'::uuid, 'james.martinez@rhoodapp.com', 'DJ Smooth', 'James', 'James Martinez', 'djsmooth', '@djsmoothofficial', 'soundcloud.com/djsmooth', 'Manchester',
   ARRAY['R&B', 'Soul', 'Hip-Hop'], 'Manchester-based R&B selector. 90s classics specialist.',
   'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400', 4.7, 15, 250, false, NOW() - INTERVAL '4 months', NOW()),
   
-('33333333-3333-3333-3333-333333333333'::uuid, 'aisha.thompson@rhoodapp.com', 'Aisha T', 'Aisha Thompson', 'aishat', '@aishatmusic', 'soundcloud.com/aishat', 'Birmingham',
+('33333333-3333-3333-3333-333333333333'::uuid, 'aisha.thompson@rhoodapp.com', 'Aisha T', 'Aisha', 'Aisha Thompson', 'aishat', '@aishatmusic', 'soundcloud.com/aishat', 'Birmingham',
   ARRAY['Afrobeats', 'Dancehall', 'Hip-Hop'], 'Bringing Afrobeats energy to Birmingham nightlife.',
   'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=400', 4.8, 22, 380, true, NOW() - INTERVAL '8 months', NOW()),
   
-('44444444-4444-4444-4444-444444444444'::uuid, 'luca.romano@rhoodapp.com', 'Luca Romano', 'Luca Romano', 'lucaromano', '@lucaromanomusic', 'soundcloud.com/lucaromano', 'London',
+('44444444-4444-4444-4444-444444444444'::uuid, 'luca.romano@rhoodapp.com', 'Luca Romano', 'Luca', 'Luca Romano', 'lucaromano', '@lucaromanomusic', 'soundcloud.com/lucaromano', 'London',
   ARRAY['Deep House', 'Tech House'], 'Italian DJ bringing Mediterranean vibes to London.',
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400', 4.6, 12, 180, false, NOW() - INTERVAL '3 months', NOW()),
   
-('55555555-5555-5555-5555-555555555555'::uuid, 'sophie.anderson@rhoodapp.com', 'Sophie A', 'Sophie Anderson', 'sophiea', '@sophieamusic', 'soundcloud.com/sophiea', 'Bristol',
+('55555555-5555-5555-5555-555555555555'::uuid, 'sophie.anderson@rhoodapp.com', 'Sophie A', 'Sophie', 'Sophie Anderson', 'sophiea', '@sophieamusic', 'soundcloud.com/sophiea', 'Bristol',
   ARRAY['Drum & Bass', 'Jungle'], 'Bristol DnB selector. High-energy sets for the ravers.',
   'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400', 5.0, 35, 550, true, NOW() - INTERVAL '1 year', NOW()),
   
-('66666666-6666-6666-6666-666666666666'::uuid, 'marcus.williams@rhoodapp.com', 'DJ Marcus', 'Marcus Williams', 'djmarcus', '@marcuswilliamsmusic', 'soundcloud.com/djmarcus', 'Leeds',
+('66666666-6666-6666-6666-666666666666'::uuid, 'marcus.williams@rhoodapp.com', 'DJ Marcus', 'Marcus', 'Marcus Williams', 'djmarcus', '@marcuswilliamsmusic', 'soundcloud.com/djmarcus', 'Leeds',
   ARRAY['House', 'Disco', 'Funk'], 'Funk and disco lover from Leeds. Bringing the groove back.',
   'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400', 4.7, 18, 290, false, NOW() - INTERVAL '5 months', NOW()),
   
-('77777777-7777-7777-7777-777777777777'::uuid, 'yasmin.patel@rhoodapp.com', 'Yasmin Patel', 'Yasmin Patel', 'yasminpatel', '@yasminpatelmusic', 'soundcloud.com/yasminpatel', 'London',
+('77777777-7777-7777-7777-777777777777'::uuid, 'yasmin.patel@rhoodapp.com', 'Yasmin Patel', 'Yasmin', 'Yasmin Patel', 'yasminpatel', '@yasminpatelmusic', 'soundcloud.com/yasminpatel', 'London',
   ARRAY['Trance', 'Progressive House'], 'London trance DJ creating euphoric moments.',
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400', 4.9, 26, 410, true, NOW() - INTERVAL '7 months', NOW()),
   
-('88888888-8888-8888-8888-888888888888'::uuid, 'oliver.taylor@rhoodapp.com', 'Olly T', 'Oliver Taylor', 'ollyt', '@ollytmusic', 'soundcloud.com/ollyt', 'Glasgow',
+('88888888-8888-8888-8888-888888888888'::uuid, 'oliver.taylor@rhoodapp.com', 'Olly T', 'Oliver', 'Oliver Taylor', 'ollyt', '@ollytmusic', 'soundcloud.com/ollyt', 'Glasgow',
   ARRAY['Techno', 'Minimal'], 'Glasgow underground techno. Dark, driving, hypnotic.',
   'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400', 4.8, 20, 340, true, NOW() - INTERVAL '9 months', NOW()),
   
-('99999999-9999-9999-9999-999999999999'::uuid, 'fatima.hassan@rhoodapp.com', 'Fatima H', 'Fatima Hassan', 'fatimah', '@fatimahassan', 'soundcloud.com/fatimah', 'London',
+('99999999-9999-9999-9999-999999999999'::uuid, 'fatima.hassan@rhoodapp.com', 'Fatima H', 'Fatima', 'Fatima Hassan', 'fatimah', '@fatimahassan', 'soundcloud.com/fatimah', 'London',
   ARRAY['R&B', 'Neo-Soul', 'Jazz'], 'Neo-soul selector with smooth grooves.',
   'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400', 4.6, 14, 220, false, NOW() - INTERVAL '2 months', NOW()),
   
-('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid, 'connor.obrien@rhoodapp.com', 'Connor OB', 'Connor O''Brien', 'connorob', '@connorobmusic', 'soundcloud.com/connorob', 'Liverpool',
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid, 'connor.obrien@rhoodapp.com', 'Connor OB', 'Connor', 'Connor O''Brien', 'connorob', '@connorobmusic', 'soundcloud.com/connorob', 'Liverpool',
   ARRAY['House', 'UK Garage'], 'Liverpool house and garage DJ. 2-step vibes.',
   'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400', 4.7, 16, 260, false, NOW() - INTERVAL '4 months', NOW()),
   
-('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'::uuid, 'nina.rodriguez@rhoodapp.com', 'Nina R', 'Nina Rodriguez', 'ninar', '@ninarodriguez', 'soundcloud.com/ninar', 'Manchester',
+('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'::uuid, 'nina.rodriguez@rhoodapp.com', 'Nina R', 'Nina', 'Nina Rodriguez', 'ninar', '@ninarodriguez', 'soundcloud.com/ninar', 'Manchester',
   ARRAY['Techno', 'Tech House'], 'Techno purist from Manchester. Dark warehouse vibes.',
   'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400', 4.9, 30, 480, true, NOW() - INTERVAL '10 months', NOW()),
   
-('cccccccc-cccc-cccc-cccc-cccccccccccc'::uuid, 'ben.clarke@rhoodapp.com', 'Ben Clarke', 'Ben Clarke', 'benclarke', '@benclarkemusic', 'soundcloud.com/benclarke', 'Brighton',
+('cccccccc-cccc-cccc-cccc-cccccccccccc'::uuid, 'ben.clarke@rhoodapp.com', 'Ben Clarke', 'Ben', 'Ben Clarke', 'benclarke', '@benclarkemusic', 'soundcloud.com/benclarke', 'Brighton',
   ARRAY['Deep House', 'Disco'], 'Brighton deep house DJ. Sunny beach vibes.',
   'https://images.unsplash.com/photo-1463453091185-61582044d556?w=400', 4.5, 11, 170, false, NOW() - INTERVAL '3 months', NOW())
 ON CONFLICT (id) DO NOTHING;
