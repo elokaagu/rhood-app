@@ -2527,9 +2527,15 @@ export default function App() {
                 </View>
 
                 <View style={styles.audioTrackInfo}>
-                  <Text style={styles.audioTrackTitle} numberOfLines={1}>
-                    {globalAudioState.currentTrack.title}
-                  </Text>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.audioTitleScroll}
+                  >
+                    <Text style={styles.audioTrackTitle}>
+                      {globalAudioState.currentTrack.title}
+                    </Text>
+                  </ScrollView>
                   <Text style={styles.audioTrackArtist} numberOfLines={1}>
                     {globalAudioState.currentTrack.artist}
                   </Text>
@@ -3876,11 +3882,14 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   audioTrackTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
+  },
+  audioTitleScroll: {
+    maxHeight: 20,
   },
   audioTrackArtist: {
     fontSize: 14,
