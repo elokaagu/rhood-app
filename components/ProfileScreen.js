@@ -247,7 +247,9 @@ export default function ProfileScreen({ onNavigate, user }) {
           achievements: achievements,
         });
         console.log("✅ Profile loaded from database");
-        console.log(`📊 Loaded ${recentGigs.length} gigs and ${achievements.length} achievements`);
+        console.log(
+          `📊 Loaded ${recentGigs.length} gigs and ${achievements.length} achievements`
+        );
       } else {
         console.log("📝 No profile found, using mock data");
       }
@@ -341,7 +343,7 @@ export default function ProfileScreen({ onNavigate, user }) {
     if (!profile?.audioId?.waveform) {
       return null;
     }
-    
+
     return (
       <View style={styles.waveformContainer}>
         {profile.audioId.waveform.map((height, index) => (
@@ -355,7 +357,7 @@ export default function ProfileScreen({ onNavigate, user }) {
     if (!profile?.achievements || profile.achievements.length === 0) {
       return null;
     }
-    
+
     return (
       <View style={styles.achievementsContainer}>
         <Text style={styles.sectionTitle}>Achievements</Text>
@@ -419,7 +421,10 @@ export default function ProfileScreen({ onNavigate, user }) {
             </TouchableOpacity>
           </View>
         </View>
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
           <SkeletonProfile />
         </ScrollView>
       </View>
@@ -651,25 +656,25 @@ export default function ProfileScreen({ onNavigate, user }) {
                   style={styles.gigCard}
                   onPress={() => handleGigPress(gig)}
                 >
-                <View style={styles.gigHeader}>
-                  <Text style={styles.gigName}>{gig.name}</Text>
-                  <Text style={styles.gigPrice}>{gig.price}</Text>
-                </View>
-                <Text style={styles.gigVenue}>{gig.venue}</Text>
-                <View style={styles.gigFooter}>
-                  <Text style={styles.gigDate}>{gig.date}</Text>
-                  <View style={styles.gigRating}>
-                    <Ionicons
-                      name="star"
-                      size={14}
-                      color="hsl(45, 100%, 60%)"
-                    />
-                    <Text style={styles.gigRatingText}>{gig.rating}</Text>
+                  <View style={styles.gigHeader}>
+                    <Text style={styles.gigName}>{gig.name}</Text>
+                    <Text style={styles.gigPrice}>{gig.price}</Text>
                   </View>
-                </View>
-              </TouchableOpacity>
-            </AnimatedListItem>
-          ))}
+                  <Text style={styles.gigVenue}>{gig.venue}</Text>
+                  <View style={styles.gigFooter}>
+                    <Text style={styles.gigDate}>{gig.date}</Text>
+                    <View style={styles.gigRating}>
+                      <Ionicons
+                        name="star"
+                        size={14}
+                        color="hsl(45, 100%, 60%)"
+                      />
+                      <Text style={styles.gigRatingText}>{gig.rating}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </AnimatedListItem>
+            ))}
           </View>
         )}
 

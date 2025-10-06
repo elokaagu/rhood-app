@@ -136,14 +136,38 @@ export default function ConnectionsScreen({ onNavigate }) {
 
       setUser(currentUser);
 
-      // Get user's connections (people they follow)
-      const following = await connectionsService.getFollowing(currentUser.id);
-      setConnections(following);
+      // Get user's connections from database
+      const { db } = await import("../lib/supabase");
+      const connectionsData = await db.getUserConnections(currentUser.id, 'accepted');
+      
+      if (connectionsData && connectionsData.length > 0) {
+        // Transform database connections to match UI format
+        const formattedConnections = connectionsData.map((conn) => ({
+          id: conn.connected_user_id,
+          name: conn.connected_user_name,
+          username: `@${conn.connected_user_username || conn.connected_user_name.toLowerCase().replace(/\s+/g, '')}`,
+          location: conn.connected_user_city,
+          genres: conn.connected_user_genres || [],
+          profileImage: conn.connected_user_image || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop',
+          rating: conn.connected_user_rating || 0,
+          gigsCompleted: conn.connected_user_gigs || 0,
+          lastActive: "Recently", // Could calculate from last_seen if we add that field
+          mutualConnections: 0, // Could calculate if needed
+          status: "online", // Could be based on last_seen
+          isVerified: conn.connected_user_verified || false,
+        }));
+        
+        setConnections(formattedConnections);
+        console.log(`✅ Loaded ${formattedConnections.length} connections from database`);
+      } else {
+        // No connections yet, show empty state
+        setConnections([]);
+        console.log("📭 No connections found");
+      }
     } catch (error) {
-      console.error("Error loading connections:", error);
-      Alert.alert("Error", "Failed to load connections");
-      // Fallback to mock data
-      setConnections(mockConnections);
+      console.error("❌ Error loading connections:", error);
+      // Show empty state on error
+      setConnections([]);
     } finally {
       setLoading(false);
     }
