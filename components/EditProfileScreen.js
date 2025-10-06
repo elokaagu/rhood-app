@@ -197,7 +197,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     } catch (error) {
       console.error("❌ Error updating profile:", error);
       Alert.alert(
-        "Error", 
+        "Error",
         `Failed to update profile: ${error.message || "Please try again."}`
       );
       setSaving(false);

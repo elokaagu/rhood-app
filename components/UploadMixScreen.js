@@ -43,6 +43,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
     description: "",
     genre: "",
     isPublic: true,
+    setAsPrimary: true, // Default to true for first-time uploaders
   });
 
   const genres = [
@@ -448,9 +449,21 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       setUploadProgress(100);
 
+      // Set as primary mix if requested
+      if (mixData.setAsPrimary && mixRecord) {
+        try {
+          const { db } = await import("../lib/supabase");
+          await db.setPrimaryMix(user.id, mixRecord.id);
+          console.log("✅ Set as primary mix:", mixRecord.id);
+        } catch (primaryError) {
+          console.error("❌ Error setting primary mix:", primaryError);
+          // Don't fail the upload if setting primary fails
+        }
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      Alert.alert("Success!", "Your mix has been uploaded successfully", [
+      Alert.alert("Success!", "Your mix has been uploaded successfully" + (mixData.setAsPrimary ? " and set as your primary mix!" : "!"), [
         {
           text: "OK",
           onPress: () => {
@@ -666,6 +679,46 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
               {mixData.isPublic
                 ? "Everyone can see and play this mix"
                 : "Only you can see this mix"}
+            </Text>
+          </View>
+
+          {/* Set as Primary Mix Toggle */}
+          <View style={styles.inputGroup}>
+            <TouchableOpacity
+              style={styles.toggleRow}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setMixData((prev) => ({ ...prev, setAsPrimary: !prev.setAsPrimary }));
+              }}
+              disabled={uploading}
+            >
+              <View style={styles.toggleLeft}>
+                <Ionicons
+                  name={
+                    mixData.setAsPrimary ? "star" : "star-outline"
+                  }
+                  size={20}
+                  color={mixData.setAsPrimary ? "hsl(75, 100%, 60%)" : "white"}
+                />
+                <Text style={styles.toggleLabel}>
+                  Set as Primary Mix
+                </Text>
+              </View>
+              <View
+                style={[styles.toggle, mixData.setAsPrimary && styles.toggleActive]}
+              >
+                <View
+                  style={[
+                    styles.toggleThumb,
+                    mixData.setAsPrimary && styles.toggleThumbActive,
+                  ]}
+                />
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.toggleHint}>
+              {mixData.setAsPrimary
+                ? "This mix will be featured on your profile"
+                : "This mix won't be your primary mix"}
             </Text>
           </View>
         </View>
