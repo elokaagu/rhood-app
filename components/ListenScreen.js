@@ -235,7 +235,7 @@ export default function ListenScreen({
       Alert.alert("Error", "Unable to find artist profile");
       return;
     }
-    
+
     // Navigate to the artist's profile
     onNavigate("user-profile", { userId });
   };

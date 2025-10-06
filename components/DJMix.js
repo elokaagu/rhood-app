@@ -245,7 +245,9 @@ const DJMix = ({
               {mix.title}
             </Text>
             <TouchableOpacity
-              onPress={() => onArtistPress && onArtistPress(mix.artist, mix.user_id)}
+              onPress={() =>
+                onArtistPress && onArtistPress(mix.artist, mix.user_id)
+              }
               activeOpacity={0.7}
             >
               <Text style={styles.trackArtist} numberOfLines={1}>
