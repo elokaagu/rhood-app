@@ -70,7 +70,7 @@ const mockProfile = {
 };
 
 export default function ProfileScreen({ onNavigate, user }) {
-  const [profile, setProfile] = useState(mockProfile);
+  const [profile, setProfile] = useState(null); // Start with null instead of mockProfile
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackPosition, setPlaybackPosition] = useState(0);
@@ -338,6 +338,10 @@ export default function ProfileScreen({ onNavigate, user }) {
   };
 
   const renderWaveform = () => {
+    if (!profile?.audioId?.waveform) {
+      return null;
+    }
+    
     return (
       <View style={styles.waveformContainer}>
         {profile.audioId.waveform.map((height, index) => (
@@ -348,6 +352,10 @@ export default function ProfileScreen({ onNavigate, user }) {
   };
 
   const renderAchievements = () => {
+    if (!profile?.achievements || profile.achievements.length === 0) {
+      return null;
+    }
+    
     return (
       <View style={styles.achievementsContainer}>
         <Text style={styles.sectionTitle}>Achievements</Text>
@@ -381,6 +389,42 @@ export default function ProfileScreen({ onNavigate, user }) {
       </View>
     );
   };
+
+  // Show skeleton while loading or if no profile data
+  if (loading || !profile) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>PROFILE</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={handleShareProfile}
+            >
+              <Ionicons
+                name="share-outline"
+                size={20}
+                color="hsl(0, 0%, 70%)"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={handleEditProfile}
+            >
+              <Ionicons
+                name="create-outline"
+                size={20}
+                color="hsl(0, 0%, 70%)"
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <SkeletonProfile />
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -598,14 +642,15 @@ export default function ProfileScreen({ onNavigate, user }) {
         </TouchableOpacity>
 
         {/* Recent Gigs */}
-        <View style={styles.gigsContainer}>
-          <Text style={styles.sectionTitle}>Recent Gigs</Text>
-          {profile.recentGigs.map((gig, index) => (
-            <AnimatedListItem key={gig.id} index={index} delay={70}>
-              <TouchableOpacity
-                style={styles.gigCard}
-                onPress={() => handleGigPress(gig)}
-              >
+        {profile.recentGigs && profile.recentGigs.length > 0 && (
+          <View style={styles.gigsContainer}>
+            <Text style={styles.sectionTitle}>Recent Gigs</Text>
+            {profile.recentGigs.map((gig, index) => (
+              <AnimatedListItem key={gig.id} index={index} delay={70}>
+                <TouchableOpacity
+                  style={styles.gigCard}
+                  onPress={() => handleGigPress(gig)}
+                >
                 <View style={styles.gigHeader}>
                   <Text style={styles.gigName}>{gig.name}</Text>
                   <Text style={styles.gigPrice}>{gig.price}</Text>
@@ -625,7 +670,8 @@ export default function ProfileScreen({ onNavigate, user }) {
               </TouchableOpacity>
             </AnimatedListItem>
           ))}
-        </View>
+          </View>
+        )}
 
         {/* Achievements */}
         {renderAchievements()}
