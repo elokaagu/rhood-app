@@ -154,30 +154,49 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     try {
       setSaving(true);
 
+      // Build update object with only fields that have values
       const updatedProfile = {
         dj_name: profile.dj_name.trim(),
-        full_name: profile.full_name.trim(),
-        instagram: profile.instagram.trim() || null,
-        soundcloud: profile.soundcloud.trim() || null,
         city: profile.city.trim(),
-        bio:
-          profile.bio.trim() ||
-          `DJ from ${profile.city} specializing in ${profile.genres.join(
-            ", "
-          )}`,
         genres: profile.genres,
-        profile_image_url: profile.profile_image_url,
         updated_at: new Date().toISOString(),
       };
 
+      // Add optional fields only if they have values
+      if (profile.full_name && profile.full_name.trim()) {
+        updatedProfile.full_name = profile.full_name.trim();
+      }
+
+      if (profile.instagram && profile.instagram.trim()) {
+        updatedProfile.instagram = profile.instagram.trim();
+      }
+
+      if (profile.soundcloud && profile.soundcloud.trim()) {
+        updatedProfile.soundcloud = profile.soundcloud.trim();
+      }
+
+      if (profile.bio && profile.bio.trim()) {
+        updatedProfile.bio = profile.bio.trim();
+      } else if (profile.city && profile.genres.length > 0) {
+        updatedProfile.bio = `DJ from ${profile.city} specializing in ${profile.genres.join(", ")}`;
+      }
+
+      if (profile.profile_image_url) {
+        updatedProfile.profile_image_url = profile.profile_image_url;
+      }
+
+      console.log("📝 Updating profile with:", updatedProfile);
       await db.updateUserProfile(user.id, updatedProfile);
 
       Alert.alert("Success", "Profile updated successfully!", [
         { text: "OK", onPress: () => onSave(updatedProfile) },
       ]);
     } catch (error) {
-      console.error("Error updating profile:", error);
-      Alert.alert("Error", "Failed to update profile. Please try again.");
+      console.error("❌ Error updating profile:", error);
+      Alert.alert(
+        "Error", 
+        `Failed to update profile: ${error.message || "Please try again."}`
+      );
     } finally {
       setSaving(false);
     }
