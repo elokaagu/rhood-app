@@ -2586,6 +2586,7 @@ export default function App() {
                   />
                 </View>
               </TouchableOpacity>
+            </View>
             </Animated.View>
           </TouchableOpacity>
         )}
