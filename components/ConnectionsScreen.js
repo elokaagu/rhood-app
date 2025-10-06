@@ -727,38 +727,25 @@ export default function ConnectionsScreen({ onNavigate }) {
                     <View style={styles.discoverCard}>
                       {/* Main Content Row */}
                       <View style={styles.discoverMainRow}>
-                        {/* Profile Image */}
-                        <View style={styles.discoverProfileContainer}>
-                          <ProgressiveImage
-                            source={{
-                              uri:
-                                user.profileImage ||
-                                "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
-                            }}
-                            style={styles.discoverProfileImage}
-                          />
-                          <View style={styles.discoverOnlineIndicator} />
-                        </View>
-
-                        {/* Content Area - Takes up most width */}
-                        <View style={styles.discoverContent}>
-                          {/* Header Row with Name */}
-                          <View style={styles.discoverHeader}>
-                            <Text style={styles.discoverName}>{user.name}</Text>
+                        {/* Left Column: Profile Image + Bio + Genre Tags */}
+                        <View style={styles.discoverLeftColumn}>
+                          {/* Profile Image */}
+                          <View style={styles.discoverProfileContainer}>
+                            <ProgressiveImage
+                              source={{
+                                uri:
+                                  user.profileImage ||
+                                  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
+                              }}
+                              style={styles.discoverProfileImage}
+                            />
+                            <View style={styles.discoverOnlineIndicator} />
                           </View>
 
-                          {/* Username and Location */}
-                          <Text style={styles.discoverUsername}>
-                            {user.username}
-                          </Text>
-                          <Text style={styles.discoverLocation}>
-                            {user.location}
-                          </Text>
-
-                          {/* Bio */}
+                          {/* Bio - Directly underneath profile image */}
                           <Text style={styles.discoverBio}>{user.bio}</Text>
 
-                          {/* Genre Tags */}
+                          {/* Genre Tags - Underneath bio */}
                           <View style={styles.discoverGenres}>
                             {user.genres.slice(0, 3).map((genre, index) => (
                               <View key={index} style={styles.discoverGenreTag}>
@@ -775,21 +762,35 @@ export default function ConnectionsScreen({ onNavigate }) {
                           </View>
                         </View>
 
-                        {/* Rating and Activity - Top Right */}
-                        <View style={styles.discoverRatingSection}>
-                          <View style={styles.discoverRatingContainer}>
-                            <Ionicons
-                              name="star"
-                              size={16}
-                              color="hsl(45, 100%, 50%)"
-                            />
-                            <Text style={styles.discoverRating}>
-                              {user.rating}
+                        {/* Right Column: Name Info + Rating */}
+                        <View style={styles.discoverRightColumn}>
+                          {/* DJ Name, Username, Location */}
+                          <View style={styles.discoverNameSection}>
+                            <Text style={styles.discoverName}>{user.name}</Text>
+                            <Text style={styles.discoverUsername}>
+                              {user.username}
+                            </Text>
+                            <Text style={styles.discoverLocation}>
+                              {user.location}
                             </Text>
                           </View>
-                          <Text style={styles.discoverLastActive}>
-                            {user.lastActive}
-                          </Text>
+
+                          {/* Rating and Activity */}
+                          <View style={styles.discoverRatingSection}>
+                            <View style={styles.discoverRatingContainer}>
+                              <Ionicons
+                                name="star"
+                                size={16}
+                                color="hsl(45, 100%, 50%)"
+                              />
+                              <Text style={styles.discoverRating}>
+                                {user.rating}
+                              </Text>
+                            </View>
+                            <Text style={styles.discoverLastActive}>
+                              {user.lastActive}
+                            </Text>
+                          </View>
                         </View>
                       </View>
 
@@ -1352,9 +1353,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 12,
   },
-  discoverProfileContainer: {
+  discoverLeftColumn: {
     marginRight: 16,
-    alignSelf: "flex-start",
+  },
+  discoverProfileContainer: {
+    marginBottom: 8,
     position: "relative",
   },
   discoverProfileImage: {
@@ -1364,18 +1367,20 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "hsl(0, 0%, 100%)",
   },
-  discoverContent: {
+  discoverRightColumn: {
     flex: 1,
-    marginRight: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
-  discoverHeader: {
-    marginBottom: 4,
+  discoverNameSection: {
+    flex: 1,
   },
   discoverName: {
     fontSize: 18,
     fontFamily: "Arial",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
   },
   discoverOnlineIndicator: {
     position: "absolute",
@@ -1406,11 +1411,13 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
     lineHeight: 18,
     marginBottom: 8,
+    width: 80, // Match profile image width
   },
   discoverGenres: {
     flexDirection: "row",
     flexWrap: "wrap",
     marginBottom: 8,
+    width: 80, // Match profile image width
   },
   discoverGenreTag: {
     backgroundColor: "hsl(0, 0%, 15%)",
@@ -1433,6 +1440,7 @@ const styles = StyleSheet.create({
   },
   discoverRatingSection: {
     alignItems: "flex-end",
+    justifyContent: "flex-start",
     minWidth: 60,
   },
   discoverRatingContainer: {
