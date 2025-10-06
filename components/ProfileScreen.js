@@ -125,14 +125,51 @@ export default function ProfileScreen({ onNavigate, user }) {
       const userProfile = await db.getUserProfile(user.id);
 
       if (userProfile) {
+        // Fetch primary mix if exists
+        let primaryMix = null;
+        if (userProfile.primary_mix_id) {
+          try {
+            const { data: mixData } = await import("../lib/supabase").then(
+              ({ supabase }) =>
+                supabase
+                  .from("mixes")
+                  .select("*")
+                  .eq("id", userProfile.primary_mix_id)
+                  .single()
+            );
+            if (mixData) {
+              primaryMix = {
+                title: mixData.title,
+                duration: mixData.duration
+                  ? `${Math.floor(mixData.duration / 60)}:${(
+                      mixData.duration % 60
+                    )
+                      .toString()
+                      .padStart(2, "0")}`
+                  : "0:00",
+                genre: mixData.genre || "Electronic",
+                audioUrl: mixData.file_url,
+                waveform: mockProfile.audioId.waveform, // Keep mock waveform for now
+              };
+            }
+          } catch (mixError) {
+            console.error("❌ Error loading primary mix:", mixError);
+          }
+        }
+
         setProfile({
           ...mockProfile,
           ...userProfile,
+          id: userProfile.id,
           name:
             userProfile.dj_name || userProfile.full_name || mockProfile.name,
-          username:
-            `@${userProfile.dj_name?.toLowerCase().replace(/\s+/g, "")}` ||
-            mockProfile.username,
+          username: userProfile.username
+            ? `@${userProfile.username}`
+            : `@${userProfile.dj_name?.toLowerCase().replace(/\s+/g, "")}` ||
+              mockProfile.username,
+          rating: userProfile.rating || 0,
+          gigsCompleted: userProfile.gigs_completed || 0,
+          credits: userProfile.credits || 0,
           bio: userProfile.bio || mockProfile.bio,
           location: userProfile.city || mockProfile.location,
           genres: userProfile.genres || mockProfile.genres,
@@ -145,6 +182,15 @@ export default function ProfileScreen({ onNavigate, user }) {
             soundcloud:
               userProfile.soundcloud || mockProfile.socialLinks.soundcloud,
           },
+          audioId: primaryMix || mockProfile.audioId,
+          isVerified:
+            userProfile.is_verified !== undefined
+              ? userProfile.is_verified
+              : false,
+          joinDate:
+            userProfile.join_date ||
+            userProfile.created_at ||
+            mockProfile.joinDate,
         });
         console.log("✅ Profile loaded from database");
       } else {

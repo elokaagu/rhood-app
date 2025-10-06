@@ -24,6 +24,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   const [profile, setProfile] = useState({
     dj_name: "",
     full_name: "",
+    username: "",
     instagram: "",
     soundcloud: "",
     city: "",
@@ -87,6 +88,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         setProfile({
           dj_name: userProfile.dj_name || "",
           full_name: userProfile.full_name || "",
+          username: userProfile.username || "",
           instagram: userProfile.instagram || "",
           soundcloud: userProfile.soundcloud || "",
           city: userProfile.city || "",
@@ -167,6 +169,11 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       // Add optional fields only if they have values
       if (profile.full_name && profile.full_name.trim()) {
         updatedProfile.full_name = profile.full_name.trim();
+      }
+
+      if (profile.username && profile.username.trim()) {
+        // Remove @ if user included it
+        updatedProfile.username = profile.username.trim().replace(/^@/, "");
       }
 
       if (profile.instagram && profile.instagram.trim()) {
