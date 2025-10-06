@@ -16,6 +16,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 // import * as ImagePicker from 'expo-image-picker'; // Temporarily disabled due to native module issues
 import { db } from "../lib/supabase";
+import RhoodModal from "./RhoodModal";
 
 export default function EditProfileScreen({ user, onSave, onCancel }) {
   const [loading, setLoading] = useState(false);
@@ -33,6 +34,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   const [errors, setErrors] = useState({});
   const [showGenreModal, setShowGenreModal] = useState(false);
   const [showImagePicker, setShowImagePicker] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Available genres for selection
   const availableGenres = [
@@ -178,7 +180,9 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       if (profile.bio && profile.bio.trim()) {
         updatedProfile.bio = profile.bio.trim();
       } else if (profile.city && profile.genres.length > 0) {
-        updatedProfile.bio = `DJ from ${profile.city} specializing in ${profile.genres.join(", ")}`;
+        updatedProfile.bio = `DJ from ${
+          profile.city
+        } specializing in ${profile.genres.join(", ")}`;
       }
 
       if (profile.profile_image_url) {
@@ -188,18 +192,25 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       console.log("📝 Updating profile with:", updatedProfile);
       await db.updateUserProfile(user.id, updatedProfile);
 
-      Alert.alert("Success", "Profile updated successfully!", [
-        { text: "OK", onPress: () => onSave(updatedProfile) },
-      ]);
+      // Show success modal
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("❌ Error updating profile:", error);
       Alert.alert(
         "Error", 
         `Failed to update profile: ${error.message || "Please try again."}`
       );
-    } finally {
       setSaving(false);
     }
+  };
+
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    setSaving(false);
+    // Wait a bit for modal animation to complete before calling onSave
+    setTimeout(() => {
+      onSave && onSave(profile);
+    }, 100);
   };
 
   const handleGenreToggle = (genre) => {
@@ -557,6 +568,17 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       </ScrollView>
 
       {renderGenreModal()}
+
+      {/* Success Modal */}
+      <RhoodModal
+        visible={showSuccessModal}
+        onClose={handleSuccessModalClose}
+        type="success"
+        title="Profile Updated!"
+        message="Your profile has been successfully updated and is now live."
+        primaryButtonText="Done"
+        onPrimaryPress={handleSuccessModalClose}
+      />
     </KeyboardAvoidingView>
   );
 }
