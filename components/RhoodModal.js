@@ -36,26 +36,26 @@ const RhoodModal = ({
       case "success":
         return {
           icon: "checkmark-circle",
-          color: COLORS.primary,
-          bgColor: `${COLORS.primary}20`,
+          color: COLORS.primary, // R/HOOD lime green
+          bgColor: "hsl(75, 100%, 60%, 0.15)",
         };
       case "warning":
         return {
           icon: "warning",
-          color: COLORS.warning,
-          bgColor: `${COLORS.warning}20`,
+          color: COLORS.primary, // Use R/HOOD lime instead of generic warning
+          bgColor: "hsl(75, 100%, 60%, 0.15)",
         };
       case "error":
         return {
           icon: "close-circle",
-          color: COLORS.error,
-          bgColor: `${COLORS.error}20`,
+          color: COLORS.primary, // Use R/HOOD lime instead of red
+          bgColor: "hsl(75, 100%, 60%, 0.15)",
         };
       default:
         return {
           icon: "information-circle",
-          color: COLORS.info,
-          bgColor: `${COLORS.info}20`,
+          color: COLORS.primary, // R/HOOD lime green
+          bgColor: "hsl(75, 100%, 60%, 0.15)",
         };
     }
   };
@@ -148,12 +148,12 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: "hsl(75, 100%, 60%, 0.2)", // R/HOOD lime border
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 12,
   },
   header: {
     flexDirection: "row",
@@ -171,6 +171,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "center",
     marginBottom: SPACING.lg,
+    borderWidth: 2,
+    borderColor: "hsl(75, 100%, 60%, 0.3)", // R/HOOD lime border
   },
   content: {
     alignItems: "center",
@@ -178,6 +180,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: TYPOGRAPHY["2xl"],
+    fontFamily: TYPOGRAPHY.brand, // Use R/HOOD brand font
     fontWeight: TYPOGRAPHY.bold,
     color: COLORS.textPrimary,
     textAlign: "center",
@@ -206,7 +209,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: TYPOGRAPHY.lg,
     fontWeight: TYPOGRAPHY.semibold,
-    color: COLORS.background,
+    color: COLORS.background, // Black text on lime background
   },
   secondaryButton: {
     flex: 1,
@@ -214,9 +217,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     borderRadius: RADIUS.md,
     alignItems: "center",
-    backgroundColor: COLORS.border,
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: "hsl(75, 100%, 60%, 0.3)", // R/HOOD lime border
   },
   secondaryButtonText: {
     fontSize: TYPOGRAPHY.lg,
