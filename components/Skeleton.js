@@ -157,11 +157,13 @@ export function SkeletonMessage({ align = "left" }) {
   const isRight = align === "right";
   return (
     <View style={[styles.message, isRight && styles.messageRight]}>
-      <View style={[styles.messageBubble, isRight && styles.messageBubbleRight]}>
-        <Skeleton 
-          width={isRight ? 180 : 200} 
-          height={60} 
-          borderRadius={20} 
+      <View
+        style={[styles.messageBubble, isRight && styles.messageBubbleRight]}
+      >
+        <Skeleton
+          width={isRight ? 180 : 200}
+          height={60}
+          borderRadius={20}
           style={styles.messageSkeleton}
         />
       </View>

@@ -687,8 +687,8 @@ export default function MessagesScreen({ navigation, route }) {
         slideAnim.setValue(0);
       } else {
         // New message, animate in
-        setLoadedMessageIds(prev => new Set([...prev, message.id]));
-        
+        setLoadedMessageIds((prev) => new Set([...prev, message.id]));
+
         Animated.parallel([
           Animated.timing(fadeAnim, {
             toValue: 1,
@@ -707,9 +707,7 @@ export default function MessagesScreen({ navigation, route }) {
     const panResponder = PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return (
-          Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10
-        );
+        return Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dx > 50) {

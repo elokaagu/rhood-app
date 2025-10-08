@@ -85,7 +85,11 @@ export default function AboutScreen({ onBack }) {
           title: "Open Source Licenses",
           value: "View third-party licenses",
           type: "action",
-          action: () => Alert.alert("Open Source", "Third-party licenses will be shown here"),
+          action: () =>
+            Alert.alert(
+              "Open Source",
+              "Third-party licenses will be shown here"
+            ),
         },
       ],
     },
@@ -133,7 +137,11 @@ export default function AboutScreen({ onBack }) {
         >
           <View style={styles.appIconContainer}>
             <View style={styles.appIcon}>
-              <Ionicons name="musical-notes" size={32} color="hsl(75, 100%, 60%)" />
+              <Ionicons
+                name="musical-notes"
+                size={32}
+                color="hsl(75, 100%, 60%)"
+              />
             </View>
           </View>
           <Text style={styles.appName}>R/HOOD</Text>
@@ -141,8 +149,9 @@ export default function AboutScreen({ onBack }) {
             Connecting underground DJs with opportunities
           </Text>
           <Text style={styles.appDescription}>
-            R/HOOD is the premier platform for discovering gig opportunities, 
-            connecting with fellow DJs, and building your underground music career.
+            R/HOOD is the premier platform for discovering gig opportunities,
+            connecting with fellow DJs, and building your underground music
+            career.
           </Text>
         </LinearGradient>
 
@@ -322,3 +331,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+

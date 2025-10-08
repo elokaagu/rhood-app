@@ -560,6 +560,15 @@ export default function App() {
   // Initialize authentication
   const initializeAuth = async () => {
     try {
+      // Configure Google Sign-In
+      try {
+        const googleSignIn = require('./lib/googleSignIn');
+        googleSignIn.configureGoogleSignIn();
+        console.log('✅ Google Sign-In configured');
+      } catch (error) {
+        console.log('⚠️ Native Google Sign-In not available:', error.message);
+      }
+
       // Get initial session
       const {
         data: { session },
