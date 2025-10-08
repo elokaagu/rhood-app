@@ -153,6 +153,22 @@ export function SkeletonMix() {
   );
 }
 
+export function SkeletonMessage({ align = "left" }) {
+  const isRight = align === "right";
+  return (
+    <View style={[styles.message, isRight && styles.messageRight]}>
+      <View style={[styles.messageBubble, isRight && styles.messageBubbleRight]}>
+        <Skeleton 
+          width={isRight ? 180 : 200} 
+          height={60} 
+          borderRadius={20} 
+          style={styles.messageSkeleton}
+        />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   skeleton: {
     backgroundColor: "hsl(0, 0%, 15%)",
@@ -284,6 +300,24 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   mixDuration: {
+    marginBottom: 0,
+  },
+
+  // Message Skeleton
+  message: {
+    marginBottom: 16,
+    alignItems: "flex-start",
+  },
+  messageRight: {
+    alignItems: "flex-end",
+  },
+  messageBubble: {
+    maxWidth: "75%",
+  },
+  messageBubbleRight: {
+    alignItems: "flex-end",
+  },
+  messageSkeleton: {
     marginBottom: 0,
   },
 });

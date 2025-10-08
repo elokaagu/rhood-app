@@ -13,12 +13,14 @@ import {
   Keyboard,
   PanResponder,
   Alert,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import RhoodModal from "./RhoodModal";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase } from "../lib/supabase";
+import { SkeletonMessage } from "./Skeleton";
 
 // Mock DJ Data
 const mockDJs = [
@@ -194,6 +196,7 @@ export default function MessagesScreen({ navigation, route }) {
   const [editText, setEditText] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadedMessageIds, setLoadedMessageIds] = useState(new Set());
 
   // Custom modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -672,6 +675,108 @@ export default function MessagesScreen({ navigation, route }) {
     }
   };
 
+  // Animated Message Component
+  const AnimatedMessage = ({ message, isCurrentUser }) => {
+    const fadeAnim = React.useRef(new Animated.Value(0)).current;
+    const slideAnim = React.useRef(new Animated.Value(20)).current;
+
+    useEffect(() => {
+      if (loadedMessageIds.has(message.id)) {
+        // Already loaded, show immediately
+        fadeAnim.setValue(1);
+        slideAnim.setValue(0);
+      } else {
+        // New message, animate in
+        setLoadedMessageIds(prev => new Set([...prev, message.id]));
+        
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    }, [message.id]);
+
+    const panResponder = PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return (
+          Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10
+        );
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx > 50) {
+          // Swipe right - edit
+          handleMessageSwipeRight(message);
+        } else if (gestureState.dx < -50) {
+          // Swipe left - delete
+          handleMessageSwipeLeft(message);
+        }
+      },
+    });
+
+    return (
+      <Animated.View
+        style={[
+          styles.messageContainer,
+          isCurrentUser ? styles.messageRight : styles.messageLeft,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.messageBubble,
+            isCurrentUser
+              ? styles.messageBubbleRight
+              : styles.messageBubbleLeft,
+          ]}
+          {...panResponder.panHandlers}
+        >
+          <TouchableOpacity
+            onPress={() => handleMessagePress(message)}
+            onLongPress={() => handleMessagePress(message)}
+            activeOpacity={0.7}
+            style={styles.messageTouchable}
+          >
+            <Text
+              style={[
+                styles.messageText,
+                isCurrentUser
+                  ? styles.messageTextRight
+                  : styles.messageTextLeft,
+              ]}
+            >
+              {message.content}
+            </Text>
+            <View style={styles.messageFooter}>
+              <Text
+                style={[
+                  styles.messageTime,
+                  isCurrentUser
+                    ? styles.messageTimeRight
+                    : styles.messageTimeLeft,
+                ]}
+              >
+                {formatTime(new Date(message.created_at))}
+                {message.is_edited && " (edited)"}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  };
+
   // Group Forum Interface
   const renderGroupForum = () => (
     <View style={styles.container}>
@@ -933,77 +1038,25 @@ export default function MessagesScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {messages.map((message) => {
-          const isCurrentUser = message.sender_id === currentUser?.id;
-          const panResponder = PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: (_, gestureState) => {
-              return (
-                Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10
-              );
-            },
-            onPanResponderRelease: (_, gestureState) => {
-              if (gestureState.dx > 50) {
-                // Swipe right - edit
-                handleMessageSwipeRight(message);
-              } else if (gestureState.dx < -50) {
-                // Swipe left - delete
-                handleMessageSwipeLeft(message);
-              }
-            },
-          });
-
-          return (
-            <View
-              key={message.id}
-              style={[
-                styles.messageContainer,
-                isCurrentUser ? styles.messageRight : styles.messageLeft,
-              ]}
-            >
-              <View
-                style={[
-                  styles.messageBubble,
-                  isCurrentUser
-                    ? styles.messageBubbleRight
-                    : styles.messageBubbleLeft,
-                ]}
-                {...panResponder.panHandlers}
-              >
-                <TouchableOpacity
-                  onPress={() => handleMessagePress(message)}
-                  onLongPress={() => handleMessagePress(message)}
-                  activeOpacity={0.7}
-                  style={styles.messageTouchable}
-                >
-                  <Text
-                    style={[
-                      styles.messageText,
-                      isCurrentUser
-                        ? styles.messageTextRight
-                        : styles.messageTextLeft,
-                    ]}
-                  >
-                    {message.content}
-                  </Text>
-                  <View style={styles.messageFooter}>
-                    <Text
-                      style={[
-                        styles.messageTime,
-                        isCurrentUser
-                          ? styles.messageTimeRight
-                          : styles.messageTimeLeft,
-                      ]}
-                    >
-                      {formatTime(new Date(message.created_at))}
-                      {message.is_edited && " (edited)"}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
+        {isLoading ? (
+          <>
+            <SkeletonMessage align="left" />
+            <SkeletonMessage align="right" />
+            <SkeletonMessage align="left" />
+            <SkeletonMessage align="right" />
+          </>
+        ) : (
+          messages.map((message) => {
+            const isCurrentUser = message.sender_id === currentUser?.id;
+            return (
+              <AnimatedMessage
+                key={message.id}
+                message={message}
+                isCurrentUser={isCurrentUser}
+              />
+            );
+          })
+        )}
       </ScrollView>
 
       {/* Message Input */}
