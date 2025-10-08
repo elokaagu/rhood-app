@@ -65,7 +65,8 @@
           "icon": "./assets/rhood_logo.png",
           "color": "#ffffff"
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "scheme": "rhoodapp",
     "owner": "elokaagu",
