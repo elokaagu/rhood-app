@@ -1502,14 +1502,17 @@ export default function App() {
         console.log("👤 User is authenticated, checking for profile...");
         try {
           const profile = await db.getUserProfile(userToCheck.id);
-          console.log("📋 Profile lookup result:", profile ? "Profile found" : "No profile");
-          
+          console.log(
+            "📋 Profile lookup result:",
+            profile ? "Profile found" : "No profile"
+          );
+
           if (profile) {
             console.log("✅ Profile exists, going to home screen");
             console.log("👤 Profile data:", {
               djName: profile.dj_name || profile.djName,
               email: profile.email,
-              hasRequiredFields: !!(profile.dj_name || profile.djName)
+              hasRequiredFields: !!(profile.dj_name || profile.djName),
             });
             setDjProfile(profile);
             setIsFirstTime(false); // User has profile, go to home
