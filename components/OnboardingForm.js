@@ -108,14 +108,14 @@ export default function OnboardingForm({
 
     switch (step) {
       case 1:
-        if (!djProfile.firstName.trim()) {
-          newErrors.firstName = "First name is required";
+        if (!djProfile.first_name?.trim()) {
+          newErrors.first_name = "First name is required";
         }
-        if (!djProfile.lastName.trim()) {
-          newErrors.lastName = "Last name is required";
+        if (!djProfile.last_name?.trim()) {
+          newErrors.last_name = "Last name is required";
         }
-        if (!djProfile.djName.trim()) {
-          newErrors.djName = "DJ name is required";
+        if (!djProfile.dj_name?.trim()) {
+          newErrors.dj_name = "DJ name is required";
         }
         break;
       case 2:
@@ -140,11 +140,11 @@ export default function OnboardingForm({
     }
 
     setErrors(newErrors);
-    
+
     if (Object.keys(newErrors).length > 0) {
       console.log("⚠️ Validation errors for step", step, ":", newErrors);
     }
-    
+
     return Object.keys(newErrors).length === 0;
   };
 
@@ -161,11 +161,16 @@ export default function OnboardingForm({
   };
 
   const nextStep = () => {
-    console.log("🔄 Next step pressed, current step:", currentStep, "total steps:", totalSteps);
-    
+    console.log(
+      "🔄 Next step pressed, current step:",
+      currentStep,
+      "total steps:",
+      totalSteps
+    );
+
     if (validateStep(currentStep)) {
       console.log("✅ Validation passed");
-      
+
       if (currentStep < totalSteps) {
         console.log("📍 Moving to next step");
         setCurrentStep(currentStep + 1);
@@ -237,53 +242,53 @@ export default function OnboardingForm({
       <View style={styles.inputGroup}>
         <Text style={styles.label}>First Name *</Text>
         <TextInput
-          style={[styles.input, errors.firstName && styles.inputError]}
+          style={[styles.input, errors.first_name && styles.inputError]}
           placeholder="Enter your first name"
-          value={djProfile.firstName}
+          value={djProfile.first_name}
           onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, firstName: text }));
-            if (errors.firstName) {
-              setErrors((prev) => ({ ...prev, firstName: null }));
+            setDjProfile((prev) => ({ ...prev, first_name: text }));
+            if (errors.first_name) {
+              setErrors((prev) => ({ ...prev, first_name: null }));
             }
           }}
         />
-        {errors.firstName && (
-          <Text style={styles.errorText}>{errors.firstName}</Text>
+        {errors.first_name && (
+          <Text style={styles.errorText}>{errors.first_name}</Text>
         )}
       </View>
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Last Name *</Text>
         <TextInput
-          style={[styles.input, errors.lastName && styles.inputError]}
+          style={[styles.input, errors.last_name && styles.inputError]}
           placeholder="Enter your last name"
-          value={djProfile.lastName}
+          value={djProfile.last_name}
           onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, lastName: text }));
-            if (errors.lastName) {
-              setErrors((prev) => ({ ...prev, lastName: null }));
+            setDjProfile((prev) => ({ ...prev, last_name: text }));
+            if (errors.last_name) {
+              setErrors((prev) => ({ ...prev, last_name: null }));
             }
           }}
         />
-        {errors.lastName && (
-          <Text style={styles.errorText}>{errors.lastName}</Text>
+        {errors.last_name && (
+          <Text style={styles.errorText}>{errors.last_name}</Text>
         )}
       </View>
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>DJ Name *</Text>
         <TextInput
-          style={[styles.input, errors.djName && styles.inputError]}
+          style={[styles.input, errors.dj_name && styles.inputError]}
           placeholder="Your DJ stage name"
-          value={djProfile.djName}
+          value={djProfile.dj_name}
           onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, djName: text }));
-            if (errors.djName) {
-              setErrors((prev) => ({ ...prev, djName: null }));
+            setDjProfile((prev) => ({ ...prev, dj_name: text }));
+            if (errors.dj_name) {
+              setErrors((prev) => ({ ...prev, dj_name: null }));
             }
           }}
         />
-        {errors.djName && <Text style={styles.errorText}>{errors.djName}</Text>}
+        {errors.dj_name && <Text style={styles.errorText}>{errors.dj_name}</Text>}
       </View>
     </Animated.View>
   );
@@ -319,7 +324,7 @@ export default function OnboardingForm({
         </TouchableOpacity>
 
         {showCityDropdown && (
-          <View style={styles.dropdown}>
+          <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
             {MAJOR_CITIES.map((city, index) => (
               <TouchableOpacity
                 key={`${city}-${index}`}
@@ -330,7 +335,7 @@ export default function OnboardingForm({
                 <Text style={styles.dropdownItemText}>{city}</Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         )}
         {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
       </View>
@@ -679,6 +684,7 @@ const styles = {
     borderColor: "hsl(0, 0%, 15%)", // Subtle border
     maxHeight: 200,
     zIndex: 1000,
+    elevation: 1000, // Android compatibility
   },
   dropdownItem: {
     padding: 15,
