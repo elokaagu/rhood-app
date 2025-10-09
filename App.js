@@ -1918,15 +1918,19 @@ export default function App() {
 
     try {
       console.log("💾 Saving profile to database...");
+      console.log("🔑 User ID:", user.id);
+      console.log("📧 User email:", user.email);
       
       // Check if profile already exists
       let savedProfile;
       try {
+        console.log("🔍 Checking if profile exists...");
         savedProfile = await db.getUserProfile(user.id);
         console.log("✅ Profile exists, updating...");
+        console.log("📝 Existing profile:", savedProfile);
         
         // If profile exists, update it instead of creating new one
-        savedProfile = await db.updateUserProfile(user.id, {
+        const updateData = {
           dj_name: djName,
           first_name: firstName,
           last_name: lastName,
@@ -1937,9 +1941,14 @@ export default function App() {
           bio: `DJ from ${
             djProfile.city
           } specializing in ${djProfile.genres.join(", ")}`,
-        });
+        };
+        console.log("📤 Updating with data:", updateData);
+        
+        savedProfile = await db.updateUserProfile(user.id, updateData);
+        console.log("✅ Update complete:", savedProfile);
       } catch (error) {
-        console.log("🆕 Profile doesn't exist, creating new one...");
+        console.log("🆕 Profile doesn't exist (or error checking):", error.message);
+        console.log("🆕 Creating new profile...");
         
         // Profile doesn't exist, create new one
         const profileData = {
@@ -1956,8 +1965,17 @@ export default function App() {
           } specializing in ${djProfile.genres.join(", ")}`,
           email: user.email,
         };
-
-        savedProfile = await db.createUserProfile(profileData);
+        
+        console.log("📤 Creating profile with data:", profileData);
+        
+        try {
+          savedProfile = await db.createUserProfile(profileData);
+          console.log("✅ Profile created successfully:", savedProfile);
+        } catch (createError) {
+          console.error("❌ Error creating profile:", createError);
+          console.error("❌ Error details:", JSON.stringify(createError, null, 2));
+          throw createError; // Re-throw to be caught by outer try-catch
+        }
       }
 
       console.log("✅ Profile saved successfully:", savedProfile);
