@@ -140,6 +140,11 @@ export default function OnboardingForm({
     }
 
     setErrors(newErrors);
+    
+    if (Object.keys(newErrors).length > 0) {
+      console.log("⚠️ Validation errors for step", step, ":", newErrors);
+    }
+    
     return Object.keys(newErrors).length === 0;
   };
 
@@ -156,12 +161,25 @@ export default function OnboardingForm({
   };
 
   const nextStep = () => {
+    console.log("🔄 Next step pressed, current step:", currentStep, "total steps:", totalSteps);
+    
     if (validateStep(currentStep)) {
+      console.log("✅ Validation passed");
+      
       if (currentStep < totalSteps) {
+        console.log("📍 Moving to next step");
         setCurrentStep(currentStep + 1);
       } else {
+        console.log("🎉 Completing onboarding...");
+        console.log("👤 User profile:", djProfile);
         onComplete();
       }
+    } else {
+      console.log("❌ Validation failed, errors:", errors);
+      Alert.alert(
+        "Please complete all required fields",
+        "Make sure all required information is filled in before continuing."
+      );
     }
   };
 
