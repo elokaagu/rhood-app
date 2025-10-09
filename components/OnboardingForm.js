@@ -167,8 +167,13 @@ export default function OnboardingForm({
       "total steps:",
       totalSteps
     );
+    console.log("👤 Current djProfile:", djProfile);
 
-    if (validateStep(currentStep)) {
+    const isValid = validateStep(currentStep);
+    console.log("✅ Validation result:", isValid);
+    console.log("❌ Current errors:", errors);
+
+    if (isValid) {
       console.log("✅ Validation passed");
 
       if (currentStep < totalSteps) {
@@ -176,7 +181,8 @@ export default function OnboardingForm({
         setCurrentStep(currentStep + 1);
       } else {
         console.log("🎉 Completing onboarding...");
-        console.log("👤 User profile:", djProfile);
+        console.log("👤 Final user profile:", djProfile);
+        console.log("📞 Calling onComplete...");
         onComplete();
       }
     } else {
