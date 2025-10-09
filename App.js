@@ -1493,26 +1493,40 @@ export default function App() {
   const checkFirstTime = async (currentUser = null) => {
     try {
       const userToCheck = currentUser || user;
+      console.log("🔍 Checking first time for user:", userToCheck?.id);
 
       // If user is authenticated, they should go straight to home
       // Only show onboarding for unauthenticated users or if no profile exists
       if (userToCheck) {
         // User is signed in, check if they have a profile
+        console.log("👤 User is authenticated, checking for profile...");
         try {
           const profile = await db.getUserProfile(userToCheck.id);
+          console.log("📋 Profile lookup result:", profile ? "Profile found" : "No profile");
+          
           if (profile) {
+            console.log("✅ Profile exists, going to home screen");
+            console.log("👤 Profile data:", {
+              djName: profile.dj_name || profile.djName,
+              email: profile.email,
+              hasRequiredFields: !!(profile.dj_name || profile.djName)
+            });
             setDjProfile(profile);
             setIsFirstTime(false); // User has profile, go to home
           } else {
+            console.log("⚠️ No profile found, showing onboarding");
             setIsFirstTime(true); // User signed in but no profile, needs onboarding
           }
         } catch (error) {
           console.log(
-            "No profile found for authenticated user, needs onboarding"
+            "❌ Error getting profile for authenticated user:",
+            error.message
           );
+          console.log("📝 Will show onboarding for profile creation");
           setIsFirstTime(true);
         }
       } else {
+        console.log("🔓 No authenticated user, checking local storage...");
         // No user, check local storage for offline access
         const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
         const profile = await AsyncStorage.getItem("djProfile");
@@ -1523,7 +1537,7 @@ export default function App() {
         }
       }
     } catch (error) {
-      console.error("Error checking onboarding status:", error);
+      console.error("❌ Error checking onboarding status:", error);
     } finally {
       setIsLoading(false);
     }
