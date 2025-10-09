@@ -1882,13 +1882,29 @@ export default function App() {
   };
 
   const completeOnboarding = async () => {
+    console.log("🎉 completeOnboarding called");
+    console.log("👤 djProfile:", djProfile);
+    
+    // Check both property name formats for compatibility
+    const djName = djProfile.dj_name || djProfile.djName;
+    const firstName = djProfile.first_name || djProfile.firstName;
+    const lastName = djProfile.last_name || djProfile.lastName;
+    
     if (
-      !djProfile.djName ||
-      !djProfile.firstName ||
-      !djProfile.lastName ||
+      !djName ||
+      !firstName ||
+      !lastName ||
       !djProfile.city ||
       djProfile.genres.length === 0
     ) {
+      console.log("❌ Missing required fields:", {
+        djName: !!djName,
+        firstName: !!firstName,
+        lastName: !!lastName,
+        city: !!djProfile.city,
+        genres: djProfile.genres?.length || 0,
+      });
+      
       showCustomModal({
         type: "error",
         title: "Error",
@@ -1901,15 +1917,19 @@ export default function App() {
     }
 
     try {
+      console.log("💾 Saving profile to database...");
+      
       // Check if profile already exists
       let savedProfile;
       try {
         savedProfile = await db.getUserProfile(user.id);
+        console.log("✅ Profile exists, updating...");
+        
         // If profile exists, update it instead of creating new one
         savedProfile = await db.updateUserProfile(user.id, {
-          dj_name: djProfile.djName,
-          first_name: djProfile.firstName,
-          last_name: djProfile.lastName,
+          dj_name: djName,
+          first_name: firstName,
+          last_name: lastName,
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
           city: djProfile.city,
@@ -1919,12 +1939,14 @@ export default function App() {
           } specializing in ${djProfile.genres.join(", ")}`,
         });
       } catch (error) {
+        console.log("🆕 Profile doesn't exist, creating new one...");
+        
         // Profile doesn't exist, create new one
         const profileData = {
           id: user.id, // Use authenticated user's ID
-          dj_name: djProfile.djName,
-          first_name: djProfile.firstName,
-          last_name: djProfile.lastName,
+          dj_name: djName,
+          first_name: firstName,
+          last_name: lastName,
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
           city: djProfile.city,
@@ -1938,12 +1960,16 @@ export default function App() {
         savedProfile = await db.createUserProfile(profileData);
       }
 
+      console.log("✅ Profile saved successfully:", savedProfile);
+
       // Also save to AsyncStorage for offline access
       await AsyncStorage.setItem("hasOnboarded", "true");
       await AsyncStorage.setItem("djProfile", JSON.stringify(djProfile));
       await AsyncStorage.setItem("userId", user.id);
 
+      console.log("🎉 Onboarding completed, setting isFirstTime=false");
       setIsFirstTime(false);
+      
       showCustomModal({
         type: "success",
         title: "Success",
@@ -1952,7 +1978,7 @@ export default function App() {
         onPrimaryPress: () => setShowModal(false),
       });
     } catch (error) {
-      console.error("Error saving profile:", error);
+      console.error("❌ Error saving profile:", error);
       showCustomModal({
         type: "error",
         title: "Error",
