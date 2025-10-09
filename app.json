@@ -2,7 +2,7 @@
   "expo": {
     "name": "R/HOOD",
     "slug": "rhoodapp",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/rhood_logo.png",
     "userInterfaceStyle": "dark",
