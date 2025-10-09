@@ -163,4 +163,5 @@ jspm_packages/
 .tern-port
 
 # Large audio files (too big for GitHub)
-assets/audio/rhood-demo-audio.wav
+assets/audio/rhood-demo-audio.wavapple-secret-key.txt
+AuthKey_*.p8
