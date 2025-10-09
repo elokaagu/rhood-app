@@ -2629,6 +2629,27 @@ export default function App() {
                   <TouchableOpacity
                     style={[
                       styles.menuItem,
+                      currentScreen === "about" && styles.menuItemActive,
+                    ]}
+                    onPress={() => handleMenuNavigation("about")}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={20}
+                      color="#C2CC06"
+                    />
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>About R/HOOD</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Learn more about the app
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.menuItem,
                       currentScreen === "connections" && styles.menuItemActive,
                     ]}
                     onPress={() => handleMenuNavigation("connections")}
