@@ -5,17 +5,20 @@
 All code changes are complete and pushed to GitHub:
 
 1. ✅ **Google Sign-In Plugin Configured**
+
    - Added `@react-native-google-signin/google-signin` to `app.json`
    - Configured `iosUrlScheme` for OAuth callbacks
    - Web and iOS client IDs in `.env`
 
 2. ✅ **OAuth Fixes Applied**
+
    - Fixed 2FA session persistence (`preferEphemeralSession: false`)
    - Added token extraction from URL hash fragments
    - Auto-profile creation for existing users
    - Improved error handling and logging
 
 3. ✅ **Version Bumped**
+
    - Updated from `1.0.0` → `1.1.0`
    - Ready for new TestFlight release
 
@@ -37,6 +40,7 @@ npx eas build --platform ios --profile production
 ### Step 2: Answer Prompts
 
 EAS will ask:
+
 - **"Do you want to log in to your Apple account?"** → Answer: `yes` (if needed)
 - Build number will auto-increment: `31 → 32`
 
@@ -61,12 +65,14 @@ Or submit manually through App Store Connect.
 ## 🎯 What This Build Will Enable
 
 ### Before (Current v1.0.0):
+
 - ❌ Google Sign-In opens browser (Safari)
 - ❌ Shows Supabase domain name
 - ❌ 2FA causes session timeout
 - ❌ Poor user experience
 
 ### After (New v1.1.0):
+
 - ✅ **Native Google Sign-In UI** (no browser!)
 - ✅ **Shows "R/HOOD"** instead of database name
 - ✅ **2FA works smoothly** (session persists)
@@ -100,6 +106,7 @@ After installing the new TestFlight build:
 
 1. **Tap "Sign in with Google"**
 2. **Look for:**
+
    - ✅ Native iOS bottom sheet (not Safari browser)
    - ✅ "to continue to **R/HOOD**" (not Supabase domain)
    - ✅ Smooth 2FA flow (no errors)
@@ -115,14 +122,17 @@ After installing the new TestFlight build:
 ## 🐛 Troubleshooting
 
 ### Issue: Still seeing browser/Supabase domain
+
 **Cause:** Old build still installed  
 **Fix:** Delete app from device, reinstall from TestFlight
 
 ### Issue: "RNGoogleSignin could not be found"
+
 **Cause:** Native module not compiled  
 **Fix:** Rebuild with `npx eas build --platform ios --profile production`
 
 ### Issue: Build fails
+
 **Cause:** Missing credentials or configuration  
 **Fix:** Check EAS dashboard logs, ensure Apple account is connected
 
@@ -162,9 +172,9 @@ After installing the new TestFlight build:
 ---
 
 **Build Command:**
+
 ```bash
 npx eas build --platform ios --profile production
 ```
 
 Good luck! Let me know when the build is done and we can test it together! 🚀
-

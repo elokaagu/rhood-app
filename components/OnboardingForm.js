@@ -288,7 +288,9 @@ export default function OnboardingForm({
             }
           }}
         />
-        {errors.dj_name && <Text style={styles.errorText}>{errors.dj_name}</Text>}
+        {errors.dj_name && (
+          <Text style={styles.errorText}>{errors.dj_name}</Text>
+        )}
       </View>
     </Animated.View>
   );

@@ -9,6 +9,7 @@ This guide will help you set up full Apple OAuth for web-based Sign in with Appl
 ## 📋 What You Need
 
 From Apple Developer Console:
+
 1. **Team ID** (10 characters)
 2. **Services ID** (Client ID)
 3. **Key ID** (10 characters)
@@ -123,14 +124,17 @@ After setup:
 ## 🐛 Troubleshooting
 
 ### Error: "Unable to exchange external code"
+
 **Cause:** Client IDs don't match or credentials are incorrect  
 **Fix:** Double-check all credentials in Supabase match Apple Developer Console
 
 ### Error: "Sign in not completed"
+
 **Cause:** Redirect URL not configured correctly  
 **Fix:** Verify the return URL in Services ID configuration matches Supabase callback URL exactly
 
 ### Error: "Invalid client"
+
 **Cause:** Services ID not properly configured  
 **Fix:** Make sure you enabled "Sign in with Apple" on the Services ID and configured it with your app's bundle ID
 
@@ -139,6 +143,7 @@ After setup:
 ## 📚 Summary
 
 **What you configured:**
+
 - ✅ Team ID from Apple Developer account
 - ✅ Services ID (`com.rhoodapp.mobile.signin`) for web OAuth
 - ✅ Sign in with Apple Key (.p8 file)
@@ -146,11 +151,13 @@ After setup:
 - ✅ Supabase Apple provider with all credentials
 
 **What this enables:**
+
 - ✅ Web-based Apple Sign-In (browser fallback)
 - ✅ Works in current TestFlight builds
 - ✅ Works alongside native Apple Sign-In (when available)
 
 **Next steps:**
+
 - Build v1.1.0 with native modules for better UX
 - Native Apple Sign-In won't need browser popup
 - Will show "R/HOOD" branding instead of Supabase domain
@@ -170,6 +177,7 @@ After setup:
 ## 📞 Need Help?
 
 If you run into issues:
+
 1. Check Apple Developer Console for any warnings
 2. Verify all IDs match exactly (no typos)
 3. Check Supabase logs for detailed error messages
@@ -178,4 +186,3 @@ If you run into issues:
 ---
 
 **Ready to start?** Follow the steps above and let me know when you reach Step 5 (converting the .p8 file) - I'll create a script to help with that! 🚀
-
