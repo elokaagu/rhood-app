@@ -656,16 +656,34 @@ export default function App() {
 
   // Authentication handlers
   const handleLoginSuccess = async (user) => {
+    console.log("🔐 handleLoginSuccess called for user:", user.id);
     setUser(user);
     setShowAuth(false);
+    
+    // Add a small delay to ensure OAuth profile creation is complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     try {
+      console.log("🔍 Fetching user profile...");
       const profile = await db.getUserProfile(user.id);
+      console.log("📋 Profile result:", profile ? "Found" : "Not found");
+      
       if (profile) {
+        console.log("✅ Profile found, setting up user session");
+        console.log("👤 Profile data:", {
+          djName: profile.dj_name || profile.djName,
+          email: profile.email,
+        });
         setDjProfile(profile);
         setIsFirstTime(false);
+      } else {
+        console.log("⚠️ No profile found after OAuth - user needs onboarding");
+        setIsFirstTime(true);
       }
     } catch (error) {
-      console.log("No profile found, user needs to complete onboarding");
+      console.error("❌ Error fetching profile:", error);
+      console.log("⚠️ Setting isFirstTime=true due to error");
+      setIsFirstTime(true);
     }
   };
 
