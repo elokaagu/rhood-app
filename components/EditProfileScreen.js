@@ -23,7 +23,8 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({
     dj_name: "",
-    full_name: "",
+    first_name: "",
+    last_name: "",
     username: "",
     instagram: "",
     soundcloud: "",
@@ -87,7 +88,8 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       if (userProfile) {
         setProfile({
           dj_name: userProfile.dj_name || "",
-          full_name: userProfile.full_name || "",
+          first_name: userProfile.first_name || "",
+          last_name: userProfile.last_name || "",
           username: userProfile.username || "",
           instagram: userProfile.instagram || "",
           soundcloud: userProfile.soundcloud || "",
@@ -114,10 +116,16 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       newErrors.dj_name = "DJ name must be at least 2 characters";
     }
 
-    if (!profile.full_name.trim()) {
-      newErrors.full_name = "Full name is required";
-    } else if (profile.full_name.length < 2) {
-      newErrors.full_name = "Full name must be at least 2 characters";
+    if (!profile.first_name.trim()) {
+      newErrors.first_name = "First name is required";
+    } else if (profile.first_name.length < 2) {
+      newErrors.first_name = "First name must be at least 2 characters";
+    }
+
+    if (!profile.last_name.trim()) {
+      newErrors.last_name = "Last name is required";
+    } else if (profile.last_name.length < 2) {
+      newErrors.last_name = "Last name must be at least 2 characters";
     }
 
     if (!profile.city.trim()) {
@@ -167,8 +175,11 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       };
 
       // Add optional fields only if they have values
-      if (profile.full_name && profile.full_name.trim()) {
-        updatedProfile.full_name = profile.full_name.trim();
+      if (profile.first_name && profile.first_name.trim()) {
+        updatedProfile.first_name = profile.first_name.trim();
+      }
+      if (profile.last_name && profile.last_name.trim()) {
+        updatedProfile.last_name = profile.last_name.trim();
       }
 
       if (profile.username && profile.username.trim()) {
@@ -432,19 +443,36 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name *</Text>
+              <Text style={styles.label}>First Name *</Text>
               <TextInput
-                style={[styles.input, errors.full_name && styles.inputError]}
-                value={profile.full_name}
+                style={[styles.input, errors.first_name && styles.inputError]}
+                value={profile.first_name}
                 onChangeText={(text) =>
-                  setProfile((prev) => ({ ...prev, full_name: text }))
+                  setProfile((prev) => ({ ...prev, first_name: text }))
                 }
-                placeholder="Your full name"
+                placeholder="Enter your first name"
                 placeholderTextColor="hsl(0, 0%, 50%)"
-                maxLength={100}
+                maxLength={50}
               />
-              {errors.full_name && (
-                <Text style={styles.errorText}>{errors.full_name}</Text>
+              {errors.first_name && (
+                <Text style={styles.errorText}>{errors.first_name}</Text>
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Last Name *</Text>
+              <TextInput
+                style={[styles.input, errors.last_name && styles.inputError]}
+                value={profile.last_name}
+                onChangeText={(text) =>
+                  setProfile((prev) => ({ ...prev, last_name: text }))
+                }
+                placeholder="Enter your last name"
+                placeholderTextColor="hsl(0, 0%, 50%)"
+                maxLength={50}
+              />
+              {errors.last_name && (
+                <Text style={styles.errorText}>{errors.last_name}</Text>
               )}
             </View>
 
