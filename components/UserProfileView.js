@@ -189,12 +189,8 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                 {profile.city || "Location not set"}
               </Text>
 
-              {/* Rating and Stats */}
+              {/* Stats */}
               <View style={styles.statsContainer}>
-                <View style={styles.statItem}>
-                  <Ionicons name="star" size={16} color="hsl(45, 100%, 50%)" />
-                  <Text style={styles.statValue}>{profile.rating || 0}</Text>
-                </View>
                 <View style={styles.statItem}>
                   <Ionicons
                     name="briefcase"

@@ -14,115 +14,7 @@ import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import { connectionsService } from "../lib/connectionsService";
 
-// Mock communities data
-const mockCommunities = [
-  {
-    id: "aa00a0aa-1111-1111-1111-111111111111",
-    name: "Underground DJs",
-    description: "Connect with underground DJs worldwide",
-    memberCount: 1234,
-    genre: "Underground",
-    location: "Global",
-    isJoined: true,
-    isTrending: true,
-    recentActivity: "2 hours ago",
-    featuredContent: "New mix from DJ Shadow",
-    communityImage:
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=200&fit=crop",
-    memberAvatars: [
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face",
-    ],
-    createdDate: "2023-01-15",
-    lastPost: "New underground track shared by @technobeats",
-  },
-  {
-    id: "bb11b1bb-2222-2222-2222-222222222222",
-    name: "Techno Collective",
-    description: "Share techno tracks and collaborate",
-    memberCount: 856,
-    genre: "Techno",
-    location: "Global",
-    isJoined: false,
-    isTrending: false,
-    recentActivity: "5 hours ago",
-    featuredContent: "Weekly techno mix competition",
-    communityImage:
-      "https://images.unsplash.com/photo-1571266028243-e68f8570c0e8?w=400&h=200&fit=crop",
-    memberAvatars: [
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop&crop=face",
-    ],
-    createdDate: "2023-03-22",
-    lastPost: "New techno production tips from @producer_mike",
-  },
-  {
-    id: "cc22c2cc-3333-3333-3333-333333333333",
-    name: "Miami Music Scene",
-    description: "Local Miami DJs and producers",
-    memberCount: 432,
-    genre: "Local",
-    location: "Miami, FL",
-    isJoined: true,
-    isTrending: false,
-    recentActivity: "1 day ago",
-    featuredContent: "Miami Music Week highlights",
-    communityImage:
-      "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=200&fit=crop",
-    memberAvatars: [
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=50&h=50&fit=crop&crop=face",
-    ],
-    createdDate: "2022-11-08",
-    lastPost: "Miami Music Week afterparty at Club Space",
-  },
-  {
-    id: "dd33d3dd-4444-4444-4444-444444444444",
-    name: "Deep House Vibes",
-    description: "Deep house enthusiasts and producers",
-    memberCount: 678,
-    genre: "Deep House",
-    location: "Global",
-    isJoined: false,
-    isTrending: true,
-    recentActivity: "3 hours ago",
-    featuredContent: "Deep house production masterclass",
-    communityImage:
-      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=200&fit=crop",
-    memberAvatars: [
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop&crop=face",
-    ],
-    createdDate: "2023-02-14",
-    lastPost: "New deep house track from @deepbeats",
-  },
-  {
-    id: "ee44e4ee-5555-5555-5555-555555555555",
-    name: "Berlin Electronic",
-    description: "Berlin's electronic music community",
-    memberCount: 2341,
-    genre: "Electronic",
-    location: "Berlin, Germany",
-    isJoined: true,
-    isTrending: true,
-    recentActivity: "30 minutes ago",
-    featuredContent: "Berghain resident DJ set",
-    communityImage:
-      "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=200&fit=crop",
-    memberAvatars: [
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=50&h=50&fit=crop&crop=face",
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face",
-    ],
-    createdDate: "2022-08-30",
-    lastPost: "New techno track from @berlin_techno",
-  },
-];
+// All community data comes from database
 
 export default function CommunityScreen({ onNavigate }) {
   const [communities, setCommunities] = useState([]);
@@ -139,8 +31,8 @@ export default function CommunityScreen({ onNavigate }) {
       setCommunities(communitiesData);
     } catch (error) {
       console.error("Error loading communities:", error);
-      // Fallback to mock data if database fails
-      setCommunities(mockCommunities);
+      // Show empty state instead of mock data
+      setCommunities([]);
     } finally {
       setLoading(false);
     }

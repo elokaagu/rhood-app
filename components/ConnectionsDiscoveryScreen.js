@@ -17,99 +17,7 @@ import ConnectionsScreen from "./ConnectionsScreen";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase } from "../lib/supabase";
 
-// Mock DJs data for discovery
-const mockDJs = [
-  {
-    id: "cc00a0ac-9163-4c30-b123-81cc06046e8b",
-    name: "Marcus Chen",
-    username: "@marcusbeats",
-    location: "Shoreditch, London",
-    genres: ["House", "Tech House"],
-    rating: 4.9,
-    profileImage:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-    isOnline: true,
-    isConnected: false,
-    mutualConnections: 3,
-    lastActive: "2 hours ago",
-    bio: "House music enthusiast with 5+ years experience",
-  },
-  {
-    id: "dd11b1bd-a274-5d41-c234-92dd17157f9c",
-    name: "Alex Thompson",
-    username: "@alexunderground",
-    location: "Hackney, London",
-    genres: ["Drum & Bass", "Jungle"],
-    rating: 4.8,
-    profileImage:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-    isOnline: true,
-    isConnected: false,
-    mutualConnections: 1,
-    lastActive: "30 minutes ago",
-    bio: "Underground DJ specializing in D&B and Jungle",
-  },
-  {
-    id: "ee22c2ce-b385-6e52-d345-a3ee28268g0d",
-    name: "Luna Martinez",
-    username: "@lunabeats",
-    location: "Barcelona, Spain",
-    genres: ["Progressive", "Trance"],
-    rating: 4.7,
-    profileImage:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face",
-    isOnline: false,
-    isConnected: false,
-    mutualConnections: 0,
-    lastActive: "1 day ago",
-    bio: "Progressive and trance DJ from Barcelona",
-  },
-  {
-    id: "ff33d3df-c496-7f63-e456-b4ff39379h1e",
-    name: "Khadija Hashi",
-    username: "@khadijabeats",
-    location: "Manchester, UK",
-    genres: ["Afro House", "Deep House"],
-    rating: 4.9,
-    profileImage:
-      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
-    isOnline: true,
-    isConnected: false,
-    mutualConnections: 2,
-    lastActive: "1 hour ago",
-    bio: "Afro house specialist bringing African rhythms to the UK",
-  },
-  {
-    id: "gg44e4eg-d5a7-8g74-f567-c5gg40480i2f",
-    name: "James Wilson",
-    username: "@jameswtechno",
-    location: "Berlin, Germany",
-    genres: ["Techno", "Minimal"],
-    rating: 4.6,
-    profileImage:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-    isOnline: false,
-    isConnected: false,
-    mutualConnections: 1,
-    lastActive: "3 hours ago",
-    bio: "Berlin-based techno DJ and producer",
-  },
-  {
-    id: "hh55f5fh-e6b8-9h85-g678-d6hh51591j3g",
-    name: "Sofia Rodriguez",
-    username: "@sofiaelectronic",
-    location: "Madrid, Spain",
-    genres: ["Electronic", "Ambient"],
-    rating: 4.5,
-    profileImage:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face",
-    isOnline: true,
-    isConnected: false,
-    mutualConnections: 0,
-    lastActive: "45 minutes ago",
-    bio: "Electronic music producer and DJ from Madrid",
-  },
-];
+// All DJ data comes from database
 
 export default function ConnectionsDiscoveryScreen({ onNavigate }) {
   const [djs, setDjs] = useState([]);
@@ -145,8 +53,8 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
     } catch (error) {
       console.error("Error loading recommended DJs:", error);
       Alert.alert("Error", "Failed to load recommended DJs");
-      // Fallback to mock data
-      setDjs(mockDJs);
+      // No fallback to mock data - show empty state
+      setDjs([]);
     } finally {
       setLoading(false);
     }
@@ -370,14 +278,6 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                       </View>
                     </View>
                     <View style={styles.djActions}>
-                      <View style={styles.ratingContainer}>
-                        <Ionicons
-                          name="star"
-                          size={14}
-                          color="hsl(75, 100%, 60%)"
-                        />
-                        <Text style={styles.ratingText}>4.5</Text>
-                      </View>
                       <Text style={styles.lastActive}>Recently active</Text>
                     </View>
                   </View>
@@ -614,18 +514,6 @@ const styles = StyleSheet.create({
   },
   djActions: {
     alignItems: "flex-end",
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)",
-    marginLeft: 4,
-    fontWeight: "600",
   },
   lastActive: {
     fontSize: 10,

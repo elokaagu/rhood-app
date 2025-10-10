@@ -22,153 +22,7 @@ import { connectionsService } from "../lib/connectionsService";
 import { supabase } from "../lib/supabase";
 import { SkeletonMessage } from "./Skeleton";
 
-// Mock DJ Data
-const mockDJs = [
-  {
-    id: "cc00a0ac-9163-4c30-b123-81cc06046e8b",
-    name: "Marcus Chen",
-    username: "@marcusbeats",
-    location: "Shoreditch, London",
-    genres: ["House", "Tech House"],
-    rating: 4.9,
-    profileImage:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-    isOnline: true,
-  },
-  {
-    id: "dd11b1bd-a274-5d41-c234-92dd17157f9c",
-    name: "Alex Thompson",
-    username: "@alexunderground",
-    location: "Hackney, London",
-    genres: ["Drum & Bass", "Jungle"],
-    rating: 4.8,
-    profileImage:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-    isOnline: true,
-  },
-  {
-    id: "ee22c2ce-b385-6e52-d345-a3ee28268g0d",
-    name: "Luna Martinez",
-    username: "@lunabeats",
-    location: "Barcelona, Spain",
-    genres: ["Progressive", "Trance"],
-    rating: 4.6,
-    profileImage:
-      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
-    isOnline: false,
-  },
-  {
-    id: "ff33d3df-c496-7f63-e456-b4ff39379h1e",
-    name: "Max Blackwood",
-    username: "@maxindustrial",
-    location: "Berlin, Germany",
-    genres: ["Industrial", "Dark Techno"],
-    rating: 4.9,
-    profileImage:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face",
-    isOnline: false,
-  },
-  {
-    id: "gg44e4eg-d5a7-8g74-f567-c5gg40480i2f",
-    name: "Zara Kim",
-    username: "@zarasyntwave",
-    location: "Tokyo, Japan",
-    genres: ["Synthwave", "Retro"],
-    rating: 4.8,
-    profileImage:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face",
-    isOnline: true,
-  },
-  {
-    id: 6,
-    name: "Khadija Hashi",
-    username: "@khadijabeats",
-    location: "Nairobi, Kenya",
-    genres: ["Afro House", "Deep House"],
-    rating: 4.9,
-    profileImage:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face",
-    isOnline: true,
-  },
-];
-
-// Mock Forum Posts Data
-const mockForumPosts = [
-  {
-    id: 1,
-    author: "Sofia Rodriguez",
-    username: "@sofiavibes",
-    avatar:
-      "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    content:
-      "Just finished an incredible set at Fabric last night! The crowd was absolutely electric ⚡ Anyone else perform this weekend?",
-    likes: 24,
-    replies: 8,
-    isPinned: true,
-    tags: ["fabric", "weekend-sets"],
-  },
-  {
-    id: 2,
-    author: "Alex Thompson",
-    username: "@alexunderground",
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-    content:
-      "Looking for a producer to collaborate on a new track. Hit me up if you're interested in deep house vibes!",
-    likes: 12,
-    replies: 3,
-    isPinned: false,
-    tags: ["collaboration", "deep-house"],
-  },
-  {
-    id: 3,
-    author: "Luna Martinez",
-    username: "@lunabeats",
-    avatar:
-      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-    content:
-      "The new venue in Shoreditch is amazing! Perfect acoustics for electronic music. Highly recommend checking it out.",
-    likes: 18,
-    replies: 5,
-    isPinned: false,
-    tags: ["venue", "shoreditch", "acoustics"],
-  },
-];
-
-// Mock Messages Data
-const mockMessages = [
-  {
-    id: 1,
-    senderId: 1,
-    text: "Hey! I saw your profile and love your sound. Are you available for a collaboration this weekend?",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    isCurrentUser: false,
-  },
-  {
-    id: 2,
-    senderId: "current",
-    text: "Hi! Thanks for reaching out. I'd love to collaborate! What kind of project did you have in mind?",
-    timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
-    isCurrentUser: true,
-  },
-  {
-    id: 3,
-    senderId: 1,
-    text: "I'm working on a progressive house track and think your style would be perfect for the breakdown section. Want to hear what I have so far?",
-    timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    isCurrentUser: false,
-  },
-  {
-    id: 4,
-    senderId: "current",
-    text: "Absolutely! Send it over and I'll take a listen. I'm really excited about this collaboration!",
-    timestamp: new Date(Date.now() - 30 * 60 * 1000),
-    isCurrentUser: true,
-  },
-];
+// All data comes from database
 
 export default function MessagesScreen({ navigation, route }) {
   const {
@@ -208,7 +62,7 @@ export default function MessagesScreen({ navigation, route }) {
   const [threadId, setThreadId] = useState(null);
   const [subscription, setSubscription] = useState(null);
 
-  const currentDJ = mockDJs.find((dj) => dj.id === djId) || mockDJs[0];
+  // currentDJ will be loaded from database
 
   // Storage keys
   const MESSAGES_KEY = `messages_${djId}`;
@@ -253,8 +107,9 @@ export default function MessagesScreen({ navigation, route }) {
     } catch (error) {
       console.error("Error initializing messaging:", error);
       Alert.alert("Error", "Failed to load messages");
-      // Fallback to mock data
-      loadData();
+      // Show empty state instead of mock data
+      setMessages([]);
+      setForumPosts([]);
     } finally {
       setIsLoading(false);
     }
@@ -307,21 +162,21 @@ export default function MessagesScreen({ navigation, route }) {
 
       if (profileError) {
         console.error("Error fetching user profile:", profileError);
-        // Fallback to mock data
+        // No profile found
         setOtherUser({
           id: djId,
-          dj_name: currentDJ.name,
-          profile_image_url: currentDJ.profileImage,
+          dj_name: "Unknown User",
+          profile_image_url: null,
         });
       } else if (otherUserProfile) {
         setOtherUser(otherUserProfile);
       } else {
-        // No profile found, use mock data
-        console.log("No user profile found, using mock data");
+        // No profile found
+        console.log("No user profile found");
         setOtherUser({
           id: djId,
-          dj_name: currentDJ.name,
-          profile_image_url: currentDJ.profileImage,
+          dj_name: "Unknown User",
+          profile_image_url: null,
         });
       }
 
@@ -368,7 +223,7 @@ export default function MessagesScreen({ navigation, route }) {
         }));
         setMessages(parsedMessages);
       } else {
-        setMessages(mockMessages);
+        setMessages([]);
       }
 
       // Load forum posts
@@ -380,13 +235,13 @@ export default function MessagesScreen({ navigation, route }) {
         }));
         setForumPosts(parsedPosts);
       } else {
-        setForumPosts(mockForumPosts);
+        setForumPosts([]);
       }
     } catch (error) {
       console.error("Error loading data:", error);
-      // Fallback to mock data
-      setMessages(mockMessages);
-      setForumPosts(mockForumPosts);
+      // Show empty state instead of mock data
+      setMessages([]);
+      setForumPosts([]);
     } finally {
       setIsLoading(false);
     }
@@ -994,9 +849,9 @@ export default function MessagesScreen({ navigation, route }) {
                   size={12}
                   color="hsl(0, 0%, 70%)"
                 />
-                <Text style={styles.djLocationText}>{currentDJ.location}</Text>
-                <Ionicons name="star" size={12} color="hsl(75, 100%, 60%)" />
-                <Text style={styles.djRating}>{currentDJ.rating}</Text>
+                <Text style={styles.djLocationText}>
+                  {otherUser?.city || "Location not set"}
+                </Text>
               </View>
             </View>
           </View>
@@ -1021,7 +876,7 @@ export default function MessagesScreen({ navigation, route }) {
           </View>
 
           <View style={styles.genresContainer}>
-            {currentDJ.genres.map((genre) => (
+            {(otherUser?.genres || []).map((genre) => (
               <View key={genre} style={styles.genreTag}>
                 <Text style={styles.genreText}>{genre}</Text>
               </View>

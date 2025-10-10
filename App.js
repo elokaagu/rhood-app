@@ -307,6 +307,13 @@ export default function App() {
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
   const [isSubmittingBrief, setIsSubmittingBrief] = useState(false);
 
+  // Daily application limit state
+  const [dailyApplicationStats, setDailyApplicationStats] = useState({
+    dailyCount: 0,
+    remaining: 5,
+    canApply: true,
+  });
+
   // Audio player animation values
   const [audioPlayerOpacity] = useState(new Animated.Value(0));
   const [audioPlayerTranslateY] = useState(new Animated.Value(50));
@@ -379,94 +386,7 @@ export default function App() {
   // Global audio instance reference for cleanup
   const globalAudioRef = useRef(null);
 
-  // Mock opportunities data
-  const mockOpportunities = [
-    {
-      id: "550e8400-e29b-41d4-a716-446655440001",
-      venue: "Underground Warehouse",
-      title: "Friday Night Rave",
-      location: "Brooklyn, NY",
-      date: "March 15, 2024",
-      time: "10:00 PM - 6:00 AM",
-      audienceSize: "500+ people",
-      description:
-        "Join us for an electrifying night of underground electronic music. We're looking for DJs who can bring high-energy sets and keep the crowd moving all night long. This is a premier venue with state-of-the-art sound system and lighting.",
-      genres: ["Techno", "House", "Trance"],
-      compensation: "$300 - $500",
-      applicationsLeft: 3,
-      status: "hot", // hot, new, closing
-      image:
-        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    },
-    {
-      id: "550e8400-e29b-41d4-a716-446655440002",
-      venue: "The Loft",
-      title: "Sunset Sessions",
-      location: "Los Angeles, CA",
-      date: "March 20, 2024",
-      time: "6:00 PM - 12:00 AM",
-      audienceSize: "200+ people",
-      description:
-        "Chill vibes and deep house for our sunset rooftop sessions. Perfect for DJs who love to create intimate, atmospheric experiences.",
-      genres: ["Deep House", "Chillout", "Ambient"],
-      compensation: "$200 - $350",
-      applicationsLeft: 7,
-      status: "new",
-      image:
-        "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop",
-    },
-    {
-      id: "550e8400-e29b-41d4-a716-446655440003",
-      venue: "Electric Garden",
-      title: "Neon Dreams",
-      location: "Austin, TX",
-      date: "March 30, 2024",
-      time: "8:00 PM - 2:00 AM",
-      audienceSize: "350+ people",
-      description:
-        "Futuristic beats and neon vibes at our outdoor garden venue. We're seeking DJs who can blend electronic genres and create an otherworldly atmosphere under the stars.",
-      genres: ["Future Bass", "Synthwave", "Electronic"],
-      compensation: "$250 - $400",
-      applicationsLeft: 5,
-      status: "new",
-      image:
-        "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop",
-    },
-    {
-      id: "550e8400-e29b-41d4-a716-446655440004",
-      venue: "Sky Lounge",
-      title: "Cloud Nine",
-      location: "Chicago, IL",
-      date: "April 5, 2024",
-      time: "7:00 PM - 1:00 AM",
-      audienceSize: "150+ people",
-      description:
-        "Elevated vibes at our rooftop lounge with panoramic city views. Perfect for DJs who specialize in ambient, chill, and progressive house music.",
-      genres: ["Progressive House", "Ambient", "Chill"],
-      compensation: "$180 - $300",
-      applicationsLeft: 8,
-      status: "hot",
-      image:
-        "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&h=400&fit=crop",
-    },
-    {
-      id: "550e8400-e29b-41d4-a716-446655440005",
-      venue: "The Underground",
-      title: "Midnight Sessions",
-      location: "Seattle, WA",
-      date: "April 10, 2024",
-      time: "11:00 PM - 5:00 AM",
-      audienceSize: "400+ people",
-      description:
-        "Deep underground venue with state-of-the-art sound system. We're looking for DJs who can deliver immersive techno and minimal sets that take the crowd on a journey.",
-      genres: ["Minimal Techno", "Deep Techno", "Industrial"],
-      compensation: "$350 - $500",
-      applicationsLeft: 2,
-      status: "closing",
-      image:
-        "https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=400&h=400&fit=crop",
-    },
-  ];
+  // All opportunities data comes from database
 
   // Helper function to show custom modal
   const showCustomModal = (config) => {
@@ -662,15 +582,15 @@ export default function App() {
     console.log("🔐 handleLoginSuccess called for user:", user.id);
     setUser(user);
     setShowAuth(false);
-    
+
     // Add a small delay to ensure OAuth profile creation is complete
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     try {
       console.log("🔍 Fetching user profile...");
       const profile = await db.getUserProfile(user.id);
       console.log("📋 Profile result:", profile ? "Found" : "Not found");
-      
+
       if (profile) {
         console.log("✅ Profile found, setting up user session");
         console.log("👤 Profile data:", {
@@ -1503,11 +1423,39 @@ export default function App() {
         return;
       }
 
+      // Get daily application stats before applying
+      const stats = await db.getDailyApplicationStats(userId);
+
+      if (!stats.canApply) {
+        Alert.alert(
+          "Daily Limit Reached",
+          `You have reached your daily limit of 5 applications. You have ${stats.remaining} applications remaining today. Please try again tomorrow.`,
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
       await db.applyToOpportunity(opportunityId, userId);
-      Alert.alert("Success", "Application submitted successfully!");
+
+      // Get updated stats after successful application
+      const updatedStats = await db.getDailyApplicationStats(userId);
+
+      Alert.alert(
+        "Success",
+        `Application submitted successfully! You have ${updatedStats.remaining} applications remaining today.`,
+        [{ text: "OK" }]
+      );
     } catch (error) {
       console.error("Error applying to opportunity:", error);
-      Alert.alert("Error", "Failed to submit application. Please try again.");
+
+      // Check if it's a daily limit error
+      if (error.message.includes("Daily application limit")) {
+        Alert.alert("Daily Limit Reached", error.message);
+      } else if (error.message.includes("already applied")) {
+        Alert.alert("Already Applied", error.message);
+      } else {
+        Alert.alert("Error", "Failed to submit application. Please try again.");
+      }
     }
   };
 
@@ -1605,7 +1553,17 @@ export default function App() {
     setCurrentOpportunityIndex(currentOpportunityIndex + 1);
   };
 
-  const handleSwipeRight = () => {
+  const handleSwipeRight = async () => {
+    // Check daily application limit before showing brief form
+    if (!dailyApplicationStats.canApply) {
+      Alert.alert(
+        "Daily Limit Reached",
+        `You have reached your daily limit of 5 applications. You have ${dailyApplicationStats.remaining} applications remaining today. Please try again tomorrow.`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     // Show brief form for application
     const currentOpportunity = opportunities[currentOpportunityIndex];
     setSelectedOpportunity(currentOpportunity);
@@ -1722,12 +1680,22 @@ export default function App() {
       // Move to next card immediately
       setCurrentOpportunityIndex(currentOpportunityIndex + 1);
 
+      // Refresh daily stats after successful application
+      try {
+        const updatedStats = await db.getDailyApplicationStats(user.id);
+        setDailyApplicationStats(updatedStats);
+      } catch (statsError) {
+        console.error("Error refreshing daily stats:", statsError);
+      }
+
       // Show success modal after card transition
       setTimeout(() => {
         showCustomModal({
           type: "success",
           title: "Application Sent!",
-          message: `Your application for ${opportunityTitle} has been sent successfully. You'll hear back within 48 hours.`,
+          message: `Your application for ${opportunityTitle} has been sent successfully. You have ${
+            dailyApplicationStats.remaining - 1
+          } applications remaining today.`,
           primaryButtonText: "OK",
         });
       }, 100);
@@ -1807,9 +1775,9 @@ export default function App() {
 
       if (error) {
         console.error("❌ Error fetching opportunities from database:", error);
-        console.log("⚠️ Falling back to mock opportunities");
-        // Fallback to mock data if database fails
-        setOpportunities(mockOpportunities);
+        console.log("⚠️ No opportunities available");
+        // No fallback to mock data - show empty state
+        setOpportunities([]);
         return;
       }
 
@@ -1840,10 +1808,20 @@ export default function App() {
       }));
 
       setOpportunities(transformedOpportunities);
+
+      // Load daily application stats for the current user
+      if (user?.id) {
+        try {
+          const stats = await db.getDailyApplicationStats(user.id);
+          setDailyApplicationStats(stats);
+        } catch (statsError) {
+          console.error("Error loading daily stats:", statsError);
+        }
+      }
     } catch (error) {
       console.error("Error fetching opportunities:", error);
-      // Fallback to mock data
-      setOpportunities(mockOpportunities);
+      // Show empty state instead of mock data
+      setOpportunities([]);
     } finally {
       setIsLoadingOpportunities(false);
     }
@@ -1887,12 +1865,12 @@ export default function App() {
   const completeOnboarding = async () => {
     console.log("🎉 completeOnboarding called");
     console.log("👤 djProfile:", djProfile);
-    
+
     // Check both property name formats for compatibility
     const djName = djProfile.dj_name || djProfile.djName;
     const firstName = djProfile.first_name || djProfile.firstName;
     const lastName = djProfile.last_name || djProfile.lastName;
-    
+
     if (
       !djName ||
       !firstName ||
@@ -1907,7 +1885,7 @@ export default function App() {
         city: !!djProfile.city,
         genres: djProfile.genres?.length || 0,
       });
-      
+
       showCustomModal({
         type: "error",
         title: "Error",
@@ -1923,7 +1901,7 @@ export default function App() {
       console.log("💾 Saving profile to database...");
       console.log("🔑 User ID:", user.id);
       console.log("📧 User email:", user.email);
-      
+
       // Check if profile already exists
       let savedProfile;
       try {
@@ -1931,7 +1909,7 @@ export default function App() {
         savedProfile = await db.getUserProfile(user.id);
         console.log("✅ Profile exists, updating...");
         console.log("📝 Existing profile:", savedProfile);
-        
+
         // If profile exists, update it instead of creating new one
         const updateData = {
           dj_name: djName,
@@ -1946,13 +1924,16 @@ export default function App() {
           } specializing in ${djProfile.genres.join(", ")}`,
         };
         console.log("📤 Updating with data:", updateData);
-        
+
         savedProfile = await db.updateUserProfile(user.id, updateData);
         console.log("✅ Update complete:", savedProfile);
       } catch (error) {
-        console.log("🆕 Profile doesn't exist (or error checking):", error.message);
+        console.log(
+          "🆕 Profile doesn't exist (or error checking):",
+          error.message
+        );
         console.log("🆕 Creating new profile...");
-        
+
         // Profile doesn't exist, create new one
         const profileData = {
           id: user.id, // Use authenticated user's ID
@@ -1968,15 +1949,18 @@ export default function App() {
           } specializing in ${djProfile.genres.join(", ")}`,
           email: user.email,
         };
-        
+
         console.log("📤 Creating profile with data:", profileData);
-        
+
         try {
           savedProfile = await db.createUserProfile(profileData);
           console.log("✅ Profile created successfully:", savedProfile);
         } catch (createError) {
           console.error("❌ Error creating profile:", createError);
-          console.error("❌ Error details:", JSON.stringify(createError, null, 2));
+          console.error(
+            "❌ Error details:",
+            JSON.stringify(createError, null, 2)
+          );
           throw createError; // Re-throw to be caught by outer try-catch
         }
       }
@@ -1990,7 +1974,7 @@ export default function App() {
 
       console.log("🎉 Onboarding completed, setting isFirstTime=false");
       setIsFirstTime(false);
-      
+
       showCustomModal({
         type: "success",
         title: "Success",
@@ -2099,6 +2083,31 @@ export default function App() {
                 <Text style={styles.opportunitiesSubtitle}>
                   Find your next DJ gig
                 </Text>
+                {/* Daily Application Counter */}
+                <View style={styles.dailyApplicationCounter}>
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={16}
+                    color={
+                      dailyApplicationStats.canApply
+                        ? "hsl(75, 100%, 60%)"
+                        : "hsl(0, 100%, 60%)"
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.dailyApplicationText,
+                      {
+                        color: dailyApplicationStats.canApply
+                          ? "hsl(75, 100%, 60%)"
+                          : "hsl(0, 100%, 60%)",
+                      },
+                    ]}
+                  >
+                    {dailyApplicationStats.remaining} applications remaining
+                    today
+                  </Text>
+                </View>
               </View>
 
               {/* Single Card with Transition */}
@@ -2274,10 +2283,14 @@ export default function App() {
         return <AboutScreen onBack={() => setCurrentScreen("settings")} />;
 
       case "terms":
-        return <TermsOfServiceScreen onBack={() => setCurrentScreen("settings")} />;
+        return (
+          <TermsOfServiceScreen onBack={() => setCurrentScreen("settings")} />
+        );
 
       case "privacy":
-        return <PrivacyPolicyScreen onBack={() => setCurrentScreen("settings")} />;
+        return (
+          <PrivacyPolicyScreen onBack={() => setCurrentScreen("settings")} />
+        );
 
       case "help":
         return <HelpCenterScreen onBack={() => setCurrentScreen("settings")} />;
@@ -3795,6 +3808,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
+    marginBottom: 8,
+  },
+  dailyApplicationCounter: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  dailyApplicationText: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    marginLeft: 6,
+    fontWeight: "500",
   },
   opportunitiesCardContainer: {
     flex: 1,

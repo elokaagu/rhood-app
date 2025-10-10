@@ -14,7 +14,7 @@ import {
   Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from "expo-image-picker";
 import { db } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 
@@ -264,7 +264,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       if (source === "camera") {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert('Permission Required', 'Camera permission is needed to take photos');
+          Alert.alert(
+            "Permission Required",
+            "Camera permission is needed to take photos"
+          );
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -274,9 +277,13 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           quality: 0.8,
         });
       } else {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const permission =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert('Permission Required', 'Photo library permission is needed to select images');
+          Alert.alert(
+            "Permission Required",
+            "Photo library permission is needed to select images"
+          );
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({

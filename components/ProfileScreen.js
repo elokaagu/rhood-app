@@ -18,59 +18,19 @@ import AnimatedListItem from "./AnimatedListItem";
 import { SkeletonProfile, SkeletonMix } from "./Skeleton";
 import { generateGenreWaveform } from "../lib/audioWaveform";
 
-// Mock profile data
-const mockProfile = {
-  id: 1,
-  name: "Eloka Agu",
-  username: "@elokaagu",
-  profileImage: require("../assets/eloka-profile.jpeg"),
-  rating: 4.8,
-  gigsCompleted: 12,
-  credits: 156,
-  bio: "R&B and Soul enthusiast with 5 years of experience. Specializing in smooth, soulful beats that make crowds move. Always looking for new opportunities to showcase my sound.",
-  location: "London",
-  genres: ["R&B", "Soul", "Hip-Hop", "Neo-Soul"],
-  socialLinks: {
-    instagram: "@elokaagu",
-    soundcloud: "soundcloud.com/elokaagu",
-  },
+// Default profile structure - all data comes from database
+const defaultProfile = {
   audioId: {
-    title: "Soulful R&B Mix #1",
+    title: "Unique Original Mix",
     duration: "5:23",
-    genre: "R&B/Soul",
+    genre: "Electronic",
     waveform: [20, 35, 45, 30, 55, 40, 25, 50, 35, 60, 45, 30, 25, 40, 35, 50],
-    audioUrl: "https://example.com/audio/soulful-rnb-mix.mp3",
+    audioUrl: require("../assets/audio/unique-original-mix.mp3"),
   },
-  recentGigs: [
-    {
-      id: 1,
-      name: "Soul Sessions #8",
-      venue: "Blue Note London",
-      date: "2024-07-20",
-      price: "£300",
-      rating: 5.0,
-    },
-    {
-      id: 2,
-      name: "R&B Night",
-      venue: "Ronnie Scott's",
-      date: "2024-07-08",
-      price: "£250",
-      rating: 4.5,
-    },
-  ],
-  achievements: [
-    { id: 1, name: "First Gig", icon: "trophy", earned: true },
-    { id: 2, name: "5-Star Rating", icon: "star", earned: true },
-    { id: 3, name: "10 Gigs", icon: "medal", earned: true },
-    { id: 4, name: "Top Performer", icon: "ribbon", earned: false },
-  ],
-  isVerified: true,
-  joinDate: "2023-01-15",
 };
 
 export default function ProfileScreen({ onNavigate, user }) {
-  const [profile, setProfile] = useState(null); // Start with null instead of mockProfile
+  const [profile, setProfile] = useState(null); // Start with null, load from database
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackPosition, setPlaybackPosition] = useState(0);
@@ -126,7 +86,7 @@ export default function ProfileScreen({ onNavigate, user }) {
       const userProfile = await db.getUserProfile(user.id);
 
       // Load user's gigs
-      let recentGigs = mockProfile.recentGigs;
+      let recentGigs = [];
       try {
         const gigsData = await db.getUserGigs(user.id);
         if (gigsData && gigsData.length > 0) {
@@ -135,9 +95,7 @@ export default function ProfileScreen({ onNavigate, user }) {
             name: gig.name,
             venue: gig.venue,
             date: gig.event_date,
-            price: gig.payment
-              ? `£${gig.payment.toFixed(0)}`
-              : mockProfile.recentGigs[0].price,
+            price: gig.payment ? `£${gig.payment.toFixed(0)}` : "£0",
             rating: gig.dj_rating || 0,
           }));
         }
@@ -146,7 +104,7 @@ export default function ProfileScreen({ onNavigate, user }) {
       }
 
       // Load user's achievements
-      let achievements = mockProfile.achievements;
+      let achievements = [];
       try {
         const [allAchievements, userAchievements] = await Promise.all([
           db.getAchievements(),
@@ -210,39 +168,28 @@ export default function ProfileScreen({ onNavigate, user }) {
         }
 
         setProfile({
-          ...mockProfile,
-          ...userProfile,
           id: userProfile.id,
-          name:
-            userProfile.dj_name || userProfile.full_name || mockProfile.name,
+          name: userProfile.dj_name || userProfile.full_name || "Unknown DJ",
           username: userProfile.username
             ? `@${userProfile.username}`
             : `@${userProfile.dj_name?.toLowerCase().replace(/\s+/g, "")}` ||
-              mockProfile.username,
-          rating: userProfile.rating || 0,
+              "@dj",
           gigsCompleted: userProfile.gigs_completed || 0,
           credits: userProfile.credits || 0,
-          bio: userProfile.bio || mockProfile.bio,
-          location: userProfile.city || mockProfile.location,
-          genres: userProfile.genres || mockProfile.genres,
+          bio: userProfile.bio || "No bio available",
+          location: userProfile.city || "Location not set",
+          genres: userProfile.genres || [],
           profileImage: userProfile.profile_image_url
             ? { uri: userProfile.profile_image_url }
-            : mockProfile.profileImage,
+            : require("../assets/eloka-profile.jpeg"),
           socialLinks: {
-            instagram:
-              userProfile.instagram || mockProfile.socialLinks.instagram,
-            soundcloud:
-              userProfile.soundcloud || mockProfile.socialLinks.soundcloud,
+            instagram: userProfile.instagram || null,
+            soundcloud: userProfile.soundcloud || null,
           },
-          audioId: primaryMix || mockProfile.audioId,
-          isVerified:
-            userProfile.is_verified !== undefined
-              ? userProfile.is_verified
-              : false,
+          audioId: primaryMix || defaultProfile.audioId,
+          isVerified: userProfile.is_verified || false,
           joinDate:
-            userProfile.join_date ||
-            userProfile.created_at ||
-            mockProfile.joinDate,
+            userProfile.join_date || userProfile.created_at || "Unknown",
           recentGigs: recentGigs,
           achievements: achievements,
         });
@@ -301,7 +248,7 @@ export default function ProfileScreen({ onNavigate, user }) {
         }
       } else {
         const { sound } = await Audio.Sound.createAsync(
-          { uri: profile.audioId.audioUrl },
+          profile.audioId.audioUrl,
           { shouldPlay: true }
         );
         soundRef.current = sound;

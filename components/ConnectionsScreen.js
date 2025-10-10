@@ -20,157 +20,9 @@ import { connectionsService } from "../lib/connectionsService";
 import { supabase, db } from "../lib/supabase";
 import { SkeletonList } from "./Skeleton";
 
-// Mock discover users data (fallback when database is empty)
-const mockDiscoverUsers = [
-  {
-    id: "discover-1",
-    name: "ELOKA AGU",
-    username: "@elokaagu",
-    location: "Studio",
-    genres: ["Admin", "Studio Management", "Super Admin"],
-    profileImage:
-      "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop",
-    rating: 4.5,
-    gigsCompleted: 50,
-    lastActive: "Recently active",
-    status: "online",
-    isVerified: true,
-    bio: "Rhood Studio Super Administrator - Managing all studio operations, opportunities, and community features.",
-  },
-  {
-    id: "discover-2",
-    name: "FATIMA H",
-    username: "@fatimah",
-    location: "London",
-    genres: ["R&B", "Neo-Soul", "Jazz"],
-    profileImage:
-      "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
-    rating: 4.6,
-    gigsCompleted: 14,
-    lastActive: "Recently active",
-    status: "online",
-    isVerified: false,
-    bio: "Neo-soul selector with smooth grooves.",
-  },
-  {
-    id: "discover-3",
-    name: "MAYA CHEN",
-    username: "@mayachen",
-    location: "London",
-    genres: ["Techno", "House", "Electronic"],
-    profileImage:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-    rating: 4.9,
-    gigsCompleted: 28,
-    lastActive: "Recently active",
-    status: "online",
-    isVerified: true,
-    bio: "Techno DJ and producer from London. Resident at Fabric.",
-  },
-  {
-    id: "discover-4",
-    name: "SOPHIE A",
-    username: "@sophiea",
-    location: "Bristol",
-    genres: ["Drum & Bass", "Jungle"],
-    profileImage:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop",
-    rating: 5.0,
-    gigsCompleted: 35,
-    lastActive: "Recently active",
-    status: "online",
-    isVerified: true,
-    bio: "Bristol DnB selector. High-energy sets for the ravers.",
-  },
-];
+// No mock data - all data comes from database
 
-// Mock connections data
-const mockConnections = [
-  {
-    id: "cc00a0ac-9163-4c30-b123-81cc06046e8b",
-    name: "Marcus Chen",
-    username: "@marcusbeats",
-    location: "Shoreditch, London",
-    genres: ["House", "Tech House"],
-    profileImage:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-    rating: 4.9,
-    gigsCompleted: 24,
-    lastActive: "2 hours ago",
-    mutualConnections: 3,
-    status: "online",
-  },
-  {
-    id: "dd11b1bd-a274-5d41-c234-92dd17157f9c",
-    name: "Alex Thompson",
-    username: "@alexunderground",
-    location: "Hackney, London",
-    genres: ["Drum & Bass", "Jungle"],
-    profileImage:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
-    rating: 4.8,
-    gigsCompleted: 31,
-    lastActive: "30 mins ago",
-    mutualConnections: 2,
-    status: "online",
-  },
-  {
-    id: "ee22c2ce-b385-6e52-d345-a3ee28268g0d",
-    name: "Luna Martinez",
-    username: "@lunabeats",
-    location: "Barcelona, Spain",
-    genres: ["Progressive", "Trance"],
-    profileImage:
-      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
-    rating: 4.6,
-    gigsCompleted: 15,
-    lastActive: "3 hours ago",
-    mutualConnections: 5,
-    status: "recently_active",
-  },
-  {
-    id: "ff33d3df-c496-7f63-e456-b4ff39379h1e",
-    name: "Max Blackwood",
-    username: "@maxindustrial",
-    location: "Berlin, Germany",
-    genres: ["Industrial", "Dark Techno"],
-    profileImage:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face",
-    rating: 4.9,
-    gigsCompleted: 42,
-    lastActive: "1 week ago",
-    mutualConnections: 1,
-    status: "offline",
-  },
-  {
-    id: "gg44e4eg-d5a7-8g74-f567-c5gg40480i2f",
-    name: "Zara Kim",
-    username: "@zarasyntwave",
-    location: "Tokyo, Japan",
-    genres: ["Synthwave", "Retro"],
-    profileImage:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face",
-    rating: 4.8,
-    gigsCompleted: 28,
-    lastActive: "4 hours ago",
-    mutualConnections: 4,
-    status: "online",
-  },
-  {
-    id: 6,
-    name: "Khadija Hashi",
-    username: "@khadijabeats",
-    location: "Nairobi, Kenya",
-    genres: ["Afro House", "Deep House"],
-    profileImage:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face",
-    rating: 4.9,
-    gigsCompleted: 35,
-    lastActive: "1 hour ago",
-    mutualConnections: 6,
-    status: "online",
-  },
-];
+// All connection data comes from database
 
 export default function ConnectionsScreen({ onNavigate }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -334,8 +186,8 @@ export default function ConnectionsScreen({ onNavigate }) {
       } = await supabase.auth.getUser();
 
       if (!currentUser) {
-        console.log("No current user, using mock data");
-        setDiscoverUsers(mockDiscoverUsers);
+        console.log("No current user found");
+        setDiscoverUsers([]);
         return;
       }
 
@@ -367,7 +219,6 @@ export default function ConnectionsScreen({ onNavigate }) {
         profileImage:
           user.profile_image_url ||
           "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop",
-        rating: user.rating || 0,
         gigsCompleted: user.gigs_completed || 0,
         lastActive: "Recently",
         status: "online",
@@ -378,8 +229,8 @@ export default function ConnectionsScreen({ onNavigate }) {
       setDiscoverUsers(formattedDiscoverUsers);
     } catch (error) {
       console.error("❌ Error loading discover DJs:", error);
-      // Fallback to mock data
-      setDiscoverUsers(mockDiscoverUsers);
+      // No fallback to mock data - show empty state
+      setDiscoverUsers([]);
     } finally {
       setDiscoverLoading(false);
       // Always fade in discover users after loading completes (even if empty)
@@ -753,18 +604,8 @@ export default function ConnectionsScreen({ onNavigate }) {
                           </Text>
                         </View>
 
-                        {/* Rating and Activity */}
+                        {/* Activity */}
                         <View style={styles.discoverRatingSection}>
-                          <View style={styles.discoverRatingContainer}>
-                            <Ionicons
-                              name="star"
-                              size={16}
-                              color="hsl(45, 100%, 50%)"
-                            />
-                            <Text style={styles.discoverRating}>
-                              {user.rating}
-                            </Text>
-                          </View>
                           <Text style={styles.discoverLastActive}>
                             {user.lastActive}
                           </Text>

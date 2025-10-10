@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { matchmaking } from "../lib/matchmaking";
+import { db } from "../lib/supabase";
 
 export default function MatchmakingScreen({ userId, onNavigate }) {
   const [matches, setMatches] = useState([]);
@@ -54,11 +55,27 @@ export default function MatchmakingScreen({ userId, onNavigate }) {
   const handleApply = async (match) => {
     try {
       await matchmaking.applyToOpportunity(userId, match.opportunity_id);
-      Alert.alert("Success", "Application submitted successfully!");
+
+      // Get updated daily stats after successful application
+      const stats = await db.getDailyApplicationStats(userId);
+
+      Alert.alert(
+        "Success",
+        `Application submitted successfully! You have ${stats.remaining} applications remaining today.`,
+        [{ text: "OK" }]
+      );
       loadMatches(); // Refresh matches
     } catch (error) {
       console.error("Error applying:", error);
-      Alert.alert("Error", "Failed to submit application");
+
+      // Check if it's a daily limit error
+      if (error.message.includes("Daily application limit")) {
+        Alert.alert("Daily Limit Reached", error.message);
+      } else if (error.message.includes("already applied")) {
+        Alert.alert("Already Applied", error.message);
+      } else {
+        Alert.alert("Error", "Failed to submit application");
+      }
     }
   };
 
