@@ -164,9 +164,6 @@ export default function AboutScreen({ onBack }) {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Made with ❤️ for the underground music community
-          </Text>
           <Text style={styles.footerCopyright}>
             © 2024 R/HOOD. All rights reserved.
           </Text>
