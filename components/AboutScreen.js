@@ -105,10 +105,7 @@ export default function AboutScreen({ onBack }) {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* App Info Card */}
-        <LinearGradient
-          colors={["hsl(0, 0%, 8%)", "hsl(0, 0%, 12%)"]}
-          style={styles.appInfoCard}
-        >
+        <View style={styles.appInfoCard}>
           <View style={styles.appIconContainer}>
             <View style={styles.appIcon}>
               <Image
@@ -127,7 +124,7 @@ export default function AboutScreen({ onBack }) {
             connecting with fellow DJs, and building your underground music
             career.
           </Text>
-        </LinearGradient>
+        </View>
 
         {/* About Sections */}
         {aboutSections.map((section, sectionIndex) => (
@@ -215,6 +212,7 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     borderRadius: RADIUS.lg,
     alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 0%)",
   },
   appIconContainer: {
     marginBottom: SPACING.md,
@@ -309,4 +307,3 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
-
