@@ -54,6 +54,7 @@ import UploadMixScreen from "./components/UploadMixScreen";
 import AboutScreen from "./components/AboutScreen";
 import TermsOfServiceScreen from "./components/TermsOfServiceScreen";
 import PrivacyPolicyScreen from "./components/PrivacyPolicyScreen";
+import HelpCenterScreen from "./components/HelpCenterScreen";
 // Push notifications temporarily disabled for Expo Go
 // import {
 //   registerForPushNotifications,
@@ -2277,6 +2278,9 @@ export default function App() {
 
       case "privacy":
         return <PrivacyPolicyScreen onBack={() => setCurrentScreen("settings")} />;
+
+      case "help":
+        return <HelpCenterScreen onBack={() => setCurrentScreen("settings")} />;
 
       case "listen":
         return (

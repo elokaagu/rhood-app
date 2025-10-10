@@ -171,8 +171,8 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           title: "Help Center",
           subtitle: "Get help and support",
           icon: "help",
-          type: "link",
-          url: "https://rhood.io/help",
+          type: "navigate",
+          action: () => onNavigate && onNavigate("help"),
         },
         {
           id: "contact",
