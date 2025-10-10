@@ -73,9 +73,12 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
       const sessionData = await auth.signInWithGoogle();
       console.log("✅ Google Sign-In returned sessionData:", !!sessionData);
       console.log("✅ User from sessionData:", sessionData?.user?.email);
-      
+
       if (sessionData?.user) {
-        console.log("📞 Calling onLoginSuccess with user:", sessionData.user.id);
+        console.log(
+          "📞 Calling onLoginSuccess with user:",
+          sessionData.user.id
+        );
         onLoginSuccess(sessionData.user);
       } else {
         console.error("❌ No user in sessionData");
@@ -97,9 +100,12 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
       const sessionData = await auth.signInWithApple();
       console.log("✅ Apple Sign-In returned sessionData:", !!sessionData);
       console.log("✅ User from sessionData:", sessionData?.user?.email);
-      
+
       if (sessionData?.user) {
-        console.log("📞 Calling onLoginSuccess with user:", sessionData.user.id);
+        console.log(
+          "📞 Calling onLoginSuccess with user:",
+          sessionData.user.id
+        );
         onLoginSuccess(sessionData.user);
       } else {
         console.error("❌ No user in sessionData");
