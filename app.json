@@ -65,12 +65,6 @@
           "icon": "./assets/rhood_logo.png",
           "color": "#ffffff"
         }
-      ],
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.668336115926-alpe1knq41ba8rt76tlda9eb2kocllif"
-        }
       ]
     ],
     "scheme": "rhoodapp",
