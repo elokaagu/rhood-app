@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -24,6 +24,9 @@ import {
 export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  
+  // Track toggle states to prevent reversion
+  const toggleStates = useRef({});
   const [settings, setSettings] = useState({
     // Account Settings
     profileVisibility: "public",
@@ -271,9 +274,18 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
         <View style={styles.settingRight}>
           {item.type === "toggle" && (
             <Switch
-              value={item.value}
+              value={toggleStates.current[item.id] !== undefined ? toggleStates.current[item.id] : item.value}
               onValueChange={(newValue) => {
-                console.log("🔘 Switch toggled:", item.id, "from", item.value, "to", newValue);
+                console.log(
+                  "🔘 Switch toggled:",
+                  item.id,
+                  "from",
+                  item.value,
+                  "to",
+                  newValue
+                );
+                // Store the new value in ref immediately
+                toggleStates.current[item.id] = newValue;
                 // Extract the setting key from the item
                 const settingKey = item.id;
                 handleSettingChange(settingKey, newValue);
@@ -282,7 +294,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
                 false: "hsl(0, 0%, 20%)",
                 true: "hsl(75, 100%, 60%)",
               }}
-              thumbColor={item.value ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"}
+              thumbColor={(toggleStates.current[item.id] !== undefined ? toggleStates.current[item.id] : item.value) ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"}
             />
           )}
           {item.type === "select" && (
