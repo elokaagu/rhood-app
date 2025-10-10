@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Linking,
   Alert,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -31,11 +32,11 @@ export default function AboutScreen({ onBack }) {
       items: [
         {
           title: "Version",
-          value: "1.0.0",
+          value: "1.1.0",
         },
         {
-          title: "Build",
-          value: "2024.01",
+          title: "Build Date",
+          value: "December 2024",
         },
         {
           title: "Platform",
@@ -137,16 +138,16 @@ export default function AboutScreen({ onBack }) {
         >
           <View style={styles.appIconContainer}>
             <View style={styles.appIcon}>
-              <Ionicons
-                name="musical-notes"
-                size={32}
-                color="hsl(75, 100%, 60%)"
+              <Image
+                source={require("../assets/rhood_logo.png")}
+                style={styles.logoImage}
+                resizeMode="contain"
               />
             </View>
           </View>
           <Text style={styles.appName}>R/HOOD</Text>
           <Text style={styles.appTagline}>
-            Connecting underground DJs with opportunities
+            Connecting DJs with Opportunities
           </Text>
           <Text style={styles.appDescription}>
             R/HOOD is the premier platform for discovering gig opportunities,
@@ -252,6 +253,10 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 20%)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  logoImage: {
+    width: 50,
+    height: 50,
   },
   appName: {
     fontSize: 28,
