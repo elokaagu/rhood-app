@@ -36,7 +36,7 @@ export default function AboutScreen({ onBack }) {
         },
         {
           title: "Build Date",
-          value: "December 2024",
+          value: "October 10th, 2025",
         },
         {
           title: "Platform",
