@@ -14,7 +14,7 @@ import {
   Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-// import * as ImagePicker from 'expo-image-picker'; // Temporarily disabled due to native module issues
+import * as ImagePicker from 'expo-image-picker';
 import { db } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 
@@ -262,39 +262,29 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       let result;
 
       if (source === "camera") {
-        // const permission = await ImagePicker.requestCameraPermissionsAsync();
-        // if (!permission.granted) {
-        //   Alert.alert('Permission Required', 'Camera permission is needed to take photos');
-        //   return;
-        // }
-        // result = await ImagePicker.launchCameraAsync({
-        //   mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        //   allowsEditing: true,
-        //   aspect: [1, 1],
-        //   quality: 0.8,
-        // });
-        Alert.alert(
-          "Image Picker",
-          "Image picker temporarily disabled during New Architecture migration"
-        );
-        return;
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission Required', 'Camera permission is needed to take photos');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
       } else {
-        // const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        // if (!permission.granted) {
-        //   Alert.alert('Permission Required', 'Photo library permission is needed to select images');
-        //   return;
-        // }
-        // result = await ImagePicker.launchImageLibraryAsync({
-        //   mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        //   allowsEditing: true,
-        //   aspect: [1, 1],
-        //   quality: 0.8,
-        // });
-        Alert.alert(
-          "Image Picker",
-          "Image picker temporarily disabled during New Architecture migration"
-        );
-        return;
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission Required', 'Photo library permission is needed to select images');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
       }
 
       if (!result.canceled && result.assets[0]) {
