@@ -187,8 +187,8 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           title: "Privacy Policy",
           subtitle: "Read our privacy policy",
           icon: "document-text",
-          type: "link",
-          url: "https://rhood.io/privacy",
+          type: "navigate",
+          action: () => onNavigate && onNavigate("privacy"),
         },
         {
           id: "termsOfService",
