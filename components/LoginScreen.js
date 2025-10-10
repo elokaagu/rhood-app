@@ -70,9 +70,15 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const { user } = await auth.signInWithGoogle();
-      if (user) {
-        onLoginSuccess(user);
+      const sessionData = await auth.signInWithGoogle();
+      console.log("✅ Google Sign-In returned sessionData:", !!sessionData);
+      console.log("✅ User from sessionData:", sessionData?.user?.email);
+      
+      if (sessionData?.user) {
+        console.log("📞 Calling onLoginSuccess with user:", sessionData.user.id);
+        onLoginSuccess(sessionData.user);
+      } else {
+        console.error("❌ No user in sessionData");
       }
     } catch (error) {
       console.error("Google sign-in error:", error);
@@ -88,9 +94,15 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
   const handleAppleSignIn = async () => {
     try {
       setLoading(true);
-      const { user } = await auth.signInWithApple();
-      if (user) {
-        onLoginSuccess(user);
+      const sessionData = await auth.signInWithApple();
+      console.log("✅ Apple Sign-In returned sessionData:", !!sessionData);
+      console.log("✅ User from sessionData:", sessionData?.user?.email);
+      
+      if (sessionData?.user) {
+        console.log("📞 Calling onLoginSuccess with user:", sessionData.user.id);
+        onLoginSuccess(sessionData.user);
+      } else {
+        console.error("❌ No user in sessionData");
       }
     } catch (error) {
       console.error("Apple sign-in error:", error);

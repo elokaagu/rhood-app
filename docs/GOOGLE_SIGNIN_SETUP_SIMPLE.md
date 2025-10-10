@@ -25,6 +25,7 @@ You should already have OAuth credentials set up. If not:
    ```
 
 **Current Credentials:**
+
 - Web Client ID: `668336115926-vm1sb48m9q6cfg3he33t4f074e28s49m.apps.googleusercontent.com`
 - Client Secret: (stored in Supabase)
 
@@ -80,23 +81,26 @@ You should already have OAuth credentials set up. If not:
 ## ❌ Troubleshooting
 
 ### "Unsupported provider" error
+
 - Make sure Google provider is enabled in Supabase
 - Check that Client ID and Secret are set
 
 ### "No access token received" error
+
 - Check Supabase redirect URLs include `rhoodapp://auth/callback`
 - Check Google Console authorized redirect URIs
 
 ### "Sign-in was cancelled" error
+
 - User closed the browser before completing sign-in
 - Normal behavior, just try again
 
 ## 🎯 Next Steps
 
 After successful sign-in, the app will:
+
 1. Check if user profile exists
 2. If yes → Go to Opportunities screen
 3. If no → Show onboarding form
 
 The profile checking logic is handled in `App.js` via the `handleLoginSuccess` function.
-
