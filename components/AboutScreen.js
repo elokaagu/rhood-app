@@ -68,40 +68,6 @@ export default function AboutScreen({ onBack }) {
       ],
     },
     {
-      title: "Legal",
-      items: [
-        {
-          title: "Privacy Policy",
-          value: "Read our privacy policy",
-          type: "link",
-          url: "https://rhood.io/privacy",
-        },
-        {
-          title: "Terms of Service",
-          value: "Read our terms of service",
-          type: "link",
-          url: "https://rhood.io/terms",
-        },
-        {
-          title: "Open Source Licenses",
-          value: "View third-party licenses",
-          type: "action",
-          action: () =>
-            Alert.alert(
-              "Open Source Licenses",
-              "This app uses several open source libraries:\n\n• React Native\n• Expo\n• Supabase\n• @expo/vector-icons\n• React Navigation\n\nFor detailed license information, visit:\nrhood.io/licenses",
-              [
-                { text: "Close", style: "cancel" },
-                { 
-                  text: "View Online", 
-                  onPress: () => handleOpenLink("https://rhood.io/licenses")
-                }
-              ]
-            ),
-        },
-      ],
-    },
-    {
       title: "Connect",
       items: [
         {
