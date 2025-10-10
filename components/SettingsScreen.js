@@ -198,14 +198,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           type: "link",
           url: "https://rhood.io/terms",
         },
-        {
-          id: "about",
-          title: "About R/HOOD",
-          subtitle: "Version 1.1.0",
-          icon: "information-circle",
-          type: "navigate",
-          action: () => onNavigate && onNavigate("about"),
-        },
       ],
     },
     {
