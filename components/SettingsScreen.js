@@ -407,9 +407,11 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
 const styles = StyleSheet.create({
   container: {
     ...sharedStyles.container,
+    width: "100%",
   },
   scrollView: {
     flex: 1,
+    width: "100%",
   },
   bottomGradient: {
     position: "absolute",
