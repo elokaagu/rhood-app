@@ -88,8 +88,15 @@ export default function AboutScreen({ onBack }) {
           type: "action",
           action: () =>
             Alert.alert(
-              "Open Source",
-              "Third-party licenses will be shown here"
+              "Open Source Licenses",
+              "This app uses several open source libraries:\n\n• React Native\n• Expo\n• Supabase\n• @expo/vector-icons\n• React Navigation\n\nFor detailed license information, visit:\nrhood.io/licenses",
+              [
+                { text: "Close", style: "cancel" },
+                { 
+                  text: "View Online", 
+                  onPress: () => handleOpenLink("https://rhood.io/licenses")
+                }
+              ]
             ),
         },
       ],
@@ -99,15 +106,15 @@ export default function AboutScreen({ onBack }) {
       items: [
         {
           title: "Instagram",
-          value: "@rhoodapp",
+          value: "@rhood.io",
           type: "link",
-          url: "https://instagram.com/rhoodapp",
+          url: "https://instagram.com/rhood.io",
         },
         {
           title: "Twitter",
-          value: "@rhoodapp",
+          value: "@rhood.io",
           type: "link",
-          url: "https://twitter.com/rhoodapp",
+          url: "https://twitter.com/rhood.io",
         },
         {
           title: "Discord",
