@@ -52,6 +52,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   });
 
   const handleSettingChange = (key, value) => {
+    console.log("🔄 Setting change:", key, "from", settings[key], "to", value);
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -272,6 +273,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
             <Switch
               value={item.value}
               onValueChange={(newValue) => {
+                console.log("🔘 Switch toggled:", item.id, "from", item.value, "to", newValue);
                 // Extract the setting key from the item
                 const settingKey = item.id;
                 handleSettingChange(settingKey, newValue);
