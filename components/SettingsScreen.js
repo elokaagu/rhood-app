@@ -271,7 +271,11 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           {item.type === "toggle" && (
             <Switch
               value={item.value}
-              onValueChange={item.onPress}
+              onValueChange={(newValue) => {
+                // Extract the setting key from the item
+                const settingKey = item.id;
+                handleSettingChange(settingKey, newValue);
+              }}
               trackColor={{
                 false: "hsl(0, 0%, 20%)",
                 true: "hsl(75, 100%, 60%)",
