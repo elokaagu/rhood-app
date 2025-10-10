@@ -114,7 +114,7 @@ export default function AboutScreen({ onBack }) {
               <Image
                 source={require("../assets/rhood_logo.png")}
                 style={styles.logoImage}
-                resizeMode="contain"
+                resizeMode="cover"
               />
             </View>
           </View>
@@ -228,8 +228,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logoImage: {
-    width: 80,
-    height: 80,
+    width: 85,
+    height: 85,
   },
   appName: {
     fontSize: 28,
