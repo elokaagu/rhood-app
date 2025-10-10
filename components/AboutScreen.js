@@ -165,7 +165,7 @@ export default function AboutScreen({ onBack }) {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerCopyright}>
-            © 2024 R/HOOD. All rights reserved.
+            © 2025 R/HOOD. All rights reserved.
           </Text>
         </View>
       </ScrollView>
