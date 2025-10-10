@@ -254,16 +254,16 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   appIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
+    width: 90,
+    height: 90,
+    borderRadius: 22,
     backgroundColor: "hsl(0, 0%, 20%)",
     justifyContent: "center",
     alignItems: "center",
   },
   logoImage: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
   },
   appName: {
     fontSize: 28,
