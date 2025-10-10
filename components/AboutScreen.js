@@ -262,8 +262,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logoImage: {
-    width: 60,
-    height: 60,
+    width: 80,
+    height: 80,
   },
   appName: {
     fontSize: 28,
