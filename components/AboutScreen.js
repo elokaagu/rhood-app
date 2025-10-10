@@ -49,21 +49,21 @@ export default function AboutScreen({ onBack }) {
       items: [
         {
           title: "Website",
-          value: "rhood.app",
+          value: "rhood.io",
           type: "link",
-          url: "https://rhood.app",
+          url: "https://rhood.io",
         },
         {
           title: "Support",
-          value: "support@rhood.app",
+          value: "hello@rhood.io",
           type: "email",
-          url: "mailto:support@rhood.app",
+          url: "mailto:hello@rhood.io",
         },
         {
           title: "Partnership",
-          value: "partners@rhood.app",
+          value: "hello@rhood.io",
           type: "email",
-          url: "mailto:partners@rhood.app",
+          url: "mailto:hello@rhood.io",
         },
       ],
     },
@@ -74,13 +74,13 @@ export default function AboutScreen({ onBack }) {
           title: "Privacy Policy",
           value: "Read our privacy policy",
           type: "link",
-          url: "https://rhood.app/privacy",
+          url: "https://rhood.io/privacy",
         },
         {
           title: "Terms of Service",
           value: "Read our terms of service",
           type: "link",
-          url: "https://rhood.app/terms",
+          url: "https://rhood.io/terms",
         },
         {
           title: "Open Source Licenses",

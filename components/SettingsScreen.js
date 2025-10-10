@@ -196,7 +196,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           subtitle: "Get help and support",
           icon: "help",
           type: "link",
-          url: "https://rhood.app/help",
+          url: "https://rhood.io/help",
         },
         {
           id: "contact",
@@ -204,7 +204,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           subtitle: "Send feedback or report issues",
           icon: "mail",
           type: "link",
-          url: "mailto:support@rhood.app",
+          url: "mailto:hello@rhood.io",
         },
         {
           id: "privacyPolicy",
@@ -212,7 +212,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           subtitle: "Read our privacy policy",
           icon: "document-text",
           type: "link",
-          url: "https://rhood.app/privacy",
+          url: "https://rhood.io/privacy",
         },
         {
           id: "termsOfService",
@@ -220,7 +220,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           subtitle: "Read our terms of service",
           icon: "document",
           type: "link",
-          url: "https://rhood.app/terms",
+          url: "https://rhood.io/terms",
         },
         {
           id: "about",
