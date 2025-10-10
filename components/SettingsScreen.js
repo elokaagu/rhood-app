@@ -39,7 +39,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
     communityUpdates: false,
 
     // App Settings
-    theme: "dark",
     language: "en",
     autoPlay: false,
     dataUsage: "wifi",
@@ -159,29 +158,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           value: settings.communityUpdates,
           onPress: () =>
             handleSettingChange("communityUpdates", !settings.communityUpdates),
-        },
-      ],
-    },
-    {
-      id: "app",
-      title: "App",
-      icon: "settings",
-      items: [
-        {
-          id: "theme",
-          title: "Theme",
-          subtitle: settings.theme === "dark" ? "Dark" : "Light",
-          icon: "moon",
-          type: "select",
-          options: [
-            { label: "Dark", value: "dark" },
-            { label: "Light", value: "light" },
-          ],
-          currentValue: settings.theme,
-          onPress: () => {
-            const newValue = settings.theme === "dark" ? "light" : "dark";
-            handleSettingChange("theme", newValue);
-          },
         },
       ],
     },
