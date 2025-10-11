@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -20,11 +20,12 @@ import {
   RADIUS,
   sharedStyles,
 } from "../lib/sharedStyles";
+import { db } from "../lib/supabase";
 
 export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSignOutModal, setShowSignOutModal] = useState(false);
-  
+
   // Track toggle states to prevent reversion
   const toggleStates = useRef({});
   const [settings, setSettings] = useState({
@@ -54,9 +55,46 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
     personalizedAds: false,
   });
 
-  const handleSettingChange = (key, value) => {
+  // Load privacy settings from database
+  useEffect(() => {
+    const loadPrivacySettings = async () => {
+      if (!user?.id) return;
+
+      try {
+        const userProfile = await db.getUserProfile(user.id);
+        if (userProfile) {
+          setSettings((prev) => ({
+            ...prev,
+            showEmail: userProfile.show_email ?? true,
+            showPhone: userProfile.show_phone ?? false,
+          }));
+        }
+      } catch (error) {
+        console.error("❌ Error loading privacy settings:", error);
+      }
+    };
+
+    loadPrivacySettings();
+  }, [user?.id]);
+
+  const handleSettingChange = async (key, value) => {
     console.log("🔄 Setting change:", key, "from", settings[key], "to", value);
     setSettings((prev) => ({ ...prev, [key]: value }));
+
+    // Save privacy settings to database
+    if (key === "showEmail" || key === "showPhone") {
+      try {
+        const { db } = await import("../lib/supabase");
+        await db.updateUserProfile(user.id, {
+          [key === "showEmail" ? "show_email" : "show_phone"]: value,
+        });
+        console.log("✅ Privacy setting saved to database:", key, value);
+      } catch (error) {
+        console.error("❌ Error saving privacy setting:", error);
+        // Revert the setting if database save fails
+        setSettings((prev) => ({ ...prev, [key]: !value }));
+      }
+    }
   };
 
   const handleSignOut = () => {
@@ -274,7 +312,11 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
         <View style={styles.settingRight}>
           {item.type === "toggle" && (
             <Switch
-              value={toggleStates.current[item.id] !== undefined ? toggleStates.current[item.id] : item.value}
+              value={
+                toggleStates.current[item.id] !== undefined
+                  ? toggleStates.current[item.id]
+                  : item.value
+              }
               onValueChange={(newValue) => {
                 console.log(
                   "🔘 Switch toggled:",
@@ -294,7 +336,15 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
                 false: "hsl(0, 0%, 20%)",
                 true: "hsl(75, 100%, 60%)",
               }}
-              thumbColor={(toggleStates.current[item.id] !== undefined ? toggleStates.current[item.id] : item.value) ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"}
+              thumbColor={
+                (
+                  toggleStates.current[item.id] !== undefined
+                    ? toggleStates.current[item.id]
+                    : item.value
+                )
+                  ? "hsl(0, 0%, 100%)"
+                  : "hsl(0, 0%, 70%)"
+              }
             />
           )}
           {item.type === "select" && (

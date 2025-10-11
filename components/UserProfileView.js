@@ -189,6 +189,20 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                 {profile.city || "Location not set"}
               </Text>
 
+              {/* Contact Information */}
+              {profile.show_email && profile.email && (
+                <Text style={styles.contactInfo}>
+                  <Ionicons name="mail" size={14} color="hsl(0, 0%, 70%)" />
+                  {profile.email}
+                </Text>
+              )}
+              {profile.show_phone && profile.phone && (
+                <Text style={styles.contactInfo}>
+                  <Ionicons name="call" size={14} color="hsl(0, 0%, 70%)" />
+                  {profile.phone}
+                </Text>
+              )}
+
               {/* Stats */}
               <View style={styles.statsContainer}>
                 <View style={styles.statItem}>
@@ -412,6 +426,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 16,
+  },
+  contactInfo: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
   },
   statsContainer: {
     flexDirection: "row",

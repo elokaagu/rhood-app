@@ -38,7 +38,7 @@ import ProfileScreen from "./components/ProfileScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import RhoodModal from "./components/RhoodModal";
 import SwipeableOpportunityCard from "./components/SwipeableOpportunityCard";
-import BriefForm from "./components/BriefForm";
+// import BriefForm from "./components/BriefForm"; // REMOVED - no longer needed for simplified swipe-to-apply
 import { db, auth, supabase } from "./lib/supabase";
 import {
   ANIMATION_DURATION,
@@ -302,10 +302,9 @@ export default function App() {
   const [swipedOpportunities, setSwipedOpportunities] = useState([]);
   const [isLoadingOpportunities, setIsLoadingOpportunities] = useState(true);
 
-  // Brief form state
-  const [showBriefForm, setShowBriefForm] = useState(false);
+  // Brief form state - REMOVED (no longer needed for simplified swipe-to-apply)
+  // But we still need selectedOpportunity for the details modal
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
-  const [isSubmittingBrief, setIsSubmittingBrief] = useState(false);
 
   // Daily application limit state
   const [dailyApplicationStats, setDailyApplicationStats] = useState({
@@ -1554,7 +1553,7 @@ export default function App() {
   };
 
   const handleSwipeRight = async () => {
-    // Check daily application limit before showing brief form
+    // Check daily application limit before showing details
     if (!dailyApplicationStats.canApply) {
       Alert.alert(
         "Daily Limit Reached",
@@ -1564,10 +1563,94 @@ export default function App() {
       return;
     }
 
-    // Show brief form for application
+    // Show detailed opportunity information for confirmation
     const currentOpportunity = opportunities[currentOpportunityIndex];
     setSelectedOpportunity(currentOpportunity);
-    setShowBriefForm(true);
+
+    // Show detailed modal with opportunity info and apply button
+    showCustomModal({
+      type: "info",
+      title: currentOpportunity.title,
+      message: `Date: ${currentOpportunity.date}\nTime: ${currentOpportunity.time}\nCompensation: ${currentOpportunity.compensation}\nLocation: ${currentOpportunity.location}\n\n${currentOpportunity.description}\n\nYou have ${dailyApplicationStats.remaining} applications remaining today.`,
+      primaryButtonText: "Apply Now",
+      secondaryButtonText: "Cancel",
+      onPrimaryPress: () => handleConfirmApply(currentOpportunity),
+      onSecondaryPress: () => {
+        console.log(
+          "Modal cancelled. Closing modal and clearing selected opportunity."
+        );
+        setShowModal(false);
+        setSelectedOpportunity(null);
+        console.log("Current opportunities length:", opportunities.length);
+        console.log("Current opportunity index:", currentOpportunityIndex);
+        if (
+          opportunities.length > 0 &&
+          currentOpportunityIndex < opportunities.length
+        ) {
+          console.log(
+            "Opportunity at current index:",
+            opportunities[currentOpportunityIndex].title
+          );
+        } else {
+          console.log(
+            "Opportunities array is empty or index is out of bounds, showing empty state."
+          );
+        }
+      },
+    });
+  };
+
+  const handleConfirmApply = async (opportunity) => {
+    try {
+      setShowModal(false);
+
+      // Apply to opportunity using existing logic
+      await db.applyToOpportunity(opportunity.id, user.id);
+
+      // Refresh daily stats after successful application
+      try {
+        const updatedStats = await db.getDailyApplicationStats(user.id);
+        setDailyApplicationStats(updatedStats);
+      } catch (statsError) {
+        console.error("Error refreshing daily stats:", statsError);
+      }
+
+      // Add to swiped opportunities
+      setSwipedOpportunities([
+        ...swipedOpportunities,
+        { ...opportunity, action: "applied" },
+      ]);
+
+      // Move to next card immediately
+      setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+
+      // Show success message
+      setTimeout(() => {
+        showCustomModal({
+          type: "success",
+          title: "Application Sent!",
+          message: `Your application for ${
+            opportunity.title
+          } has been sent successfully. You have ${
+            dailyApplicationStats.remaining - 1
+          } applications remaining today.`,
+          primaryButtonText: "OK",
+        });
+      }, 300);
+    } catch (error) {
+      console.error("Error applying to opportunity:", error);
+
+      // Check if it's a daily limit error
+      if (error.message.includes("Daily application limit")) {
+        Alert.alert("Daily Limit Reached", error.message);
+      } else if (error.message.includes("already applied")) {
+        Alert.alert("Already Applied", error.message);
+      } else {
+        Alert.alert("Error", "Failed to submit application. Please try again.");
+      }
+    } finally {
+      setSelectedOpportunity(null);
+    }
   };
 
   const resetOpportunities = () => {
@@ -1581,159 +1664,7 @@ export default function App() {
     setSwipedOpportunities([]);
   };
 
-  // Brief form handlers
-  const handleBriefSubmit = async (briefData) => {
-    setIsSubmittingBrief(true);
-
-    try {
-      // Ensure user is authenticated
-      const user = await ensureAuthenticated();
-
-      if (!user) {
-        Alert.alert(
-          "Authentication Required",
-          "Please log in to submit your application.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                AsyncStorage.removeItem("userToken");
-                setShowLogin(true);
-              },
-            },
-          ]
-        );
-        return;
-      }
-
-      // Validate opportunity ID is a proper UUID
-      const opportunityId = briefData.opportunityId;
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-      if (!uuidRegex.test(opportunityId)) {
-        throw new Error(`Invalid opportunity ID format: ${opportunityId}`);
-      }
-
-      // Check if user has already applied to this opportunity
-      const { data: existingApplication } = await supabase
-        .from("applications")
-        .select("id")
-        .eq("opportunity_id", opportunityId)
-        .eq("user_id", user.id)
-        .single();
-
-      if (existingApplication) {
-        showCustomModal({
-          type: "info",
-          title: "Already Applied",
-          message:
-            "You've already submitted an application for this opportunity.",
-          primaryButtonText: "OK",
-        });
-        setShowBriefForm(false);
-        setSelectedOpportunity(null);
-        setIsSubmittingBrief(false);
-        return;
-      }
-
-      // Submit application with brief data using structured fields
-      const { error } = await supabase.from("applications").insert({
-        opportunity_id: opportunityId,
-        user_id: user.id,
-        status: "pending",
-        message: briefData.briefData.message,
-        // Structured brief fields
-        brief_data: {
-          experience: briefData.briefData.experience,
-          availability: briefData.briefData.availability,
-          equipment: briefData.briefData.equipment,
-          rate: briefData.briefData.rate,
-          portfolio: briefData.briefData.portfolio,
-          message: briefData.briefData.message,
-        },
-        experience: briefData.briefData.experience,
-        availability: briefData.briefData.availability,
-        equipment: briefData.briefData.equipment,
-        rate: briefData.briefData.rate,
-        portfolio: briefData.briefData.portfolio,
-        brief_submitted_at: new Date().toISOString(),
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Store title before clearing
-      const opportunityTitle = selectedOpportunity.title;
-
-      // Close brief form first
-      setShowBriefForm(false);
-      setSelectedOpportunity(null);
-
-      // Add to swiped opportunities
-      setSwipedOpportunities([
-        ...swipedOpportunities,
-        { ...selectedOpportunity, action: "applied" },
-      ]);
-
-      // Move to next card immediately
-      setCurrentOpportunityIndex(currentOpportunityIndex + 1);
-
-      // Refresh daily stats after successful application
-      try {
-        const updatedStats = await db.getDailyApplicationStats(user.id);
-        setDailyApplicationStats(updatedStats);
-      } catch (statsError) {
-        console.error("Error refreshing daily stats:", statsError);
-      }
-
-      // Show success modal after card transition
-      setTimeout(() => {
-        showCustomModal({
-          type: "success",
-          title: "Application Sent!",
-          message: `Your application for ${opportunityTitle} has been sent successfully. You have ${
-            dailyApplicationStats.remaining - 1
-          } applications remaining today.`,
-          primaryButtonText: "OK",
-        });
-      }, 100);
-    } catch (error) {
-      console.error("Error submitting brief:", error);
-
-      // Handle specific error types
-      if (
-        error.message?.includes("Invalid Refresh Token") ||
-        error.message?.includes("Refresh Token Not Found")
-      ) {
-        Alert.alert(
-          "Session Expired",
-          "Your session has expired. Please log in again.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                AsyncStorage.removeItem("userToken");
-                setShowLogin(true);
-              },
-            },
-          ]
-        );
-      } else {
-        Alert.alert("Error", "Failed to submit application. Please try again.");
-      }
-    } finally {
-      setIsSubmittingBrief(false);
-    }
-  };
-
-  const handleBriefClose = () => {
-    setShowBriefForm(false);
-    setSelectedOpportunity(null);
-    // Move to next card when brief is closed without submitting
-    setCurrentOpportunityIndex(currentOpportunityIndex + 1);
-  };
+  // Brief form handlers - REMOVED (no longer needed for simplified swipe-to-apply)
 
   // Global authentication helper
   const ensureAuthenticated = async () => {
@@ -1802,9 +1733,16 @@ export default function App() {
           opp.created_at > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
             ? "new"
             : "hot", // New if created within last 7 days
+        // Use the actual image_url from database, fallback to a good default
         image:
           opp.image_url ||
-          "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+          (opp.genre === "Techno"
+            ? "https://images.unsplash.com/photo-1571266028243-e68f8570c0e8?w=400&h=400&fit=crop"
+            : opp.genre === "House"
+            ? "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop"
+            : opp.genre === "Electronic"
+            ? "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop"
+            : "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop"),
       }));
 
       setOpportunities(transformedOpportunities);
@@ -3223,22 +3161,7 @@ export default function App() {
           onSecondaryPress={modalConfig.onSecondaryPress}
         />
 
-        {/* Brief Form Modal */}
-        <Modal
-          visible={showBriefForm}
-          animationType="slide"
-          presentationStyle="fullScreen"
-          onRequestClose={handleBriefClose}
-        >
-          {selectedOpportunity && (
-            <BriefForm
-              opportunity={selectedOpportunity}
-              onClose={handleBriefClose}
-              onSubmit={handleBriefSubmit}
-              isLoading={isSubmittingBrief}
-            />
-          )}
-        </Modal>
+        {/* Brief Form Modal - REMOVED (simplified to swipe-to-apply) */}
       </SafeAreaView>
     </SafeAreaProvider>
   );

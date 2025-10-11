@@ -26,6 +26,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     first_name: "",
     last_name: "",
     username: "",
+    phone: "",
     instagram: "",
     soundcloud: "",
     city: "",
@@ -91,6 +92,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           first_name: userProfile.first_name || "",
           last_name: userProfile.last_name || "",
           username: userProfile.username || "",
+          phone: userProfile.phone || "",
           instagram: userProfile.instagram || "",
           soundcloud: userProfile.soundcloud || "",
           city: userProfile.city || "",
@@ -185,6 +187,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       if (profile.username && profile.username.trim()) {
         // Remove @ if user included it
         updatedProfile.username = profile.username.trim().replace(/^@/, "");
+      }
+
+      if (profile.phone && profile.phone.trim()) {
+        updatedProfile.phone = profile.phone.trim();
       }
 
       if (profile.instagram && profile.instagram.trim()) {
@@ -470,6 +476,24 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               />
               {errors.last_name && (
                 <Text style={styles.errorText}>{errors.last_name}</Text>
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={[styles.input, errors.phone && styles.inputError]}
+                value={profile.phone}
+                onChangeText={(text) =>
+                  setProfile((prev) => ({ ...prev, phone: text }))
+                }
+                placeholder="Enter your phone number"
+                placeholderTextColor="hsl(0, 0%, 50%)"
+                keyboardType="phone-pad"
+                maxLength={20}
+              />
+              {errors.phone && (
+                <Text style={styles.errorText}>{errors.phone}</Text>
               )}
             </View>
 

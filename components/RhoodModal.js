@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -53,7 +54,7 @@ const RhoodModal = ({
         };
       default:
         return {
-          icon: "information-circle",
+          icon: "rhood-logo", // Custom type for R/HOOD logo
           color: COLORS.primary, // R/HOOD lime green
           bgColor: "hsl(75, 100%, 60%, 0.15)",
         };
@@ -97,8 +98,24 @@ const RhoodModal = ({
           </View>
 
           {/* Icon */}
-          <View style={[styles.iconContainer, { backgroundColor: bgColor }]}>
-            <Ionicons name={icon} size={48} color={color} />
+          <View
+            style={[
+              styles.iconContainer,
+              {
+                backgroundColor:
+                  icon === "rhood-logo" ? "transparent" : bgColor,
+              },
+            ]}
+          >
+            {icon === "rhood-logo" ? (
+              <Image
+                source={require("../assets/rhood_logo.png")}
+                style={styles.rhoodLogo}
+                resizeMode="contain"
+              />
+            ) : (
+              <Ionicons name={icon} size={48} color={color} />
+            )}
           </View>
 
           {/* Content */}
@@ -173,6 +190,10 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     borderWidth: 2,
     borderColor: "hsl(75, 100%, 60%, 0.3)", // R/HOOD lime border
+  },
+  rhoodLogo: {
+    width: 72,
+    height: 72,
   },
   content: {
     alignItems: "center",
