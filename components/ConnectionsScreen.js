@@ -335,11 +335,11 @@ export default function ConnectionsScreen({ onNavigate }) {
               }}
             >
               <Ionicons
-                name="search"
+                name="compass"
                 size={16}
                 color={
                   activeTab === "discover"
-                    ? "hsl(75, 100%, 60%)"
+                    ? "hsl(0, 0%, 0%)"
                     : "hsl(0, 0%, 70%)"
                 }
               />

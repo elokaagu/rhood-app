@@ -153,7 +153,7 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
               onPress={() => setActiveTab("discover")}
             >
               <Ionicons
-                name="people-outline"
+                name="compass"
                 size={16}
                 color={
                   activeTab === "discover"
