@@ -1050,6 +1050,7 @@ const styles = StyleSheet.create({
   // Discover Tab Styles
   discoverList: {
     paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 20,
   },
   discoverCard: {
