@@ -893,6 +893,7 @@ const styles = StyleSheet.create({
   },
   connectionsList: {
     backgroundColor: "hsl(0, 0%, 0%)",
+    paddingTop: 20,
   },
   connectionItem: {
     padding: 16,
@@ -1018,7 +1019,7 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 12,
     padding: 4,
-    marginBottom: 16,
+    marginBottom: 36,
   },
   tabButton: {
     flex: 1,
