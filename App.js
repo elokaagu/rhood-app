@@ -1449,11 +1449,26 @@ export default function App() {
 
       // Check if it's a daily limit error
       if (error.message.includes("Daily application limit")) {
-        Alert.alert("Daily Limit Reached", error.message);
+        showCustomModal({
+          type: "warning",
+          title: "Daily Limit Reached",
+          message: error.message,
+          primaryButtonText: "OK",
+        });
       } else if (error.message.includes("already applied")) {
-        Alert.alert("Already Applied", error.message);
+        showCustomModal({
+          type: "info",
+          title: "Already Applied",
+          message: "You have already applied to this opportunity. Check your applications in the Connections section.",
+          primaryButtonText: "OK",
+        });
       } else {
-        Alert.alert("Error", "Failed to submit application. Please try again.");
+        showCustomModal({
+          type: "error",
+          title: "Application Failed",
+          message: "There was an error submitting your application. Please try again.",
+          primaryButtonText: "OK",
+        });
       }
     }
   };
@@ -1651,11 +1666,26 @@ export default function App() {
 
       // Check if it's a daily limit error
       if (error.message.includes("Daily application limit")) {
-        Alert.alert("Daily Limit Reached", error.message);
+        showCustomModal({
+          type: "warning",
+          title: "Daily Limit Reached",
+          message: error.message,
+          primaryButtonText: "OK",
+        });
       } else if (error.message.includes("already applied")) {
-        Alert.alert("Already Applied", error.message);
+        showCustomModal({
+          type: "info",
+          title: "Already Applied",
+          message: "You have already applied to this opportunity. Check your applications in the Connections section.",
+          primaryButtonText: "OK",
+        });
       } else {
-        Alert.alert("Error", "Failed to submit application. Please try again.");
+        showCustomModal({
+          type: "error",
+          title: "Application Failed",
+          message: "There was an error submitting your application. Please try again.",
+          primaryButtonText: "OK",
+        });
       }
     } finally {
       setSelectedOpportunity(null);
@@ -2085,21 +2115,24 @@ export default function App() {
                   </View>
                 ) : currentOpportunityIndex < opportunities.length ? (
                   (() => {
-                    console.log('🎯 App.js - Rendering SwipeableOpportunityCard with dailyApplicationStats:', dailyApplicationStats);
+                    console.log(
+                      "🎯 App.js - Rendering SwipeableOpportunityCard with dailyApplicationStats:",
+                      dailyApplicationStats
+                    );
                     return (
                       <SwipeableOpportunityCard
-                    key={currentOpportunityIndex}
-                    opportunity={opportunities[currentOpportunityIndex]}
-                    onPress={() =>
-                      handleOpportunityPress(
-                        opportunities[currentOpportunityIndex]
-                      )
-                    }
-                    onSwipeLeft={handleSwipeLeft}
-                    onSwipeRight={handleSwipeRight}
-                    isTopCard={true}
-                    dailyApplicationStats={dailyApplicationStats}
-                  />
+                        key={currentOpportunityIndex}
+                        opportunity={opportunities[currentOpportunityIndex]}
+                        onPress={() =>
+                          handleOpportunityPress(
+                            opportunities[currentOpportunityIndex]
+                          )
+                        }
+                        onSwipeLeft={handleSwipeLeft}
+                        onSwipeRight={handleSwipeRight}
+                        isTopCard={true}
+                        dailyApplicationStats={dailyApplicationStats}
+                      />
                     );
                   })()
                 ) : (
