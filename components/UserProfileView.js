@@ -245,6 +245,62 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
             </View>
           )}
 
+          {/* Audio ID Card */}
+          <View style={styles.audioIdCard}>
+            <Text style={styles.cardTitle}>Audio ID</Text>
+            <View style={styles.audioPlayer}>
+              <View style={styles.audioInfo}>
+                <Text style={styles.trackTitle}>Dark Industrial Mix #1</Text>
+                <Text style={styles.trackDetails}>5:23 • Deep Techno</Text>
+              </View>
+              <TouchableOpacity style={styles.playButton}>
+                <Ionicons name="play" size={20} color="hsl(0, 0%, 0%)" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.waveformContainer}>
+              {[3, 5, 2, 7, 4, 6, 3, 8, 5, 4, 6, 3, 5, 7, 4, 2].map(
+                (height, index) => (
+                  <View
+                    key={index}
+                    style={[styles.waveformBar, { height: height * 2 }]}
+                  />
+                )
+              )}
+            </View>
+            <View style={styles.progressContainer}>
+              <Text style={styles.timeText}>1:23</Text>
+              <View style={styles.progressBar}>
+                <View style={styles.progressFill} />
+              </View>
+              <Text style={styles.timeText}>5:23</Text>
+            </View>
+          </View>
+
+          {/* Social Links Card */}
+          <View style={styles.socialLinksCard}>
+            <Text style={styles.cardTitle}>Social Links</Text>
+            <TouchableOpacity style={styles.socialLink}>
+              <View style={styles.instagramIcon}>
+                <Ionicons
+                  name="logo-instagram"
+                  size={20}
+                  color="hsl(0, 0%, 100%)"
+                />
+              </View>
+              <Text style={styles.socialLinkText}>@elokaagu</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.socialLink}>
+              <View style={styles.soundcloudIcon}>
+                <Ionicons
+                  name="logo-soundcloud"
+                  size={20}
+                  color="hsl(0, 0%, 100%)"
+                />
+              </View>
+              <Text style={styles.socialLinkText}>@elokaagu</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Genre Tags */}
           {profile.genres && profile.genres.length > 0 && (
             <View style={styles.genresSection}>
@@ -647,5 +703,125 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
+  },
+  // Audio ID Card Styles
+  audioIdCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 16,
+  },
+  audioPlayer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  audioInfo: {
+    flex: 1,
+  },
+  trackTitle: {
+    fontSize: 16,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  trackDetails: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+  },
+  playButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  waveformContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 40,
+    marginBottom: 12,
+    gap: 2,
+  },
+  waveformBar: {
+    width: 3,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 1.5,
+  },
+  progressContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  progressBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: "hsl(0, 0%, 20%)",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    width: "25%",
+    backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  timeText: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Arial",
+  },
+  // Social Links Card Styles
+  socialLinksCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  socialLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  instagramIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "hsl(322, 100%, 50%)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  soundcloudIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "hsl(30, 100%, 50%)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  socialLinkText: {
+    fontSize: 16,
+    color: "hsl(0, 0%, 100%)",
+    fontFamily: "Arial",
+    fontWeight: "500",
   },
 });
