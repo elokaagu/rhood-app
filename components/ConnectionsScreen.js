@@ -621,8 +621,8 @@ export default function ConnectionsScreen({ onNavigate }) {
                         </View>
                       </View>
 
-                      {/* Description - Full Width */}
-                      <Text style={styles.discoverBio}>{user.bio}</Text>
+                      {/* Description - Full Width - Hidden for now */}
+                      {/* <Text style={styles.discoverBio}>{user.bio}</Text> */}
 
                       {/* Genre Tags */}
                       <View style={styles.discoverGenres}>
@@ -934,7 +934,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   connectionName: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "TS-Block-Bold",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
@@ -1220,7 +1220,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   discoverName: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: "TS-Block-Bold",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
