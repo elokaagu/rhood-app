@@ -57,6 +57,11 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+      // Debug: Log profile data
+      console.log("🔍 Profile data:", profile);
+      console.log("🔍 Profile dj_name:", profile?.dj_name);
+      console.log("🔍 Profile full_name:", profile?.full_name);
+
       // Get current user
       const { supabase } = await import("../lib/supabase");
       const {
@@ -71,9 +76,15 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       // Create connection request
       await db.createConnection(currentUser.id, userId);
 
+      // Get the display name with better fallbacks
+      const displayName = profile?.dj_name || 
+                         profile?.full_name || 
+                         `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() ||
+                         "this user";
+
       Alert.alert(
         "Connection Sent!",
-        `Connection request sent to ${profile.dj_name || profile.full_name}`,
+        `Connection request sent to ${displayName}`,
         [{ text: "OK" }]
       );
     } catch (error) {

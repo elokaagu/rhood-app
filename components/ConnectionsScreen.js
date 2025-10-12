@@ -158,14 +158,23 @@ export default function ConnectionsScreen({ onNavigate }) {
       setDiscoverLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+      // Debug: Log connection data
+      console.log("🔍 Connection data:", connection);
+      console.log("🔍 Connection dj_name:", connection?.dj_name);
+      console.log("🔍 Connection full_name:", connection?.full_name);
+
       // Simulate connection request
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
+      // Get the display name with better fallbacks
+      const displayName = connection?.dj_name || 
+                         connection?.full_name || 
+                         `${connection?.first_name || ''} ${connection?.last_name || ''}`.trim() ||
+                         "this user";
+
       Alert.alert(
         "Connection Sent!",
-        `Connection request sent to ${
-          connection.dj_name || connection.full_name
-        }`,
+        `Connection request sent to ${displayName}`,
         [{ text: "OK" }]
       );
     } catch (error) {
