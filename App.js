@@ -583,6 +583,7 @@ export default function App() {
     console.log("🔐 handleLoginSuccess called for user:", user.id);
     setUser(user);
     setShowAuth(false);
+    setAuthLoading(true); // Keep loading state while checking profile
 
     // Add a small delay to ensure OAuth profile creation is complete
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -620,6 +621,8 @@ export default function App() {
       });
       console.log("⚠️ Setting isFirstTime=true due to error");
       setIsFirstTime(true);
+    } finally {
+      setAuthLoading(false); // Always stop loading when done
     }
   };
 
@@ -2070,8 +2073,9 @@ export default function App() {
     );
   }
 
-  // Show onboarding if first time user
-  if (isFirstTime) {
+  // Show onboarding if first time user (only after auth is complete)
+  if (isFirstTime && !authLoading && user) {
+    console.log("📱 Showing onboarding for authenticated first-time user");
     return (
       <SafeAreaProvider>
         <SafeAreaView style={styles.container}>
@@ -2080,6 +2084,32 @@ export default function App() {
             djProfile={djProfile}
             setDjProfile={setDjProfile}
           />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
+  // Show loading screen while determining auth state
+  if (authLoading || (user && !djProfile)) {
+    console.log(
+      "📱 Showing loading screen - authLoading:",
+      authLoading,
+      "user:",
+      !!user,
+      "djProfile:",
+      !!djProfile
+    );
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <View
+            style={[
+              styles.container,
+              { justifyContent: "center", alignItems: "center" },
+            ]}
+          >
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
         </SafeAreaView>
       </SafeAreaProvider>
     );
@@ -3283,6 +3313,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
+  },
+  loadingText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "600",
   },
   header: {
     backgroundColor: "#000000", // Pure black background
