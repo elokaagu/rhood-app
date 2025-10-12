@@ -190,24 +190,41 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               {profile.dj_name || profile.full_name}
             </Text>
             <Text style={styles.profileUsername}>
-              @{profile.username || profile.dj_name?.toLowerCase().replace(/\s+/g, "") || "user"}
+              @
+              {profile.username ||
+                profile.dj_name?.toLowerCase().replace(/\s+/g, "") ||
+                "user"}
             </Text>
 
             <View style={styles.profileLocation}>
-              <Ionicons name="location-outline" size={16} color="hsl(0, 0%, 70%)" />
-              <Text style={styles.locationText}>{profile.city || "Location not set"}</Text>
+              <Ionicons
+                name="location-outline"
+                size={16}
+                color="hsl(0, 0%, 70%)"
+              />
+              <Text style={styles.locationText}>
+                {profile.city || "Location not set"}
+              </Text>
             </View>
 
             {/* Contact Information */}
             {profile.show_email && profile.email && (
               <View style={styles.contactInfoContainer}>
-                <Ionicons name="mail-outline" size={16} color="hsl(0, 0%, 70%)" />
+                <Ionicons
+                  name="mail-outline"
+                  size={16}
+                  color="hsl(0, 0%, 70%)"
+                />
                 <Text style={styles.contactText}>{profile.email}</Text>
               </View>
             )}
             {profile.show_phone && profile.phone && (
               <View style={styles.contactInfoContainer}>
-                <Ionicons name="call-outline" size={16} color="hsl(0, 0%, 70%)" />
+                <Ionicons
+                  name="call-outline"
+                  size={16}
+                  color="hsl(0, 0%, 70%)"
+                />
                 <Text style={styles.contactText}>{profile.phone}</Text>
               </View>
             )}
@@ -215,11 +232,21 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
             {/* Stats */}
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Ionicons name="briefcase-outline" size={16} color="hsl(0, 0%, 70%)" />
-                <Text style={styles.statValue}>{profile.gigs_completed || 0}</Text>
+                <Ionicons
+                  name="briefcase-outline"
+                  size={16}
+                  color="hsl(0, 0%, 70%)"
+                />
+                <Text style={styles.statValue}>
+                  {profile.gigs_completed || 0}
+                </Text>
               </View>
               <View style={styles.statItem}>
-                <Ionicons name="diamond-outline" size={16} color="hsl(75, 100%, 60%)" />
+                <Ionicons
+                  name="diamond-outline"
+                  size={16}
+                  color="hsl(75, 100%, 60%)"
+                />
                 <Text style={styles.statValue}>{profile.credits || 0}</Text>
               </View>
             </View>
@@ -252,13 +279,13 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
 
           {/* Audio ID Card */}
           <View style={styles.audioIdCard}>
-            <Text style={styles.cardTitle}>Audio ID</Text>
+            <Text style={styles.audioIdTitle}>AUDIO ID</Text>
             <View style={styles.audioPlayer}>
               <View style={styles.audioInfo}>
                 <Text style={styles.trackTitle}>Dark Industrial Mix #1</Text>
                 <Text style={styles.trackDetails}>5:23 • Deep Techno</Text>
               </View>
-              <TouchableOpacity style={styles.playButton}>
+              <TouchableOpacity style={styles.audioPlayButton}>
                 <Ionicons name="play" size={20} color="hsl(0, 0%, 0%)" />
               </TouchableOpacity>
             </View>
@@ -317,14 +344,13 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
             </View>
           )}
 
-
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={styles.messageButton}
               onPress={handleMessage}
             >
-              <Ionicons name="chatbubble" size={20} color="hsl(0, 0%, 100%)" />
+              <Ionicons name="chatbubble-outline" size={20} color="hsl(0, 0%, 100%)" />
               <Text style={styles.messageButtonText}>Message</Text>
             </TouchableOpacity>
 
@@ -332,7 +358,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               style={styles.connectButton}
               onPress={handleConnect}
             >
-              <Ionicons name="person-add" size={20} color="hsl(0, 0%, 0%)" />
+              <Ionicons name="person-add-outline" size={20} color="hsl(0, 0%, 0%)" />
               <Text style={styles.connectButtonText}>Connect</Text>
             </TouchableOpacity>
           </View>
@@ -646,11 +672,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
   },
-  cardTitle: {
+  audioIdTitle: {
     fontSize: 18,
     fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 16,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   audioPlayer: {
     flexDirection: "row",
@@ -672,7 +700,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
   },
-  playButton: {
+  audioPlayButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
