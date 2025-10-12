@@ -109,7 +109,7 @@ const RhoodModal = ({
           >
             {icon === "rhood-logo" ? (
               <Image
-                source={require("../assets/rhood_logo.png")}
+                source={require("../assets/rhood_logo.webp")}
                 style={styles.rhoodLogo}
                 resizeMode="contain"
               />
@@ -198,10 +198,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "center",
     marginBottom: SPACING.lg,
+    backgroundColor: "transparent",
+    borderWidth: 0,
   },
   rhoodLogo: {
     width: 72,
     height: 72,
+    backgroundColor: "transparent",
   },
   content: {
     alignItems: "center",
