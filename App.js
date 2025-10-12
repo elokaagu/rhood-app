@@ -1445,7 +1445,6 @@ export default function App() {
         [{ text: "OK" }]
       );
     } catch (error) {
-
       // Check if it's a daily limit error
       if (error.message.includes("Daily application limit")) {
         showCustomModal({
@@ -1665,7 +1664,6 @@ export default function App() {
         });
       }, 300);
     } catch (error) {
-
       // Check if it's a daily limit error
       if (error.message.includes("Daily application limit")) {
         showCustomModal({
@@ -1675,12 +1673,19 @@ export default function App() {
           primaryButtonText: "OK",
         });
       } else if (error.message.includes("already applied")) {
+        // Show modal and automatically move to next opportunity
         showCustomModal({
           type: "info",
           title: "Already Applied",
           message:
             "You've already applied for this opportunity. We'll notify you on the outcome soon.",
           primaryButtonText: "OK",
+          onPrimaryPress: () => {
+            // Automatically move to next opportunity
+            setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+            setShowModal(false);
+            setSelectedOpportunity(null);
+          },
         });
       } else {
         // Only log unexpected errors to console
