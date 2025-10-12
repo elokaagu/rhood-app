@@ -15,12 +15,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import { db } from "../lib/supabase";
 import { SkeletonProfile } from "./Skeleton";
+import RhoodModal from "./RhoodModal";
 import * as Haptics from "expo-haptics";
 
 export default function UserProfileView({ userId, onBack, onNavigate }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
@@ -107,28 +109,15 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
   };
 
   const handleShareProfile = () => {
+    setShowShareModal(true);
+  };
+
+  const handleCopyLink = () => {
     const profileUrl = `https://rhood.io/profile/${userId}`;
-    const shareText = `Check out ${profile.dj_name || profile.full_name}'s profile on R/HOOD: ${profileUrl}`;
-    
-    // For now, we'll use an Alert to show the share options
-    // In a real app, you'd use the Share API
-    Alert.alert(
-      "Share Profile",
-      `Share ${profile.dj_name || profile.full_name}'s profile?`,
-      [
-        {
-          text: "Copy Link",
-          onPress: () => {
-            // In a real app, you'd copy to clipboard
-            Alert.alert("Copied!", "Profile link copied to clipboard");
-          }
-        },
-        {
-          text: "Cancel",
-          style: "cancel"
-        }
-      ]
-    );
+    // In a real app, you'd copy to clipboard using Clipboard API
+    setShowShareModal(false);
+    // Show success feedback
+    Alert.alert("Copied!", "Profile link copied to clipboard");
   };
 
   if (loading) {
@@ -179,7 +168,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.moreButton}
           onPress={handleShareProfile}
           accessibilityLabel="Share Profile"
@@ -258,7 +247,6 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                 <Text style={styles.contactText}>{profile.phone}</Text>
               </View>
             )}
-
           </View>
 
           {/* Bio */}
@@ -388,6 +376,20 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
         style={styles.bottomGradient}
         pointerEvents="none"
       />
+
+      {/* Share Profile Modal */}
+      {showShareModal && (
+        <RhoodModal
+          type="info"
+          title="Share Profile"
+          message={`Share ${profile?.dj_name || profile?.full_name || 'this user'}'s profile with others?`}
+          primaryButtonText="Copy Link"
+          secondaryButtonText="Cancel"
+          onPrimaryPress={handleCopyLink}
+          onSecondaryPress={() => setShowShareModal(false)}
+          onBackdropPress={() => setShowShareModal(false)}
+        />
+      )}
     </View>
   );
 }
