@@ -624,6 +624,66 @@ export default function ConnectionsScreen({ onNavigate }) {
                       {/* Description - Full Width - Hidden for now */}
                       {/* <Text style={styles.discoverBio}>{user.bio}</Text> */}
 
+                      {/* Audio ID Section */}
+                      <View style={styles.discoverAudioSection}>
+                        <View style={styles.discoverAudioHeader}>
+                          <Ionicons
+                            name="musical-notes"
+                            size={16}
+                            color="hsl(75, 100%, 60%)"
+                          />
+                          <Text style={styles.discoverAudioTitle}>Audio ID</Text>
+                        </View>
+                        <View style={styles.discoverAudioPlayer}>
+                          <View style={styles.discoverAudioInfo}>
+                            <Text style={styles.discoverTrackTitle}>Dark Industrial Mix #1</Text>
+                            <Text style={styles.discoverTrackDetails}>5:23 • Deep Techno</Text>
+                          </View>
+                          <TouchableOpacity style={styles.discoverPlayButton}>
+                            <Ionicons name="play" size={16} color="hsl(0, 0%, 0%)" />
+                          </TouchableOpacity>
+                        </View>
+                        <View style={styles.discoverWaveform}>
+                          {[2, 4, 1, 5, 3, 4, 2, 6, 4, 3, 4, 2, 3, 5, 3, 1].map(
+                            (height, index) => (
+                              <View
+                                key={index}
+                                style={[
+                                  styles.discoverWaveformBar,
+                                  { height: height * 2 },
+                                ]}
+                              />
+                            )
+                          )}
+                        </View>
+                      </View>
+
+                      {/* Social Links */}
+                      <View style={styles.discoverSocialSection}>
+                        <View style={styles.discoverSocialLinks}>
+                          <TouchableOpacity style={styles.discoverSocialLink}>
+                            <View style={styles.discoverInstagramIcon}>
+                              <Ionicons
+                                name="logo-instagram"
+                                size={14}
+                                color="hsl(0, 0%, 100%)"
+                              />
+                            </View>
+                            <Text style={styles.discoverSocialText}>@elokaagu</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.discoverSocialLink}>
+                            <View style={styles.discoverSoundcloudIcon}>
+                              <Ionicons
+                                name="logo-soundcloud"
+                                size={14}
+                                color="hsl(0, 0%, 100%)"
+                              />
+                            </View>
+                            <Text style={styles.discoverSocialText}>@elokaagu</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
                       {/* Genre Tags */}
                       <View style={styles.discoverGenres}>
                         {user.genres.slice(0, 3).map((genre, index) => (
@@ -1338,5 +1398,107 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
+  },
+  // Audio ID Section Styles
+  discoverAudioSection: {
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+  },
+  discoverAudioHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  discoverAudioTitle: {
+    fontSize: 14,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginLeft: 6,
+  },
+  discoverAudioPlayer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  discoverAudioInfo: {
+    flex: 1,
+  },
+  discoverTrackTitle: {
+    fontSize: 13,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 2,
+  },
+  discoverTrackDetails: {
+    fontSize: 11,
+    color: "hsl(0, 0%, 70%)",
+  },
+  discoverPlayButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  discoverWaveform: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 24,
+    gap: 1,
+  },
+  discoverWaveformBar: {
+    width: 2,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 1,
+  },
+  // Social Links Section Styles
+  discoverSocialSection: {
+    marginBottom: 12,
+  },
+  discoverSocialLinks: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  discoverSocialLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+  },
+  discoverInstagramIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "hsl(322, 100%, 50%)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 6,
+  },
+  discoverSoundcloudIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "hsl(30, 100%, 50%)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 6,
+  },
+  discoverSocialText: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 100%)",
+    fontFamily: "Arial",
+    fontWeight: "500",
   },
 });
