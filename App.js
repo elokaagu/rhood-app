@@ -1698,52 +1698,80 @@ export default function App() {
     try {
       setIsLoadingOpportunities(true);
 
-      const { data, error } = await supabase
-        .from("opportunities")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
+      // Fetch opportunities and application counts in parallel
+      const [opportunitiesResult, applicationCountsResult] = await Promise.all([
+        supabase
+          .from("opportunities")
+          .select("*")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false }),
+        db.getOpportunityApplicationCounts()
+      ]);
 
-      if (error) {
-        console.error("❌ Error fetching opportunities from database:", error);
+      const { data: opportunitiesData, error: opportunitiesError } = opportunitiesResult;
+      const { data: applicationCounts, error: applicationCountsError } = applicationCountsResult;
+
+      if (opportunitiesError) {
+        console.error("❌ Error fetching opportunities from database:", opportunitiesError);
         console.log("⚠️ No opportunities available");
         // No fallback to mock data - show empty state
         setOpportunities([]);
         return;
       }
 
-      console.log(`✅ Fetched ${data.length} opportunities from database`);
+      if (applicationCountsError) {
+        console.error("❌ Error fetching application counts:", applicationCountsError);
+        console.log("⚠️ Using fallback application counts");
+      }
+
+      console.log(`✅ Fetched ${opportunitiesData.length} opportunities from database`);
+      console.log(`✅ Fetched ${applicationCounts?.length || 0} application counts`);
+
+      // Create a map of opportunity_id to application_count for quick lookup
+      const applicationCountMap = {};
+      if (applicationCounts) {
+        applicationCounts.forEach(item => {
+          applicationCountMap[item.opportunity_id] = item.application_count;
+        });
+      }
 
       // Transform database data to match our component expectations
-      const transformedOpportunities = data.map((opp) => ({
-        id: opp.id,
-        venue: opp.organizer_name,
-        title: opp.title,
-        location: opp.location,
-        date: opp.event_date
-          ? new Date(opp.event_date).toLocaleDateString()
-          : "TBD",
-        time: "TBD", // We don't have time in the database schema
-        audienceSize: "TBD", // We don't have audience size in the database schema
-        description: opp.description,
-        genres: opp.genre ? [opp.genre] : ["Electronic"],
-        compensation: opp.payment ? `$${opp.payment}` : "TBD",
-        applicationsLeft: Math.floor(Math.random() * 10) + 1, // Random for now
-        status:
-          opp.created_at > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-            ? "new"
-            : "hot", // New if created within last 7 days
-        // Use the actual image_url from database, fallback to a good default
-        image:
-          opp.image_url ||
-          (opp.genre === "Techno"
-            ? "https://images.unsplash.com/photo-1571266028243-e68f8570c0e8?w=400&h=400&fit=crop"
-            : opp.genre === "House"
-            ? "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop"
-            : opp.genre === "Electronic"
-            ? "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop"
-            : "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop"),
-      }));
+      const transformedOpportunities = opportunitiesData.map((opp) => {
+        const currentApplications = applicationCountMap[opp.id] || 0;
+        // Calculate applications left (assuming max 50 applications per opportunity)
+        const maxApplications = 50;
+        const applicationsLeft = Math.max(0, maxApplications - currentApplications);
+        
+        return {
+          id: opp.id,
+          venue: opp.organizer_name,
+          title: opp.title,
+          location: opp.location,
+          date: opp.event_date
+            ? new Date(opp.event_date).toLocaleDateString()
+            : "TBD",
+          time: "TBD", // We don't have time in the database schema
+          audienceSize: "TBD", // We don't have audience size in the database schema
+          description: opp.description,
+          genres: opp.genre ? [opp.genre] : ["Electronic"],
+          compensation: opp.payment ? `$${opp.payment}` : "TBD",
+          applicationsLeft: applicationsLeft,
+          status:
+            opp.created_at > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+              ? "new"
+              : "hot", // New if created within last 7 days
+          // Use the actual image_url from database, fallback to a good default
+          image:
+            opp.image_url ||
+            (opp.genre === "Techno"
+              ? "https://images.unsplash.com/photo-1571266028243-e68f8570c0e8?w=400&h=400&fit=crop"
+              : opp.genre === "House"
+              ? "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop"
+              : opp.genre === "Electronic"
+              ? "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop"
+              : "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop"),
+        };
+      });
 
       setOpportunities(transformedOpportunities);
 
