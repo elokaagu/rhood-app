@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,122 +6,180 @@ import {
   ScrollView,
   StyleSheet,
   RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
+import { supabase } from "../lib/supabase";
 
-// Mock notifications data
-const mockNotifications = [
-  {
-    id: 1,
-    type: "opportunity",
-    title: "New Opportunity",
-    description: "Underground Warehouse Rave is looking for DJs",
-    timestamp: "2 hours ago",
-    isRead: false,
-    priority: "high",
-    actionRequired: true,
-    opportunityId: 123,
-    venue: "Warehouse District",
-    date: "Dec 15, 2024",
-  },
-  {
-    id: 2,
-    type: "application",
-    title: "Application Accepted",
-    description: "Your application for Club Neon has been accepted",
-    timestamp: "1 day ago",
-    isRead: true,
-    priority: "medium",
-    actionRequired: false,
-    applicationId: 456,
-    venue: "Club Neon",
-    date: "Dec 14, 2024",
-  },
-  {
-    id: 3,
-    type: "message",
-    title: "New Message",
-    description: "You have a new message from Darkside Collective",
-    timestamp: "3 days ago",
-    isRead: false,
-    priority: "low",
-    actionRequired: true,
-    messageId: 789,
-    sender: "Darkside Collective",
-    senderImage:
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face",
-  },
-  {
-    id: 4,
-    type: "system",
-    title: "Profile Update",
-    description: "Your profile has been updated successfully",
-    timestamp: "1 week ago",
-    isRead: true,
-    priority: "low",
-    actionRequired: false,
-  },
-  {
-    id: 5,
-    type: "opportunity",
-    title: "Reminder: Gig Tonight",
-    description: "Your set at Electric Lounge starts in 2 hours",
-    timestamp: "4 hours ago",
-    isRead: false,
-    priority: "high",
-    actionRequired: true,
-    venue: "Electric Lounge",
-    date: "Tonight",
-  },
-  {
-    id: 6,
-    type: "connection",
-    title: "New Connection",
-    description: "Marcus Chen wants to connect with you",
-    timestamp: "2 days ago",
-    isRead: false,
-    priority: "medium",
-    actionRequired: true,
-    connectionId: 101,
-    sender: "Marcus Chen",
-    senderImage:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-  },
-];
+// Helper function to format relative time
+const formatRelativeTime = (timestamp) => {
+  const now = new Date();
+  const notificationTime = new Date(timestamp);
+  const diffInMinutes = Math.floor((now - notificationTime) / (1000 * 60));
+
+  if (diffInMinutes < 1) return "Just now";
+  if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes === 1 ? "" : "s"} ago`;
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours} hour${diffInHours === 1 ? "" : "s"} ago`;
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) return `${diffInDays} day${diffInDays === 1 ? "" : "s"} ago`;
+  
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  return `${diffInWeeks} week${diffInWeeks === 1 ? "" : "s"} ago`;
+};
 
 export default function NotificationsScreen({ onNavigate }) {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const handleNotificationPress = (notification) => {
-    // Mark as read (remove green border)
-    if (!notification.isRead) {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
-      );
+  // Load current user and notifications on component mount
+  useEffect(() => {
+    loadUserAndNotifications();
+  }, []);
+
+  const loadUserAndNotifications = async () => {
+    try {
+      setLoading(true);
+      
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      
+      if (!user) {
+        console.log("No authenticated user found");
+        setNotifications([]);
+        setLoading(false);
+        return;
+      }
+      
+      setCurrentUser(user);
+      
+      // Load notifications from database
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      
+      // Transform database notifications to match UI format
+      const transformedNotifications = data.map(notification => ({
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        description: notification.message,
+        timestamp: formatRelativeTime(notification.created_at),
+        isRead: notification.is_read,
+        priority: getPriorityFromType(notification.type),
+        actionRequired: !notification.is_read && shouldRequireAction(notification.type),
+        relatedId: notification.related_id,
+      }));
+      
+      setNotifications(transformedNotifications);
+    } catch (error) {
+      console.error("Error loading notifications:", error);
+      Alert.alert("Error", "Failed to load notifications");
+      setNotifications([]);
+    } finally {
+      setLoading(false);
     }
-    // No navigation - notifications are just for reading
   };
 
-  const handleMarkAsRead = (notificationId) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
-    );
+  const getPriorityFromType = (type) => {
+    switch (type) {
+      case "opportunity":
+      case "application":
+        return "high";
+      case "message":
+        return "medium";
+      case "system":
+      default:
+        return "low";
+    }
   };
 
-  const handleDismiss = (notificationId) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+  const shouldRequireAction = (type) => {
+    return ["opportunity", "application", "message"].includes(type);
   };
 
-  const handleRefresh = () => {
+  const handleNotificationPress = async (notification) => {
+    // Mark as read in database if not already read
+    if (!notification.isRead) {
+      await markNotificationAsRead(notification.id);
+    }
+
+    // Handle navigation based on notification type
+    switch (notification.type) {
+      case "opportunity":
+        onNavigate("opportunities");
+        break;
+      case "application":
+        onNavigate("opportunities");
+        break;
+      case "message":
+        onNavigate("messages");
+        break;
+      case "connection":
+        onNavigate("connections");
+        break;
+      default:
+        break;
+    }
+  };
+
+  const markNotificationAsRead = async (notificationId) => {
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("id", notificationId);
+
+      if (error) throw error;
+
+      // Update local state
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
+      );
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      Alert.alert("Error", "Failed to mark notification as read");
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId) => {
+    await markNotificationAsRead(notificationId);
+  };
+
+  const handleDismiss = async (notificationId) => {
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", notificationId);
+
+      if (error) throw error;
+
+      // Update local state
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    } catch (error) {
+      console.error("Error dismissing notification:", error);
+      Alert.alert("Error", "Failed to dismiss notification");
+    }
+  };
+
+  const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    await loadUserAndNotifications();
+    setRefreshing(false);
   };
 
   // Sort notifications by priority and timestamp
@@ -193,7 +251,12 @@ export default function NotificationsScreen({ onNavigate }) {
 
         {/* Notifications List */}
         <View style={styles.notificationsList}>
-          {sortedNotifications.length === 0 ? (
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
+              <Text style={styles.loadingText}>Loading notifications...</Text>
+            </View>
+          ) : sortedNotifications.length === 0 ? (
             <View style={styles.noResultsContainer}>
               <Ionicons
                 name="notifications-off"
@@ -474,5 +537,16 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     marginLeft: 8,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Helvetica Neue",
+    marginTop: 16,
   },
 });
