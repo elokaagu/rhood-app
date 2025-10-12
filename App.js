@@ -308,9 +308,9 @@ export default function App() {
 
   // Daily application limit state
   const [dailyApplicationStats, setDailyApplicationStats] = useState({
-    dailyCount: 0,
-    remaining: 5,
-    canApply: true,
+    daily_count: 0,
+    remaining_applications: 5,
+    can_apply: true,
   });
 
   // Audio player animation values
@@ -1554,10 +1554,12 @@ export default function App() {
 
   const handleSwipeRight = async () => {
     // Check daily application limit before showing details
-    if (!dailyApplicationStats.canApply) {
+    if (!dailyApplicationStats.can_apply) {
       Alert.alert(
         "Daily Limit Reached",
-        `You have reached your daily limit of 5 applications. You have ${dailyApplicationStats?.remaining_applications || 0} applications remaining today. Please try again tomorrow.`,
+        `You have reached your daily limit of 5 applications. You have ${
+          dailyApplicationStats?.remaining_applications || 0
+        } applications remaining today. Please try again tomorrow.`,
         [{ text: "OK" }]
       );
       return;
@@ -2051,7 +2053,7 @@ export default function App() {
                     name="checkmark-circle-outline"
                     size={16}
                     color={
-                      dailyApplicationStats.canApply
+                      dailyApplicationStats.can_apply
                         ? "hsl(75, 100%, 60%)"
                         : "hsl(0, 100%, 60%)"
                     }
@@ -2060,14 +2062,14 @@ export default function App() {
                     style={[
                       styles.dailyApplicationText,
                       {
-                        color: dailyApplicationStats.canApply
+                        color: dailyApplicationStats.can_apply
                           ? "hsl(75, 100%, 60%)"
                           : "hsl(0, 100%, 60%)",
                       },
                     ]}
                   >
-                    {dailyApplicationStats?.remaining_applications || 0} applications remaining
-                    today
+                    {dailyApplicationStats?.remaining_applications || 0}{" "}
+                    applications remaining today
                   </Text>
                 </View>
               </View>
@@ -2082,7 +2084,10 @@ export default function App() {
                     </Text>
                   </View>
                 ) : currentOpportunityIndex < opportunities.length ? (
-                  <SwipeableOpportunityCard
+                  (() => {
+                    console.log('🎯 App.js - Rendering SwipeableOpportunityCard with dailyApplicationStats:', dailyApplicationStats);
+                    return (
+                      <SwipeableOpportunityCard
                     key={currentOpportunityIndex}
                     opportunity={opportunities[currentOpportunityIndex]}
                     onPress={() =>
@@ -2095,6 +2100,8 @@ export default function App() {
                     isTopCard={true}
                     dailyApplicationStats={dailyApplicationStats}
                   />
+                    );
+                  })()
                 ) : (
                   /* No more opportunities */
                   <View style={styles.noMoreOpportunities}>
