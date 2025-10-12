@@ -23,6 +23,8 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showConnectionModal, setShowConnectionModal] = useState(false);
+  const [connectionMessage, setConnectionMessage] = useState("");
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
@@ -71,7 +73,8 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       } = await supabase.auth.getUser();
 
       if (!currentUser) {
-        Alert.alert("Error", "Please log in to connect with users");
+        setConnectionMessage("Please log in to connect with users");
+        setShowConnectionModal(true);
         return;
       }
 
@@ -85,14 +88,12 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
         `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() ||
         "this user";
 
-      Alert.alert(
-        "Connection Sent!",
-        `Connection request sent to ${displayName}`,
-        [{ text: "OK" }]
-      );
+      setConnectionMessage(`Connection request sent to ${displayName}`);
+      setShowConnectionModal(true);
     } catch (error) {
       console.error("Error sending connection request:", error);
-      Alert.alert("Error", "Failed to send connection request");
+      setConnectionMessage("Failed to send connection request");
+      setShowConnectionModal(true);
     }
   };
 
@@ -382,12 +383,26 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
         <RhoodModal
           type="info"
           title="Share Profile"
-          message={`Share ${profile?.dj_name || profile?.full_name || 'this user'}'s profile with others?`}
+          message={`Share ${
+            profile?.dj_name || profile?.full_name || "this user"
+          }'s profile with others?`}
           primaryButtonText="Copy Link"
           secondaryButtonText="Cancel"
           onPrimaryPress={handleCopyLink}
           onSecondaryPress={() => setShowShareModal(false)}
           onBackdropPress={() => setShowShareModal(false)}
+        />
+      )}
+
+      {/* Connection Modal */}
+      {showConnectionModal && (
+        <RhoodModal
+          type="success"
+          title="Connection Sent!"
+          message={connectionMessage}
+          primaryButtonText="OK"
+          onPrimaryPress={() => setShowConnectionModal(false)}
+          onBackdropPress={() => setShowConnectionModal(false)}
         />
       )}
     </View>
