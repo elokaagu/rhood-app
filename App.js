@@ -1571,7 +1571,7 @@ export default function App() {
     showCustomModal({
       type: "info",
       title: currentOpportunity.title,
-      message: `Date: ${currentOpportunity.date}\nTime: ${currentOpportunity.time}\nCompensation: ${currentOpportunity.compensation}\nLocation: ${currentOpportunity.location}\n\n${currentOpportunity.description}\n\nYou have ${dailyApplicationStats.remaining} applications remaining today.`,
+      message: `Date: ${currentOpportunity.date}\nTime: ${currentOpportunity.time}\nCompensation: ${currentOpportunity.compensation}\nLocation: ${currentOpportunity.location}\n\n${currentOpportunity.description}\n\nYou have ${dailyApplicationStats?.remaining_applications || 0} applications remaining today.`,
       primaryButtonText: "Apply Now",
       secondaryButtonText: "Cancel",
       onPrimaryPress: () => handleConfirmApply(currentOpportunity),
@@ -1609,8 +1609,9 @@ export default function App() {
 
       // Refresh daily stats after successful application
       try {
-        const updatedStats = await db.getDailyApplicationStats(user.id);
+        const updatedStats = await db.getUserDailyApplicationStats(user.id);
         setDailyApplicationStats(updatedStats);
+        console.log(`✅ Updated daily application stats:`, updatedStats);
       } catch (statsError) {
         console.error("Error refreshing daily stats:", statsError);
       }
@@ -1632,7 +1633,7 @@ export default function App() {
           message: `Your application for ${
             opportunity.title
           } has been sent successfully. You have ${
-            dailyApplicationStats.remaining - 1
+            dailyApplicationStats?.remaining_applications || 0
           } applications remaining today.`,
           primaryButtonText: "OK",
         });
@@ -1698,18 +1699,12 @@ export default function App() {
     try {
       setIsLoadingOpportunities(true);
 
-      // Fetch opportunities and application counts in parallel
-      const [opportunitiesResult, applicationCountsResult] = await Promise.all([
-        supabase
-          .from("opportunities")
-          .select("*")
-          .eq("is_active", true)
-          .order("created_at", { ascending: false }),
-        db.getOpportunityApplicationCounts()
-      ]);
-
-      const { data: opportunitiesData, error: opportunitiesError } = opportunitiesResult;
-      const { data: applicationCounts, error: applicationCountsError } = applicationCountsResult;
+      // Fetch opportunities from database
+      const { data: opportunitiesData, error: opportunitiesError } = await supabase
+        .from("opportunities")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
       if (opportunitiesError) {
         console.error("❌ Error fetching opportunities from database:", opportunitiesError);
@@ -1719,29 +1714,10 @@ export default function App() {
         return;
       }
 
-      if (applicationCountsError) {
-        console.error("❌ Error fetching application counts:", applicationCountsError);
-        console.log("⚠️ Using fallback application counts");
-      }
-
       console.log(`✅ Fetched ${opportunitiesData.length} opportunities from database`);
-      console.log(`✅ Fetched ${applicationCounts?.length || 0} application counts`);
-
-      // Create a map of opportunity_id to application_count for quick lookup
-      const applicationCountMap = {};
-      if (applicationCounts) {
-        applicationCounts.forEach(item => {
-          applicationCountMap[item.opportunity_id] = item.application_count;
-        });
-      }
 
       // Transform database data to match our component expectations
       const transformedOpportunities = opportunitiesData.map((opp) => {
-        const currentApplications = applicationCountMap[opp.id] || 0;
-        // Calculate applications left (assuming max 50 applications per opportunity)
-        const maxApplications = 50;
-        const applicationsLeft = Math.max(0, maxApplications - currentApplications);
-        
         return {
           id: opp.id,
           venue: opp.organizer_name,
@@ -1755,7 +1731,8 @@ export default function App() {
           description: opp.description,
           genres: opp.genre ? [opp.genre] : ["Electronic"],
           compensation: opp.payment ? `$${opp.payment}` : "TBD",
-          applicationsLeft: applicationsLeft,
+          // applicationsLeft will be set based on user's daily application stats
+          applicationsLeft: 0, // Will be updated with user's daily stats
           status:
             opp.created_at > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
               ? "new"
@@ -1778,10 +1755,17 @@ export default function App() {
       // Load daily application stats for the current user
       if (user?.id) {
         try {
-          const stats = await db.getDailyApplicationStats(user.id);
+          const stats = await db.getUserDailyApplicationStats(user.id);
           setDailyApplicationStats(stats);
+          console.log(`✅ User daily application stats:`, stats);
         } catch (statsError) {
           console.error("Error loading daily stats:", statsError);
+          // Set default stats if there's an error
+          setDailyApplicationStats({
+            daily_count: 0,
+            remaining_applications: 5,
+            can_apply: true
+          });
         }
       }
     } catch (error) {
@@ -2097,6 +2081,7 @@ export default function App() {
                     onSwipeLeft={handleSwipeLeft}
                     onSwipeRight={handleSwipeRight}
                     isTopCard={true}
+                    dailyApplicationStats={dailyApplicationStats}
                   />
                 ) : (
                   /* No more opportunities */

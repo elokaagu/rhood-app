@@ -24,6 +24,7 @@ export default function SwipeableOpportunityCard({
   onPress,
   isTopCard = false,
   isNextCard = false,
+  dailyApplicationStats = null,
 }) {
   const position = useRef(new Animated.ValueXY()).current;
   const scale = useRef(new Animated.Value(isNextCard ? 0.95 : 1)).current;
@@ -280,7 +281,10 @@ export default function SwipeableOpportunityCard({
             </View>
             <Text style={styles.eventTitle}>{opportunity.title}</Text>
             <Text style={styles.applicationsLeft}>
-              {opportunity.applicationsLeft} applications left
+              {dailyApplicationStats ? 
+                `${dailyApplicationStats.remaining_applications} applications remaining today` :
+                'Loading...'
+              }
             </Text>
           </View>
         </LinearGradient>
