@@ -379,7 +379,7 @@ export default function ConnectionsScreen({ onNavigate }) {
                 size={16}
                 color={
                   activeTab === "connections"
-                    ? "hsl(75, 100%, 60%)"
+                    ? "hsl(0, 0%, 0%)"
                     : "hsl(0, 0%, 70%)"
                 }
               />
