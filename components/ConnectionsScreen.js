@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
   },
   connectionsList: {
     backgroundColor: "hsl(0, 0%, 0%)",
-    paddingTop: 20,
+    paddingTop: 32,
   },
   connectionItem: {
     padding: 16,
@@ -935,7 +935,7 @@ const styles = StyleSheet.create({
   },
   connectionName: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     flex: 1,
@@ -985,7 +985,7 @@ const styles = StyleSheet.create({
   },
   ctaTitle: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     marginTop: 8,
@@ -1088,7 +1088,7 @@ const styles = StyleSheet.create({
   },
   discoverName: {
     fontSize: 16,
-    fontFamily: "Arial",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     flex: 1,
@@ -1221,7 +1221,7 @@ const styles = StyleSheet.create({
   },
   discoverName: {
     fontSize: 18,
-    fontFamily: "Arial",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 2,
