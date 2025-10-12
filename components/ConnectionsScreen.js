@@ -447,7 +447,7 @@ export default function ConnectionsScreen({ onNavigate }) {
               {/* Group Chat Info */}
               <View style={styles.groupInfo}>
                 <View style={styles.groupHeader}>
-                  <Text style={styles.groupName}>RHOOD Group</Text>
+                  <Text style={styles.groupName}>R/HOOD Group</Text>
                   <Text style={styles.groupTime}>2m</Text>
                 </View>
                 <Text style={styles.groupMessage} numberOfLines={1}>
