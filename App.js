@@ -2218,7 +2218,7 @@ export default function App() {
         );
 
       case "about":
-        return <AboutScreen onBack={() => setCurrentScreen("settings")} />;
+        return <AboutScreen onBack={() => setCurrentScreen("opportunities")} />;
 
       case "terms":
         return (
