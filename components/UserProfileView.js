@@ -77,10 +77,11 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       await db.createConnection(currentUser.id, userId);
 
       // Get the display name with better fallbacks
-      const displayName = profile?.dj_name || 
-                         profile?.full_name || 
-                         `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() ||
-                         "this user";
+      const displayName =
+        profile?.dj_name ||
+        profile?.full_name ||
+        `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() ||
+        "this user";
 
       Alert.alert(
         "Connection Sent!",
@@ -276,49 +277,6 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
             </View>
           </View>
 
-          {/* Social Links Card */}
-          <View style={styles.socialLinksCard}>
-            <Text style={styles.cardTitle}>Social Links</Text>
-            <TouchableOpacity style={styles.socialLink}>
-              <View style={styles.instagramIcon}>
-                <Ionicons
-                  name="logo-instagram"
-                  size={20}
-                  color="hsl(0, 0%, 100%)"
-                />
-              </View>
-              <Text style={styles.socialLinkText}>@elokaagu</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialLink}>
-              <View style={styles.soundcloudIcon}>
-                <Ionicons
-                  name="logo-soundcloud"
-                  size={20}
-                  color="hsl(0, 0%, 100%)"
-                />
-              </View>
-              <Text style={styles.socialLinkText}>@elokaagu</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Genre Tags */}
-          {profile.genres && profile.genres.length > 0 && (
-            <View style={styles.genresSection}>
-              <Text style={styles.sectionTitle}>Genres</Text>
-              <View style={styles.genresContainer}>
-                {profile.genres.map((genre, index) => (
-                  <View key={index} style={styles.genreTag}>
-                    <Ionicons
-                      name="musical-notes"
-                      size={12}
-                      color="hsl(75, 100%, 60%)"
-                    />
-                    <Text style={styles.genreText}>{genre}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
 
           {/* Primary Mix */}
           {profile.primary_mix && (
@@ -526,35 +484,6 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
     lineHeight: 24,
   },
-  genresSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: "Arial",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 12,
-  },
-  genresContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  genreTag: {
-    backgroundColor: "hsl(0, 0%, 15%)",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
-  },
-  genreText: {
-    fontSize: 12,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 70%)",
-  },
   primaryMixSection: {
     marginBottom: 24,
   },
@@ -608,24 +537,6 @@ const styles = StyleSheet.create({
   },
   socialSection: {
     marginBottom: 24,
-  },
-  socialLinks: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  socialButton: {
-    backgroundColor: "hsl(0, 0%, 15%)",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 8,
-  },
-  socialText: {
-    fontSize: 14,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 100%)",
   },
   actionButtons: {
     flexDirection: "row",
@@ -781,47 +692,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "hsl(0, 0%, 70%)",
     fontFamily: "Arial",
-  },
-  // Social Links Card Styles
-  socialLinksCard: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  socialLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: "hsl(0, 0%, 12%)",
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  instagramIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "hsl(322, 100%, 50%)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  soundcloudIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "hsl(30, 100%, 50%)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  socialLinkText: {
-    fontSize: 16,
-    color: "hsl(0, 0%, 100%)",
-    fontFamily: "Arial",
-    fontWeight: "500",
   },
 });
