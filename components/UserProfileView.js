@@ -168,8 +168,8 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-          {/* Profile Header */}
-          <View style={styles.profileHeader}>
+          {/* Profile Header Card */}
+          <View style={styles.profileHeaderCard}>
             <View style={styles.profileImageContainer}>
               <ProgressiveImage
                 source={{
@@ -181,60 +181,46 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               />
               {profile.is_verified && (
                 <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark" size={16} color="hsl(0, 0%, 0%)" />
+                  <Ionicons name="checkmark" size={12} color="hsl(0, 0%, 0%)" />
                 </View>
               )}
             </View>
 
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>
-                {profile.dj_name || profile.full_name}
-              </Text>
-              <Text style={styles.profileUsername}>
-                @
-                {profile.username ||
-                  profile.dj_name?.toLowerCase().replace(/\s+/g, "") ||
-                  "user"}
-              </Text>
-              <Text style={styles.profileLocation}>
-                <Ionicons name="location" size={14} color="hsl(0, 0%, 70%)" />
-                {profile.city || "Location not set"}
-              </Text>
+            <Text style={styles.profileDisplayName}>
+              {profile.dj_name || profile.full_name}
+            </Text>
+            <Text style={styles.profileUsername}>
+              @{profile.username || profile.dj_name?.toLowerCase().replace(/\s+/g, "") || "user"}
+            </Text>
 
-              {/* Contact Information */}
-              {profile.show_email && profile.email && (
-                <Text style={styles.contactInfo}>
-                  <Ionicons name="mail" size={14} color="hsl(0, 0%, 70%)" />
-                  {profile.email}
-                </Text>
-              )}
-              {profile.show_phone && profile.phone && (
-                <Text style={styles.contactInfo}>
-                  <Ionicons name="call" size={14} color="hsl(0, 0%, 70%)" />
-                  {profile.phone}
-                </Text>
-              )}
+            <View style={styles.profileLocation}>
+              <Ionicons name="location-outline" size={16} color="hsl(0, 0%, 70%)" />
+              <Text style={styles.locationText}>{profile.city || "Location not set"}</Text>
+            </View>
 
-              {/* Stats */}
-              <View style={styles.statsContainer}>
-                <View style={styles.statItem}>
-                  <Ionicons
-                    name="briefcase"
-                    size={16}
-                    color="hsl(0, 0%, 70%)"
-                  />
-                  <Text style={styles.statValue}>
-                    {profile.gigs_completed || 0}
-                  </Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Ionicons
-                    name="diamond"
-                    size={16}
-                    color="hsl(75, 100%, 60%)"
-                  />
-                  <Text style={styles.statValue}>{profile.credits || 0}</Text>
-                </View>
+            {/* Contact Information */}
+            {profile.show_email && profile.email && (
+              <View style={styles.contactInfoContainer}>
+                <Ionicons name="mail-outline" size={16} color="hsl(0, 0%, 70%)" />
+                <Text style={styles.contactText}>{profile.email}</Text>
+              </View>
+            )}
+            {profile.show_phone && profile.phone && (
+              <View style={styles.contactInfoContainer}>
+                <Ionicons name="call-outline" size={16} color="hsl(0, 0%, 70%)" />
+                <Text style={styles.contactText}>{profile.phone}</Text>
+              </View>
+            )}
+
+            {/* Stats */}
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Ionicons name="briefcase-outline" size={16} color="hsl(0, 0%, 70%)" />
+                <Text style={styles.statValue}>{profile.gigs_completed || 0}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Ionicons name="diamond-outline" size={16} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.statValue}>{profile.credits || 0}</Text>
               </View>
             </View>
           </View>
@@ -245,6 +231,24 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               <Text style={styles.bioText}>{profile.bio}</Text>
             </View>
           )}
+
+          {/* Genres */}
+          <View style={styles.genresCard}>
+            <Text style={styles.cardTitle}>Genres</Text>
+            <View style={styles.genresContainer}>
+              {profile.genres && profile.genres.length > 0 ? (
+                profile.genres.map((genre, index) => (
+                  <View key={index} style={styles.genreTag}>
+                    <Text style={styles.genreTagText}>{genre}</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.genreTag}>
+                  <Text style={styles.genreTagText}>Electronic</Text>
+                </View>
+              )}
+            </View>
+          </View>
 
           {/* Audio ID Card */}
           <View style={styles.audioIdCard}>
@@ -276,7 +280,6 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               <Text style={styles.timeText}>5:23</Text>
             </View>
           </View>
-
 
           {/* Primary Mix */}
           {profile.primary_mix && (
@@ -314,28 +317,6 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
             </View>
           )}
 
-          {/* Social Links */}
-          <View style={styles.socialSection}>
-            <Text style={styles.sectionTitle}>Connect</Text>
-            <View style={styles.socialLinks}>
-              {profile.instagram && (
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons
-                    name="logo-instagram"
-                    size={20}
-                    color="hsl(0, 0%, 100%)"
-                  />
-                  <Text style={styles.socialText}>Instagram</Text>
-                </TouchableOpacity>
-              )}
-              {profile.soundcloud && (
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="cloud" size={20} color="hsl(0, 0%, 100%)" />
-                  <Text style={styles.socialText}>SoundCloud</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
@@ -401,64 +382,75 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
-  profileHeader: {
-    flexDirection: "row",
-    marginBottom: 24,
+  profileHeaderCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+    alignItems: "center",
   },
   profileImageContainer: {
     position: "relative",
-    marginRight: 20,
+    marginBottom: 16,
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   verifiedBadge: {
     position: "absolute",
     bottom: 0,
     right: 0,
     backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 12,
-    width: 24,
-    height: 24,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "hsl(0, 0%, 0%)",
   },
-  profileInfo: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  profileName: {
-    fontSize: 24,
+  profileDisplayName: {
+    fontSize: 22,
     fontFamily: "Arial",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
+    textAlign: "center",
   },
   profileUsername: {
     fontSize: 16,
     fontFamily: "Arial",
     color: "hsl(75, 100%, 60%)",
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: "center",
   },
   profileLocation: {
-    fontSize: 14,
-    fontFamily: "Arial",
-    color: "hsl(0, 0%, 70%)",
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 8,
+    justifyContent: "center",
   },
-  contactInfo: {
+  locationText: {
     fontSize: 14,
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)",
+    marginLeft: 4,
+  },
+  contactInfoContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 8,
+    justifyContent: "center",
+  },
+  contactText: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    marginLeft: 4,
   },
   statsContainer: {
     flexDirection: "row",
@@ -483,6 +475,36 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)",
     lineHeight: 24,
+  },
+  genresCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 16,
+  },
+  genresContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  genreTag: {
+    backgroundColor: "hsl(0, 0%, 15%)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  genreTagText: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
   },
   primaryMixSection: {
     marginBottom: 24,
