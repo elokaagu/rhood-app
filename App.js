@@ -1445,7 +1445,6 @@ export default function App() {
         [{ text: "OK" }]
       );
     } catch (error) {
-      console.error("Error applying to opportunity:", error);
 
       // Check if it's a daily limit error
       if (error.message.includes("Daily application limit")) {
@@ -1464,6 +1463,8 @@ export default function App() {
           primaryButtonText: "OK",
         });
       } else {
+        // Only log unexpected errors to console
+        console.error("Unexpected error applying to opportunity:", error);
         showCustomModal({
           type: "error",
           title: "Application Failed",
@@ -1664,7 +1665,6 @@ export default function App() {
         });
       }, 300);
     } catch (error) {
-      console.error("Error applying to opportunity:", error);
 
       // Check if it's a daily limit error
       if (error.message.includes("Daily application limit")) {
@@ -1683,6 +1683,8 @@ export default function App() {
           primaryButtonText: "OK",
         });
       } else {
+        // Only log unexpected errors to console
+        console.error("Unexpected error applying to opportunity:", error);
         showCustomModal({
           type: "error",
           title: "Application Failed",
