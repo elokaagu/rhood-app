@@ -1459,14 +1459,16 @@ export default function App() {
         showCustomModal({
           type: "info",
           title: "Already Applied",
-          message: "You have already applied to this opportunity. Check your applications in the Connections section.",
+          message:
+            "You've already applied for this opportunity. We'll notify you on the outcome soon.",
           primaryButtonText: "OK",
         });
       } else {
         showCustomModal({
           type: "error",
           title: "Application Failed",
-          message: "There was an error submitting your application. Please try again.",
+          message:
+            "There was an error submitting your application. Please try again.",
           primaryButtonText: "OK",
         });
       }
@@ -1676,14 +1678,16 @@ export default function App() {
         showCustomModal({
           type: "info",
           title: "Already Applied",
-          message: "You have already applied to this opportunity. Check your applications in the Connections section.",
+          message:
+            "You've already applied for this opportunity. We'll notify you on the outcome soon.",
           primaryButtonText: "OK",
         });
       } else {
         showCustomModal({
           type: "error",
           title: "Application Failed",
-          message: "There was an error submitting your application. Please try again.",
+          message:
+            "There was an error submitting your application. Please try again.",
           primaryButtonText: "OK",
         });
       }
