@@ -100,7 +100,7 @@ const RhoodModal = ({
           {/* Icon */}
           <View
             style={[
-              styles.iconContainer,
+              icon === "rhood-logo" ? styles.rhoodLogoContainer : styles.iconContainer,
               {
                 backgroundColor:
                   icon === "rhood-logo" ? "transparent" : bgColor,
@@ -190,6 +190,14 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     borderWidth: 2,
     borderColor: "hsl(75, 100%, 60%, 0.3)", // R/HOOD lime border
+  },
+  rhoodLogoContainer: {
+    width: 80,
+    height: 80,
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
+    marginBottom: SPACING.lg,
   },
   rhoodLogo: {
     width: 72,
