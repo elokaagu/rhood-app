@@ -106,6 +106,31 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
     }
   };
 
+  const handleShareProfile = () => {
+    const profileUrl = `https://rhood.io/profile/${userId}`;
+    const shareText = `Check out ${profile.dj_name || profile.full_name}'s profile on R/HOOD: ${profileUrl}`;
+    
+    // For now, we'll use an Alert to show the share options
+    // In a real app, you'd use the Share API
+    Alert.alert(
+      "Share Profile",
+      `Share ${profile.dj_name || profile.full_name}'s profile?`,
+      [
+        {
+          text: "Copy Link",
+          onPress: () => {
+            // In a real app, you'd copy to clipboard
+            Alert.alert("Copied!", "Profile link copied to clipboard");
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -154,7 +179,12 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity style={styles.moreButton}>
+        <TouchableOpacity 
+          style={styles.moreButton}
+          onPress={handleShareProfile}
+          accessibilityLabel="Share Profile"
+          accessibilityHint="Tap to share this user's profile"
+        >
           <Ionicons
             name="ellipsis-horizontal"
             size={24}
@@ -229,27 +259,6 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               </View>
             )}
 
-            {/* Stats */}
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Ionicons
-                  name="briefcase-outline"
-                  size={16}
-                  color="hsl(0, 0%, 70%)"
-                />
-                <Text style={styles.statValue}>
-                  {profile.gigs_completed || 0}
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <Ionicons
-                  name="diamond-outline"
-                  size={16}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.statValue}>{profile.credits || 0}</Text>
-              </View>
-            </View>
           </View>
 
           {/* Bio */}
@@ -350,7 +359,11 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               style={styles.messageButton}
               onPress={handleMessage}
             >
-              <Ionicons name="chatbubble-outline" size={20} color="hsl(0, 0%, 100%)" />
+              <Ionicons
+                name="chatbubble-outline"
+                size={20}
+                color="hsl(0, 0%, 100%)"
+              />
               <Text style={styles.messageButtonText}>Message</Text>
             </TouchableOpacity>
 
@@ -358,7 +371,11 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               style={styles.connectButton}
               onPress={handleConnect}
             >
-              <Ionicons name="person-add-outline" size={20} color="hsl(0, 0%, 0%)" />
+              <Ionicons
+                name="person-add-outline"
+                size={20}
+                color="hsl(0, 0%, 0%)"
+              />
               <Text style={styles.connectButtonText}>Connect</Text>
             </TouchableOpacity>
           </View>
@@ -477,21 +494,6 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)",
     marginLeft: 4,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  statValue: {
-    fontSize: 14,
-    fontFamily: "Arial",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
   },
   bioSection: {
     marginBottom: 24,
