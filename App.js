@@ -1557,7 +1557,7 @@ export default function App() {
     if (!dailyApplicationStats.canApply) {
       Alert.alert(
         "Daily Limit Reached",
-        `You have reached your daily limit of 5 applications. You have ${dailyApplicationStats.remaining} applications remaining today. Please try again tomorrow.`,
+        `You have reached your daily limit of 5 applications. You have ${dailyApplicationStats?.remaining_applications || 0} applications remaining today. Please try again tomorrow.`,
         [{ text: "OK" }]
       );
       return;
@@ -1571,7 +1571,13 @@ export default function App() {
     showCustomModal({
       type: "info",
       title: currentOpportunity.title,
-      message: `Date: ${currentOpportunity.date}\nTime: ${currentOpportunity.time}\nCompensation: ${currentOpportunity.compensation}\nLocation: ${currentOpportunity.location}\n\n${currentOpportunity.description}\n\nYou have ${dailyApplicationStats?.remaining_applications || 0} applications remaining today.`,
+      message: `Date: ${currentOpportunity.date}\nTime: ${
+        currentOpportunity.time
+      }\nCompensation: ${currentOpportunity.compensation}\nLocation: ${
+        currentOpportunity.location
+      }\n\n${currentOpportunity.description}\n\nYou have ${
+        dailyApplicationStats?.remaining_applications || 0
+      } applications remaining today.`,
       primaryButtonText: "Apply Now",
       secondaryButtonText: "Cancel",
       onPrimaryPress: () => handleConfirmApply(currentOpportunity),
@@ -1700,21 +1706,27 @@ export default function App() {
       setIsLoadingOpportunities(true);
 
       // Fetch opportunities from database
-      const { data: opportunitiesData, error: opportunitiesError } = await supabase
-        .from("opportunities")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
+      const { data: opportunitiesData, error: opportunitiesError } =
+        await supabase
+          .from("opportunities")
+          .select("*")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
 
       if (opportunitiesError) {
-        console.error("❌ Error fetching opportunities from database:", opportunitiesError);
+        console.error(
+          "❌ Error fetching opportunities from database:",
+          opportunitiesError
+        );
         console.log("⚠️ No opportunities available");
         // No fallback to mock data - show empty state
         setOpportunities([]);
         return;
       }
 
-      console.log(`✅ Fetched ${opportunitiesData.length} opportunities from database`);
+      console.log(
+        `✅ Fetched ${opportunitiesData.length} opportunities from database`
+      );
 
       // Transform database data to match our component expectations
       const transformedOpportunities = opportunitiesData.map((opp) => {
@@ -1764,7 +1776,7 @@ export default function App() {
           setDailyApplicationStats({
             daily_count: 0,
             remaining_applications: 5,
-            can_apply: true
+            can_apply: true,
           });
         }
       }
@@ -2054,7 +2066,7 @@ export default function App() {
                       },
                     ]}
                   >
-                    {dailyApplicationStats.remaining} applications remaining
+                    {dailyApplicationStats?.remaining_applications || 0} applications remaining
                     today
                   </Text>
                 </View>
