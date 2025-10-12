@@ -65,23 +65,29 @@ const RhoodModal = ({
 
   // Parse event details for enhanced display
   const parseEventDetails = (message) => {
-    const lines = message.split('\n');
+    const lines = message.split("\n");
     const eventDetails = [];
-    let description = '';
-    let applicationsRemaining = '';
+    let description = "";
+    let applicationsRemaining = "";
 
     lines.forEach((line, index) => {
-      if (line.startsWith('Date:')) {
-        eventDetails.push({ type: 'date', value: line.replace('Date: ', '') });
-      } else if (line.startsWith('Time:')) {
-        eventDetails.push({ type: 'time', value: line.replace('Time: ', '') });
-      } else if (line.startsWith('Compensation:')) {
-        eventDetails.push({ type: 'compensation', value: line.replace('Compensation: ', '') });
-      } else if (line.startsWith('Location:')) {
-        eventDetails.push({ type: 'location', value: line.replace('Location: ', '') });
-      } else if (line.includes('applications remaining today')) {
+      if (line.startsWith("Date:")) {
+        eventDetails.push({ type: "date", value: line.replace("Date: ", "") });
+      } else if (line.startsWith("Time:")) {
+        eventDetails.push({ type: "time", value: line.replace("Time: ", "") });
+      } else if (line.startsWith("Compensation:")) {
+        eventDetails.push({
+          type: "compensation",
+          value: line.replace("Compensation: ", ""),
+        });
+      } else if (line.startsWith("Location:")) {
+        eventDetails.push({
+          type: "location",
+          value: line.replace("Location: ", ""),
+        });
+      } else if (line.includes("applications remaining today")) {
         applicationsRemaining = line;
-      } else if (line.trim() && !line.includes('applications remaining')) {
+      } else if (line.trim() && !line.includes("applications remaining")) {
         description = line;
       }
     });
@@ -93,10 +99,10 @@ const RhoodModal = ({
           {eventDetails.map((detail, index) => (
             <View key={index} style={styles.eventDetailItem}>
               <View style={styles.eventDetailIcon}>
-                <Ionicons 
-                  name={getEventDetailIcon(detail.type)} 
-                  size={20} 
-                  color={COLORS.primary} 
+                <Ionicons
+                  name={getEventDetailIcon(detail.type)}
+                  size={20}
+                  color={COLORS.primary}
                 />
               </View>
               <View style={styles.eventDetailContent}>
@@ -120,7 +126,11 @@ const RhoodModal = ({
         {applicationsRemaining && (
           <View style={styles.applicationsContainer}>
             <View style={styles.applicationsIcon}>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+              <Ionicons
+                name="checkmark-circle"
+                size={20}
+                color={COLORS.primary}
+              />
             </View>
             <Text style={styles.applicationsText}>{applicationsRemaining}</Text>
           </View>
@@ -131,11 +141,16 @@ const RhoodModal = ({
 
   const getEventDetailIcon = (type) => {
     switch (type) {
-      case 'date': return 'calendar-outline';
-      case 'time': return 'time-outline';
-      case 'compensation': return 'cash-outline';
-      case 'location': return 'location-outline';
-      default: return 'information-circle-outline';
+      case "date":
+        return "calendar-outline";
+      case "time":
+        return "time-outline";
+      case "compensation":
+        return "cash-outline";
+      case "location":
+        return "location-outline";
+      default:
+        return "information-circle-outline";
     }
   };
 
@@ -199,7 +214,7 @@ const RhoodModal = ({
           {/* Content */}
           <View style={styles.content}>
             <Text style={styles.title}>{title}</Text>
-            
+
             {/* Enhanced Message Parsing for Event Details */}
             {type === "info" && message.includes("Date:") ? (
               <View style={styles.eventDetailsContainer}>

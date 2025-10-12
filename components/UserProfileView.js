@@ -46,7 +46,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       setLoading(true);
       setError(null);
 
-      const profileData = await db.getUserProfile(userId);
+      const profileData = await db.getUserProfilePublic(userId);
       setProfile(profileData);
     } catch (err) {
       console.error("❌ Error loading user profile:", err);

@@ -516,9 +516,11 @@ export default function App() {
         setAuthLoading(false);
 
         if (event === "SIGNED_IN" && session?.user) {
-          // User signed in, check their profile status
+          // User signed in - handleLoginSuccess will manage the profile check
+          console.log(
+            "🔐 SIGNED_IN event detected, but handleLoginSuccess will manage profile check"
+          );
           setUser(session.user);
-          await checkFirstTime(session.user);
         } else if (event === "SIGNED_OUT") {
           // User signed out, reset state
           setDjProfile({
@@ -583,27 +585,39 @@ export default function App() {
     setShowAuth(false);
 
     // Add a small delay to ensure OAuth profile creation is complete
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     try {
-      console.log("🔍 Fetching user profile...");
+      console.log("🔍 Fetching user profile for user ID:", user.id);
       const profile = await db.getUserProfile(user.id);
       console.log("📋 Profile result:", profile ? "Found" : "Not found");
 
       if (profile) {
         console.log("✅ Profile found, setting up user session");
         console.log("👤 Profile data:", {
+          id: profile.id,
           djName: profile.dj_name || profile.djName,
           email: profile.email,
+          hasRequiredFields: !!(profile.dj_name || profile.djName),
         });
         setDjProfile(profile);
         setIsFirstTime(false);
+
+        // For login flow, always go to opportunities page
+        console.log("🎯 Login successful - navigating to opportunities");
+        setCurrentScreen("opportunities");
       } else {
         console.log("⚠️ No profile found after OAuth - user needs onboarding");
+        console.log("🔍 Profile query returned:", profile);
         setIsFirstTime(true);
       }
     } catch (error) {
       console.error("❌ Error fetching profile:", error);
+      console.error("❌ Error details:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+      });
       console.log("⚠️ Setting isFirstTime=true due to error");
       setIsFirstTime(true);
     }
@@ -1979,6 +1993,9 @@ export default function App() {
 
       console.log("🎉 Onboarding completed, setting isFirstTime=false");
       setIsFirstTime(false);
+
+      // Navigate to opportunities after onboarding completion
+      setCurrentScreen("opportunities");
 
       showCustomModal({
         type: "success",

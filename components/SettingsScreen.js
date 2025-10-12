@@ -542,6 +542,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
+    minHeight: 60,
   },
   destructiveItem: {
     borderBottomWidth: 0,
@@ -551,6 +552,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+    marginRight: 12,
   },
   settingIcon: {
     width: 40,
@@ -591,6 +593,8 @@ const styles = StyleSheet.create({
   },
   settingRight: {
     alignItems: "center",
+    minWidth: 60,
+    marginLeft: 12,
   },
   selectContainer: {
     flexDirection: "row",

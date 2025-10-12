@@ -1,0 +1,17 @@
+Apple Sign-In JWT Token for Supabase
+═══════════════════════════════════════════════════════════
+
+Team ID: 499MRF25LG
+Key ID: 3C28KWQL6Y
+Client ID: com.rhoodapp.mobile
+Expires: 2026-04-10T19:32:39.000Z
+
+JWT Token (paste this into Supabase Secret Key field):
+eyJhbGciOiJFUzI1NiIsImtpZCI6IjNDMjhLV1FMNlkiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiI0OTlNUkYyNUxHIiwiaWF0IjoxNzYwMjk3NTU5LCJleHAiOjE3NzU4NDk1NTksImF1ZCI6Imh0dHBzOi8vYXBwbGVpZC5hcHBsZS5jb20iLCJzdWIiOiJjb20ucmhvb2RhcHAubW9iaWxlIn0.MEQCIAvGl0Ut17dKonwdLdbp5tI8WjfENMV8jGCxdFcIuqZcAiBY0p9h7zh_hnKR0HK6L3u57lIcKG8H6IHl94GhD45gGg
+
+═══════════════════════════════════════════════════════════
+⚠️  SECURITY WARNING: This file contains sensitive credentials!
+    - Do NOT commit this file to GitHub
+    - Delete this file after adding to Supabase
+    - This JWT expires in 6 months
+═══════════════════════════════════════════════════════════

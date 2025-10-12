@@ -28,7 +28,10 @@ export default function SwipeableOpportunityCard({
 }) {
   // Debug logging for dailyApplicationStats
   if (isTopCard) {
-    console.log('🎯 SwipeableOpportunityCard - dailyApplicationStats:', dailyApplicationStats);
+    console.log(
+      "🎯 SwipeableOpportunityCard - dailyApplicationStats:",
+      dailyApplicationStats
+    );
   }
   const position = useRef(new Animated.ValueXY()).current;
   const scale = useRef(new Animated.Value(isNextCard ? 0.95 : 1)).current;
@@ -285,7 +288,8 @@ export default function SwipeableOpportunityCard({
             </View>
             <Text style={styles.eventTitle}>{opportunity.title}</Text>
             <Text style={styles.applicationsLeft}>
-              {dailyApplicationStats && dailyApplicationStats.remaining_applications !== undefined
+              {dailyApplicationStats &&
+              dailyApplicationStats.remaining_applications !== undefined
                 ? `${dailyApplicationStats.remaining_applications} applications remaining today`
                 : "Loading..."}
             </Text>
