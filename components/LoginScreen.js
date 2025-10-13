@@ -21,6 +21,7 @@ import {
   RADIUS,
   sharedStyles,
 } from "../lib/sharedStyles";
+import { appleNonceProbe } from "../debug/appleNonceProbe";
 
 export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
   const [email, setEmail] = useState("");
@@ -233,19 +234,33 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
 
             {/* Apple Sign-In */}
             {Platform.OS === "ios" && (
-              <TouchableOpacity
-                style={[
-                  styles.socialButton,
-                  styles.appleButton,
-                  loading && styles.buttonDisabled,
-                ]}
-                onPress={handleAppleSignIn}
-                disabled={loading}
-              >
-                <Text style={[styles.socialButtonText, styles.appleButtonText]}>
-                  Continue with Apple
-                </Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.socialButton,
+                    styles.appleButton,
+                    loading && styles.buttonDisabled,
+                  ]}
+                  onPress={handleAppleSignIn}
+                  disabled={loading}
+                >
+                  <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                    Continue with Apple
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Debug Probe Button - Only in development */}
+                {__DEV__ && (
+                  <TouchableOpacity
+                    style={[styles.socialButton, styles.debugButton]}
+                    onPress={appleNonceProbe}
+                  >
+                    <Text style={[styles.socialButtonText, styles.debugButtonText]}>
+                      🔍 Apple Debug Probe
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
 
@@ -415,6 +430,10 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 0%)",
     borderColor: "hsl(0, 0%, 100%)",
   },
+  debugButton: {
+    backgroundColor: "hsl(280, 100%, 50%)", // Purple for debug
+    borderColor: "hsl(280, 100%, 50%)",
+  },
   socialButtonText: {
     fontSize: TYPOGRAPHY.md,
     fontFamily: TYPOGRAPHY.primary,
@@ -422,6 +441,9 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 0%)",
   },
   appleButtonText: {
+    color: "hsl(0, 0%, 100%)",
+  },
+  debugButtonText: {
     color: "hsl(0, 0%, 100%)",
   },
 });
