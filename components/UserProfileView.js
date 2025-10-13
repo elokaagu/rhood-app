@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 import ProgressiveImage from "./ProgressiveImage";
 import { db } from "../lib/supabase";
 import { SkeletonProfile } from "./Skeleton";
@@ -26,6 +27,14 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState("");
   const fadeAnim = useState(new Animated.Value(0))[0];
+  
+  // Audio playback state
+  const [isPlayingAudioId, setIsPlayingAudioId] = useState(false);
+  const [isPlayingPrimaryMix, setIsPlayingPrimaryMix] = useState(false);
+  const [audioIdProgress, setAudioIdProgress] = useState(0);
+  const [primaryMixProgress, setPrimaryMixProgress] = useState(0);
+  const audioIdSoundRef = useRef(null);
+  const primaryMixSoundRef = useRef(null);
 
   useEffect(() => {
     loadUserProfile();
@@ -40,6 +49,18 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       }).start();
     }
   }, [profile]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioIdSoundRef.current) {
+        audioIdSoundRef.current.unloadAsync();
+      }
+      if (primaryMixSoundRef.current) {
+        primaryMixSoundRef.current.unloadAsync();
+      }
+    };
+  }, []);
 
   const loadUserProfile = async () => {
     try {
@@ -119,6 +140,87 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
     setShowShareModal(false);
     // Show success feedback
     Alert.alert("Copied!", "Profile link copied to clipboard");
+  };
+
+  // Audio playback handlers
+  const handleAudioIdPlay = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      if (audioIdSoundRef.current) {
+        if (isPlayingAudioId) {
+          await audioIdSoundRef.current.pauseAsync();
+          setIsPlayingAudioId(false);
+        } else {
+          await audioIdSoundRef.current.playAsync();
+          setIsPlayingAudioId(true);
+        }
+      } else {
+        // Load and play the audio ID track
+        const { sound } = await Audio.Sound.createAsync(
+          require("../assets/audio/unique-original-mix.mp3"),
+          { shouldPlay: true }
+        );
+        audioIdSoundRef.current = sound;
+        setIsPlayingAudioId(true);
+
+        // Set up progress tracking
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded) {
+            const progress = status.positionMillis / status.durationMillis;
+            setAudioIdProgress(progress);
+            
+            if (status.didJustFinish) {
+              setIsPlayingAudioId(false);
+              setAudioIdProgress(0);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error playing audio ID:", error);
+      Alert.alert("Error", "Could not play audio");
+    }
+  };
+
+  const handlePrimaryMixPlay = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      if (primaryMixSoundRef.current) {
+        if (isPlayingPrimaryMix) {
+          await primaryMixSoundRef.current.pauseAsync();
+          setIsPlayingPrimaryMix(false);
+        } else {
+          await primaryMixSoundRef.current.playAsync();
+          setIsPlayingPrimaryMix(true);
+        }
+      } else if (profile.primary_mix) {
+        // Load and play the primary mix
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: profile.primary_mix.file_url },
+          { shouldPlay: true }
+        );
+        primaryMixSoundRef.current = sound;
+        setIsPlayingPrimaryMix(true);
+
+        // Set up progress tracking
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded) {
+            const progress = status.positionMillis / status.durationMillis;
+            setPrimaryMixProgress(progress);
+            
+            if (status.didJustFinish) {
+              setIsPlayingPrimaryMix(false);
+              setPrimaryMixProgress(0);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error playing primary mix:", error);
+      Alert.alert("Error", "Could not play mix");
+    }
   };
 
   if (loading) {
@@ -283,8 +385,15 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                 <Text style={styles.trackTitle}>Dark Industrial Mix #1</Text>
                 <Text style={styles.trackDetails}>5:23 • Deep Techno</Text>
               </View>
-              <TouchableOpacity style={styles.audioPlayButton}>
-                <Ionicons name="play" size={20} color="hsl(0, 0%, 0%)" />
+              <TouchableOpacity 
+                style={styles.audioPlayButton}
+                onPress={handleAudioIdPlay}
+              >
+                <Ionicons 
+                  name={isPlayingAudioId ? "pause" : "play"} 
+                  size={20} 
+                  color="hsl(0, 0%, 0%)" 
+                />
               </TouchableOpacity>
             </View>
             <View style={styles.waveformContainer}>
@@ -292,15 +401,28 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                 (height, index) => (
                   <View
                     key={index}
-                    style={[styles.waveformBar, { height: height * 2 }]}
+                    style={[
+                      styles.waveformBar, 
+                      { 
+                        height: height * 2,
+                        backgroundColor: index < audioIdProgress * 16 ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 30%)"
+                      }
+                    ]}
                   />
                 )
               )}
             </View>
             <View style={styles.progressContainer}>
-              <Text style={styles.timeText}>1:23</Text>
+              <Text style={styles.timeText}>
+                {isPlayingAudioId ? "1:23" : "0:00"}
+              </Text>
               <View style={styles.progressBar}>
-                <View style={styles.progressFill} />
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { width: `${audioIdProgress * 100}%` }
+                  ]} 
+                />
               </View>
               <Text style={styles.timeText}>5:23</Text>
             </View>
@@ -310,7 +432,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           {profile.primary_mix && (
             <View style={styles.primaryMixSection}>
               <Text style={styles.sectionTitle}>Primary Mix</Text>
-              <TouchableOpacity style={styles.mixCard} onPress={handlePlayMix}>
+              <TouchableOpacity style={styles.mixCard} onPress={handlePrimaryMixPlay}>
                 <View style={styles.mixArtwork}>
                   <ProgressiveImage
                     source={{
@@ -321,7 +443,11 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                     style={styles.mixImage}
                   />
                   <View style={styles.playButton}>
-                    <Ionicons name="play" size={20} color="hsl(0, 0%, 100%)" />
+                    <Ionicons 
+                      name={isPlayingPrimaryMix ? "pause" : "play"} 
+                      size={20} 
+                      color="hsl(0, 0%, 100%)" 
+                    />
                   </View>
                 </View>
                 <View style={styles.mixInfo}>
