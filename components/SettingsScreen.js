@@ -317,10 +317,17 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
                 );
                 // Update state immediately
                 setSettings((prev) => {
-                  console.log("🔄 Updating state for", item.id, "from", prev[item.id], "to", newValue);
+                  console.log(
+                    "🔄 Updating state for",
+                    item.id,
+                    "from",
+                    prev[item.id],
+                    "to",
+                    newValue
+                  );
                   return { ...prev, [item.id]: newValue };
                 });
-                
+
                 // Handle database save
                 handleSettingChange(item.id, newValue);
               }}
@@ -328,7 +335,9 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
                 false: "hsl(0, 0%, 20%)",
                 true: "hsl(75, 100%, 60%)",
               }}
-              thumbColor={settings[item.id] ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"}
+              thumbColor={
+                settings[item.id] ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"
+              }
             />
           )}
           {item.type === "select" && (
