@@ -20,7 +20,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["audio", "background-processing"],
+        "UIBackgroundModes": ["audio"],
         "AVAudioSessionCategory": "playback",
         "AVAudioSessionMode": "default",
         "CFBundleURLTypes": [
