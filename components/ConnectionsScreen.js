@@ -39,8 +39,12 @@ export default function ConnectionsScreen({ onNavigate }) {
 
   // Load user and discover data on mount
   useEffect(() => {
-    loadUserAndConnections();
-    loadDiscoverDJs(); // Load discover data initially since we start on discover tab
+    const initializeData = async () => {
+      await loadUserAndConnections();
+      // Load discover data after connections are loaded
+      await loadDiscoverDJs();
+    };
+    initializeData();
   }, []);
 
   // Handle initial discover fade-in
@@ -192,41 +196,19 @@ export default function ConnectionsScreen({ onNavigate }) {
     try {
       setDiscoverLoading(true);
 
-      // Ensure we have a current user first
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-
-      if (!currentUser) {
-        console.log("No current user found");
-        setDiscoverUsers([]);
-        return;
-      }
-
-      // Get all users from database (excluding current user and existing connections)
-      const { data: allUsers, error } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .neq("id", currentUser.id)
-        .limit(20);
-
-      if (error) throw error;
-
-      // Filter out users we're already connected to
-      const connectedUserIds = connections.map(
-        (conn) => conn.connected_user_id
-      );
-      const discoverUsers =
-        allUsers?.filter((user) => !connectedUserIds.includes(user.id)) || [];
+      // Use the connectionsService to get recommended users
+      const recommendedUsers = await connectionsService.getRecommendedUsers(20);
 
       // Transform to match UI format
-      const formattedDiscoverUsers = discoverUsers.map((user) => ({
+      const formattedDiscoverUsers = recommendedUsers.map((user) => ({
         id: user.id,
-        name: user.dj_name || user.full_name,
+        name: user.dj_name || user.full_name || "Unknown DJ",
         username: `@${
-          user.username || user.dj_name?.toLowerCase().replace(/\s+/g, "")
+          user.username || 
+          user.dj_name?.toLowerCase().replace(/\s+/g, "") ||
+          "dj"
         }`,
-        location: user.city,
+        location: user.city || "Location not set",
         genres: user.genres || [],
         profileImage:
           user.profile_image_url ||
@@ -239,6 +221,8 @@ export default function ConnectionsScreen({ onNavigate }) {
       }));
 
       setDiscoverUsers(formattedDiscoverUsers);
+      console.log(`✅ Loaded ${formattedDiscoverUsers.length} discover users from database`);
+      console.log("🔍 Sample user data:", formattedDiscoverUsers[0]);
     } catch (error) {
       console.error("❌ Error loading discover DJs:", error);
       // No fallback to mock data - show empty state
