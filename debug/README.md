@@ -9,15 +9,18 @@ This probe bypasses the Supabase SDK and hits GoTrue REST API directly to diagno
 ## 🔧 How It Works
 
 ### 1. **Nonce Generation**
+
 - Generates a 64-character hex nonce (32 random bytes)
 - Hashes it with SHA-256 → base64url encoding
 - Shows both raw and hashed nonce previews
 
 ### 2. **Apple Sign-In**
+
 - Sends the **hashed nonce** to Apple
 - Receives identity token with nonce claim
 
 ### 3. **Local Validation**
+
 - Decodes the JWT token
 - Checks:
   - `aud` (audience) matches bundle ID
@@ -26,6 +29,7 @@ This probe bypasses the Supabase SDK and hits GoTrue REST API directly to diagno
 - Shows results in **Alert #1**
 
 ### 4. **Direct REST Call**
+
 - Bypasses `@supabase/supabase-js` SDK
 - Calls GoTrue REST API directly with:
   - `provider: 'apple'`
@@ -52,9 +56,13 @@ This probe bypasses the Supabase SDK and hits GoTrue REST API directly to diagno
 The debug button is **hidden in production** (`__DEV__ === false`).
 
 To enable it in TestFlight:
+
 1. Remove the `__DEV__` check in `LoginScreen.js`:
+
    ```javascript
-   {/* Always show in TestFlight for debugging */}
+   {
+     /* Always show in TestFlight for debugging */
+   }
    <TouchableOpacity
      style={[styles.socialButton, styles.debugButton]}
      onPress={appleNonceProbe}
@@ -62,7 +70,7 @@ To enable it in TestFlight:
      <Text style={[styles.socialButtonText, styles.debugButtonText]}>
        🔍 Apple Debug Probe
      </Text>
-   </TouchableOpacity>
+   </TouchableOpacity>;
    ```
 
 2. Build and submit to TestFlight
@@ -104,11 +112,13 @@ audOk:true issOk:true nonceOk:true
 ✅ **Status 200 + hasSession:true** = Everything works! Apple Sign-In is successful.
 
 **What this means:**
+
 - The nonce validation passed
 - The server authenticated successfully
 - **If the SDK still fails**, the SDK was dropping/mutating the nonce
 
 **Next steps:**
+
 - Use the REST endpoint in production (safe, identical behavior)
 - OR update `@supabase/supabase-js` to latest version
 
@@ -128,21 +138,25 @@ audOk:true issOk:true nonceOk:true
 **Debugging steps:**
 
 1. **Check Alert #1 first**
+
    - If `nonceOk:false`, the hashing is wrong locally
    - If `nonceOk:true`, the issue is in transmission
 
 2. **Try fixed nonce** (in `appleNonceProbe.js`):
+
    ```javascript
    // Uncomment this line:
-   const rawNonce = 'abc123-TEST-nonce-ONLY-for-debug';
+   const rawNonce = "abc123-TEST-nonce-ONLY-for-debug";
    // Comment this line:
    // const rawNonce = await makeHexNonce(32);
    ```
+
    - Fixed nonce removes randomness
    - If it works, the random generation has a bug
    - If it fails, the issue is in hashing/encoding
 
 3. **Check device time**
+
    - Ensure device clock is accurate
    - Wildly wrong time can cause token issues
 
@@ -159,6 +173,7 @@ audOk:true issOk:true nonceOk:true
 If REST succeeds but SDK fails:
 
 1. **SDK is dropping the nonce**
+
    - Update to latest: `npm i @supabase/supabase-js@latest`
    - Or use REST endpoint directly
 
@@ -171,7 +186,7 @@ If REST succeeds but SDK fails:
 The probe logs to console:
 
 ```javascript
-console.log('✅ Apple Sign-In Probe SUCCESS:', {
+console.log("✅ Apple Sign-In Probe SUCCESS:", {
   hasUser: !!json?.user,
   hasSession: !!json?.session,
   email: json?.user?.email,
@@ -179,6 +194,7 @@ console.log('✅ Apple Sign-In Probe SUCCESS:', {
 ```
 
 **To see logs:**
+
 1. Connect iPhone to Mac via USB
 2. Open **Console.app**
 3. Filter by `process:RHOOD`
@@ -206,14 +222,17 @@ export async function appleNonceProbe() {
   const nonceOk = claims.nonce === hashedNonce;
 
   // 4. Call GoTrue REST directly
-  const res = await fetch('https://PROJECT_REF.supabase.co/auth/v1/token?grant_type=id_token', {
-    method: 'POST',
-    body: JSON.stringify({
-      provider: 'apple',
-      id_token: cred.identityToken,
-      nonce: rawNonce, // RAW (unhashed)
-    }),
-  });
+  const res = await fetch(
+    "https://PROJECT_REF.supabase.co/auth/v1/token?grant_type=id_token",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        provider: "apple",
+        id_token: cred.identityToken,
+        nonce: rawNonce, // RAW (unhashed)
+      }),
+    }
+  );
 }
 ```
 
@@ -228,6 +247,7 @@ export async function appleNonceProbe() {
 ## 📋 Checklist
 
 Before testing:
+
 - [ ] Ensure device has internet connection
 - [ ] Ensure signed in to iCloud on device
 - [ ] Ensure Apple Developer config is correct:
@@ -237,6 +257,7 @@ Before testing:
 - [ ] Ensure Supabase Apple provider is enabled
 
 After testing:
+
 - [ ] Check Alert #1 for local validation
 - [ ] Check Alert #2 for server response
 - [ ] Check Console.app for detailed logs
@@ -247,18 +268,22 @@ After testing:
 ## 🚨 Common Issues
 
 ### "Apple error: No identityToken returned"
+
 - User cancelled sign-in
 - Or Apple's servers are down (rare)
 
 ### "Nonce format error: Expected 64 hex chars"
+
 - `makeHexNonce` is generating wrong format
 - Check `Crypto.getRandomBytesAsync` implementation
 
 ### Status 400: "Invalid grant"
+
 - Token expired (wait a few seconds, try again)
 - Or Bundle ID mismatch
 
 ### Status 400: "Nonces do not match"
+
 - See "Interpreting Results" section above
 - Try fixed nonce for debugging
 
@@ -267,11 +292,13 @@ After testing:
 ## 🎯 Expected Outcome
 
 **Success Path:**
+
 1. Alert #1: `audOk:true issOk:true nonceOk:true`
 2. Alert #2: `status: 200, hasSession: true`
 3. Console: `✅ Apple Sign-In Probe SUCCESS`
 
 **This proves:**
+
 - ✅ Nonce generation is correct
 - ✅ SHA-256 hashing is correct
 - ✅ Apple's token is valid
@@ -282,5 +309,4 @@ If this succeeds but the SDK fails, **use the REST endpoint** in production.
 
 ---
 
-*Last Updated: October 13, 2025*
-
+_Last Updated: October 13, 2025_

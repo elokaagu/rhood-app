@@ -244,7 +244,9 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
                   onPress={handleAppleSignIn}
                   disabled={loading}
                 >
-                  <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                  <Text
+                    style={[styles.socialButtonText, styles.appleButtonText]}
+                  >
                     Continue with Apple
                   </Text>
                 </TouchableOpacity>
@@ -255,7 +257,9 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
                     style={[styles.socialButton, styles.debugButton]}
                     onPress={appleNonceProbe}
                   >
-                    <Text style={[styles.socialButtonText, styles.debugButtonText]}>
+                    <Text
+                      style={[styles.socialButtonText, styles.debugButtonText]}
+                    >
                       🔍 Apple Debug Probe
                     </Text>
                   </TouchableOpacity>

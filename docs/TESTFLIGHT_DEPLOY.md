@@ -3,6 +3,7 @@
 ## 🚀 Deploy Latest Changes to TestFlight
 
 ### Prerequisites
+
 - ✅ All changes committed and pushed to GitHub
 - ✅ EAS CLI installed (`npm install -g eas-cli`)
 - ✅ Logged into EAS (`eas login`)
@@ -12,6 +13,7 @@
 ## Step-by-Step Process
 
 ### 1. Verify Latest Code is Pushed
+
 ```bash
 # Check git status
 git status
@@ -26,6 +28,7 @@ git log --oneline -n 1
 ```
 
 ### 2. Build for iOS Production
+
 ```bash
 # Build for TestFlight/App Store
 eas build --platform ios --profile production
@@ -40,6 +43,7 @@ eas build --platform ios --profile production
 **Wait for build to complete (15-30 minutes)**
 
 ### 3. Submit to TestFlight
+
 ```bash
 # Submit the latest build
 eas submit --platform ios --latest
@@ -64,6 +68,7 @@ eas submit --platform ios --id <BUILD_ID>
 ## 🔍 How to Verify You Have Latest Code
 
 ### Check Build Details
+
 ```bash
 # List recent builds
 eas build:list --platform ios --limit 5
@@ -76,6 +81,7 @@ eas build:list --platform ios --limit 5
 ```
 
 ### Compare Git Commit Hash
+
 ```bash
 # Get your current commit hash
 git rev-parse HEAD
@@ -85,12 +91,14 @@ git rev-parse HEAD
 ```
 
 ### Check Build Number
+
 Each build increments the build number automatically. Check in `app.json`:
+
 ```json
 {
   "expo": {
     "ios": {
-      "buildNumber": "X"  // This auto-increments
+      "buildNumber": "X" // This auto-increments
     }
   }
 }
@@ -101,6 +109,7 @@ Each build increments the build number automatically. Check in `app.json`:
 ## ⚡ Quick Deploy Commands
 
 ### Deploy Latest Changes (Full Flow)
+
 ```bash
 # 1. Ensure code is pushed
 git status
@@ -116,6 +125,7 @@ eas submit --platform ios --latest
 ```
 
 ### Check Build Status
+
 ```bash
 # Watch build progress
 eas build:list --platform ios --limit 1
@@ -129,12 +139,14 @@ eas build:view
 ## 🎯 Common Scenarios
 
 ### Scenario 1: "I just pushed changes"
+
 ```bash
 # Build will automatically use latest GitHub main branch
 eas build --platform ios --profile production
 ```
 
 ### Scenario 2: "I want to submit an older build"
+
 ```bash
 # List all builds
 eas build:list --platform ios
@@ -144,6 +156,7 @@ eas submit --platform ios --id abc-123-def-456
 ```
 
 ### Scenario 3: "I'm not sure which build is latest"
+
 ```bash
 # Always use --latest flag
 eas submit --platform ios --latest
@@ -152,6 +165,7 @@ eas submit --platform ios --latest
 ```
 
 ### Scenario 4: "I need to rebuild without code changes"
+
 ```bash
 # Just run build again
 eas build --platform ios --profile production
@@ -166,18 +180,22 @@ eas build --platform ios --profile production
 Your `eas.json` has different build profiles:
 
 ### Production (for TestFlight/App Store)
+
 ```bash
 eas build --platform ios --profile production
 ```
+
 - Distribution: `store`
 - Used for: TestFlight, App Store releases
 - Fully optimized
 - No dev tools
 
 ### Development (for testing on device)
+
 ```bash
 eas build --platform ios --profile development
 ```
+
 - Distribution: `internal`
 - Used for: Local testing, debugging
 - Includes dev tools
@@ -188,12 +206,14 @@ eas build --platform ios --profile development
 ## 📱 After Submit
 
 ### TestFlight Processing Time
+
 1. **Upload to App Store Connect**: Immediate
 2. **Processing**: 5-15 minutes
 3. **Ready for Testers**: Automatic
 4. **Notification to Testers**: Automatic (if enabled)
 
 ### How to Check Status
+
 1. [App Store Connect](https://appstoreconnect.apple.com)
 2. Your App → TestFlight
 3. Check "Build" status:
@@ -206,9 +226,11 @@ eas build --platform ios --profile development
 ## 🆘 Troubleshooting
 
 ### "Build uses wrong code version"
+
 **Problem**: Build doesn't include your latest changes
 
 **Solution**:
+
 ```bash
 # Ensure changes are committed and pushed
 git status
@@ -219,9 +241,11 @@ eas build --platform ios --profile production
 ```
 
 ### "Submit failed - no builds found"
+
 **Problem**: No successful builds available
 
 **Solution**:
+
 ```bash
 # Check build status
 eas build:list --platform ios --limit 5
@@ -231,6 +255,7 @@ eas build:list --platform ios --limit 5
 ```
 
 ### "I want to cancel a build"
+
 ```bash
 # Cancel current build
 eas build:cancel
@@ -244,22 +269,25 @@ eas build:cancel --id <BUILD_ID>
 ## 📊 Build Version Info
 
 ### Version vs Build Number
+
 - **Version**: User-facing (e.g., 1.0.0) - Semantic versioning
 - **Build Number**: Auto-incremented integer (e.g., 42) - Unique per build
 
 ### Where They're Used
+
 ```json
 {
   "expo": {
-    "version": "1.0.0",  // User sees this in App Store
+    "version": "1.0.0", // User sees this in App Store
     "ios": {
-      "buildNumber": "42"  // Apple uses this to track builds
+      "buildNumber": "42" // Apple uses this to track builds
     }
   }
 }
 ```
 
 ### Incrementing Versions
+
 ```bash
 # For minor updates (new features)
 # Manually update in app.json:
@@ -286,17 +314,16 @@ eas build:cancel --id <BUILD_ID>
 
 ## 🎯 Quick Reference
 
-| Command | Purpose |
-|---------|---------|
-| `eas build --platform ios --profile production` | Build for TestFlight |
-| `eas build --platform ios --profile development` | Build for local testing |
-| `eas submit --platform ios --latest` | Submit latest build to TestFlight |
-| `eas build:list --platform ios` | List recent builds |
-| `eas build:view` | View build in browser |
-| `eas build:cancel` | Cancel current build |
+| Command                                          | Purpose                           |
+| ------------------------------------------------ | --------------------------------- |
+| `eas build --platform ios --profile production`  | Build for TestFlight              |
+| `eas build --platform ios --profile development` | Build for local testing           |
+| `eas submit --platform ios --latest`             | Submit latest build to TestFlight |
+| `eas build:list --platform ios`                  | List recent builds                |
+| `eas build:view`                                 | View build in browser             |
+| `eas build:cancel`                               | Cancel current build              |
 
 ---
 
-*Last Updated: 2025-10-13*
-*Latest Changes: Apple Sign-In forensic debugging, Settings toggle fixes*
-
+_Last Updated: 2025-10-13_
+_Latest Changes: Apple Sign-In forensic debugging, Settings toggle fixes_

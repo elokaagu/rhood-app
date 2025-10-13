@@ -3,16 +3,17 @@
 // This bypasses the Supabase SDK and hits GoTrue REST directly
 // to show exactly what the server receives and processes.
 
-import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Crypto from 'expo-crypto';
-import { Alert } from 'react-native';
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
+import { Alert } from "react-native";
 
-const PROJECT_REF = 'jsmcduecuxtaqizhmiqo';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbWNkdWVjdXh0YXFpemhtaXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDUwNDIsImV4cCI6MjA3MjkyMTA0Mn0.CxQDVhiWf8qFf0SB0evnqniyMYUttpwF3ThlpB8dfso';
-const BUNDLE_ID = 'com.rhoodapp.mobile';
+const PROJECT_REF = "jsmcduecuxtaqizhmiqo";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbWNkdWVjdXh0YXFpemhtaXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDUwNDIsImV4cCI6MjA3MjkyMTA0Mn0.CxQDVhiWf8qFf0SB0evnqniyMYUttpwF3ThlpB8dfso";
+const BUNDLE_ID = "com.rhoodapp.mobile";
 
 function b64url(b64) {
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 async function sha256Base64url(input) {
@@ -26,14 +27,14 @@ async function sha256Base64url(input) {
 
 async function makeHexNonce(lenBytes = 32) {
   const bytes = await Crypto.getRandomBytesAsync(lenBytes);
-  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 // Base64url decode helper
 function b64urlDecode(s) {
-  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
   const pad = s.length % 4 ? 4 - (s.length % 4) : 0;
-  return atob(s + '='.repeat(pad));
+  return atob(s + "=".repeat(pad));
 }
 
 export async function appleNonceProbe() {
@@ -43,7 +44,7 @@ export async function appleNonceProbe() {
     const rawNonce = await makeHexNonce(32); // Random for real test
 
     if (!/^[0-9a-f]{64}$/.test(rawNonce)) {
-      Alert.alert('Nonce format error', 'Expected 64 hex chars');
+      Alert.alert("Nonce format error", "Expected 64 hex chars");
       return;
     }
 
@@ -59,42 +60,42 @@ export async function appleNonceProbe() {
     });
 
     if (!cred.identityToken) {
-      Alert.alert('Apple error', 'No identityToken returned');
+      Alert.alert("Apple error", "No identityToken returned");
       return;
     }
 
     // 3) Decode token, check claims locally
-    const [, payload] = cred.identityToken.split('.');
+    const [, payload] = cred.identityToken.split(".");
     const claims = JSON.parse(b64urlDecode(payload));
-    
+
     const audOk = claims.aud === BUNDLE_ID;
-    const issOk = claims.iss === 'https://appleid.apple.com';
+    const issOk = claims.iss === "https://appleid.apple.com";
     const nonceOk = claims.nonce === hashedNonce;
 
     // Show essential local checks
     Alert.alert(
-      'Local checks',
+      "Local checks",
       [
         `rawNonce len: ${rawNonce.length}`,
         `rawNonce preview: ${rawNonce.slice(0, 6)}...${rawNonce.slice(-6)}`,
         `hashed len: ${hashedNonce.length}`,
         `hashed preview: ${hashedNonce.slice(0, 6)}...${hashedNonce.slice(-6)}`,
         `audOk:${audOk} issOk:${issOk} nonceOk:${nonceOk}`,
-      ].join('\n')
+      ].join("\n")
     );
 
     // 4) Call Supabase GoTrue REST directly (bypasses SDK)
     const url = `https://${PROJECT_REF}.supabase.co/auth/v1/token?grant_type=id_token`;
     const body = {
-      provider: 'apple',
+      provider: "apple",
       id_token: cred.identityToken,
       nonce: rawNonce, // RAW nonce — must be the same exact string we hashed
     };
 
     const res = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         apikey: SUPABASE_ANON_KEY,
       },
       body: JSON.stringify(body),
@@ -120,17 +121,16 @@ export async function appleNonceProbe() {
 
     // If successful, log the full response for debugging
     if (res.status === 200) {
-      console.log('✅ Apple Sign-In Probe SUCCESS:', {
+      console.log("✅ Apple Sign-In Probe SUCCESS:", {
         hasUser: !!json?.user,
         hasSession: !!json?.session,
         email: json?.user?.email,
       });
     } else {
-      console.log('❌ Apple Sign-In Probe FAILED:', json);
+      console.log("❌ Apple Sign-In Probe FAILED:", json);
     }
   } catch (e) {
-    Alert.alert('Probe error', String(e?.message || e));
-    console.error('❌ Apple Sign-In Probe error:', e);
+    Alert.alert("Probe error", String(e?.message || e));
+    console.error("❌ Apple Sign-In Probe error:", e);
   }
 }
-

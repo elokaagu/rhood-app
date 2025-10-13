@@ -9,11 +9,13 @@ This document explains how Apple Sign-In is implemented in the R/HOOD app using 
 ## 🏗️ Architecture
 
 ### Implementation Location
+
 - **File**: `lib/supabase.js`
 - **Function**: `signInWithApple()`
 - **Method**: Native implementation using `AppleAuthentication.signInAsync()` + `supabase.auth.signInWithIdToken()`
 
 ### Why This Approach?
+
 - ✅ **Native Experience**: Uses iOS native Apple Sign-In UI
 - ✅ **No Browser**: No web browser popup required
 - ✅ **Secure**: Uses nonce-based verification
@@ -31,7 +33,9 @@ Apple Sign-In uses a **nonce** (number used once) to prevent replay attacks. Her
 ```javascript
 // 1. Generate raw nonce (32 bytes → 64-char hex string)
 const bytes = await Crypto.getRandomBytesAsync(32);
-const rawNonce = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+const rawNonce = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+  ""
+);
 
 // 2. Hash the raw nonce (SHA256 → base64url)
 const base64Hash = await Crypto.digestStringAsync(
@@ -90,10 +94,12 @@ This prevents man-in-the-middle attacks and ensures the token is fresh.
 ### Supabase Configuration
 
 1. **Enable Apple Provider**:
+
    - Go to: Supabase Dashboard → Authentication → Providers
    - Find "Apple" and toggle it **ON**
 
 2. **For Native Sign-In**: No additional configuration needed!
+
    - Services ID, Team ID, Key ID, Secret Key are **not required** for `signInWithIdToken`
    - These are only needed for web-based OAuth flows
 
@@ -196,11 +202,13 @@ async signInWithApple() {
 ### Where It Works
 
 ✅ **Works:**
+
 - Physical iOS devices (iOS 13+)
 - TestFlight builds
 - Production builds (EAS/App Store)
 
 ❌ **Doesn't Work:**
+
 - iOS Simulator (Apple limitation)
 - Expo Go (requires native build)
 - Android devices (Apple Sign-In is iOS-only)
@@ -256,6 +264,7 @@ async signInWithApple() {
 ### Token Validation
 
 Supabase automatically validates:
+
 - ✅ Token signature (signed by Apple)
 - ✅ Issuer (`iss`) is `https://appleid.apple.com`
 - ✅ Audience (`aud`) is `com.rhoodapp.mobile`
@@ -281,11 +290,13 @@ Supabase automatically validates:
 ### Issue: "Nonces mismatch"
 
 **Causes:**
+
 1. Using different raw nonce for Apple and Supabase
 2. Not hashing the nonce correctly for Apple
 3. Encoding issues (base64 vs base64url)
 
 **Solution:**
+
 - Ensure using the clean implementation above
 - Always send **hashed** nonce to Apple, **raw** nonce to Supabase
 - Use proper base64url encoding (replace `+` with `-`, `/` with `_`, remove `=`)
@@ -295,6 +306,7 @@ Supabase automatically validates:
 **Cause:** React Native production optimizations
 
 **Solution:**
+
 - Our implementation uses minimal state
 - No refs or complex state management
 - Clean async/await flow
@@ -305,6 +317,7 @@ Supabase automatically validates:
 **Cause:** Apple provider not enabled in Supabase
 
 **Solution:**
+
 1. Go to Supabase Dashboard
 2. Authentication → Providers
 3. Enable Apple provider
@@ -315,6 +328,7 @@ Supabase automatically validates:
 ## 🎯 Best Practices
 
 ### ✅ Do:
+
 - Use native `AppleAuthentication.signInAsync()`
 - Generate fresh nonce for each attempt
 - Send hashed nonce to Apple, raw nonce to Supabase
@@ -323,6 +337,7 @@ Supabase automatically validates:
 - Prevent double-tap with guard flag
 
 ### ❌ Don't:
+
 - Use web-based OAuth in native apps
 - Reuse nonces across sign-in attempts
 - Send the same nonce to both Apple and Supabase
@@ -344,12 +359,14 @@ Supabase automatically validates:
 ## 🔄 Version History
 
 ### v2.0 (Current) - Clean Implementation
+
 - Removed all debugging code
 - Production-ready implementation
 - Minimal logging
 - ~70 lines of clean code
 
 ### v1.0 (Deprecated) - Debug Version
+
 - Extensive debugging
 - JWT validation
 - REST API fallback
@@ -367,6 +384,5 @@ Supabase automatically validates:
 
 ---
 
-*Last Updated: 2025-10-13*
-*Implementation: lib/supabase.js - signInWithApple()*
-
+_Last Updated: 2025-10-13_
+_Implementation: lib/supabase.js - signInWithApple()_
