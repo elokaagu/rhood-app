@@ -77,7 +77,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
 
   const handleSettingChange = async (key, value) => {
     console.log("🔄 Setting change:", key, "from", settings[key], "to", value);
-    
+
     // Update state immediately for responsive UI
     setSettings((prev) => ({ ...prev, [key]: value }));
 
@@ -92,11 +92,9 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
         console.error("❌ Error saving privacy setting:", error);
         // Revert the setting if database save fails
         setSettings((prev) => ({ ...prev, [key]: !value }));
-        Alert.alert(
-          "Error",
-          "Failed to save setting. Please try again.",
-          [{ text: "OK" }]
-        );
+        Alert.alert("Error", "Failed to save setting. Please try again.", [
+          { text: "OK" },
+        ]);
       }
     } else {
       // For other settings, just log success
@@ -274,11 +272,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
 
   const renderSettingItem = (item) => {
     const handlePress = () => {
-      // Don't handle press for toggle items - let the Switch handle it
-      if (item.type === "toggle") {
-        return;
-      }
-      
       if (item.type === "navigate" && item.action) {
         item.action();
       } else if (item.type === "link" && item.url) {
@@ -290,13 +283,13 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
       }
     };
 
+    const SettingContainer = item.type === "toggle" ? View : TouchableOpacity;
+    const containerProps = item.type === "toggle" 
+      ? { style: styles.settingItem }
+      : { style: styles.settingItem, onPress: handlePress, activeOpacity: 0.7 };
+
     return (
-      <TouchableOpacity
-        key={item.id}
-        style={styles.settingItem}
-        onPress={handlePress}
-        activeOpacity={0.7}
-      >
+      <SettingContainer key={item.id} {...containerProps}>
         <View style={styles.settingLeft}>
           <View style={styles.settingIcon}>
             <Ionicons name={item.icon} size={20} color="hsl(75, 100%, 60%)" />
@@ -328,9 +321,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
                 false: "hsl(0, 0%, 20%)",
                 true: "hsl(75, 100%, 60%)",
               }}
-              thumbColor={
-                item.value ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"
-              }
+              thumbColor={item.value ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"}
             />
           )}
           {item.type === "select" && (
@@ -354,7 +345,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
             />
           )}
         </View>
-      </TouchableOpacity>
+      </SettingContainer>
     );
   };
 
