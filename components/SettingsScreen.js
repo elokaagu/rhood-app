@@ -26,34 +26,15 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSignOutModal, setShowSignOutModal] = useState(false);
 
-  // Track loading state for toggles
-  const [toggleLoading, setToggleLoading] = useState({});
-
+  // Simple settings state - only the essential ones that need database sync
   const [settings, setSettings] = useState({
-    // Account Settings
-    profileVisibility: "public",
     showEmail: true,
     showPhone: false,
-    allowMessages: true,
-
-    // Notification Settings
     pushNotifications: true,
     emailNotifications: true,
     gigReminders: true,
     messageNotifications: true,
     communityUpdates: false,
-
-    // App Settings
-    language: "en",
-    autoPlay: false,
-    dataUsage: "wifi",
-    cacheSize: "500MB",
-
-    // Privacy Settings
-    locationSharing: true,
-    analyticsTracking: true,
-    crashReporting: true,
-    personalizedAds: false,
   });
 
   // Load privacy settings from database
@@ -78,57 +59,30 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
     loadPrivacySettings();
   }, [user?.id]);
 
-  const handleSettingChange = async (key, value) => {
-    console.log(
-      "🔄 Database save for:",
-      key,
-      "value:",
-      value,
-      "user.id:",
-      user?.id
-    );
-
-    // Set loading state for this toggle
-    setToggleLoading((prev) => ({ ...prev, [key]: true }));
-
-    try {
-      // Save privacy settings to database
-      if (key === "showEmail" || key === "showPhone") {
-        if (!user?.id) {
-          throw new Error("No user ID available");
-        }
-
-        const updateData = {
-          [key === "showEmail" ? "show_email" : "show_phone"]: value,
-        };
-
-        console.log("🔄 Updating user profile with:", updateData);
-        const result = await db.updateUserProfile(user.id, updateData);
-        console.log(
-          "✅ Privacy setting saved to database:",
-          key,
-          value,
-          "result:",
-          result
-        );
-      } else {
-        // For other settings, just log success
-        console.log("✅ Setting updated locally:", key, value);
-      }
-    } catch (error) {
-      console.error("❌ Error saving setting:", error);
-      // Revert the setting if database save fails
-      setSettings((prev) => ({ ...prev, [key]: !value }));
-
-      // Show error alert in development, silent fail in production
-      if (__DEV__) {
-        Alert.alert("Error", `Failed to save setting: ${error.message}`, [
-          { text: "OK" },
-        ]);
-      }
-    } finally {
-      // Clear loading state
-      setToggleLoading((prev) => ({ ...prev, [key]: false }));
+  // Simple toggle handler - immediate state update with background save
+  const handleToggle = async (key, value) => {
+    console.log(`🔘 Toggle ${key} to ${value}`);
+    
+    // Update state immediately for instant feedback
+    setSettings(prev => ({ ...prev, [key]: value }));
+    
+    // Save to database in background (don't wait for it)
+    if (user?.id && (key === 'showEmail' || key === 'showPhone')) {
+      const updateData = {
+        [key === 'showEmail' ? 'show_email' : 'show_phone']: value,
+      };
+      
+      // Fire and forget - don't block the UI
+      db.updateUserProfile(user.id, updateData)
+        .then(() => console.log(`✅ Saved ${key} = ${value}`))
+        .catch(error => {
+          console.error(`❌ Failed to save ${key}:`, error);
+          // Revert on error
+          setSettings(prev => ({ ...prev, [key]: !value }));
+          if (__DEV__) {
+            Alert.alert("Error", `Failed to save ${key}`);
+          }
+        });
     }
   };
 
@@ -338,31 +292,14 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
         <View style={styles.settingRight}>
           {item.type === "toggle" && (
             <Switch
-              value={settings[item.id]}
-              onValueChange={async (newValue) => {
-                console.log("🔘 Switch toggled:", item.id, "to", newValue);
-
-                // Update state immediately
-                setSettings((prev) => {
-                  const newSettings = { ...prev, [item.id]: newValue };
-                  console.log("🔄 State updated:", item.id, "=", newValue);
-                  return newSettings;
-                });
-
-                // Save to database
-                await handleSettingChange(item.id, newValue);
-              }}
-              disabled={toggleLoading[item.id]}
+              value={settings[item.id] || false}
+              onValueChange={(newValue) => handleToggle(item.id, newValue)}
               trackColor={{
                 false: "hsl(0, 0%, 20%)",
                 true: "hsl(75, 100%, 60%)",
               }}
               thumbColor={
-                toggleLoading[item.id]
-                  ? "hsl(0, 0%, 50%)"
-                  : settings[item.id]
-                  ? "hsl(0, 0%, 100%)"
-                  : "hsl(0, 0%, 70%)"
+                settings[item.id] ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"
               }
             />
           )}
