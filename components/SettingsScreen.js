@@ -25,7 +25,7 @@ import { db } from "../lib/supabase";
 export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSignOutModal, setShowSignOutModal] = useState(false);
-  
+
   // Use ref to track ongoing toggle updates to prevent race conditions
   const pendingUpdates = useRef({});
 
@@ -315,12 +315,12 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
                   console.log("⚠️ Ignoring duplicate toggle for", item.id);
                   return;
                 }
-                
+
                 console.log("🔘 Switch toggled:", item.id, "to", newValue);
-                
+
                 // Mark as pending
                 pendingUpdates.current[item.id] = newValue;
-                
+
                 // Update state immediately with the new value
                 setSettings((prev) => {
                   const newSettings = { ...prev, [item.id]: newValue };
