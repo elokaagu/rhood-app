@@ -18,6 +18,7 @@ import { db } from "../lib/supabase";
 import { SkeletonProfile } from "./Skeleton";
 import RhoodModal from "./RhoodModal";
 import * as Haptics from "expo-haptics";
+import backgroundAudioService from "../lib/backgroundAudioService";
 
 export default function UserProfileView({ userId, onBack, onNavigate }) {
   const [profile, setProfile] = useState(null);
@@ -27,7 +28,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState("");
   const fadeAnim = useState(new Animated.Value(0))[0];
-  
+
   // Audio playback state
   const [isPlayingAudioId, setIsPlayingAudioId] = useState(false);
   const [isPlayingPrimaryMix, setIsPlayingPrimaryMix] = useState(false);
@@ -53,12 +54,14 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
   // Cleanup audio on unmount
   useEffect(() => {
     return () => {
-      if (audioIdSoundRef.current) {
-        audioIdSoundRef.current.unloadAsync();
+      if (audioIdSoundRef.current?.progressInterval) {
+        clearInterval(audioIdSoundRef.current.progressInterval);
       }
-      if (primaryMixSoundRef.current) {
-        primaryMixSoundRef.current.unloadAsync();
+      if (primaryMixSoundRef.current?.progressInterval) {
+        clearInterval(primaryMixSoundRef.current.progressInterval);
       }
+      // Stop background audio service
+      backgroundAudioService.stopTrack();
     };
   }, []);
 
@@ -68,7 +71,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       setError(null);
 
       const profileData = await db.getUserProfilePublic(userId);
-      
+
       // Load primary mix data if it exists
       let primaryMix = null;
       if (profileData.primary_mix_id) {
@@ -79,7 +82,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
             .select("*")
             .eq("id", profileData.primary_mix_id)
             .single();
-          
+
           if (!mixError && mixData) {
             primaryMix = mixData;
           }
@@ -87,10 +90,10 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           console.warn("⚠️ Could not load primary mix:", mixErr);
         }
       }
-      
+
       setProfile({
         ...profileData,
-        primaryMix: primaryMix
+        primaryMix: primaryMix,
       });
     } catch (err) {
       console.error("❌ Error loading user profile:", err);
@@ -169,58 +172,44 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
   const handleAudioIdPlay = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
-      if (audioIdSoundRef.current) {
-        if (isPlayingAudioId) {
-          await audioIdSoundRef.current.pauseAsync();
-          setIsPlayingAudioId(false);
-        } else {
-          await audioIdSoundRef.current.playAsync();
-          setIsPlayingAudioId(true);
-        }
+
+      if (isPlayingAudioId) {
+        // Pause the track
+        await backgroundAudioService.pauseTrack();
+        setIsPlayingAudioId(false);
       } else {
-        // Load and play the primary mix audio file
-        if (profile.primaryMix?.file_url) {
-          const { sound } = await Audio.Sound.createAsync(
-            { uri: profile.primaryMix.file_url },
-            { shouldPlay: true }
-          );
-          audioIdSoundRef.current = sound;
-          setIsPlayingAudioId(true);
+        // Prepare track data for background service
+        const trackData = {
+          id: profile.primaryMix?.id || 'audio-id',
+          title: profile.primaryMix?.title || 'Audio ID',
+          artist: profile.dj_name || profile.full_name || 'Unknown Artist',
+          genre: profile.primaryMix?.genre || 'Electronic',
+          file_url: profile.primaryMix?.file_url,
+          audioUrl: require("../assets/audio/unique-original-mix.mp3"), // Fallback
+        };
 
-          // Set up progress tracking
-          sound.setOnPlaybackStatusUpdate((status) => {
-            if (status.isLoaded) {
-              const progress = status.positionMillis / status.durationMillis;
-              setAudioIdProgress(progress);
-              
-              if (status.didJustFinish) {
-                setIsPlayingAudioId(false);
-                setAudioIdProgress(0);
-              }
+        // Play the track using background service
+        const success = await backgroundAudioService.playTrack(trackData);
+        
+        if (success) {
+          setIsPlayingAudioId(true);
+          
+          // Start progress updates
+          const progressInterval = setInterval(() => {
+            const playbackState = backgroundAudioService.getPlaybackState();
+            setAudioIdProgress(playbackState.progress);
+            
+            if (!playbackState.isPlaying && isPlayingAudioId) {
+              setIsPlayingAudioId(false);
+              setAudioIdProgress(0);
+              clearInterval(progressInterval);
             }
-          });
+          }, 1000);
+          
+          // Store interval reference for cleanup
+          audioIdSoundRef.current = { progressInterval };
         } else {
-          // Fallback to static file if no primary mix
-          const { sound } = await Audio.Sound.createAsync(
-            require("../assets/audio/unique-original-mix.mp3"),
-            { shouldPlay: true }
-          );
-          audioIdSoundRef.current = sound;
-          setIsPlayingAudioId(true);
-
-          // Set up progress tracking
-          sound.setOnPlaybackStatusUpdate((status) => {
-            if (status.isLoaded) {
-              const progress = status.positionMillis / status.durationMillis;
-              setAudioIdProgress(progress);
-              
-              if (status.didJustFinish) {
-                setIsPlayingAudioId(false);
-                setAudioIdProgress(0);
-              }
-            }
-          });
+          Alert.alert("Error", "Could not play audio");
         }
       }
     } catch (error) {
@@ -232,7 +221,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
   const handlePrimaryMixPlay = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
+
       if (primaryMixSoundRef.current) {
         if (isPlayingPrimaryMix) {
           await primaryMixSoundRef.current.pauseAsync();
@@ -255,7 +244,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           if (status.isLoaded) {
             const progress = status.positionMillis / status.durationMillis;
             setPrimaryMixProgress(progress);
-            
+
             if (status.didJustFinish) {
               setIsPlayingPrimaryMix(false);
               setPrimaryMixProgress(0);
@@ -429,22 +418,28 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               <Text style={styles.audioIdTitle}>AUDIO ID</Text>
               <View style={styles.audioPlayer}>
                 <View style={styles.audioInfo}>
-                  <Text style={styles.trackTitle}>{profile.primaryMix.title}</Text>
+                  <Text style={styles.trackTitle}>
+                    {profile.primaryMix.title}
+                  </Text>
                   <Text style={styles.trackDetails}>
-                    {profile.primaryMix.duration ? 
-                      `${Math.floor(profile.primaryMix.duration / 60)}:${(profile.primaryMix.duration % 60).toString().padStart(2, '0')}` : 
-                      "0:00"
-                    } • {profile.primaryMix.genre || "Electronic"}
+                    {profile.primaryMix.duration
+                      ? `${Math.floor(profile.primaryMix.duration / 60)}:${(
+                          profile.primaryMix.duration % 60
+                        )
+                          .toString()
+                          .padStart(2, "0")}`
+                      : "0:00"}{" "}
+                    • {profile.primaryMix.genre || "Electronic"}
                   </Text>
                 </View>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.audioPlayButton}
                   onPress={handleAudioIdPlay}
                 >
-                  <Ionicons 
-                    name={isPlayingAudioId ? "pause" : "play"} 
-                    size={20} 
-                    color="hsl(0, 0%, 0%)" 
+                  <Ionicons
+                    name={isPlayingAudioId ? "pause" : "play"}
+                    size={20}
+                    color="hsl(0, 0%, 0%)"
                   />
                 </TouchableOpacity>
               </View>
@@ -454,11 +449,14 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                     <View
                       key={index}
                       style={[
-                        styles.waveformBar, 
-                        { 
+                        styles.waveformBar,
+                        {
                           height: height * 2,
-                          backgroundColor: index < audioIdProgress * 16 ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 30%)"
-                        }
+                          backgroundColor:
+                            index < audioIdProgress * 16
+                              ? "hsl(75, 100%, 60%)"
+                              : "hsl(0, 0%, 30%)",
+                        },
                       ]}
                     />
                   )
@@ -469,18 +467,21 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                   {isPlayingAudioId ? "1:23" : "0:00"}
                 </Text>
                 <View style={styles.progressBar}>
-                  <View 
+                  <View
                     style={[
-                      styles.progressFill, 
-                      { width: `${audioIdProgress * 100}%` }
-                    ]} 
+                      styles.progressFill,
+                      { width: `${audioIdProgress * 100}%` },
+                    ]}
                   />
                 </View>
                 <Text style={styles.timeText}>
-                  {profile.primaryMix.duration ? 
-                    `${Math.floor(profile.primaryMix.duration / 60)}:${(profile.primaryMix.duration % 60).toString().padStart(2, '0')}` : 
-                    "0:00"
-                  }
+                  {profile.primaryMix.duration
+                    ? `${Math.floor(profile.primaryMix.duration / 60)}:${(
+                        profile.primaryMix.duration % 60
+                      )
+                        .toString()
+                        .padStart(2, "0")}`
+                    : "0:00"}
                 </Text>
               </View>
             </View>
@@ -490,7 +491,10 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           {profile.primary_mix && (
             <View style={styles.primaryMixSection}>
               <Text style={styles.sectionTitle}>Primary Mix</Text>
-              <TouchableOpacity style={styles.mixCard} onPress={handlePrimaryMixPlay}>
+              <TouchableOpacity
+                style={styles.mixCard}
+                onPress={handlePrimaryMixPlay}
+              >
                 <View style={styles.mixArtwork}>
                   <ProgressiveImage
                     source={{
@@ -501,10 +505,10 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                     style={styles.mixImage}
                   />
                   <View style={styles.playButton}>
-                    <Ionicons 
-                      name={isPlayingPrimaryMix ? "pause" : "play"} 
-                      size={20} 
-                      color="hsl(0, 0%, 100%)" 
+                    <Ionicons
+                      name={isPlayingPrimaryMix ? "pause" : "play"}
+                      size={20}
+                      color="hsl(0, 0%, 100%)"
                     />
                   </View>
                 </View>

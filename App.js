@@ -28,6 +28,7 @@ import { useFonts } from "expo-font";
 import * as Haptics from "expo-haptics";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
+import { setupAudioNotificationCategories, setupNotificationListeners, requestNotificationPermissions } from "./lib/notificationSetup";
 import ConnectionsScreen from "./components/ConnectionsScreen";
 import ConnectionsDiscoveryScreen from "./components/ConnectionsDiscoveryScreen";
 import ListenScreen from "./components/ListenScreen";
@@ -258,6 +259,30 @@ export default function App() {
     queue: [], // Array of tracks in queue
     currentQueueIndex: -1, // Index of current track in queue
   });
+
+  // Initialize notification setup for lock screen audio controls
+  useEffect(() => {
+    const initializeNotifications = async () => {
+      try {
+        // Request notification permissions
+        await requestNotificationPermissions();
+        
+        // Set up notification categories for iOS
+        await setupAudioNotificationCategories();
+        
+        // Set up notification listeners
+        const removeListeners = setupNotificationListeners();
+        
+        console.log('✅ Lock screen audio controls initialized');
+        
+        return removeListeners;
+      } catch (error) {
+        console.error('❌ Error initializing notifications:', error);
+      }
+    };
+
+    initializeNotifications();
+  }, []);
 
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);

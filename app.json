@@ -20,7 +20,9 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": ["audio", "background-processing"],
+        "AVAudioSessionCategory": "playback",
+        "AVAudioSessionMode": "default",
         "CFBundleURLTypes": [
           {
             "CFBundleURLName": "rhoodapp",
@@ -41,7 +43,9 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "notification": {
