@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { Audio } from "expo-av";
+import { Audio } from "expo-audio";
 import { supabase } from "../lib/supabase";
 import { LinearGradient } from "expo-linear-gradient";
 

@@ -60,7 +60,6 @@
     "plugins": [
       "expo-font",
       "expo-audio",
-      "expo-av",
       "expo-web-browser",
       "expo-video",
       [

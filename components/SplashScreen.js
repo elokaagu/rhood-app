@@ -7,7 +7,7 @@ import {
   Dimensions,
   Image,
 } from "react-native";
-import { Video } from "expo-av";
+import { Video } from "expo-video";
 import { useFonts } from "expo-font";
 
 const { width, height } = Dimensions.get("window");

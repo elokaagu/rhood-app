@@ -22,7 +22,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
+import { Audio } from "expo-audio";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
 import * as Haptics from "expo-haptics";
@@ -745,7 +745,7 @@ export default function App() {
         staysActiveInBackground: true,
       });
 
-      // Create and load new sound using expo-av
+      // Create and load new sound using expo-audio
       console.log("🔄 Creating new sound instance...");
       console.log("🔄 Audio file path:", track.audioUrl);
       console.log("🔄 Audio file type:", typeof track.audioUrl);
