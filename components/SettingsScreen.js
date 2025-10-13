@@ -25,6 +25,9 @@ import { db } from "../lib/supabase";
 export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  
+  // Use ref to track ongoing toggle updates to prevent race conditions
+  const pendingUpdates = useRef({});
 
   const [settings, setSettings] = useState({
     // Account Settings
@@ -307,29 +310,30 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
             <Switch
               value={settings[item.id]}
               onValueChange={(newValue) => {
-                console.log(
-                  "🔘 Switch toggled:",
-                  item.id,
-                  "from",
-                  settings[item.id],
-                  "to",
-                  newValue
-                );
-                // Update state immediately
+                // Prevent race conditions in production by checking pending updates
+                if (pendingUpdates.current[item.id] !== undefined) {
+                  console.log("⚠️ Ignoring duplicate toggle for", item.id);
+                  return;
+                }
+                
+                console.log("🔘 Switch toggled:", item.id, "to", newValue);
+                
+                // Mark as pending
+                pendingUpdates.current[item.id] = newValue;
+                
+                // Update state immediately with the new value
                 setSettings((prev) => {
-                  console.log(
-                    "🔄 Updating state for",
-                    item.id,
-                    "from",
-                    prev[item.id],
-                    "to",
-                    newValue
-                  );
-                  return { ...prev, [item.id]: newValue };
+                  const newSettings = { ...prev, [item.id]: newValue };
+                  console.log("🔄 State updated:", item.id, "=", newValue);
+                  return newSettings;
                 });
 
-                // Handle database save
-                handleSettingChange(item.id, newValue);
+                // Handle database save and clear pending after a delay
+                handleSettingChange(item.id, newValue).finally(() => {
+                  setTimeout(() => {
+                    delete pendingUpdates.current[item.id];
+                  }, 100);
+                });
               }}
               trackColor={{
                 false: "hsl(0, 0%, 20%)",
