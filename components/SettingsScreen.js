@@ -154,7 +154,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           icon: "mail",
           type: "toggle",
           value: settings.showEmail,
-          onPress: () => handleSettingChange("showEmail", !settings.showEmail),
         },
         {
           id: "showPhone",
@@ -163,7 +162,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           icon: "call",
           type: "toggle",
           value: settings.showPhone,
-          onPress: () => handleSettingChange("showPhone", !settings.showPhone),
         },
       ],
     },
@@ -179,11 +177,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           icon: "phone-portrait",
           type: "toggle",
           value: settings.pushNotifications,
-          onPress: () =>
-            handleSettingChange(
-              "pushNotifications",
-              !settings.pushNotifications
-            ),
         },
         {
           id: "messageNotifications",
@@ -192,11 +185,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           icon: "chatbubble",
           type: "toggle",
           value: settings.messageNotifications,
-          onPress: () =>
-            handleSettingChange(
-              "messageNotifications",
-              !settings.messageNotifications
-            ),
         },
         {
           id: "communityUpdates",
@@ -205,8 +193,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           icon: "people",
           type: "toggle",
           value: settings.communityUpdates,
-          onPress: () =>
-            handleSettingChange("communityUpdates", !settings.communityUpdates),
         },
       ],
     },
@@ -288,6 +274,11 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
 
   const renderSettingItem = (item) => {
     const handlePress = () => {
+      // Don't handle press for toggle items - let the Switch handle it
+      if (item.type === "toggle") {
+        return;
+      }
+      
       if (item.type === "navigate" && item.action) {
         item.action();
       } else if (item.type === "link" && item.url) {
