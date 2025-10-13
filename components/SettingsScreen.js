@@ -76,10 +76,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   }, [user?.id]);
 
   const handleSettingChange = async (key, value) => {
-    console.log("🔄 Setting change:", key, "from", settings[key], "to", value);
-
-    // Update state immediately for responsive UI
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    console.log("🔄 Database save for:", key, "value:", value);
 
     // Save privacy settings to database
     if (key === "showEmail" || key === "showPhone") {
@@ -284,9 +281,14 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
     };
 
     const SettingContainer = item.type === "toggle" ? View : TouchableOpacity;
-    const containerProps = item.type === "toggle" 
-      ? { style: styles.settingItem }
-      : { style: styles.settingItem, onPress: handlePress, activeOpacity: 0.7 };
+    const containerProps =
+      item.type === "toggle"
+        ? { style: styles.settingItem }
+        : {
+            style: styles.settingItem,
+            onPress: handlePress,
+            activeOpacity: 0.7,
+          };
 
     return (
       <SettingContainer key={item.id} {...containerProps}>
@@ -303,25 +305,30 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
         <View style={styles.settingRight}>
           {item.type === "toggle" && (
             <Switch
-              value={item.value}
+              value={settings[item.id]}
               onValueChange={(newValue) => {
                 console.log(
                   "🔘 Switch toggled:",
                   item.id,
                   "from",
-                  item.value,
+                  settings[item.id],
                   "to",
                   newValue
                 );
-                // Extract the setting key from the item
-                const settingKey = item.id;
-                handleSettingChange(settingKey, newValue);
+                // Update state immediately
+                setSettings((prev) => {
+                  console.log("🔄 Updating state for", item.id, "from", prev[item.id], "to", newValue);
+                  return { ...prev, [item.id]: newValue };
+                });
+                
+                // Handle database save
+                handleSettingChange(item.id, newValue);
               }}
               trackColor={{
                 false: "hsl(0, 0%, 20%)",
                 true: "hsl(75, 100%, 60%)",
               }}
-              thumbColor={item.value ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"}
+              thumbColor={settings[item.id] ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"}
             />
           )}
           {item.type === "select" && (
