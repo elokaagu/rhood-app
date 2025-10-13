@@ -26,8 +26,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSignOutModal, setShowSignOutModal] = useState(false);
 
-  // Track toggle states to prevent reversion
-  const toggleStates = useRef({});
   const [settings, setSettings] = useState({
     // Account Settings
     profileVisibility: "public",
@@ -79,12 +77,13 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
 
   const handleSettingChange = async (key, value) => {
     console.log("🔄 Setting change:", key, "from", settings[key], "to", value);
+    
+    // Update state immediately for responsive UI
     setSettings((prev) => ({ ...prev, [key]: value }));
 
     // Save privacy settings to database
     if (key === "showEmail" || key === "showPhone") {
       try {
-        const { db } = await import("../lib/supabase");
         await db.updateUserProfile(user.id, {
           [key === "showEmail" ? "show_email" : "show_phone"]: value,
         });
@@ -93,7 +92,15 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
         console.error("❌ Error saving privacy setting:", error);
         // Revert the setting if database save fails
         setSettings((prev) => ({ ...prev, [key]: !value }));
+        Alert.alert(
+          "Error",
+          "Failed to save setting. Please try again.",
+          [{ text: "OK" }]
+        );
       }
+    } else {
+      // For other settings, just log success
+      console.log("✅ Setting updated locally:", key, value);
     }
   };
 
@@ -312,11 +319,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
         <View style={styles.settingRight}>
           {item.type === "toggle" && (
             <Switch
-              value={
-                toggleStates.current[item.id] !== undefined
-                  ? toggleStates.current[item.id]
-                  : item.value
-              }
+              value={item.value}
               onValueChange={(newValue) => {
                 console.log(
                   "🔘 Switch toggled:",
@@ -326,8 +329,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
                   "to",
                   newValue
                 );
-                // Store the new value in ref immediately
-                toggleStates.current[item.id] = newValue;
                 // Extract the setting key from the item
                 const settingKey = item.id;
                 handleSettingChange(settingKey, newValue);
@@ -337,13 +338,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
                 true: "hsl(75, 100%, 60%)",
               }}
               thumbColor={
-                (
-                  toggleStates.current[item.id] !== undefined
-                    ? toggleStates.current[item.id]
-                    : item.value
-                )
-                  ? "hsl(0, 0%, 100%)"
-                  : "hsl(0, 0%, 70%)"
+                item.value ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"
               }
             />
           )}
