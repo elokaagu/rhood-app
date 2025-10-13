@@ -110,12 +110,16 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
             const durationMinutes = status.durationMillis / 1000 / 60;
             const maxDurationMinutes = 5;
 
-            console.log(`🎵 Audio duration: ${durationMinutes.toFixed(2)} minutes`);
+            console.log(
+              `🎵 Audio duration: ${durationMinutes.toFixed(2)} minutes`
+            );
 
             if (durationMinutes > maxDurationMinutes) {
               Alert.alert(
                 "Mix Too Long",
-                `Your mix is ${durationMinutes.toFixed(1)} minutes long. Maximum allowed length is ${maxDurationMinutes} minutes.`,
+                `Your mix is ${durationMinutes.toFixed(
+                  1
+                )} minutes long. Maximum allowed length is ${maxDurationMinutes} minutes.`,
                 [{ text: "OK" }]
               );
               return;

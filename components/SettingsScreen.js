@@ -79,10 +79,17 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   }, [user?.id]);
 
   const handleSettingChange = async (key, value) => {
-    console.log("🔄 Database save for:", key, "value:", value, "user.id:", user?.id);
+    console.log(
+      "🔄 Database save for:",
+      key,
+      "value:",
+      value,
+      "user.id:",
+      user?.id
+    );
 
     // Set loading state for this toggle
-    setToggleLoading(prev => ({ ...prev, [key]: true }));
+    setToggleLoading((prev) => ({ ...prev, [key]: true }));
 
     try {
       // Save privacy settings to database
@@ -94,10 +101,16 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
         const updateData = {
           [key === "showEmail" ? "show_email" : "show_phone"]: value,
         };
-        
+
         console.log("🔄 Updating user profile with:", updateData);
         const result = await db.updateUserProfile(user.id, updateData);
-        console.log("✅ Privacy setting saved to database:", key, value, "result:", result);
+        console.log(
+          "✅ Privacy setting saved to database:",
+          key,
+          value,
+          "result:",
+          result
+        );
       } else {
         // For other settings, just log success
         console.log("✅ Setting updated locally:", key, value);
@@ -106,7 +119,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
       console.error("❌ Error saving setting:", error);
       // Revert the setting if database save fails
       setSettings((prev) => ({ ...prev, [key]: !value }));
-      
+
       // Show error alert in development, silent fail in production
       if (__DEV__) {
         Alert.alert("Error", `Failed to save setting: ${error.message}`, [
@@ -115,7 +128,7 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
       }
     } finally {
       // Clear loading state
-      setToggleLoading(prev => ({ ...prev, [key]: false }));
+      setToggleLoading((prev) => ({ ...prev, [key]: false }));
     }
   };
 
@@ -345,11 +358,11 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
                 true: "hsl(75, 100%, 60%)",
               }}
               thumbColor={
-                toggleLoading[item.id] 
-                  ? "hsl(0, 0%, 50%)" 
-                  : settings[item.id] 
-                    ? "hsl(0, 0%, 100%)" 
-                    : "hsl(0, 0%, 70%)"
+                toggleLoading[item.id]
+                  ? "hsl(0, 0%, 50%)"
+                  : settings[item.id]
+                  ? "hsl(0, 0%, 100%)"
+                  : "hsl(0, 0%, 70%)"
               }
             />
           )}
