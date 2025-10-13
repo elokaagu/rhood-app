@@ -350,8 +350,8 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
               <Text style={styles.socialButtonText}>Continue with Google</Text>
             </TouchableOpacity>
 
-            {/* Apple Sign-In */}
-            {Platform.OS === "ios" && (
+            {/* Apple Sign-In - Temporarily Hidden */}
+            {false && Platform.OS === "ios" && (
               <TouchableOpacity
                 style={[
                   styles.socialButton,
