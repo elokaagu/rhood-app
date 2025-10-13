@@ -10,13 +10,13 @@ FROM user_profiles,
   unnest(genres) as invalid_genre
 WHERE LOWER(invalid_genre) NOT IN (
   SELECT LOWER(genre) FROM unnest(ARRAY[
-    'House', 'Techno', 'Trance', 'Dubstep', 'Drum & Bass', 
-    'Hip Hop', 'R&B', 'Pop', 'Rock', 'Jazz', 'Funk', 
-    'Disco', 'Ambient', 'Experimental', 'Electronic', 
-    'Deep House', 'Progressive House', 'Tech House',
-    'Breakbeat', 'Garage', 'Bass', 'Trap', 'Future Bass',
-    'Minimal', 'Psytrance', 'Hardstyle', 'Drumstep',
-    'Chillout', 'Downtempo', 'Nu Disco', 'Afro House'
+    'House', 'Techno', 'Deep House', 'Progressive House', 'Tech House',
+    'Trance', 'Drum & Bass', 'Dubstep', 'Trap', 'Future Bass',
+    'Ambient', 'Downtempo', 'Breakbeat', 'Jungle', 'Garage',
+    'Disco', 'Funk', 'Soul', 'Hip Hop', 'R&B',
+    'Pop', 'Rock', 'Electronic', 'Experimental', 'Minimal',
+    'Acid', 'Hardcore', 'Hardstyle', 'Psytrance', 'Goa',
+    'Chillout', 'Lounge'
   ]) as genre
 )
 GROUP BY dj_name, genres
@@ -31,13 +31,13 @@ SET
     WHERE LOWER(genre) IN (
       SELECT LOWER(valid_genre) 
       FROM unnest(ARRAY[
-        'House', 'Techno', 'Trance', 'Dubstep', 'Drum & Bass', 
-        'Hip Hop', 'R&B', 'Pop', 'Rock', 'Jazz', 'Funk', 
-        'Disco', 'Ambient', 'Experimental', 'Electronic', 
-        'Deep House', 'Progressive House', 'Tech House',
-        'Breakbeat', 'Garage', 'Bass', 'Trap', 'Future Bass',
-        'Minimal', 'Psytrance', 'Hardstyle', 'Drumstep',
-        'Chillout', 'Downtempo', 'Nu Disco', 'Afro House'
+        'House', 'Techno', 'Deep House', 'Progressive House', 'Tech House',
+        'Trance', 'Drum & Bass', 'Dubstep', 'Trap', 'Future Bass',
+        'Ambient', 'Downtempo', 'Breakbeat', 'Jungle', 'Garage',
+        'Disco', 'Funk', 'Soul', 'Hip Hop', 'R&B',
+        'Pop', 'Rock', 'Electronic', 'Experimental', 'Minimal',
+        'Acid', 'Hardcore', 'Hardstyle', 'Psytrance', 'Goa',
+        'Chillout', 'Lounge'
       ]) as valid_genre
     )
   ),
@@ -48,13 +48,13 @@ WHERE EXISTS (
   WHERE LOWER(genre) NOT IN (
     SELECT LOWER(valid_genre) 
     FROM unnest(ARRAY[
-      'House', 'Techno', 'Trance', 'Dubstep', 'Drum & Bass', 
-      'Hip Hop', 'R&B', 'Pop', 'Rock', 'Jazz', 'Funk', 
-      'Disco', 'Ambient', 'Experimental', 'Electronic', 
-      'Deep House', 'Progressive House', 'Tech House',
-      'Breakbeat', 'Garage', 'Bass', 'Trap', 'Future Bass',
-      'Minimal', 'Psytrance', 'Hardstyle', 'Drumstep',
-      'Chillout', 'Downtempo', 'Nu Disco', 'Afro House'
+      'House', 'Techno', 'Deep House', 'Progressive House', 'Tech House',
+      'Trance', 'Drum & Bass', 'Dubstep', 'Trap', 'Future Bass',
+      'Ambient', 'Downtempo', 'Breakbeat', 'Jungle', 'Garage',
+      'Disco', 'Funk', 'Soul', 'Hip Hop', 'R&B',
+      'Pop', 'Rock', 'Electronic', 'Experimental', 'Minimal',
+      'Acid', 'Hardcore', 'Hardstyle', 'Psytrance', 'Goa',
+      'Chillout', 'Lounge'
     ]) as valid_genre
   )
 );
