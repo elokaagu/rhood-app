@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Audio } from "expo-av";
 import { supabase } from "../lib/supabase";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -92,6 +93,37 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
             [{ text: "OK" }]
           );
           return;
+        }
+
+        // Check audio duration (max 5 minutes)
+        try {
+          console.log("🎵 Checking audio duration...");
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: file.uri },
+            { shouldPlay: false }
+          );
+
+          const status = await sound.getStatusAsync();
+          await sound.unloadAsync();
+
+          if (status.isLoaded && status.durationMillis) {
+            const durationMinutes = status.durationMillis / 1000 / 60;
+            const maxDurationMinutes = 5;
+
+            console.log(`🎵 Audio duration: ${durationMinutes.toFixed(2)} minutes`);
+
+            if (durationMinutes > maxDurationMinutes) {
+              Alert.alert(
+                "Mix Too Long",
+                `Your mix is ${durationMinutes.toFixed(1)} minutes long. Maximum allowed length is ${maxDurationMinutes} minutes.`,
+                [{ text: "OK" }]
+              );
+              return;
+            }
+          }
+        } catch (durationError) {
+          console.warn("⚠️ Could not check duration:", durationError.message);
+          // Continue anyway - don't block upload if duration check fails
         }
 
         setSelectedFile(file);
