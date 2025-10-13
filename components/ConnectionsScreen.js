@@ -89,11 +89,11 @@ export default function ConnectionsScreen({ onNavigate }) {
             conn.connected_user_username ||
             conn.connected_user_name.toLowerCase().replace(/\s+/g, "")
           }`,
-          location: conn.connected_user_city,
+          location: conn.connected_user_city || conn.connected_user_location || "Location not set",
           genres: conn.connected_user_genres || [],
           profileImage:
             conn.connected_user_image ||
-            "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop",
+            require("../assets/rhood_logo.png"),
           rating: conn.connected_user_rating || 0,
           gigsCompleted: conn.connected_user_gigs || 0,
           lastActive: "Recently", // Could calculate from last_seen if we add that field
@@ -204,15 +204,15 @@ export default function ConnectionsScreen({ onNavigate }) {
         id: user.id,
         name: user.dj_name || user.full_name || "Unknown DJ",
         username: `@${
-          user.username || 
+          user.username ||
           user.dj_name?.toLowerCase().replace(/\s+/g, "") ||
           "dj"
         }`,
-        location: user.city || "Location not set",
+        location: user.city || user.location || "Location not set",
         genres: user.genres || [],
         profileImage:
           user.profile_image_url ||
-          "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=100&h=100&fit=crop",
+          require("../assets/rhood_logo.png"),
         gigsCompleted: user.gigs_completed || 0,
         lastActive: "Recently",
         status: "online",
@@ -221,7 +221,9 @@ export default function ConnectionsScreen({ onNavigate }) {
       }));
 
       setDiscoverUsers(formattedDiscoverUsers);
-      console.log(`✅ Loaded ${formattedDiscoverUsers.length} discover users from database`);
+      console.log(
+        `✅ Loaded ${formattedDiscoverUsers.length} discover users from database`
+      );
       console.log("🔍 Sample user data:", formattedDiscoverUsers[0]);
     } catch (error) {
       console.error("❌ Error loading discover DJs:", error);
