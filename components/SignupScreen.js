@@ -109,23 +109,18 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const { user } = await auth.signInWithGoogle();
-      if (user) {
-        // For social sign-in, we'll need to create a basic profile
-        // The user can complete their profile during onboarding
-        const profileData = {
-          id: user.id,
-          email: user.email || "",
-          dj_name: user.user_metadata?.full_name || "",
-          first_name: user.user_metadata?.given_name || "",
-          last_name: user.user_metadata?.family_name || "",
-          city: "", // Will be set during onboarding
-          genres: [],
-          bio: "DJ from the underground",
-        };
+      const sessionData = await auth.signInWithGoogle(true); // Pass true for signup flow
+      console.log("✅ Google Sign-Up returned sessionData:", !!sessionData);
+      console.log("✅ User from sessionData:", sessionData?.user?.email);
 
-        await db.createUserProfile(profileData);
-        onSignupSuccess(user);
+      if (sessionData?.user) {
+        console.log(
+          "📞 Calling onSignupSuccess with user:",
+          sessionData.user.id
+        );
+        onSignupSuccess(sessionData.user);
+      } else {
+        console.error("❌ No user in sessionData");
       }
     } catch (error) {
       console.error("Google sign-in error:", error);

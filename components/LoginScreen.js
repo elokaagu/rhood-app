@@ -70,7 +70,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const sessionData = await auth.signInWithGoogle();
+      const sessionData = await auth.signInWithGoogle(false); // Pass false for login flow
       console.log("✅ Google Sign-In returned sessionData:", !!sessionData);
       console.log("✅ User from sessionData:", sessionData?.user?.email);
 
