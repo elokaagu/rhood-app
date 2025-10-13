@@ -415,9 +415,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                   style={styles.profileImage}
                 />
               ) : (
-                <View style={styles.placeholderImage}>
-                  <Ionicons name="person" size={40} color="hsl(0, 0%, 50%)" />
-                </View>
+                <Image
+                  source={require("../assets/rhood_logo.png")}
+                  style={styles.profileImage}
+                />
               )}
               <View style={styles.imageOverlay}>
                 <Ionicons name="camera" size={20} color="hsl(0, 0%, 100%)" />

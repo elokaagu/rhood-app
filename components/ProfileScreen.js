@@ -181,7 +181,7 @@ export default function ProfileScreen({ onNavigate, user }) {
           genres: userProfile.genres || [],
           profileImage: userProfile.profile_image_url
             ? { uri: userProfile.profile_image_url }
-            : require("../assets/eloka-profile.jpeg"),
+            : require("../assets/rhood_logo.png"),
           socialLinks: {
             instagram: userProfile.instagram || null,
             soundcloud: userProfile.soundcloud || null,

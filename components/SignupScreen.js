@@ -93,6 +93,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
           city: formData.city,
           genres: [], // Will be set during onboarding
           bio: `DJ from ${formData.city}`,
+          profile_image_url: null, // Will use R/HOOD logo as default in UI
         };
 
         await db.createUserProfile(profileData);
