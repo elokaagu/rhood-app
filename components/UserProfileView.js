@@ -68,7 +68,30 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       setError(null);
 
       const profileData = await db.getUserProfilePublic(userId);
-      setProfile(profileData);
+      
+      // Load primary mix data if it exists
+      let primaryMix = null;
+      if (profileData.primary_mix_id) {
+        try {
+          const { supabase } = await import("../lib/supabase");
+          const { data: mixData, error: mixError } = await supabase
+            .from("mixes")
+            .select("*")
+            .eq("id", profileData.primary_mix_id)
+            .single();
+          
+          if (!mixError && mixData) {
+            primaryMix = mixData;
+          }
+        } catch (mixErr) {
+          console.warn("⚠️ Could not load primary mix:", mixErr);
+        }
+      }
+      
+      setProfile({
+        ...profileData,
+        primaryMix: primaryMix
+      });
     } catch (err) {
       console.error("❌ Error loading user profile:", err);
       setError("Failed to load profile");
@@ -156,26 +179,49 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           setIsPlayingAudioId(true);
         }
       } else {
-        // Load and play the audio ID track
-        const { sound } = await Audio.Sound.createAsync(
-          require("../assets/audio/unique-original-mix.mp3"),
-          { shouldPlay: true }
-        );
-        audioIdSoundRef.current = sound;
-        setIsPlayingAudioId(true);
+        // Load and play the primary mix audio file
+        if (profile.primaryMix?.file_url) {
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: profile.primaryMix.file_url },
+            { shouldPlay: true }
+          );
+          audioIdSoundRef.current = sound;
+          setIsPlayingAudioId(true);
 
-        // Set up progress tracking
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded) {
-            const progress = status.positionMillis / status.durationMillis;
-            setAudioIdProgress(progress);
-            
-            if (status.didJustFinish) {
-              setIsPlayingAudioId(false);
-              setAudioIdProgress(0);
+          // Set up progress tracking
+          sound.setOnPlaybackStatusUpdate((status) => {
+            if (status.isLoaded) {
+              const progress = status.positionMillis / status.durationMillis;
+              setAudioIdProgress(progress);
+              
+              if (status.didJustFinish) {
+                setIsPlayingAudioId(false);
+                setAudioIdProgress(0);
+              }
             }
-          }
-        });
+          });
+        } else {
+          // Fallback to static file if no primary mix
+          const { sound } = await Audio.Sound.createAsync(
+            require("../assets/audio/unique-original-mix.mp3"),
+            { shouldPlay: true }
+          );
+          audioIdSoundRef.current = sound;
+          setIsPlayingAudioId(true);
+
+          // Set up progress tracking
+          sound.setOnPlaybackStatusUpdate((status) => {
+            if (status.isLoaded) {
+              const progress = status.positionMillis / status.durationMillis;
+              setAudioIdProgress(progress);
+              
+              if (status.didJustFinish) {
+                setIsPlayingAudioId(false);
+                setAudioIdProgress(0);
+              }
+            }
+          });
+        }
       }
     } catch (error) {
       console.error("Error playing audio ID:", error);
@@ -378,55 +424,67 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           </View>
 
           {/* Audio ID Card */}
-          <View style={styles.audioIdCard}>
-            <Text style={styles.audioIdTitle}>AUDIO ID</Text>
-            <View style={styles.audioPlayer}>
-              <View style={styles.audioInfo}>
-                <Text style={styles.trackTitle}>Dark Industrial Mix #1</Text>
-                <Text style={styles.trackDetails}>5:23 • Deep Techno</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.audioPlayButton}
-                onPress={handleAudioIdPlay}
-              >
-                <Ionicons 
-                  name={isPlayingAudioId ? "pause" : "play"} 
-                  size={20} 
-                  color="hsl(0, 0%, 0%)" 
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.waveformContainer}>
-              {[3, 5, 2, 7, 4, 6, 3, 8, 5, 4, 6, 3, 5, 7, 4, 2].map(
-                (height, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.waveformBar, 
-                      { 
-                        height: height * 2,
-                        backgroundColor: index < audioIdProgress * 16 ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 30%)"
-                      }
-                    ]}
+          {profile.primaryMix && (
+            <View style={styles.audioIdCard}>
+              <Text style={styles.audioIdTitle}>AUDIO ID</Text>
+              <View style={styles.audioPlayer}>
+                <View style={styles.audioInfo}>
+                  <Text style={styles.trackTitle}>{profile.primaryMix.title}</Text>
+                  <Text style={styles.trackDetails}>
+                    {profile.primaryMix.duration ? 
+                      `${Math.floor(profile.primaryMix.duration / 60)}:${(profile.primaryMix.duration % 60).toString().padStart(2, '0')}` : 
+                      "0:00"
+                    } • {profile.primaryMix.genre || "Electronic"}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.audioPlayButton}
+                  onPress={handleAudioIdPlay}
+                >
+                  <Ionicons 
+                    name={isPlayingAudioId ? "pause" : "play"} 
+                    size={20} 
+                    color="hsl(0, 0%, 0%)" 
                   />
-                )
-              )}
-            </View>
-            <View style={styles.progressContainer}>
-              <Text style={styles.timeText}>
-                {isPlayingAudioId ? "1:23" : "0:00"}
-              </Text>
-              <View style={styles.progressBar}>
-                <View 
-                  style={[
-                    styles.progressFill, 
-                    { width: `${audioIdProgress * 100}%` }
-                  ]} 
-                />
+                </TouchableOpacity>
               </View>
-              <Text style={styles.timeText}>5:23</Text>
+              <View style={styles.waveformContainer}>
+                {[3, 5, 2, 7, 4, 6, 3, 8, 5, 4, 6, 3, 5, 7, 4, 2].map(
+                  (height, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.waveformBar, 
+                        { 
+                          height: height * 2,
+                          backgroundColor: index < audioIdProgress * 16 ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 30%)"
+                        }
+                      ]}
+                    />
+                  )
+                )}
+              </View>
+              <View style={styles.progressContainer}>
+                <Text style={styles.timeText}>
+                  {isPlayingAudioId ? "1:23" : "0:00"}
+                </Text>
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { width: `${audioIdProgress * 100}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.timeText}>
+                  {profile.primaryMix.duration ? 
+                    `${Math.floor(profile.primaryMix.duration / 60)}:${(profile.primaryMix.duration % 60).toString().padStart(2, '0')}` : 
+                    "0:00"
+                  }
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Primary Mix */}
           {profile.primary_mix && (
