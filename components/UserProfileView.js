@@ -180,32 +180,32 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       } else {
         // Prepare track data for background service
         const trackData = {
-          id: profile.primaryMix?.id || 'audio-id',
-          title: profile.primaryMix?.title || 'Audio ID',
-          artist: profile.dj_name || profile.full_name || 'Unknown Artist',
-          genre: profile.primaryMix?.genre || 'Electronic',
+          id: profile.primaryMix?.id || "audio-id",
+          title: profile.primaryMix?.title || "Audio ID",
+          artist: profile.dj_name || profile.full_name || "Unknown Artist",
+          genre: profile.primaryMix?.genre || "Electronic",
           file_url: profile.primaryMix?.file_url,
           audioUrl: require("../assets/audio/unique-original-mix.mp3"), // Fallback
         };
 
         // Play the track using background service
         const success = await backgroundAudioService.playTrack(trackData);
-        
+
         if (success) {
           setIsPlayingAudioId(true);
-          
+
           // Start progress updates
           const progressInterval = setInterval(() => {
             const playbackState = backgroundAudioService.getPlaybackState();
             setAudioIdProgress(playbackState.progress);
-            
+
             if (!playbackState.isPlaying && isPlayingAudioId) {
               setIsPlayingAudioId(false);
               setAudioIdProgress(0);
               clearInterval(progressInterval);
             }
           }, 1000);
-          
+
           // Store interval reference for cleanup
           audioIdSoundRef.current = { progressInterval };
         } else {
