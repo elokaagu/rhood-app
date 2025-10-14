@@ -13,7 +13,7 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { auth } from "../lib/supabase";
+import { auth, supabase } from "../lib/supabase";
 import {
   COLORS,
   TYPOGRAPHY,
@@ -44,9 +44,47 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
       }
     } catch (error) {
       console.error("Login error:", error);
-      Alert.alert("Login Failed", error.message || "Invalid email or password");
+      
+      // Handle specific error cases
+      if (error.message?.includes("Email not confirmed")) {
+        Alert.alert(
+          "Email Not Confirmed", 
+          "Please check your email and click the confirmation link before signing in.",
+          [
+            { text: "OK", style: "default" },
+            { 
+              text: "Resend Confirmation", 
+              style: "default",
+              onPress: () => handleResendConfirmation(email)
+            }
+          ]
+        );
+      } else if (error.message?.includes("Invalid login credentials")) {
+        Alert.alert("Login Failed", "Invalid email or password");
+      } else {
+        Alert.alert("Login Failed", error.message || "An error occurred during login");
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async (emailAddress) => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: emailAddress,
+      });
+
+      if (error) throw error;
+      
+      Alert.alert(
+        "Confirmation Email Sent",
+        "Please check your email and click the confirmation link."
+      );
+    } catch (error) {
+      console.error("Resend confirmation error:", error);
+      Alert.alert("Error", "Failed to resend confirmation email");
     }
   };
 
@@ -64,7 +102,15 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
       );
     } catch (error) {
       console.error("Password reset error:", error);
-      Alert.alert("Error", "Failed to send password reset email");
+      
+      // Handle specific error cases
+      if (error.message?.includes("rate limit")) {
+        Alert.alert("Error", "Too many password reset attempts. Please wait before trying again.");
+      } else if (error.message?.includes("not found")) {
+        Alert.alert("Error", "No account found with this email address.");
+      } else {
+        Alert.alert("Error", "Failed to send password reset email. Please try again.");
+      }
     }
   };
 
