@@ -122,10 +122,20 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
       console.log("✅ User found:", currentUser.id);
       setUser(currentUser);
 
-      // Get user's connections from database
+      // Get user's connections from database (both pending and accepted)
       const connectionsData = await db.getUserConnections(
         currentUser.id,
-        "accepted"
+        null // Get all connections regardless of status
+      );
+
+      // Debug: Log the connections data
+      console.log(
+        "🔍 Connections tab - Raw connections data:",
+        connectionsData
+      );
+      console.log(
+        "🔍 Connections tab - Number of connections:",
+        connectionsData?.length || 0
       );
 
       if (connectionsData && connectionsData.length > 0) {
@@ -136,6 +146,7 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
             name: conn.connected_user_name,
             image: conn.connected_user_image,
             hasImage: !!conn.connected_user_image,
+            status: conn.connection_status,
           });
 
           return {
@@ -157,6 +168,7 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
             mutualConnections: 0, // Could calculate if needed
             status: "online", // Could be based on last_seen
             isVerified: conn.connected_user_verified || false,
+            connectionStatus: conn.connection_status, // Add actual connection status
           };
         });
 
