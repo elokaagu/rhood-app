@@ -171,10 +171,9 @@ export default function ProfileScreen({ onNavigate, user }) {
         setProfile({
           id: userProfile.id,
           name: userProfile.dj_name || userProfile.full_name || "Unknown DJ",
-          username: userProfile.username
-            ? `@${userProfile.username}`
-            : `@${userProfile.dj_name?.toLowerCase().replace(/\s+/g, "")}` ||
-              "@dj",
+          username: `@${(userProfile.dj_name || userProfile.full_name || "dj")
+            .toLowerCase()
+            .replace(/\s+/g, "")}`,
           gigsCompleted: userProfile.gigs_completed || 0,
           credits: userProfile.credits || 0,
           bio: userProfile.bio || "No bio available",
@@ -221,17 +220,26 @@ export default function ProfileScreen({ onNavigate, user }) {
   };
 
   const handleSocialLinkPress = (platform, link) => {
+    // Check if link exists and is not empty
+    if (!link || link.trim() === "") {
+      Alert.alert("No Link", `No ${platform} link available`);
+      return;
+    }
+
     let url;
     switch (platform) {
       case "instagram":
-        url = `https://instagram.com/${link.replace("@", "")}`;
+        // Link is already a full URL from autofill, use it directly
+        url = link;
         break;
       case "soundcloud":
-        url = `https://${link}`;
+        // Link is already a full URL from autofill, use it directly
+        url = link;
         break;
       default:
         return;
     }
+
     Linking.openURL(url).catch(() => {
       Alert.alert("Error", "Could not open link");
     });
@@ -347,7 +355,6 @@ export default function ProfileScreen({ onNavigate, user }) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>PROFILE</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.headerButton}
@@ -389,7 +396,6 @@ export default function ProfileScreen({ onNavigate, user }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>PROFILE</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.headerButton}
@@ -540,58 +546,132 @@ export default function ProfileScreen({ onNavigate, user }) {
 
         {/* Social Links */}
         <View style={styles.socialContainer}>
-          <Text style={styles.sectionTitle}>Social Links</Text>
+          <Text style={styles.sectionTitle}>SOCIAL LINKS</Text>
           <View style={styles.socialLinks}>
+            {/* Instagram Link */}
             <TouchableOpacity
-              style={styles.socialLink}
+              style={[
+                styles.socialLinkCard,
+                !profile.socialLinks.instagram && styles.socialLinkDisabled,
+              ]}
               onPress={() =>
                 handleSocialLinkPress(
                   "instagram",
                   profile.socialLinks.instagram
                 )
               }
+              disabled={!profile.socialLinks.instagram}
             >
-              <View style={styles.socialIconContainer}>
+              <View style={styles.socialLinkContent}>
+                <View style={styles.socialIconWrapper}>
+                  <Ionicons
+                    name="logo-instagram"
+                    size={24}
+                    color={
+                      profile.socialLinks.instagram
+                        ? "hsl(0, 0%, 100%)"
+                        : "hsl(0, 0%, 30%)"
+                    }
+                  />
+                </View>
+                <View style={styles.socialLinkInfo}>
+                  <Text
+                    style={[
+                      styles.socialPlatformName,
+                      !profile.socialLinks.instagram &&
+                        styles.socialPlatformNameDisabled,
+                    ]}
+                  >
+                    Instagram
+                  </Text>
+                  <Text
+                    style={[
+                      styles.socialHandle,
+                      !profile.socialLinks.instagram &&
+                        styles.socialHandleDisabled,
+                    ]}
+                  >
+                    {profile.socialLinks.instagram
+                      ? profile.socialLinks.instagram.replace(
+                          "https://instagram.com/",
+                          "@"
+                        )
+                      : "Not connected"}
+                  </Text>
+                </View>
                 <Ionicons
-                  name="logo-instagram"
+                  name="chevron-forward"
                   size={20}
-                  color="hsl(0, 0%, 100%)"
+                  color={
+                    profile.socialLinks.instagram
+                      ? "hsl(75, 100%, 60%)"
+                      : "hsl(0, 0%, 30%)"
+                  }
                 />
               </View>
-              <Text style={styles.socialText}>
-                {profile.socialLinks.instagram}
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                color="hsl(0, 0%, 50%)"
-              />
             </TouchableOpacity>
 
+            {/* SoundCloud Link */}
             <TouchableOpacity
-              style={styles.socialLink}
+              style={[
+                styles.socialLinkCard,
+                !profile.socialLinks.soundcloud && styles.socialLinkDisabled,
+              ]}
               onPress={() =>
                 handleSocialLinkPress(
                   "soundcloud",
                   profile.socialLinks.soundcloud
                 )
               }
+              disabled={!profile.socialLinks.soundcloud}
             >
-              <View style={styles.socialIconContainer}>
+              <View style={styles.socialLinkContent}>
+                <View style={styles.socialIconWrapper}>
+                  <Ionicons
+                    name="musical-notes"
+                    size={24}
+                    color={
+                      profile.socialLinks.soundcloud
+                        ? "hsl(0, 0%, 100%)"
+                        : "hsl(0, 0%, 30%)"
+                    }
+                  />
+                </View>
+                <View style={styles.socialLinkInfo}>
+                  <Text
+                    style={[
+                      styles.socialPlatformName,
+                      !profile.socialLinks.soundcloud &&
+                        styles.socialPlatformNameDisabled,
+                    ]}
+                  >
+                    SoundCloud
+                  </Text>
+                  <Text
+                    style={[
+                      styles.socialHandle,
+                      !profile.socialLinks.soundcloud &&
+                        styles.socialHandleDisabled,
+                    ]}
+                  >
+                    {profile.socialLinks.soundcloud
+                      ? profile.socialLinks.soundcloud.replace(
+                          "https://soundcloud.com/",
+                          ""
+                        )
+                      : "Not connected"}
+                  </Text>
+                </View>
                 <Ionicons
-                  name="musical-notes"
+                  name="chevron-forward"
                   size={20}
-                  color="hsl(0, 0%, 100%)"
+                  color={
+                    profile.socialLinks.soundcloud
+                      ? "hsl(75, 100%, 60%)"
+                      : "hsl(0, 0%, 30%)"
+                  }
                 />
               </View>
-              <Text style={styles.socialText}>
-                {profile.socialLinks.soundcloud}
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                color="hsl(0, 0%, 50%)"
-              />
             </TouchableOpacity>
           </View>
         </View>
@@ -673,7 +753,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
     padding: 20,
     paddingBottom: 16,
@@ -715,8 +795,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 3,
-    borderColor: "hsl(75, 100%, 60%)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -915,34 +993,58 @@ const styles = StyleSheet.create({
   },
   socialContainer: {
     paddingHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   socialLinks: {
-    gap: 12,
+    gap: 16,
   },
-  socialLink: {
+  socialLinkCard: {
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+    overflow: "hidden",
+  },
+  socialLinkDisabled: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderColor: "hsl(0, 0%, 15%)",
+    opacity: 0.6,
+  },
+  socialLinkContent: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+    padding: 20,
   },
-  socialIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "hsl(0, 0%, 15%)",
+  socialIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "hsl(0, 0%, 18%)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 16,
   },
-  socialText: {
+  socialLinkInfo: {
     flex: 1,
-    fontSize: 14,
+  },
+  socialPlatformName: {
+    fontSize: 16,
+    fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     fontFamily: "Helvetica Neue",
+    marginBottom: 4,
+  },
+  socialPlatformNameDisabled: {
+    color: "hsl(0, 0%, 40%)",
+  },
+  socialHandle: {
+    fontSize: 14,
+    color: "hsl(75, 100%, 60%)",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+  },
+  socialHandleDisabled: {
+    color: "hsl(0, 0%, 30%)",
   },
   gigsContainer: {
     paddingHorizontal: 20,

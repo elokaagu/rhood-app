@@ -560,11 +560,18 @@ export default function OnboardingForm({
           </View>
           <TextInput
             style={[styles.socialInput, errors.instagram && styles.inputError]}
-            placeholder="@yourhandle or full URL"
+            placeholder="yourhandle"
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={djProfile.instagram}
             onChangeText={(text) => {
-              setDjProfile((prev) => ({ ...prev, instagram: text }));
+              // Auto-prepend Instagram URL if user just enters handle
+              let processedText = text;
+              if (text && !text.startsWith("http") && !text.startsWith("@")) {
+                processedText = `https://instagram.com/${text}`;
+              } else if (text && text.startsWith("@")) {
+                processedText = `https://instagram.com/${text.substring(1)}`;
+              }
+              setDjProfile((prev) => ({ ...prev, instagram: processedText }));
               if (errors.instagram) {
                 setErrors((prev) => ({ ...prev, instagram: null }));
               }
@@ -591,11 +598,16 @@ export default function OnboardingForm({
           </View>
           <TextInput
             style={[styles.socialInput, errors.soundcloud && styles.inputError]}
-            placeholder="https://soundcloud.com/yourusername"
+            placeholder="yourusername"
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={djProfile.soundcloud}
             onChangeText={(text) => {
-              setDjProfile((prev) => ({ ...prev, soundcloud: text }));
+              // Auto-prepend SoundCloud URL if user just enters handle
+              let processedText = text;
+              if (text && !text.startsWith("http")) {
+                processedText = `https://soundcloud.com/${text}`;
+              }
+              setDjProfile((prev) => ({ ...prev, soundcloud: processedText }));
               if (errors.soundcloud) {
                 setErrors((prev) => ({ ...prev, soundcloud: null }));
               }

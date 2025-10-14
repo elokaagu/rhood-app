@@ -666,10 +666,23 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               <TextInput
                 style={[styles.input, errors.instagram && styles.inputError]}
                 value={profile.instagram}
-                onChangeText={(text) =>
-                  setProfile((prev) => ({ ...prev, instagram: text }))
-                }
-                placeholder="https://instagram.com/yourusername"
+                onChangeText={(text) => {
+                  // Auto-prepend Instagram URL if user just enters handle
+                  let processedText = text;
+                  if (
+                    text &&
+                    !text.startsWith("http") &&
+                    !text.startsWith("@")
+                  ) {
+                    processedText = `https://instagram.com/${text}`;
+                  } else if (text && text.startsWith("@")) {
+                    processedText = `https://instagram.com/${text.substring(
+                      1
+                    )}`;
+                  }
+                  setProfile((prev) => ({ ...prev, instagram: processedText }));
+                }}
+                placeholder="yourhandle"
                 placeholderTextColor="hsl(0, 0%, 50%)"
                 keyboardType="url"
                 autoCapitalize="none"
@@ -684,10 +697,18 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               <TextInput
                 style={[styles.input, errors.soundcloud && styles.inputError]}
                 value={profile.soundcloud}
-                onChangeText={(text) =>
-                  setProfile((prev) => ({ ...prev, soundcloud: text }))
-                }
-                placeholder="https://soundcloud.com/yourusername"
+                onChangeText={(text) => {
+                  // Auto-prepend SoundCloud URL if user just enters handle
+                  let processedText = text;
+                  if (text && !text.startsWith("http")) {
+                    processedText = `https://soundcloud.com/${text}`;
+                  }
+                  setProfile((prev) => ({
+                    ...prev,
+                    soundcloud: processedText,
+                  }));
+                }}
+                placeholder="yourusername"
                 placeholderTextColor="hsl(0, 0%, 50%)"
                 keyboardType="url"
                 autoCapitalize="none"

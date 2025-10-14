@@ -44,7 +44,8 @@ export default function ConnectionsScreen({
   const [discoverFadeAnim] = useState(new Animated.Value(0));
   const [connectionMessage, setConnectionMessage] = useState("");
   const [showConnectionModal, setShowConnectionModal] = useState(false);
-  const [lastMessages, setLastMessages] = useState({});
+  const [isRhoodMember, setIsRhoodMember] = useState(false);
+  const [rhoodMemberCount, setRhoodMemberCount] = useState(0);
 
   // Update user state when prop changes
   useEffect(() => {
@@ -60,21 +61,24 @@ export default function ConnectionsScreen({
       await loadUserAndConnections();
       // Load discover data after connections are loaded
       await loadDiscoverDJs();
+      // Check R/HOOD membership
+      await checkRhoodMembership();
+
+      // If Messages tab is active, ensure data is loaded
+      if (activeTab === "connections") {
+        await loadUserAndConnections();
+      }
     };
     initializeData();
   }, []);
 
-  // Handle initial discover fade-in
+  // Load data when Messages tab becomes active
   useEffect(() => {
-    if (discoverUsers.length > 0 && !discoverLoading) {
-      discoverFadeAnim.setValue(0);
-      Animated.timing(discoverFadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+    if (activeTab === "connections" && user) {
+      loadUserAndConnections();
+      checkRhoodMembership();
     }
-  }, [discoverUsers, discoverLoading]);
+  }, [activeTab, user]);
 
   const loadUserAndConnections = async () => {
     try {
@@ -161,8 +165,8 @@ export default function ConnectionsScreen({
             id: conn.connected_user_id,
             name: conn.connected_user_name,
             username: `@${
-              conn.connected_user_username ||
-              conn.connected_user_name.toLowerCase().replace(/\s+/g, "")
+              conn.connected_user_name?.toLowerCase().replace(/\s+/g, "") ||
+              "user"
             }`,
             location:
               conn.connected_user_city ||
@@ -210,8 +214,46 @@ export default function ConnectionsScreen({
     setRefreshing(false);
   };
 
+  const checkRhoodMembership = async () => {
+    try {
+      // For now, assume all users are members since we don't have the community system fully set up
+      // In a real implementation, you would check the community_members table
+      setIsRhoodMember(true);
+      setRhoodMemberCount(12); // Placeholder count
+    } catch (error) {
+      console.error("Error checking R/HOOD membership:", error);
+      setIsRhoodMember(false);
+      setRhoodMemberCount(0);
+    }
+  };
+
+  const handleJoinRhoodGroup = async () => {
+    try {
+      // For now, just show a success message
+      // In a real implementation, you would add the user to the community_members table
+      Alert.alert(
+        "Welcome to R/HOOD Group!",
+        "You've successfully joined the main R/HOOD community chat. Start connecting with fellow DJs!",
+        [{ text: "OK" }]
+      );
+      setIsRhoodMember(true);
+      setRhoodMemberCount((prev) => prev + 1);
+    } catch (error) {
+      console.error("Error joining R/HOOD group:", error);
+      Alert.alert("Error", "Failed to join R/HOOD Group. Please try again.");
+    }
+  };
+
   const handleGroupChatPress = () => {
-    onNavigate && onNavigate("messages", { isGroupChat: true });
+    if (isRhoodMember) {
+      onNavigate &&
+        onNavigate("messages", {
+          communityId: "550e8400-e29b-41d4-a716-446655440000",
+          chatType: "group",
+        });
+    } else {
+      handleJoinRhoodGroup();
+    }
   };
 
   const handleConnectionPress = (connection) => {
@@ -357,11 +399,9 @@ export default function ConnectionsScreen({
         return {
           id: user.id,
           name: user.dj_name || user.full_name || "Unknown DJ",
-          username: `@${
-            user.username ||
-            user.dj_name?.toLowerCase().replace(/\s+/g, "") ||
-            "dj"
-          }`,
+          username: `@${(user.dj_name || user.full_name || "dj")
+            .toLowerCase()
+            .replace(/\s+/g, "")}`,
           location: user.city || user.location || "Location not set",
           genres: user.genres || [],
           profileImage: user.profile_image_url || null,
@@ -452,17 +492,27 @@ export default function ConnectionsScreen({
 
   const getLastMessageContent = async (connection) => {
     // This would fetch the actual last message from the conversation
-    // For now, return a placeholder - in a real implementation, you'd fetch from messages table
+    // For now, return empty string - in a real implementation, you'd fetch from messages table
     try {
       // TODO: Implement actual message fetching
       // const lastMessage = await db.getLastMessage(connection.id);
-      // return lastMessage?.content || "No messages yet";
-      return "No messages yet";
+      // return lastMessage?.content || "";
+      return "";
     } catch (error) {
       console.error("Error fetching last message:", error);
-      return "No messages yet";
+      return "";
     }
   };
+
+  // Filter connections to only show those with messages (but always show R/HOOD Group)
+  const connectionsWithMessages = filteredConnections.filter((connection) => {
+    const lastMessage = lastMessages[connection.id];
+    return (
+      lastMessage &&
+      lastMessage !== "No messages yet" &&
+      lastMessage.trim() !== ""
+    );
+  });
 
   return (
     <View style={styles.container}>
@@ -535,14 +585,16 @@ export default function ConnectionsScreen({
                 setActiveTab("connections");
                 // Reset fade animation for connections tab
                 connectionsFadeAnim.setValue(0);
-                // Fade in connections if they exist
-                if (connections.length > 0) {
+                // Reload connections data when switching to messages tab
+                loadUserAndConnections();
+                // Fade in connections after loading
+                setTimeout(() => {
                   Animated.timing(connectionsFadeAnim, {
                     toValue: 1,
                     duration: 300,
                     useNativeDriver: true,
                   }).start();
-                }
+                }, 100);
                 // Reset discover fade animation
                 discoverFadeAnim.setValue(0);
               }}
@@ -624,28 +676,39 @@ export default function ConnectionsScreen({
                     <View style={styles.messageInfo}>
                       <View style={styles.messageHeader}>
                         <Text style={styles.messageName}>R/HOOD Group</Text>
-                        <Text style={styles.messageTime}>2m</Text>
+                        <Text style={styles.messageTime}>
+                          {isRhoodMember ? "2m" : "Join to chat"}
+                        </Text>
                       </View>
                       <Text style={styles.messagePreview} numberOfLines={1}>
-                        Sofia: Yeah, the set was amazing! 🔥
+                        {isRhoodMember
+                          ? "Sofia: Yeah, the set was amazing! 🔥"
+                          : "Join the main R/HOOD community chat"}
                       </Text>
                       <View style={styles.messageBadges}>
                         <View style={styles.pinnedBadge}>
-                          <Text style={styles.pinnedBadgeText}>Pinned</Text>
+                          <Text style={styles.pinnedBadgeText}>
+                            {isRhoodMember ? "Pinned" : "Join"}
+                          </Text>
                         </View>
-                        <Text style={styles.memberCount}>12 members</Text>
+                        <Text style={styles.memberCount}>
+                          {rhoodMemberCount} member
+                          {rhoodMemberCount !== 1 ? "s" : ""}
+                        </Text>
                       </View>
                     </View>
 
                     {/* Unread Counter */}
-                    <View style={styles.unreadCounter}>
-                      <Text style={styles.unreadCount}>3</Text>
-                    </View>
+                    {isRhoodMember && (
+                      <View style={styles.unreadCounter}>
+                        <Text style={styles.unreadCount}>3</Text>
+                      </View>
+                    )}
                   </View>
                 </TouchableOpacity>
 
                 {/* Individual Messages */}
-                {filteredConnections.map((connection, index) => (
+                {connectionsWithMessages.map((connection, index) => (
                   <AnimatedListItem
                     key={connection.id}
                     index={index}
@@ -686,7 +749,7 @@ export default function ConnectionsScreen({
                             </Text>
                           </View>
                           <Text style={styles.messagePreview} numberOfLines={1}>
-                            {lastMessages[connection.id] || "No messages yet"}
+                            {lastMessages[connection.id] || ""}
                           </Text>
                         </View>
                       </View>
@@ -694,14 +757,9 @@ export default function ConnectionsScreen({
                   </AnimatedListItem>
                 ))}
 
-                {/* Empty State */}
-                {filteredConnections.length === 0 && !loading && (
+                {/* Empty State - only show if no individual messages */}
+                {connectionsWithMessages.length === 0 && !loading && (
                   <View style={styles.emptyState}>
-                    <Ionicons
-                      name="chatbubbles-outline"
-                      size={64}
-                      color="hsl(0, 0%, 30%)"
-                    />
                     <Text style={styles.emptyStateTitle}>No Messages Yet</Text>
                     <Text style={styles.emptyStateDescription}>
                       Start connecting with DJs to begin conversations
@@ -854,7 +912,7 @@ export default function ConnectionsScreen({
                 style={styles.ctaButton}
                 onPress={handleBrowseCommunity}
               >
-                <Text style={styles.ctaButtonText}>Browse Community</Text>
+                <Text style={styles.ctaButtonText}>Browse Communities</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -1,6 +1,58 @@
 -- Simplified Connections Schema Update
 -- Run this in your Supabase SQL Editor
 
+-- 0. Ensure message_threads table has all required columns
+DO $$ 
+BEGIN
+  -- Create message_threads table if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'message_threads') THEN
+    CREATE TABLE message_threads (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      type VARCHAR(20) NOT NULL DEFAULT 'individual',
+      user_id_1 UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+      user_id_2 UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+      community_id UUID REFERENCES communities(id) ON DELETE CASCADE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      
+      CONSTRAINT check_thread_type CHECK (
+        (type = 'individual' AND user_id_1 IS NOT NULL AND user_id_2 IS NOT NULL AND community_id IS NULL) OR
+        (type = 'group' AND community_id IS NOT NULL AND user_id_1 IS NULL AND user_id_2 IS NULL)
+      )
+    );
+  END IF;
+  
+  -- Add type column if it doesn't exist (for existing tables)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'message_threads' AND column_name = 'type') THEN
+    ALTER TABLE message_threads ADD COLUMN type VARCHAR(20) NOT NULL DEFAULT 'individual';
+  END IF;
+  
+  -- Add user_id_1 column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'message_threads' AND column_name = 'user_id_1') THEN
+    ALTER TABLE message_threads ADD COLUMN user_id_1 UUID REFERENCES user_profiles(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add user_id_2 column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'message_threads' AND column_name = 'user_id_2') THEN
+    ALTER TABLE message_threads ADD COLUMN user_id_2 UUID REFERENCES user_profiles(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add community_id column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'message_threads' AND column_name = 'community_id') THEN
+    ALTER TABLE message_threads ADD COLUMN community_id UUID REFERENCES communities(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add updated_at column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'message_threads' AND column_name = 'updated_at') THEN
+    ALTER TABLE message_threads ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+END $$;
+
 -- 1. First, let's check what columns exist in the current connections table
 SELECT column_name, data_type, is_nullable, column_default
 FROM information_schema.columns 
@@ -35,16 +87,91 @@ CREATE TABLE connections (
   UNIQUE(user_id_1, user_id_2)
 );
 
--- 4. Create indexes for better performance
-CREATE INDEX idx_connections_user_id_1 ON connections(user_id_1);
-CREATE INDEX idx_connections_user_id_2 ON connections(user_id_2);
-CREATE INDEX idx_connections_status ON connections(status);
-CREATE INDEX idx_connections_initiated_by ON connections(initiated_by);
+-- 4. Create message_threads table (if not exists)
+CREATE TABLE IF NOT EXISTS message_threads (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  type VARCHAR(20) NOT NULL DEFAULT 'individual',
+  user_id_1 UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  user_id_2 UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  community_id UUID REFERENCES communities(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  -- Ensure we have either individual users or community, but not both
+  CONSTRAINT check_thread_type CHECK (
+    (type = 'individual' AND user_id_1 IS NOT NULL AND user_id_2 IS NOT NULL AND community_id IS NULL) OR
+    (type = 'group' AND community_id IS NOT NULL AND user_id_1 IS NULL AND user_id_2 IS NULL)
+  )
+);
 
--- 5. Enable Row Level Security
+-- Add missing columns to existing message_threads table if they don't exist
+DO $$ 
+BEGIN
+  -- Add type column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'message_threads' AND column_name = 'type') THEN
+    ALTER TABLE message_threads ADD COLUMN type VARCHAR(20) NOT NULL DEFAULT 'individual';
+  END IF;
+  
+  -- Add user_id_1 column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'message_threads' AND column_name = 'user_id_1') THEN
+    ALTER TABLE message_threads ADD COLUMN user_id_1 UUID REFERENCES user_profiles(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add user_id_2 column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'message_threads' AND column_name = 'user_id_2') THEN
+    ALTER TABLE message_threads ADD COLUMN user_id_2 UUID REFERENCES user_profiles(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add community_id column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'message_threads' AND column_name = 'community_id') THEN
+    ALTER TABLE message_threads ADD COLUMN community_id UUID REFERENCES communities(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add updated_at column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name = 'message_threads' AND column_name = 'updated_at') THEN
+    ALTER TABLE message_threads ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+END $$;
+
+-- Create unique constraint for individual threads (if not exists)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_message_threads_individual 
+ON message_threads (LEAST(user_id_1, user_id_2), GREATEST(user_id_1, user_id_2)) 
+WHERE type = 'individual';
+
+-- 5. Create notifications table (if not exists)
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  type VARCHAR(50) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  data JSONB,
+  related_id UUID,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 6. Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_connections_user_id_1 ON connections(user_id_1);
+CREATE INDEX IF NOT EXISTS idx_connections_user_id_2 ON connections(user_id_2);
+CREATE INDEX IF NOT EXISTS idx_connections_status ON connections(status);
+CREATE INDEX IF NOT EXISTS idx_connections_initiated_by ON connections(initiated_by);
+CREATE INDEX IF NOT EXISTS idx_message_threads_users ON message_threads(user_id_1, user_id_2);
+CREATE INDEX IF NOT EXISTS idx_message_threads_community ON message_threads(community_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, is_read);
+
+-- 7. Enable Row Level Security
 ALTER TABLE connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE message_threads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
--- 6. Create comprehensive RLS policies
+-- 8. Create comprehensive RLS policies
 CREATE POLICY "Users can view their own connections"
   ON connections FOR SELECT
   USING (auth.uid() = user_id_1 OR auth.uid() = user_id_2);
@@ -62,13 +189,75 @@ CREATE POLICY "Users can delete their connections"
   ON connections FOR DELETE
   USING (auth.uid() = user_id_1 OR auth.uid() = user_id_2);
 
--- 7. Grant permissions
+-- RLS policies for message_threads
+DROP POLICY IF EXISTS "Users can view their own message threads" ON message_threads;
+CREATE POLICY "Users can view their own message threads"
+  ON message_threads FOR SELECT
+  USING (
+    auth.uid() = user_id_1 OR 
+    auth.uid() = user_id_2 OR 
+    auth.uid() IN (SELECT user_id FROM community_members WHERE community_id = message_threads.community_id)
+  );
+
+DROP POLICY IF EXISTS "Users can create message threads" ON message_threads;
+CREATE POLICY "Users can create message threads"
+  ON message_threads FOR INSERT
+  WITH CHECK (
+    (type = 'individual' AND (auth.uid() = user_id_1 OR auth.uid() = user_id_2)) OR
+    (type = 'group' AND auth.uid() IN (SELECT user_id FROM community_members WHERE community_id = message_threads.community_id))
+  );
+
+DROP POLICY IF EXISTS "Users can update their message threads" ON message_threads;
+CREATE POLICY "Users can update their message threads"
+  ON message_threads FOR UPDATE
+  USING (
+    auth.uid() = user_id_1 OR 
+    auth.uid() = user_id_2 OR 
+    auth.uid() IN (SELECT user_id FROM community_members WHERE community_id = message_threads.community_id)
+  );
+
+-- RLS policies for notifications
+DROP POLICY IF EXISTS "Users can view their own notifications" ON notifications;
+CREATE POLICY "Users can view their own notifications"
+  ON notifications FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own notifications" ON notifications;
+CREATE POLICY "Users can update their own notifications"
+  ON notifications FOR UPDATE
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "System can create notifications" ON notifications;
+CREATE POLICY "System can create notifications"
+  ON notifications FOR INSERT
+  WITH CHECK (true); -- Allow system to create notifications
+
+-- 9. Grant permissions
 GRANT ALL ON connections TO authenticated;
+GRANT ALL ON message_threads TO authenticated;
+GRANT ALL ON notifications TO authenticated;
 
--- 8. Enable realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE connections;
+-- 10. Enable realtime (with safe checks)
+DO $$ 
+BEGIN
+  -- Add tables to realtime publication if they're not already there
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables 
+                 WHERE pubname = 'supabase_realtime' AND tablename = 'connections') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE connections;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables 
+                 WHERE pubname = 'supabase_realtime' AND tablename = 'message_threads') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE message_threads;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables 
+                 WHERE pubname = 'supabase_realtime' AND tablename = 'notifications') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+  END IF;
+END $$;
 
--- 9. Create helper function to get user connections
+-- 11. Create helper function to get user connections
 CREATE OR REPLACE FUNCTION get_user_connections(user_uuid UUID)
 RETURNS TABLE (
   connected_user_id UUID,
@@ -87,8 +276,8 @@ BEGIN
       ELSE c.user_id_1
     END as connected_user_id,
     CASE 
-      WHEN c.user_id_1 = user_uuid THEN up2.dj_name
-      ELSE up1.dj_name
+      WHEN c.user_id_1 = user_uuid THEN COALESCE(up2.dj_name, up2.full_name, 'Unknown User')
+      ELSE COALESCE(up1.dj_name, up1.full_name, 'Unknown User')
     END as connected_user_name,
     CASE 
       WHEN c.user_id_1 = user_uuid THEN up2.profile_image_url

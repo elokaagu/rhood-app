@@ -2534,181 +2534,8 @@ export default function App() {
         );
 
       case "profile":
-        return (
-          <ScrollView style={styles.profileScreen}>
-            {/* Profile Header Card */}
-            <View style={styles.profileHeaderCard}>
-              <TouchableOpacity style={styles.editProfileButton}>
-                <Ionicons
-                  name="create-outline"
-                  size={20}
-                  color="hsl(0, 0%, 100%)"
-                />
-              </TouchableOpacity>
-
-              <View style={styles.profileImageContainer}>
-                <Image
-                  source={{
-                    uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-                  }}
-                  style={styles.profileImage}
-                />
-              </View>
-
-              <Text style={styles.profileDisplayName}>Eloka Agu</Text>
-              <Text style={styles.profileUsername}>@elokaagu</Text>
-
-              <View style={styles.profileRating}>
-                <Ionicons name="star" size={16} color="hsl(75, 100%, 60%)" />
-                <Text style={styles.ratingText}>4.8 • 12 gigs</Text>
-              </View>
-
-              <Text style={styles.profileBio}>
-                Underground techno enthusiast with 5 years of experience.
-                Specializing in dark, industrial beats that make crowds move.
-                Always looking for new opportunities to showcase my sound.
-              </Text>
-
-              <View style={styles.profileLocation}>
-                <Ionicons
-                  name="location-outline"
-                  size={16}
-                  color="hsl(0, 0%, 70%)"
-                />
-                <Text style={styles.locationText}>London</Text>
-              </View>
-            </View>
-
-            {/* Stats Cards */}
-            <View style={styles.statsCardsContainer}>
-              <View style={styles.statCard}>
-                <Ionicons name="flash" size={24} color="hsl(75, 100%, 60%)" />
-                <Text style={styles.statNumber}>156</Text>
-                <Text style={styles.statLabel}>Credits</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Ionicons name="people" size={24} color="hsl(75, 100%, 60%)" />
-                <Text style={styles.statNumber}>12</Text>
-                <Text style={styles.statLabel}>Gigs Done</Text>
-              </View>
-            </View>
-
-            {/* Genres Card */}
-            <View style={styles.genresCard}>
-              <Text style={styles.cardTitle}>Genres</Text>
-              <View style={styles.genresContainer}>
-                {["Techno", "House", "Industrial", "Drum & Bass"].map(
-                  (genre, index) => (
-                    <View key={index} style={styles.genreTag}>
-                      <Text style={styles.genreTagText}>{genre}</Text>
-                    </View>
-                  )
-                )}
-              </View>
-            </View>
-
-            {/* Audio ID Card */}
-            <View style={styles.audioIdCard}>
-              <Text style={styles.cardTitle}>Audio ID</Text>
-              <View style={styles.audioPlayer}>
-                <View style={styles.audioInfo}>
-                  <Text style={styles.trackTitle}>Dark Industrial Mix #1</Text>
-                  <Text style={styles.trackDetails}>5:23 • Deep Techno</Text>
-                </View>
-                <TouchableOpacity style={styles.playButton}>
-                  <Ionicons name="play" size={20} color="hsl(0, 0%, 0%)" />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.waveformContainer}>
-                {[3, 5, 2, 7, 4, 6, 3, 8, 5, 4, 6, 3, 5, 7, 4, 2].map(
-                  (height, index) => (
-                    <View
-                      key={index}
-                      style={[styles.waveformBar, { height: height * 2 }]}
-                    />
-                  )
-                )}
-              </View>
-              <View style={styles.progressContainer}>
-                <Text style={styles.timeText}>1:23</Text>
-                <View style={styles.progressBar}>
-                  <View style={styles.progressFill} />
-                </View>
-                <Text style={styles.timeText}>5:23</Text>
-              </View>
-            </View>
-
-            {/* Social Links Card */}
-            <View style={styles.socialLinksCard}>
-              <Text style={styles.cardTitle}>Social Links</Text>
-              <TouchableOpacity style={styles.socialLink}>
-                <View style={styles.instagramIcon}>
-                  <Ionicons
-                    name="logo-instagram"
-                    size={20}
-                    color="hsl(0, 0%, 100%)"
-                  />
-                </View>
-                <Text style={styles.socialLinkText}>@alexbeats_official</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialLink}>
-                <View style={styles.soundcloudIcon}>
-                  <Ionicons
-                    name="musical-notes"
-                    size={20}
-                    color="hsl(0, 0%, 100%)"
-                  />
-                </View>
-                <Text style={styles.socialLinkText}>
-                  soundcloud.com/alexbeats
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Recent Gigs Card */}
-            <View style={styles.recentGigsCard}>
-              <Text style={styles.cardTitle}>📅 Recent Gigs</Text>
-              <View style={styles.gigItem}>
-                <View style={styles.gigInfo}>
-                  <Text style={styles.gigTitle}>Warehouse Sessions #12</Text>
-                  <Text style={styles.gigLocation}>East London Warehouse</Text>
-                  <Text style={styles.gigDate}>2024-07-20</Text>
-                </View>
-                <View style={styles.gigStats}>
-                  <Text style={styles.gigFee}>£300</Text>
-                  <Text style={styles.gigRating}>☆ 5</Text>
-                </View>
-              </View>
-              <View style={styles.gigSeparator} />
-              <View style={styles.gigItem}>
-                <View style={styles.gigInfo}>
-                  <Text style={styles.gigTitle}>Underground Collective</Text>
-                  <Text style={styles.gigLocation}>Secret Location</Text>
-                  <Text style={styles.gigDate}>2024-07-08</Text>
-                </View>
-                <View style={styles.gigStats}>
-                  <Text style={styles.gigFee}>£250</Text>
-                  <Text style={styles.gigRating}>☆ 4.5</Text>
-                </View>
-              </View>
-              <View style={styles.gigSeparator} />
-              <View style={styles.gigItem}>
-                <View style={styles.gigInfo}>
-                  <Text style={styles.gigTitle}>Basement Rave</Text>
-                  <Text style={styles.gigLocation}>Camden Club</Text>
-                  <Text style={styles.gigDate}>2024-06-25</Text>
-                </View>
-                <View style={styles.gigStats}>
-                  <Text style={styles.gigFee}>£400</Text>
-                  <Text style={styles.gigRating}>☆ 5</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Footer */}
-            <Text style={styles.memberSince}>Member since March 2024</Text>
-          </ScrollView>
-        );
+        // Duplicate profile implementation - using ProfileScreen component instead
+        return null;
 
       default:
         return (
@@ -2774,7 +2601,7 @@ export default function App() {
                 size={20}
                 color={
                   currentScreen === "opportunities"
-                    ? "#C2CC06"
+                    ? "hsl(75, 100%, 60%)"
                     : "hsl(0, 0%, 70%)"
                 }
               />
@@ -2803,7 +2630,7 @@ export default function App() {
                   size={20}
                   color={
                     currentScreen === "connections"
-                      ? "#C2CC06"
+                      ? "hsl(75, 100%, 60%)"
                       : "hsl(0, 0%, 70%)"
                   }
                 />
@@ -2835,7 +2662,9 @@ export default function App() {
                 name="musical-notes-outline"
                 size={20}
                 color={
-                  currentScreen === "listen" ? "#C2CC06" : "hsl(0, 0%, 70%)"
+                  currentScreen === "listen"
+                    ? "hsl(75, 100%, 60%)"
+                    : "hsl(0, 0%, 70%)"
                 }
               />
               <Text
@@ -2941,23 +2770,6 @@ export default function App() {
                       <Text style={styles.menuItemText}>Messages</Text>
                       <Text style={styles.menuItemDescription}>
                         View all conversations
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.menuItem,
-                      currentScreen === "connections" && styles.menuItemActive,
-                    ]}
-                    onPress={() => handleMenuNavigation("connections")}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="people-outline" size={20} color="#C2CC06" />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Connections</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Discover and connect with DJs
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -3946,7 +3758,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   activeTabText: {
-    color: "#C2CC06", // Brand lime green for active text
+    color: "hsl(75, 100%, 60%)", // Brand lime green for active text
     fontWeight: "500", // Medium weight to match inactive tabs
   },
 
