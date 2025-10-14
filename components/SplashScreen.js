@@ -11,11 +11,13 @@ import { useFonts } from "expo-font";
 
 // Conditionally import Video (not available in Expo Go)
 let Video;
+let VideoAvailable = false;
 try {
   Video = require("expo-video").Video;
-  console.log("✅ Video component loaded successfully");
+  VideoAvailable = true;
 } catch (error) {
-  console.log("❌ Video not available in Expo Go:", error.message);
+  // Video not available in Expo Go
+  VideoAvailable = false;
 }
 
 const { width, height } = Dimensions.get("window");
@@ -86,13 +88,11 @@ const SplashScreen = ({ onFinish }) => {
 
   // Handle video load
   const handleVideoLoad = () => {
-    console.log("🎬 Video loaded successfully");
     setVideoLoaded(true);
   };
 
   // Handle video error
   const handleVideoError = (error) => {
-    console.log("❌ Video error:", error);
     setVideoError(true);
   };
 
@@ -120,7 +120,7 @@ const SplashScreen = ({ onFinish }) => {
       >
         {/* Spinning Logo Container */}
         <View style={styles.logoContainer}>
-          {Video && !videoError ? (
+          {VideoAvailable && Video && !videoError ? (
             <Video
               ref={videoRef}
               source={require("../assets/RHOOD_Logo_Spinner.mov")}

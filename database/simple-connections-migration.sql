@@ -14,6 +14,7 @@ BEGIN
       community_id UUID REFERENCES communities(id) ON DELETE CASCADE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
       
       CONSTRAINT check_thread_type CHECK (
         (type = 'individual' AND user_id_1 IS NOT NULL AND user_id_2 IS NOT NULL AND community_id IS NULL) OR

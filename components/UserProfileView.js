@@ -13,7 +13,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
-console.log("✅ Audio module imported from expo-av in UserProfileView.js");
 import ProgressiveImage from "./ProgressiveImage";
 import { db } from "../lib/supabase";
 import { SkeletonProfile } from "./Skeleton";
@@ -298,7 +297,6 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       } else if (profile.primary_mix) {
         // Load and play the primary mix
         if (!Audio || !Audio.Sound || !Audio.Sound.createAsync) {
-          console.log("🎵 Audio playback failed, but continuing");
           return;
         }
 

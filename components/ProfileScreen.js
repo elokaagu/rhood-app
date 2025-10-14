@@ -13,7 +13,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
-console.log("✅ Audio module imported from expo-av in ProfileScreen.js");
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import { SkeletonProfile, SkeletonMix } from "./Skeleton";
@@ -256,8 +255,6 @@ export default function ProfileScreen({ onNavigate, user }) {
           setIsPlaying(true);
         }
       } else {
-        console.log("🎵 Audio module available, proceeding with playback");
-
         const { sound } = await Audio.Sound.createAsync(
           profile.audioId.audioUrl,
           { shouldPlay: true }

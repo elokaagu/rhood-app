@@ -15,7 +15,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
-console.log("✅ Audio module imported from expo-av in UploadMixScreen.js");
 import { supabase } from "../lib/supabase";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -98,10 +97,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
         // Check audio duration (max 5 minutes)
         try {
-          console.log("🎵 Checking audio duration...");
-
           if (!Audio || !Audio.Sound || !Audio.Sound.createAsync) {
-            console.log("🎵 Audio duration check - proceeding normally");
             // In Expo Go, we'll skip the duration check and allow upload
             setSelectedFile(file);
             return;
