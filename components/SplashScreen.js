@@ -7,8 +7,16 @@ import {
   Dimensions,
   Image,
 } from "react-native";
-import { Video } from "expo-video";
 import { useFonts } from "expo-font";
+
+// Conditionally import Video (not available in Expo Go)
+let Video;
+try {
+  Video = require("expo-video").Video;
+  console.log("✅ Video component loaded successfully");
+} catch (error) {
+  console.log("❌ Video not available in Expo Go:", error.message);
+}
 
 const { width, height } = Dimensions.get("window");
 
@@ -20,6 +28,7 @@ const SplashScreen = ({ onFinish }) => {
 
   // Initialize video player for Legacy Architecture
   const [videoStatus, setVideoStatus] = useState({});
+  const [videoError, setVideoError] = useState(false);
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
@@ -115,6 +124,13 @@ const SplashScreen = ({ onFinish }) => {
     };
   }, []);
 
+  // Handle video error
+  const handleVideoError = (error) => {
+    console.log("❌ Video error:", error);
+    console.log("❌ Video error details:", JSON.stringify(error, null, 2));
+    setVideoError(true);
+  };
+
   // Wait for fonts to load
   if (!fontsLoaded) {
     console.log("⏳ SplashScreen: Waiting for fonts to load...");
@@ -122,8 +138,6 @@ const SplashScreen = ({ onFinish }) => {
   }
 
   console.log("✅ SplashScreen: Fonts loaded, rendering splash screen");
-
-  // Removed glow opacity interpolation
 
   return (
     <View style={styles.container}>
@@ -139,15 +153,40 @@ const SplashScreen = ({ onFinish }) => {
       >
         {/* Smaller Spinning Logo Above Text */}
         <View style={styles.spinnerContainer}>
-          <Video
-            source={require("../assets/RHOOD_Logo_Spinner.mov")}
-            style={styles.spinnerVideo}
-            shouldPlay={true}
-            isLooping={true}
-            isMuted={true}
-            resizeMode="contain"
-            onPlaybackStatusUpdate={setVideoStatus}
-          />
+          {Video && !videoError
+            ? (() => {
+                console.log("🎬 Rendering Video component");
+                return (
+                  <Video
+                    source={require("../assets/RHOOD_Logo_Spinner.mov")}
+                    style={styles.spinnerVideo}
+                    shouldPlay={true}
+                    isLooping={true}
+                    isMuted={true}
+                    resizeMode="contain"
+                    onPlaybackStatusUpdate={(status) => {
+                      console.log("🎬 Video status:", status);
+                      setVideoStatus(status);
+                    }}
+                    onError={handleVideoError}
+                  />
+                );
+              })()
+            : (() => {
+                console.log(
+                  "🖼️ Rendering fallback Image - Video:",
+                  !!Video,
+                  "VideoError:",
+                  videoError
+                );
+                return (
+                  <Image
+                    source={require("../assets/rhood_logo.png")}
+                    style={styles.spinnerVideo}
+                    resizeMode="contain"
+                  />
+                );
+              })()}
         </View>
 
         <Image

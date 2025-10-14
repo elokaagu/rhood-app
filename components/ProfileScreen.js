@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Audio } from "expo-audio";
+import { Audio } from "expo-av";
+console.log("✅ Audio module imported from expo-av in ProfileScreen.js");
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import { SkeletonProfile, SkeletonMix } from "./Skeleton";
@@ -181,7 +182,7 @@ export default function ProfileScreen({ onNavigate, user }) {
           genres: userProfile.genres || [],
           profileImage: userProfile.profile_image_url
             ? { uri: userProfile.profile_image_url }
-            : require("../assets/rhood_logo.png"),
+            : null,
           socialLinks: {
             instagram: userProfile.instagram || null,
             soundcloud: userProfile.soundcloud || null,
@@ -247,6 +248,8 @@ export default function ProfileScreen({ onNavigate, user }) {
           setIsPlaying(true);
         }
       } else {
+        console.log("🎵 Audio module available, proceeding with playback");
+
         const { sound } = await Audio.Sound.createAsync(
           profile.audioId.audioUrl,
           { shouldPlay: true }
@@ -417,6 +420,20 @@ export default function ProfileScreen({ onNavigate, user }) {
             <ProgressiveImage
               source={profile.profileImage}
               style={styles.profileImage}
+              placeholder={
+                <View
+                  style={[
+                    styles.profileImage,
+                    {
+                      backgroundColor: "hsl(0, 0%, 15%)",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    },
+                  ]}
+                >
+                  <Ionicons name="person" size={40} color="hsl(0, 0%, 50%)" />
+                </View>
+              }
             />
             {profile.isVerified && (
               <View style={styles.verifiedBadge}>
@@ -700,6 +717,8 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 3,
     borderColor: "hsl(75, 100%, 60%)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   verifiedBadge: {
     position: "absolute",

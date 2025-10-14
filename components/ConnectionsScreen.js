@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
+import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
 import * as Haptics from "expo-haptics";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase, db } from "../lib/supabase";
@@ -24,18 +25,26 @@ import { SkeletonList } from "./Skeleton";
 
 // All connection data comes from database
 
-export default function ConnectionsScreen({ onNavigate }) {
+export default function ConnectionsScreen({ user: propUser, onNavigate }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(propUser); // Use prop user as initial state
   const [activeTab, setActiveTab] = useState("discover"); // 'connections' or 'discover'
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [discoverUsers, setDiscoverUsers] = useState([]);
   const [connectionsFadeAnim] = useState(new Animated.Value(0));
   const [discoverFadeAnim] = useState(new Animated.Value(0));
+
+  // Update user state when prop changes
+  useEffect(() => {
+    if (propUser && propUser !== user) {
+      console.log("User prop changed, updating user state");
+      setUser(propUser);
+    }
+  }, [propUser]);
 
   // Load user and discover data on mount
   useEffect(() => {
@@ -63,15 +72,54 @@ export default function ConnectionsScreen({ onNavigate }) {
     try {
       setLoading(true);
 
-      // Get current user
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
+      // Use prop user first, then try to fetch if not available
+      let currentUser = propUser;
+
       if (!currentUser) {
+        console.log("No user prop provided, attempting to fetch user...");
+
+        // Add a small delay to ensure auth state is fully initialized
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        try {
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser();
+          if (userError) {
+            console.log("getUser error:", userError);
+          } else {
+            currentUser = user;
+          }
+        } catch (getUserError) {
+          console.log("getUser failed:", getUserError);
+        }
+
+        // If getUser didn't work, try getSession
+        if (!currentUser) {
+          try {
+            const {
+              data: { session },
+              error: sessionError,
+            } = await supabase.auth.getSession();
+            if (sessionError) {
+              console.log("getSession error:", sessionError);
+            } else if (session?.user) {
+              currentUser = session.user;
+            }
+          } catch (getSessionError) {
+            console.log("getSession failed:", getSessionError);
+          }
+        }
+      }
+
+      if (!currentUser) {
+        console.log("❌ No user found - user might not be authenticated");
         Alert.alert("Error", "Please log in to view connections");
         return;
       }
 
+      console.log("✅ User found:", currentUser.id);
       setUser(currentUser);
 
       // Get user's connections from database
@@ -82,27 +130,35 @@ export default function ConnectionsScreen({ onNavigate }) {
 
       if (connectionsData && connectionsData.length > 0) {
         // Transform database connections to match UI format
-        const formattedConnections = connectionsData.map((conn) => ({
-          id: conn.connected_user_id,
-          name: conn.connected_user_name,
-          username: `@${
-            conn.connected_user_username ||
-            conn.connected_user_name.toLowerCase().replace(/\s+/g, "")
-          }`,
-          location:
-            conn.connected_user_city ||
-            conn.connected_user_location ||
-            "Location not set",
-          genres: conn.connected_user_genres || [],
-          profileImage:
-            conn.connected_user_image || require("../assets/rhood_logo.png"),
-          rating: conn.connected_user_rating || 0,
-          gigsCompleted: conn.connected_user_gigs || 0,
-          lastActive: "Recently", // Could calculate from last_seen if we add that field
-          mutualConnections: 0, // Could calculate if needed
-          status: "online", // Could be based on last_seen
-          isVerified: conn.connected_user_verified || false,
-        }));
+        const formattedConnections = connectionsData.map((conn) => {
+          console.log(`🔍 Connection ${conn.connected_user_name}:`, {
+            id: conn.connected_user_id,
+            name: conn.connected_user_name,
+            image: conn.connected_user_image,
+            hasImage: !!conn.connected_user_image,
+          });
+
+          return {
+            id: conn.connected_user_id,
+            name: conn.connected_user_name,
+            username: `@${
+              conn.connected_user_username ||
+              conn.connected_user_name.toLowerCase().replace(/\s+/g, "")
+            }`,
+            location:
+              conn.connected_user_city ||
+              conn.connected_user_location ||
+              "Location not set",
+            genres: conn.connected_user_genres || [],
+            profileImage: conn.connected_user_image || null,
+            rating: conn.connected_user_rating || 0,
+            gigsCompleted: conn.connected_user_gigs || 0,
+            lastActive: "Recently", // Could calculate from last_seen if we add that field
+            mutualConnections: 0, // Could calculate if needed
+            status: "online", // Could be based on last_seen
+            isVerified: conn.connected_user_verified || false,
+          };
+        });
 
         setConnections(formattedConnections);
         console.log(
@@ -169,8 +225,22 @@ export default function ConnectionsScreen({ onNavigate }) {
       console.log("🔍 Connection dj_name:", connection?.dj_name);
       console.log("🔍 Connection full_name:", connection?.full_name);
 
-      // Simulate connection request
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Get current user
+      const { supabase } = await import("../lib/supabase");
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      if (!currentUser) {
+        Alert.alert("Error", "Please log in to connect with users");
+        return;
+      }
+
+      // Create real connection request
+      const connectionResult = await db.createConnection(
+        currentUser.id,
+        connection.id
+      );
 
       // Get the display name with better fallbacks
       const displayName =
@@ -181,11 +251,30 @@ export default function ConnectionsScreen({ onNavigate }) {
         }`.trim() ||
         "this user";
 
-      Alert.alert(
-        "Connection Sent!",
-        `Connection request sent to ${displayName}`,
-        [{ text: "OK" }]
-      );
+      // Check if this was a new connection or existing one
+      const isExistingConnection =
+        connectionResult.created_at !== new Date().toISOString();
+
+      if (isExistingConnection) {
+        Alert.alert(
+          "Already Connected",
+          `You're already connected to ${displayName}`,
+          [{ text: "OK" }]
+        );
+      } else {
+        Alert.alert(
+          "Connection Sent!",
+          `Connection request sent to ${displayName}`,
+          [{ text: "OK" }]
+        );
+
+        // Update the user's connection status in the local state
+        setDiscoverUsers((prev) =>
+          prev.map((user) =>
+            user.id === connection.id ? { ...user, isConnected: true } : user
+          )
+        );
+      }
     } catch (error) {
       console.error("Error sending connection request:", error);
       Alert.alert("Error", "Failed to send connection request");
@@ -198,10 +287,44 @@ export default function ConnectionsScreen({ onNavigate }) {
     try {
       setDiscoverLoading(true);
 
+      // Get current user first
+      const { supabase } = await import("../lib/supabase");
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      if (!currentUser) {
+        console.log("❌ No current user found for connection status");
+        setDiscoverUsers([]);
+        return;
+      }
+
       // Use the connectionsService to get recommended users
       const recommendedUsers = await connectionsService.getRecommendedUsers(20);
 
-      // Transform to match UI format
+      // Get existing connections to check status (both pending and accepted)
+      const existingConnections = await db.getUserConnections(
+        currentUser.id,
+        null // Get all connections regardless of status
+      );
+
+      // Debug: Log the connections data
+      console.log("🔍 Existing connections:", existingConnections);
+      console.log("🔍 Current user ID:", currentUser.id);
+
+      const existingConnectionIds = new Set(
+        existingConnections.map((conn) => {
+          console.log("🔍 Connection data:", conn);
+          return conn.connected_user_id || conn.id;
+        })
+      );
+
+      console.log(
+        "🔍 Existing connection IDs:",
+        Array.from(existingConnectionIds)
+      );
+
+      // Transform to match UI format with connection status
       const formattedDiscoverUsers = recommendedUsers.map((user) => ({
         id: user.id,
         name: user.dj_name || user.full_name || "Unknown DJ",
@@ -212,13 +335,13 @@ export default function ConnectionsScreen({ onNavigate }) {
         }`,
         location: user.city || user.location || "Location not set",
         genres: user.genres || [],
-        profileImage:
-          user.profile_image_url || require("../assets/rhood_logo.png"),
+        profileImage: user.profile_image_url || null,
         gigsCompleted: user.gigs_completed || 0,
         lastActive: "Recently",
         status: "online",
         isVerified: user.is_verified || false,
         bio: user.bio || "DJ and music producer",
+        isConnected: existingConnectionIds.has(user.id), // Add connection status (pending or accepted)
       }));
 
       setDiscoverUsers(formattedDiscoverUsers);
@@ -226,6 +349,10 @@ export default function ConnectionsScreen({ onNavigate }) {
         `✅ Loaded ${formattedDiscoverUsers.length} discover users from database`
       );
       console.log("🔍 Sample user data:", formattedDiscoverUsers[0]);
+      console.log(
+        "🔍 Connected users:",
+        formattedDiscoverUsers.filter((u) => u.isConnected).length
+      );
     } catch (error) {
       console.error("❌ Error loading discover DJs:", error);
       // No fallback to mock data - show empty state
@@ -478,12 +605,18 @@ export default function ConnectionsScreen({ onNavigate }) {
                         {/* Profile Image with Online Status */}
                         <View style={styles.profileContainer}>
                           <ProgressiveImage
-                            source={{
-                              uri:
-                                connection.profile_image_url ||
-                                "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face",
-                            }}
+                            source={
+                              connection.profileImage
+                                ? { uri: connection.profileImage }
+                                : null
+                            }
                             style={styles.profileImage}
+                            placeholder={
+                              <ProfileImagePlaceholder
+                                size={48}
+                                style={styles.profileImage}
+                              />
+                            }
                           />
                           {/* For now, show all as online. In a real app, you'd track online status */}
                           <View
@@ -580,12 +713,19 @@ export default function ConnectionsScreen({ onNavigate }) {
                         {/* Profile Image */}
                         <View style={styles.discoverProfileContainer}>
                           <ProgressiveImage
-                            source={{
-                              uri:
-                                user.profileImage ||
-                                "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
-                            }}
+                            source={
+                              user.profileImage &&
+                              typeof user.profileImage === "string"
+                                ? { uri: user.profileImage }
+                                : null
+                            }
                             style={styles.discoverProfileImage}
+                            placeholder={
+                              <ProfileImagePlaceholder
+                                size={80}
+                                style={styles.discoverProfileImage}
+                              />
+                            }
                           />
                           <View style={styles.discoverOnlineIndicator} />
                         </View>
@@ -646,17 +786,29 @@ export default function ConnectionsScreen({ onNavigate }) {
                           </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={styles.discoverConnectButton}
+                          style={[
+                            styles.discoverConnectButton,
+                            user.isConnected && styles.discoverConnectedButton,
+                          ]}
                           onPress={() => handleConnect(user)}
-                          disabled={discoverLoading}
+                          disabled={discoverLoading || user.isConnected}
                         >
                           <Ionicons
-                            name="add"
+                            name={user.isConnected ? "checkmark" : "add"}
                             size={16}
-                            color="hsl(0, 0%, 0%)"
+                            color={
+                              user.isConnected
+                                ? "hsl(0, 0%, 100%)"
+                                : "hsl(0, 0%, 0%)"
+                            }
                           />
-                          <Text style={styles.discoverConnectText}>
-                            Connect
+                          <Text
+                            style={[
+                              styles.discoverConnectText,
+                              user.isConnected && styles.discoverConnectedText,
+                            ]}
+                          >
+                            {user.isConnected ? "Connected" : "Connect"}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -902,6 +1054,8 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
   },
   statusIndicator: {
     position: "absolute",
@@ -1056,6 +1210,8 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
   },
   discoverStatusIndicator: {
     position: "absolute",
@@ -1200,8 +1356,8 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    borderWidth: 2,
-    borderColor: "hsl(0, 0%, 100%)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   discoverNameSection: {
     flex: 1,
@@ -1324,10 +1480,17 @@ const styles = StyleSheet.create({
     gap: 6,
     flex: 1,
   },
+  discoverConnectedButton: {
+    backgroundColor: "hsl(0, 0%, 30%)",
+    opacity: 0.8,
+  },
   discoverConnectText: {
     fontSize: 14,
     fontFamily: "Arial",
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
+  },
+  discoverConnectedText: {
+    color: "hsl(0, 0%, 100%)",
   },
 });

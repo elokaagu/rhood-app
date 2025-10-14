@@ -12,6 +12,8 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { supabase } from "../lib/supabase";
 
 // Music genres for selection
 const MUSIC_GENRES = [
@@ -85,8 +87,10 @@ export default function OnboardingForm({
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(50));
   const [errors, setErrors] = useState({});
+  const [profileImage, setProfileImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   useEffect(() => {
     Animated.parallel([
@@ -216,6 +220,135 @@ export default function OnboardingForm({
 
   const toggleCityDropdown = () => {
     setShowCityDropdown(!showCityDropdown);
+  };
+
+  const uploadProfileImage = async (imageUri) => {
+    try {
+      console.log("📤 Uploading profile image during onboarding...");
+
+      // Generate unique filename
+      const fileExt = imageUri.split(".").pop() || "jpg";
+      const fileName = `profile_${Date.now()}.${fileExt}`;
+
+      // Convert image to Uint8Array
+      const response = await fetch(imageUri);
+      const arrayBuffer = await response.arrayBuffer();
+      const fileData = new Uint8Array(arrayBuffer);
+
+      // Upload to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("mixes") // Using existing mixes bucket for now
+        .upload(`profile_images/${fileName}`, fileData, {
+          contentType: `image/${fileExt}`,
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("mixes")
+        .getPublicUrl(`profile_images/${fileName}`);
+
+      console.log("✅ Profile image uploaded:", urlData.publicUrl);
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error("❌ Error uploading profile image:", error);
+      throw error;
+    }
+  };
+
+  const handleImagePicker = () => {
+    Alert.alert(
+      "Select Profile Picture",
+      "Choose how you'd like to add your profile picture",
+      [
+        {
+          text: "Camera",
+          onPress: () => openImagePicker("camera"),
+        },
+        {
+          text: "Photo Library",
+          onPress: () => openImagePicker("library"),
+        },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
+  };
+
+  const openImagePicker = async (source) => {
+    try {
+      let result;
+
+      if (source === "camera") {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert(
+            "Permission Required",
+            "Camera permission is needed to take photos"
+          );
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
+      } else {
+        const permission =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert(
+            "Permission Required",
+            "Photo library permission is needed to select images"
+          );
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
+      }
+
+      if (!result.canceled && result.assets[0]) {
+        const localUri = result.assets[0].uri;
+
+        // Show loading state
+        setUploadingImage(true);
+
+        try {
+          // Upload image to Supabase storage
+          const publicUrl = await uploadProfileImage(localUri);
+
+          // Update profile with public URL
+          setProfileImage(publicUrl);
+          setDjProfile((prev) => ({
+            ...prev,
+            profile_image_url: publicUrl,
+          }));
+
+          console.log("✅ Profile image updated with URL:", publicUrl);
+        } catch (uploadError) {
+          console.error("❌ Failed to upload image:", uploadError);
+          Alert.alert(
+            "Upload Error",
+            "Failed to upload image. Please try again."
+          );
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Image picker error:", error);
+      Alert.alert("Error", "Failed to open image picker");
+      setUploadingImage(false);
+    }
   };
 
   const renderStepIndicator = () => (
@@ -491,6 +624,71 @@ export default function OnboardingForm({
     </Animated.View>
   );
 
+  const renderStep5 = () => (
+    <Animated.View
+      style={[
+        styles.stepContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <Text style={styles.stepTitle}>Profile Picture</Text>
+      <Text style={styles.stepSubtitle}>
+        Add a photo to personalize your profile (optional)
+      </Text>
+
+      <View style={styles.profileImageCard}>
+        <View style={styles.profileImageContainer}>
+          {profileImage ? (
+            <Image
+              source={{ uri: profileImage }}
+              style={styles.profileImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              style={[
+                styles.profileImagePlaceholder,
+                uploadingImage && styles.profileImageUploading,
+              ]}
+            >
+              {uploadingImage ? (
+                <Ionicons
+                  name="cloud-upload"
+                  size={40}
+                  color="hsl(75, 100%, 60%)"
+                />
+              ) : (
+                <Ionicons name="person" size={40} color="hsl(0, 0%, 50%)" />
+              )}
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.changeImageButton}
+            onPress={handleImagePicker}
+            disabled={uploadingImage}
+          >
+            <Ionicons name="camera" size={20} color="hsl(0, 0%, 100%)" />
+            <Text style={styles.changeImageText}>
+              {profileImage ? "Change" : "Add Photo"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.profileImageHint}>
+          <Text style={styles.hintText}>
+            {profileImage
+              ? "Great! Your profile picture is ready."
+              : "You can add a profile picture now or skip this step and add one later."}
+          </Text>
+        </View>
+      </View>
+    </Animated.View>
+  );
+
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 1:
@@ -501,6 +699,8 @@ export default function OnboardingForm({
         return renderStep3();
       case 4:
         return renderStep4();
+      case 5:
+        return renderStep5();
       default:
         return renderStep1();
     }
@@ -876,5 +1076,63 @@ const styles = {
     fontFamily: "Helvetica Neue",
     fontWeight: "600",
     textAlign: "center",
+  },
+  // Step 5 - Profile Image Styles
+  profileImageCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  profileImageContainer: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 16,
+  },
+  profileImagePlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: "hsl(0, 0%, 25%)",
+  },
+  profileImageUploading: {
+    borderColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  changeImageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 8,
+  },
+  changeImageText: {
+    color: "hsl(0, 0%, 0%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+  },
+  profileImageHint: {
+    alignItems: "center",
+  },
+  hintText: {
+    color: "hsl(0, 0%, 60%)",
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    textAlign: "center",
+    lineHeight: 20,
   },
 };

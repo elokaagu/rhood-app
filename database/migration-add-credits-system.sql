@@ -137,12 +137,12 @@ GRANT EXECUTE ON FUNCTION award_achievement_credits(UUID, UUID) TO authenticated
 GRANT EXECUTE ON FUNCTION get_user_credits(UUID) TO authenticated;
 
 -- Add some example achievements with credit values
-INSERT INTO achievements (title, description, icon, category, credits_value, is_active, sort_order) VALUES
+INSERT INTO achievements (name, description, icon, category, credits_value, is_active, sort_order) VALUES
 ('First Gig', 'Complete your first DJ gig', 'star', 'milestone', 25, true, 1),
 ('Social Butterfly', 'Connect with 10 other DJs', 'people', 'social', 15, true, 2),
 ('Gig Master', 'Complete 5 gigs', 'trophy', 'gig', 20, true, 3),
 ('R/HOOD Legend', 'Reach 1000 credits', 'diamond', 'special', 50, true, 4)
-ON CONFLICT (title) DO NOTHING;
+ON CONFLICT (name) DO NOTHING;
 
 DO $$ 
 BEGIN

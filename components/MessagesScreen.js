@@ -24,7 +24,7 @@ import { SkeletonMessage } from "./Skeleton";
 
 // All data comes from database
 
-export default function MessagesScreen({ navigation, route }) {
+export default function MessagesScreen({ user: propUser, navigation, route }) {
   const {
     isGroupChat = false,
     djId = "cc00a0ac-9163-4c30-b123-81cc06046e8b", // Default to a valid UUID
@@ -57,7 +57,7 @@ export default function MessagesScreen({ navigation, route }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Real-time messaging state
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(propUser); // Use prop user as initial state
   const [otherUser, setOtherUser] = useState(null);
   const [threadId, setThreadId] = useState(null);
   const [subscription, setSubscription] = useState(null);
@@ -86,15 +86,54 @@ export default function MessagesScreen({ navigation, route }) {
     try {
       setIsLoading(true);
 
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      // Use prop user first, then try to fetch if not available
+      let user = propUser;
+
       if (!user) {
+        console.log("No user prop provided, attempting to fetch user...");
+
+        // Add a small delay to ensure auth state is fully initialized
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        try {
+          const {
+            data: { user: currentUser },
+            error: userError,
+          } = await supabase.auth.getUser();
+          if (userError) {
+            console.log("getUser error:", userError);
+          } else {
+            user = currentUser;
+          }
+        } catch (getUserError) {
+          console.log("getUser failed:", getUserError);
+        }
+
+        // If getUser didn't work, try getSession
+        if (!user) {
+          try {
+            const {
+              data: { session },
+              error: sessionError,
+            } = await supabase.auth.getSession();
+            if (sessionError) {
+              console.log("getSession error:", sessionError);
+            } else if (session?.user) {
+              user = session.user;
+            }
+          } catch (getSessionError) {
+            console.log("getSession failed:", getSessionError);
+          }
+        }
+      }
+
+      if (!user) {
+        console.log("❌ No user found - user might not be authenticated");
         Alert.alert("Error", "Please log in to send messages");
         return;
       }
 
+      console.log("✅ User found:", user.id);
       setCurrentUser(user);
 
       if (isGroupChat && communityId) {

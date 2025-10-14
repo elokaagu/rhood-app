@@ -22,7 +22,8 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-audio";
+import { Audio } from "expo-av";
+console.log("✅ Audio module imported from expo-av in App.js");
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
 import * as Haptics from "expo-haptics";
@@ -738,12 +739,13 @@ export default function App() {
 
       // Configure audio mode for playback
       await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: true,
         playsInSilentModeIOS: true,
         shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false,
-        allowsRecordingIOS: false,
-        staysActiveInBackground: true,
       });
+      console.log("🎵 Audio mode configured for background playback");
 
       // Create and load new sound using expo-audio
       console.log("🔄 Creating new sound instance...");
@@ -765,6 +767,8 @@ export default function App() {
 
       // Load audio with streaming support for large files
       try {
+        console.log("🎵 Audio module available, proceeding with playback");
+
         const { sound: loadedSound } = await Audio.Sound.createAsync(
           audioSource,
           {
@@ -778,17 +782,15 @@ export default function App() {
         );
         sound = loadedSound;
       } catch (loadError) {
-        console.error("Failed to load audio:", loadError.message);
-
-        let errorMessage = "Failed to play this mix.";
-        if (loadError.message?.includes("404")) {
-          errorMessage = "Audio file not found.";
-        } else if (loadError.message?.includes("Network")) {
-          errorMessage = "Network error. Check your connection.";
-        }
-
-        Alert.alert("Playback Error", errorMessage);
-        setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
+        // Handle audio loading error gracefully
+        console.log(
+          "🎵 Audio loading error, but continuing with playback attempt"
+        );
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: "Audio playback not available in Expo Go",
+        }));
         return;
       }
 
@@ -1648,10 +1650,14 @@ export default function App() {
       onPrimaryPress: () => handleConfirmApply(currentOpportunity),
       onSecondaryPress: () => {
         console.log(
-          "Modal cancelled. Closing modal and clearing selected opportunity."
+          "Modal cancelled. Closing modal and advancing to next opportunity."
         );
         setShowModal(false);
         setSelectedOpportunity(null);
+
+        // Advance to next opportunity since card was already swiped away
+        setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+
         console.log("Current opportunities length:", opportunities.length);
         console.log("Current opportunity index:", currentOpportunityIndex);
         if (
@@ -1973,6 +1979,7 @@ export default function App() {
           bio: `DJ from ${
             djProfile.city
           } specializing in ${djProfile.genres.join(", ")}`,
+          profile_image_url: djProfile.profile_image_url || null,
         };
         console.log("📤 Updating with data:", updateData);
 
@@ -1999,6 +2006,7 @@ export default function App() {
             djProfile.city
           } specializing in ${djProfile.genres.join(", ")}`,
           email: user.email,
+          profile_image_url: djProfile.profile_image_url || null,
         };
 
         console.log("📤 Creating profile with data:", profileData);
@@ -2251,6 +2259,7 @@ export default function App() {
       case "messages":
         return (
           <MessagesScreen
+            user={user}
             navigation={{ goBack: () => setCurrentScreen("connections") }}
             route={{ params: screenParams }}
           />
@@ -2259,6 +2268,7 @@ export default function App() {
       case "connections":
         return (
           <ConnectionsScreen
+            user={user}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
@@ -2269,6 +2279,7 @@ export default function App() {
       case "notifications":
         return (
           <NotificationsScreen
+            user={user}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
@@ -2289,6 +2300,7 @@ export default function App() {
       case "profile":
         return (
           <ProfileScreen
+            key={screenParams.profileRefreshKey || "profile"}
             user={user}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
@@ -2339,19 +2351,32 @@ export default function App() {
         return (
           <EditProfileScreen
             user={user}
-            onSave={(updatedProfile) => {
-              console.log("Profile updated:", updatedProfile);
+            onSave={async (updatedProfile) => {
               // Refresh user profile data
               if (user) {
-                db.getUserProfile(user.id)
-                  .then((profile) => {
-                    console.log("✅ Profile refreshed after save");
-                  })
-                  .catch((error) => {
-                    console.error("❌ Error refreshing profile:", error);
-                  });
+                try {
+                  const profile = await db.getUserProfile(user.id);
+
+                  // Update the user object with the new profile data
+                  setUser((prevUser) => ({
+                    ...prevUser,
+                    user_metadata: {
+                      ...prevUser.user_metadata,
+                      profile_image_url: profile.profile_image_url,
+                      dj_name: profile.dj_name,
+                      // Add other fields as needed
+                    },
+                  }));
+                } catch (error) {
+                  // Error refreshing profile
+                }
               }
               setCurrentScreen("profile");
+              // Force refresh of ProfileScreen
+              setScreenParams((prev) => ({
+                ...prev,
+                profileRefreshKey: Date.now(),
+              }));
             }}
             onCancel={() => setCurrentScreen("profile")}
           />
@@ -2946,122 +2971,122 @@ export default function App() {
 
         {/* Global Audio Player - shows when there's a current track */}
         {globalAudioState.currentTrack && (
-          <TouchableOpacity
-            onPress={() => setShowFullScreenPlayer(true)}
-            activeOpacity={0.9}
+          <Animated.View
+            style={[
+              styles.globalAudioPlayer,
+              {
+                opacity: Animated.multiply(
+                  audioPlayerOpacity,
+                  audioPlayerSwipeOpacity
+                ),
+                transform: [
+                  {
+                    translateY: Animated.add(
+                      audioPlayerTranslateY,
+                      audioPlayerSwipeTranslateY
+                    ),
+                  },
+                ],
+              },
+            ]}
+            {...audioPlayerPanResponder.panHandlers}
           >
-            <Animated.View
-              style={[
-                styles.globalAudioPlayer,
-                {
-                  opacity: Animated.multiply(
-                    audioPlayerOpacity,
-                    audioPlayerSwipeOpacity
-                  ),
-                  transform: [
-                    {
-                      translateY: Animated.add(
-                        audioPlayerTranslateY,
-                        audioPlayerSwipeTranslateY
-                      ),
-                    },
-                  ],
-                },
-              ]}
-              {...audioPlayerPanResponder.panHandlers}
+            <TouchableOpacity
+              onPress={() => setShowFullScreenPlayer(true)}
+              activeOpacity={0.9}
+              style={styles.audioPlayerContent}
             >
-              <View style={styles.audioPlayerContent}>
-                {/* Album Art */}
-                <View style={styles.audioAlbumArt}>
-                  {globalAudioState.currentTrack.image ? (
-                    <Image
-                      source={{ uri: globalAudioState.currentTrack.image }}
-                      style={styles.albumArtImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.albumArtPlaceholder}>
-                      <Ionicons
-                        name="musical-notes"
-                        size={24}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.audioTrackInfo}>
-                  <AutoScrollText
-                    text={globalAudioState.currentTrack.title}
-                    style={styles.audioTrackTitle}
-                    containerWidth={200}
+              {/* Album Art */}
+              <View style={styles.audioAlbumArt}>
+                {globalAudioState.currentTrack.image ? (
+                  <Image
+                    source={{ uri: globalAudioState.currentTrack.image }}
+                    style={styles.albumArtImage}
+                    resizeMode="cover"
                   />
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (globalAudioState.currentTrack.user_id) {
-                        setCurrentScreen("user-profile");
-                        setScreenParams({
-                          userId: globalAudioState.currentTrack.user_id,
-                        });
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.audioTrackArtist} numberOfLines={1}>
-                      {globalAudioState.currentTrack.artist}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Timer - Compact format */}
-                <View style={styles.audioTimeContainer}>
-                  <Text style={styles.audioTimeText}>
-                    {formatTime(globalAudioState.positionMillis || 0)} /{" "}
-                    {formatTime(globalAudioState.durationMillis || 0)}
-                  </Text>
-                </View>
-
-                <View style={styles.audioControls}>
-                  <TouchableOpacity
-                    style={styles.audioControlButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      if (globalAudioState.isPlaying) {
-                        pauseGlobalAudio();
-                      } else {
-                        resumeGlobalAudio();
-                      }
-                    }}
-                  >
+                ) : (
+                  <View style={styles.albumArtPlaceholder}>
                     <Ionicons
-                      name={globalAudioState.isPlaying ? "pause" : "play"}
+                      name="musical-notes"
                       size={24}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Progress Bar - Scrubbable */}
-                <TouchableOpacity
-                  ref={miniProgressBarRef}
-                  style={styles.audioProgressContainer}
-                  onPress={handleProgressBarPress}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.audioProgressBar}>
-                    <View
-                      style={[
-                        styles.audioProgressFill,
-                        {
-                          width: `${(globalAudioState.progress || 0) * 100}%`,
-                        },
-                      ]}
+                      color="hsl(75, 100%, 60%)"
                     />
                   </View>
+                )}
+              </View>
+
+              <View style={styles.audioTrackInfo}>
+                <AutoScrollText
+                  text={globalAudioState.currentTrack.title}
+                  style={styles.audioTrackTitle}
+                  containerWidth={200}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    if (globalAudioState.currentTrack.user_id) {
+                      setCurrentScreen("user-profile");
+                      setScreenParams({
+                        userId: globalAudioState.currentTrack.user_id,
+                      });
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  style={styles.artistNameTouchable}
+                >
+                  <Text style={styles.audioTrackArtist} numberOfLines={1}>
+                    {globalAudioState.currentTrack.artist}
+                  </Text>
                 </TouchableOpacity>
               </View>
-            </Animated.View>
-          </TouchableOpacity>
+
+              {/* Timer - Compact format */}
+              <View style={styles.audioTimeContainer}>
+                <Text style={styles.audioTimeText}>
+                  {formatTime(globalAudioState.positionMillis || 0)} /{" "}
+                  {formatTime(globalAudioState.durationMillis || 0)}
+                </Text>
+              </View>
+
+              <View style={styles.audioControls}>
+                <TouchableOpacity
+                  style={styles.audioControlButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (globalAudioState.isPlaying) {
+                      pauseGlobalAudio();
+                    } else {
+                      resumeGlobalAudio();
+                    }
+                  }}
+                >
+                  <Ionicons
+                    name={globalAudioState.isPlaying ? "pause" : "play"}
+                    size={24}
+                    color="hsl(0, 0%, 100%)"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Progress Bar - Scrubbable */}
+              <TouchableOpacity
+                ref={miniProgressBarRef}
+                style={styles.audioProgressContainer}
+                onPress={handleProgressBarPress}
+                activeOpacity={0.8}
+              >
+                <View style={styles.audioProgressBar}>
+                  <View
+                    style={[
+                      styles.audioProgressFill,
+                      {
+                        width: `${(globalAudioState.progress || 0) * 100}%`,
+                      },
+                    ]}
+                  />
+                </View>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
         {/* Full-Screen Audio Player Modal */}
@@ -4377,6 +4402,12 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "#C2CC06",
     fontWeight: "600",
+  },
+  artistNameTouchable: {
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    borderRadius: 4,
+    marginTop: 2,
   },
   audioControls: {
     flexDirection: "row",

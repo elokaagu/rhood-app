@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/rhood_logo.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rhoodapp.mobile",
-      "newArchEnabled": false,
+      "newArchEnabled": true,
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -37,7 +37,7 @@
         "backgroundColor": "#000000"
       },
       "package": "com.rhoodapp.mobile",
-      "newArchEnabled": false,
+      "newArchEnabled": true,
       "permissions": [
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE",
@@ -59,7 +59,7 @@
     },
     "plugins": [
       "expo-font",
-      "expo-audio",
+      "expo-av",
       "expo-web-browser",
       "expo-video",
       [

@@ -36,15 +36,50 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
     try {
       setLoading(true);
 
-      // Get current user
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
+      // Get current user - try both getUser and getSession for better reliability
+      let currentUser = null;
+
+      // Add a small delay to ensure auth state is fully initialized
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        if (userError) {
+          console.log("getUser error:", userError);
+        } else {
+          currentUser = user;
+        }
+      } catch (getUserError) {
+        console.log("getUser failed:", getUserError);
+      }
+
+      // If getUser didn't work, try getSession
       if (!currentUser) {
+        try {
+          const {
+            data: { session },
+            error: sessionError,
+          } = await supabase.auth.getSession();
+          if (sessionError) {
+            console.log("getSession error:", sessionError);
+          } else if (session?.user) {
+            currentUser = session.user;
+          }
+        } catch (getSessionError) {
+          console.log("getSession failed:", getSessionError);
+        }
+      }
+
+      if (!currentUser) {
+        console.log("❌ No user found - user might not be authenticated");
         Alert.alert("Error", "Please log in to discover connections");
         return;
       }
 
+      console.log("✅ User found:", currentUser.id);
       setUser(currentUser);
 
       // Get recommended users to follow
@@ -253,12 +288,30 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
                   <View style={styles.djHeader}>
                     <View style={styles.djInfo}>
                       <ProgressiveImage
-                        source={{
-                          uri:
-                            dj.profile_image_url ||
-                            "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop&crop=face",
-                        }}
+                        source={
+                          dj.profile_image_url
+                            ? { uri: dj.profile_image_url }
+                            : null
+                        }
                         style={styles.djAvatar}
+                        placeholder={
+                          <View
+                            style={[
+                              styles.djAvatar,
+                              {
+                                backgroundColor: "hsl(0, 0%, 15%)",
+                                justifyContent: "center",
+                                alignItems: "center",
+                              },
+                            ]}
+                          >
+                            <Ionicons
+                              name="person"
+                              size={24}
+                              color="hsl(0, 0%, 50%)"
+                            />
+                          </View>
+                        }
                       />
                       <View style={styles.djDetails}>
                         <View style={styles.djNameRow}>
@@ -472,6 +525,8 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
   djDetails: {
     flex: 1,

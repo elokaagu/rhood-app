@@ -22,23 +22,26 @@ const formatRelativeTime = (timestamp) => {
   const diffInMinutes = Math.floor((now - notificationTime) / (1000 * 60));
 
   if (diffInMinutes < 1) return "Just now";
-  if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes === 1 ? "" : "s"} ago`;
-  
+  if (diffInMinutes < 60)
+    return `${diffInMinutes} minute${diffInMinutes === 1 ? "" : "s"} ago`;
+
   const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours} hour${diffInHours === 1 ? "" : "s"} ago`;
-  
+  if (diffInHours < 24)
+    return `${diffInHours} hour${diffInHours === 1 ? "" : "s"} ago`;
+
   const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 7) return `${diffInDays} day${diffInDays === 1 ? "" : "s"} ago`;
-  
+  if (diffInDays < 7)
+    return `${diffInDays} day${diffInDays === 1 ? "" : "s"} ago`;
+
   const diffInWeeks = Math.floor(diffInDays / 7);
   return `${diffInWeeks} week${diffInWeeks === 1 ? "" : "s"} ago`;
 };
 
-export default function NotificationsScreen({ onNavigate }) {
+export default function NotificationsScreen({ user: propUser, onNavigate }) {
   const [notifications, setNotifications] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(propUser); // Use prop user as initial state
 
   // Load current user and notifications on component mount
   useEffect(() => {
@@ -48,20 +51,58 @@ export default function NotificationsScreen({ onNavigate }) {
   const loadUserAndNotifications = async () => {
     try {
       setLoading(true);
-      
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      
+
+      // Use prop user first, then try to fetch if not available
+      let user = propUser;
+
+      if (!user) {
+        console.log("No user prop provided, attempting to fetch user...");
+
+        // Add a small delay to ensure auth state is fully initialized
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        try {
+          const {
+            data: { user: currentUser },
+            error: userError,
+          } = await supabase.auth.getUser();
+          if (userError) {
+            console.log("getUser error:", userError);
+          } else {
+            user = currentUser;
+          }
+        } catch (getUserError) {
+          console.log("getUser failed:", getUserError);
+        }
+
+        // If getUser didn't work, try getSession
+        if (!user) {
+          try {
+            const {
+              data: { session },
+              error: sessionError,
+            } = await supabase.auth.getSession();
+            if (sessionError) {
+              console.log("getSession error:", sessionError);
+            } else if (session?.user) {
+              user = session.user;
+            }
+          } catch (getSessionError) {
+            console.log("getSession failed:", getSessionError);
+          }
+        }
+      }
+
       if (!user) {
         console.log("No authenticated user found");
         setNotifications([]);
         setLoading(false);
         return;
       }
-      
+
+      console.log("✅ User found:", user.id);
       setCurrentUser(user);
-      
+
       // Load notifications from database
       const { data, error } = await supabase
         .from("notifications")
@@ -70,9 +111,9 @@ export default function NotificationsScreen({ onNavigate }) {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      
+
       // Transform database notifications to match UI format
-      const transformedNotifications = data.map(notification => ({
+      const transformedNotifications = data.map((notification) => ({
         id: notification.id,
         type: notification.type,
         title: notification.title,
@@ -80,10 +121,11 @@ export default function NotificationsScreen({ onNavigate }) {
         timestamp: formatRelativeTime(notification.created_at),
         isRead: notification.is_read,
         priority: getPriorityFromType(notification.type),
-        actionRequired: !notification.is_read && shouldRequireAction(notification.type),
+        actionRequired:
+          !notification.is_read && shouldRequireAction(notification.type),
         relatedId: notification.related_id,
       }));
-      
+
       setNotifications(transformedNotifications);
     } catch (error) {
       console.error("Error loading notifications:", error);

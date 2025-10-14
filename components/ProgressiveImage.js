@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Image, Animated, View, StyleSheet } from 'react-native';
+import React, { useState, useRef } from "react";
+import { Image, Animated, View, StyleSheet } from "react-native";
 
 const ProgressiveImage = ({
   source,
@@ -39,11 +39,16 @@ const ProgressiveImage = ({
     );
   };
 
+  // If no source provided, just show placeholder
+  if (!source) {
+    return <View style={style}>{renderPlaceholder()}</View>;
+  }
+
   return (
     <View style={style}>
       {/* Placeholder - always visible until image loads */}
       {!isLoaded && !hasError && renderPlaceholder()}
-      
+
       {/* Actual image - fades in when loaded */}
       {!hasError && (
         <Animated.View style={[styles.imageContainer, { opacity: fadeAnim }]}>
@@ -52,11 +57,12 @@ const ProgressiveImage = ({
             style={[styles.image, style]}
             onLoad={handleLoad}
             onError={handleError}
+            resizeMode="cover"
             {...props}
           />
         </Animated.View>
       )}
-      
+
       {/* Hidden image to trigger load event */}
       {!isLoaded && !hasError && (
         <Image
@@ -64,6 +70,7 @@ const ProgressiveImage = ({
           style={styles.hiddenImage}
           onLoad={handleLoad}
           onError={handleError}
+          resizeMode="cover"
           {...props}
         />
       )}
@@ -73,7 +80,7 @@ const ProgressiveImage = ({
 
 const styles = StyleSheet.create({
   placeholder: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -81,15 +88,15 @@ const styles = StyleSheet.create({
   },
   gradientPlaceholder: {
     flex: 1,
-    backgroundColor: 'hsl(0, 0%, 15%)',
+    backgroundColor: "hsl(0, 0%, 15%)",
     // Add a subtle gradient effect
-    shadowColor: 'hsl(0, 0%, 30%)',
+    shadowColor: "hsl(0, 0%, 30%)",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   imageContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -99,7 +106,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   hiddenImage: {
-    position: 'absolute',
+    position: "absolute",
     width: 1,
     height: 1,
     opacity: 0,

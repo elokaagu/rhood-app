@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Audio } from "expo-audio";
+import { Audio } from "expo-av";
+console.log("✅ Audio module imported from expo-av in UserProfileView.js");
 import ProgressiveImage from "./ProgressiveImage";
 import { db } from "../lib/supabase";
 import { SkeletonProfile } from "./Skeleton";
@@ -27,6 +28,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   // Audio playback state
@@ -39,7 +41,47 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
 
   useEffect(() => {
     loadUserProfile();
+    checkConnectionStatus();
   }, [userId]);
+
+  const checkConnectionStatus = async () => {
+    try {
+      const { supabase } = await import("../lib/supabase");
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      if (!currentUser || !userId) return;
+
+      const connections = await db.getUserConnections(
+        currentUser.id,
+        null // Get all connections regardless of status
+      );
+
+      // Debug: Log the connections data
+      console.log("🔍 UserProfileView - Existing connections:", connections);
+      console.log("🔍 UserProfileView - Current user ID:", currentUser.id);
+      console.log("🔍 UserProfileView - Target user ID:", userId);
+
+      const isUserConnected = connections.some((conn) => {
+        console.log("🔍 UserProfileView - Checking connection:", conn);
+        const isConnected =
+          conn.connected_user_id === userId || conn.id === userId;
+        console.log("🔍 UserProfileView - Is connected?", isConnected);
+        return isConnected;
+      });
+
+      setIsConnected(isUserConnected);
+      console.log(
+        "🔍 Connection status for user",
+        userId,
+        ":",
+        isUserConnected
+      );
+    } catch (error) {
+      console.error("Error checking connection status:", error);
+    }
+  };
 
   useEffect(() => {
     if (profile) {
@@ -72,6 +114,10 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
 
       const profileData = await db.getUserProfilePublic(userId);
 
+      // Debug: Log the profile data to see what's being returned
+      console.log("🔍 Profile data received:", profileData);
+      console.log("🔍 Profile image URL:", profileData.profile_image_url);
+
       // Load primary mix data if it exists
       let primaryMix = null;
       if (profileData.primary_mix_id) {
@@ -91,10 +137,19 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
         }
       }
 
-      setProfile({
+      const finalProfile = {
         ...profileData,
         primaryMix: primaryMix,
-      });
+      };
+
+      // Debug: Log the final profile data
+      console.log("🔍 Final profile data being set:", finalProfile);
+      console.log(
+        "🔍 Final profile_image_url:",
+        finalProfile.profile_image_url
+      );
+
+      setProfile(finalProfile);
     } catch (err) {
       console.error("❌ Error loading user profile:", err);
       setError("Failed to load profile");
@@ -126,7 +181,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       }
 
       // Create connection request
-      await db.createConnection(currentUser.id, userId);
+      const connection = await db.createConnection(currentUser.id, userId);
 
       // Get the display name with better fallbacks
       const displayName =
@@ -135,7 +190,16 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
         `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() ||
         "this user";
 
-      setConnectionMessage(`Connection request sent to ${displayName}`);
+      // Check if this was a new connection or existing one
+      const isExistingConnection =
+        connection.created_at !== new Date().toISOString();
+
+      if (isExistingConnection) {
+        setConnectionMessage(`You're already connected to ${displayName}`);
+      } else {
+        setConnectionMessage(`Connection request sent to ${displayName}`);
+        setIsConnected(true); // Update local state
+      }
       setShowConnectionModal(true);
     } catch (error) {
       console.error("Error sending connection request:", error);
@@ -232,6 +296,11 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
         }
       } else if (profile.primary_mix) {
         // Load and play the primary mix
+        if (!Audio || !Audio.Sound || !Audio.Sound.createAsync) {
+          console.log("🎵 Audio playback failed, but continuing");
+          return;
+        }
+
         const { sound } = await Audio.Sound.createAsync(
           { uri: profile.primary_mix.file_url },
           { shouldPlay: true }
@@ -329,12 +398,26 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           <View style={styles.profileHeaderCard}>
             <View style={styles.profileImageContainer}>
               <ProgressiveImage
-                source={{
-                  uri:
-                    profile.profile_image_url ||
-                    "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=200&h=200&fit=crop",
-                }}
+                source={
+                  profile.profile_image_url
+                    ? { uri: profile.profile_image_url }
+                    : null
+                }
                 style={styles.profileImage}
+                placeholder={
+                  <View
+                    style={[
+                      styles.profileImage,
+                      {
+                        backgroundColor: "hsl(0, 0%, 15%)",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      },
+                    ]}
+                  >
+                    <Ionicons name="person" size={40} color="hsl(0, 0%, 50%)" />
+                  </View>
+                }
               />
               {profile.is_verified && (
                 <View style={styles.verifiedBadge}>
@@ -545,15 +628,26 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.connectButton}
+              style={[
+                styles.connectButton,
+                isConnected && styles.connectedButton,
+              ]}
               onPress={handleConnect}
+              disabled={isConnected}
             >
               <Ionicons
-                name="person-add-outline"
+                name={isConnected ? "checkmark" : "person-add-outline"}
                 size={20}
-                color="hsl(0, 0%, 0%)"
+                color={isConnected ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 0%)"}
               />
-              <Text style={styles.connectButtonText}>Connect</Text>
+              <Text
+                style={[
+                  styles.connectButtonText,
+                  isConnected && styles.connectedButtonText,
+                ]}
+              >
+                {isConnected ? "Connected" : "Connect"}
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -663,8 +757,7 @@ const styles = StyleSheet.create({
   },
   profileDisplayName: {
     fontSize: 22,
-    fontFamily: "Arial",
-    fontWeight: "700",
+    fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
     textAlign: "center",
@@ -824,11 +917,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
   },
+  connectedButton: {
+    backgroundColor: "hsl(0, 0%, 30%)",
+    opacity: 0.8,
+  },
   connectButtonText: {
     fontSize: 16,
     fontFamily: "Arial",
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
+  },
+  connectedButtonText: {
+    color: "hsl(0, 0%, 100%)",
   },
   bottomGradient: {
     position: "absolute",

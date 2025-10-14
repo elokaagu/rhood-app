@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { db } from "../lib/supabase";
+import { db, supabase } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 
 export default function EditProfileScreen({ user, onSave, onCancel }) {
@@ -263,6 +263,45 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     );
   };
 
+  const uploadProfileImage = async (imageUri) => {
+    try {
+      console.log("📤 Uploading profile image...");
+
+      // Generate unique filename
+      const fileExt = imageUri.split(".").pop() || "jpg";
+      const fileName = `profile_${user.id}_${Date.now()}.${fileExt}`;
+
+      // Convert image to Uint8Array
+      const response = await fetch(imageUri);
+      const arrayBuffer = await response.arrayBuffer();
+      const fileData = new Uint8Array(arrayBuffer);
+
+      // Upload to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("mixes") // Using existing mixes bucket for now
+        .upload(`profile_images/${fileName}`, fileData, {
+          contentType: `image/${fileExt}`,
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("mixes")
+        .getPublicUrl(`profile_images/${fileName}`);
+
+      console.log("✅ Profile image uploaded:", urlData.publicUrl);
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error("❌ Error uploading profile image:", error);
+      throw error;
+    }
+  };
+
   const openImagePicker = async (source) => {
     try {
       let result;
@@ -301,14 +340,36 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       }
 
       if (!result.canceled && result.assets[0]) {
-        setProfile((prev) => ({
-          ...prev,
-          profile_image_url: result.assets[0].uri,
-        }));
+        const localUri = result.assets[0].uri;
+
+        // Show loading state
+        setLoading(true);
+
+        try {
+          // Upload image to Supabase storage
+          const publicUrl = await uploadProfileImage(localUri);
+
+          // Update profile with public URL
+          setProfile((prev) => ({
+            ...prev,
+            profile_image_url: publicUrl,
+          }));
+
+          console.log("✅ Profile image updated with URL:", publicUrl);
+        } catch (uploadError) {
+          console.error("❌ Failed to upload image:", uploadError);
+          Alert.alert(
+            "Upload Error",
+            "Failed to upload image. Please try again."
+          );
+        } finally {
+          setLoading(false);
+        }
       }
     } catch (error) {
       console.error("Error picking image:", error);
       Alert.alert("Error", "Failed to select image");
+      setLoading(false);
     }
   };
 
@@ -408,6 +469,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
             <TouchableOpacity
               style={styles.imageContainer}
               onPress={handleImagePicker}
+              disabled={loading}
             >
               {profile.profile_image_url ? (
                 <Image
@@ -415,16 +477,30 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                   style={styles.profileImage}
                 />
               ) : (
-                <Image
-                  source={require("../assets/rhood_logo.png")}
-                  style={styles.profileImage}
-                />
+                <View
+                  style={[
+                    styles.profileImage,
+                    {
+                      backgroundColor: "hsl(0, 0%, 15%)",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    },
+                  ]}
+                >
+                  <Ionicons name="person" size={40} color="hsl(0, 0%, 50%)" />
+                </View>
               )}
               <View style={styles.imageOverlay}>
-                <Ionicons name="camera" size={20} color="hsl(0, 0%, 100%)" />
+                {loading ? (
+                  <ActivityIndicator size="small" color="hsl(0, 0%, 100%)" />
+                ) : (
+                  <Ionicons name="camera" size={20} color="hsl(0, 0%, 100%)" />
+                )}
               </View>
             </TouchableOpacity>
-            <Text style={styles.imageLabel}>Tap to change photo</Text>
+            <Text style={styles.imageLabel}>
+              {loading ? "Uploading..." : "Tap to change photo"}
+            </Text>
           </View>
 
           {/* Form Fields */}
