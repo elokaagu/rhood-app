@@ -47,6 +47,9 @@ export default function ConnectionsScreen({
   const [isRhoodMember, setIsRhoodMember] = useState(false);
   const [rhoodMemberCount, setRhoodMemberCount] = useState(0);
   const [lastMessages, setLastMessages] = useState({});
+  const [rhoodGroupData, setRhoodGroupData] = useState(null);
+  const [latestGroupMessage, setLatestGroupMessage] = useState(null);
+  const [unreadGroupCount, setUnreadGroupCount] = useState(0);
 
   // Update user state when prop changes
   useEffect(() => {
@@ -219,10 +222,31 @@ export default function ConnectionsScreen({
 
   const checkRhoodMembership = async () => {
     try {
-      // For now, assume all users are members since we don't have the community system fully set up
-      // In a real implementation, you would check the community_members table
-      setIsRhoodMember(true);
-      setRhoodMemberCount(12); // Placeholder count
+      if (!user?.id) return;
+
+      const rhoodCommunityId = "550e8400-e29b-41d4-a716-446655440000";
+      
+      // Load community data
+      const communityData = await db.getCommunityData(rhoodCommunityId);
+      setRhoodGroupData(communityData);
+
+      // Check membership
+      const isMember = await db.isUserCommunityMember(rhoodCommunityId, user.id);
+      setIsRhoodMember(isMember);
+
+      // Get member count
+      const memberCount = await db.getCommunityMemberCount(rhoodCommunityId);
+      setRhoodMemberCount(memberCount);
+
+      // Get latest message if user is a member
+      if (isMember) {
+        const latestMessage = await db.getLatestGroupMessage(rhoodCommunityId);
+        setLatestGroupMessage(latestMessage);
+
+        // Get unread count
+        const unreadCount = await db.getUnreadGroupMessageCount(rhoodCommunityId, user.id);
+        setUnreadGroupCount(unreadCount);
+      }
     } catch (error) {
       console.error("Error checking R/HOOD membership:", error);
       setIsRhoodMember(false);
@@ -232,15 +256,25 @@ export default function ConnectionsScreen({
 
   const handleJoinRhoodGroup = async () => {
     try {
-      // For now, just show a success message
-      // In a real implementation, you would add the user to the community_members table
+      if (!user?.id) {
+        Alert.alert("Error", "Please log in to join the R/HOOD Group");
+        return;
+      }
+
+      const rhoodCommunityId = "550e8400-e29b-41d4-a716-446655440000";
+      
+      // Join the community
+      await db.joinCommunity(rhoodCommunityId, user.id);
+      
+      // Update local state
+      setIsRhoodMember(true);
+      setRhoodMemberCount(prev => prev + 1);
+
       Alert.alert(
         "Welcome to R/HOOD Group!",
         "You've successfully joined the main R/HOOD community chat. Start connecting with fellow DJs!",
         [{ text: "OK" }]
       );
-      setIsRhoodMember(true);
-      setRhoodMemberCount((prev) => prev + 1);
     } catch (error) {
       console.error("Error joining R/HOOD group:", error);
       Alert.alert("Error", "Failed to join R/HOOD Group. Please try again.");
@@ -495,6 +529,25 @@ export default function ConnectionsScreen({
     return participantName;
   };
 
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return "";
+    
+    const now = new Date();
+    const messageTime = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - messageTime) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return "now";
+    if (diffInMinutes < 60) return `${diffInMinutes}m`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d`;
+    
+    return messageTime.toLocaleDateString();
+  };
+
   const getLastMessageContent = async (connection) => {
     // This would fetch the actual last message from the conversation
     // For now, return empty string - in a real implementation, you'd fetch from messages table
@@ -680,14 +733,18 @@ export default function ConnectionsScreen({
                     {/* Message Info */}
                     <View style={styles.messageInfo}>
                       <View style={styles.messageHeader}>
-                        <Text style={styles.messageName}>R/HOOD Group</Text>
+                        <Text style={styles.messageName}>
+                          {rhoodGroupData?.name || "R/HOOD Group"}
+                        </Text>
                         <Text style={styles.messageTime}>
-                          {isRhoodMember ? "2m" : "Join to chat"}
+                          {isRhoodMember && latestGroupMessage
+                            ? formatMessageTime(latestGroupMessage.created_at)
+                            : "Join to chat"}
                         </Text>
                       </View>
                       <Text style={styles.messagePreview} numberOfLines={1}>
-                        {isRhoodMember
-                          ? "Sofia: Yeah, the set was amazing! 🔥"
+                        {isRhoodMember && latestGroupMessage
+                          ? `${latestGroupMessage.author?.dj_name || latestGroupMessage.author?.full_name || "User"}: ${latestGroupMessage.content}`
                           : "Join the main R/HOOD community chat"}
                       </Text>
                       <View style={styles.messageBadges}>
@@ -704,9 +761,9 @@ export default function ConnectionsScreen({
                     </View>
 
                     {/* Unread Counter */}
-                    {isRhoodMember && (
+                    {isRhoodMember && unreadGroupCount > 0 && (
                       <View style={styles.unreadCounter}>
-                        <Text style={styles.unreadCount}>3</Text>
+                        <Text style={styles.unreadCount}>{unreadGroupCount}</Text>
                       </View>
                     )}
                   </View>
