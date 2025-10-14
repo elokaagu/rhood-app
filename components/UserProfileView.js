@@ -333,7 +333,6 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
             <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
         </View>
         <SkeletonProfile />
       </View>
@@ -347,7 +346,6 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
             <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
         </View>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="hsl(0, 0%, 50%)" />
