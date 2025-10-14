@@ -2303,6 +2303,15 @@ export default function App() {
           </View>
         );
 
+      case "messages":
+        return (
+          <MessagesScreen
+            user={user}
+            navigation={{ goBack: () => setCurrentScreen("connections") }}
+            route={{ params: screenParams }}
+          />
+        );
+
       case "connections":
         return (
           <ConnectionsScreen
