@@ -165,10 +165,9 @@ export default function ConnectionsScreen({
           return {
             id: conn.connected_user_id,
             name: conn.connected_user_name,
-            username: `@${
-              conn.connected_user_name?.toLowerCase().replace(/\s+/g, "") ||
-              "user"
-            }`,
+            username: conn.connected_user_username 
+              ? `@${conn.connected_user_username}`
+              : `@${conn.connected_user_name?.toLowerCase().replace(/\s+/g, "") || "user"}`,
             location:
               conn.connected_user_city ||
               conn.connected_user_location ||
@@ -400,9 +399,11 @@ export default function ConnectionsScreen({
         return {
           id: user.id,
           name: user.dj_name || user.full_name || "Unknown DJ",
-          username: `@${(user.dj_name || user.full_name || "dj")
-            .toLowerCase()
-            .replace(/\s+/g, "")}`,
+          username: user.username 
+            ? `@${user.username}`
+            : `@${(user.dj_name || user.full_name || "dj")
+              .toLowerCase()
+              .replace(/\s+/g, "")}`,
           location: user.city || user.location || "Location not set",
           genres: user.genres || [],
           profileImage: user.profile_image_url || null,

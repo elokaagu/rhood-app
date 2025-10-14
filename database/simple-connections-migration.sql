@@ -263,6 +263,7 @@ CREATE OR REPLACE FUNCTION get_user_connections(user_uuid UUID)
 RETURNS TABLE (
   connected_user_id UUID,
   connected_user_name VARCHAR,
+  connected_user_username VARCHAR,
   connected_user_image VARCHAR,
   connection_status VARCHAR,
   initiated_by UUID,
@@ -280,6 +281,10 @@ BEGIN
       WHEN c.user_id_1 = user_uuid THEN COALESCE(up2.dj_name, up2.full_name, 'Unknown User')
       ELSE COALESCE(up1.dj_name, up1.full_name, 'Unknown User')
     END::VARCHAR as connected_user_name,
+    CASE 
+      WHEN c.user_id_1 = user_uuid THEN up2.username
+      ELSE up1.username
+    END::VARCHAR as connected_user_username,
     CASE 
       WHEN c.user_id_1 = user_uuid THEN up2.profile_image_url
       ELSE up1.profile_image_url

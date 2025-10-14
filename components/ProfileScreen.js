@@ -170,9 +170,11 @@ export default function ProfileScreen({ onNavigate, user }) {
         setProfile({
           id: userProfile.id,
           name: userProfile.dj_name || userProfile.full_name || "Unknown DJ",
-          username: `@${(userProfile.dj_name || userProfile.full_name || "dj")
-            .toLowerCase()
-            .replace(/\s+/g, "")}`,
+          username: userProfile.username 
+            ? `@${userProfile.username}`
+            : `@${(userProfile.dj_name || userProfile.full_name || "dj")
+              .toLowerCase()
+              .replace(/\s+/g, "")}`,
           gigsCompleted: userProfile.gigs_completed || 0,
           credits: userProfile.credits || 0,
           bio: userProfile.bio || "No bio available",
