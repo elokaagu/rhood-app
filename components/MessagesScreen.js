@@ -433,7 +433,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
           {chatType === "group" && communityData && (
             <View style={styles.headerInfo}>
               <ProgressiveImage
-                source={{ uri: communityData.image_url }}
+                source={
+                  communityData.image_url
+                    ? { uri: communityData.image_url }
+                    : require("../assets/rhood_logo.webp")
+                }
                 style={styles.headerAvatar}
                 placeholderStyle={styles.headerAvatarPlaceholder}
               />
@@ -551,7 +555,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
         {chatType === "group" && communityData && (
           <View style={styles.headerInfo}>
             <ProgressiveImage
-              source={{ uri: communityData.image_url }}
+              source={
+                communityData.image_url
+                  ? { uri: communityData.image_url }
+                  : require("../assets/rhood_logo.webp")
+              }
               style={styles.headerAvatar}
               placeholderStyle={styles.headerAvatarPlaceholder}
             />
