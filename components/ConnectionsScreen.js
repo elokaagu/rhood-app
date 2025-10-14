@@ -225,13 +225,16 @@ export default function ConnectionsScreen({
       if (!user?.id) return;
 
       const rhoodCommunityId = "550e8400-e29b-41d4-a716-446655440000";
-      
+
       // Load community data
       const communityData = await db.getCommunityData(rhoodCommunityId);
       setRhoodGroupData(communityData);
 
       // Check membership
-      const isMember = await db.isUserCommunityMember(rhoodCommunityId, user.id);
+      const isMember = await db.isUserCommunityMember(
+        rhoodCommunityId,
+        user.id
+      );
       setIsRhoodMember(isMember);
 
       // Get member count
@@ -244,7 +247,10 @@ export default function ConnectionsScreen({
         setLatestGroupMessage(latestMessage);
 
         // Get unread count
-        const unreadCount = await db.getUnreadGroupMessageCount(rhoodCommunityId, user.id);
+        const unreadCount = await db.getUnreadGroupMessageCount(
+          rhoodCommunityId,
+          user.id
+        );
         setUnreadGroupCount(unreadCount);
       }
     } catch (error) {
@@ -262,13 +268,13 @@ export default function ConnectionsScreen({
       }
 
       const rhoodCommunityId = "550e8400-e29b-41d4-a716-446655440000";
-      
+
       // Join the community
       await db.joinCommunity(rhoodCommunityId, user.id);
-      
+
       // Update local state
       setIsRhoodMember(true);
-      setRhoodMemberCount(prev => prev + 1);
+      setRhoodMemberCount((prev) => prev + 1);
 
       Alert.alert(
         "Welcome to R/HOOD Group!",
@@ -531,20 +537,20 @@ export default function ConnectionsScreen({
 
   const formatMessageTime = (timestamp) => {
     if (!timestamp) return "";
-    
+
     const now = new Date();
     const messageTime = new Date(timestamp);
     const diffInMinutes = Math.floor((now - messageTime) / (1000 * 60));
-    
+
     if (diffInMinutes < 1) return "now";
     if (diffInMinutes < 60) return `${diffInMinutes}m`;
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60);
     if (diffInHours < 24) return `${diffInHours}h`;
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays}d`;
-    
+
     return messageTime.toLocaleDateString();
   };
 
@@ -744,7 +750,11 @@ export default function ConnectionsScreen({
                       </View>
                       <Text style={styles.messagePreview} numberOfLines={1}>
                         {isRhoodMember && latestGroupMessage
-                          ? `${latestGroupMessage.author?.dj_name || latestGroupMessage.author?.full_name || "User"}: ${latestGroupMessage.content}`
+                          ? `${
+                              latestGroupMessage.author?.dj_name ||
+                              latestGroupMessage.author?.full_name ||
+                              "User"
+                            }: ${latestGroupMessage.content}`
                           : "Join the main R/HOOD community chat"}
                       </Text>
                       <View style={styles.messageBadges}>
@@ -763,7 +773,9 @@ export default function ConnectionsScreen({
                     {/* Unread Counter */}
                     {isRhoodMember && unreadGroupCount > 0 && (
                       <View style={styles.unreadCounter}>
-                        <Text style={styles.unreadCount}>{unreadGroupCount}</Text>
+                        <Text style={styles.unreadCount}>
+                          {unreadGroupCount}
+                        </Text>
                       </View>
                     )}
                   </View>
