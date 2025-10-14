@@ -13,7 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
-import { supabase } from "../lib/supabase";
+import { supabase, db } from "../lib/supabase";
 
 // Helper function to format relative time
 const formatRelativeTime = (timestamp) => {
@@ -218,6 +218,32 @@ export default function NotificationsScreen({ user: propUser, onNavigate }) {
     }
   };
 
+  const handleAcceptConnection = async (notification) => {
+    try {
+      // Extract connection ID from notification data
+      const connectionId = notification.data?.connection_id;
+      
+      if (!connectionId) {
+        Alert.alert("Error", "Connection ID not found");
+        return;
+      }
+
+      // Accept the connection
+      await db.acceptConnection(connectionId);
+
+      // Mark notification as read
+      await markNotificationAsRead(notification.id);
+
+      // Update local state to remove the notification
+      setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+
+      Alert.alert("Success", "Connection request accepted!");
+    } catch (error) {
+      console.error("Error accepting connection:", error);
+      Alert.alert("Error", "Failed to accept connection request");
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadUserAndNotifications();
@@ -359,6 +385,21 @@ export default function NotificationsScreen({ user: propUser, onNavigate }) {
                           {notification.title}
                         </Text>
                         <View style={styles.notificationActions}>
+                          {notification.type === "connection" && !notification.isRead && (
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleAcceptConnection(notification);
+                              }}
+                              style={[styles.actionButton, styles.acceptButton]}
+                            >
+                              <Ionicons
+                                name="checkmark"
+                                size={16}
+                                color="hsl(0, 0%, 0%)"
+                              />
+                            </TouchableOpacity>
+                          )}
                           {!notification.isRead && (
                             <TouchableOpacity
                               onPress={(e) => {
@@ -556,6 +597,11 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 4,
     backgroundColor: "hsl(0, 0%, 15%)",
+  },
+  acceptButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   notificationDescription: {
     fontSize: 14,
