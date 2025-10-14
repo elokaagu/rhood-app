@@ -37,21 +37,23 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
 
     try {
       setLoading(true);
-      
+
       // First, find the correct email case from the database
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('email')
-        .ilike('email', email) // Case-insensitive search
+        .from("user_profiles")
+        .select("email")
+        .ilike("email", email) // Case-insensitive search
         .single();
 
       let emailToUse = email; // Default to original email
-      
+
       if (profile && !profileError) {
         emailToUse = profile.email; // Use the exact case from database
         console.log(`📧 Found email in database: ${emailToUse}`);
       } else {
-        console.log(`📧 Email not found in profiles, trying original: ${email}`);
+        console.log(
+          `📧 Email not found in profiles, trying original: ${email}`
+        );
       }
 
       // Now try to sign in with the correct email case
@@ -62,25 +64,28 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
       }
     } catch (error) {
       console.error("Login error:", error);
-      
+
       // Handle specific error cases
       if (error.message?.includes("Email not confirmed")) {
         Alert.alert(
-          "Email Not Confirmed", 
+          "Email Not Confirmed",
           "Please check your email and click the confirmation link before signing in.",
           [
             { text: "OK", style: "default" },
-            { 
-              text: "Resend Confirmation", 
+            {
+              text: "Resend Confirmation",
               style: "default",
-              onPress: () => handleResendConfirmation(email)
-            }
+              onPress: () => handleResendConfirmation(email),
+            },
           ]
         );
       } else if (error.message?.includes("Invalid login credentials")) {
         Alert.alert("Login Failed", "Invalid email or password");
       } else {
-        Alert.alert("Login Failed", error.message || "An error occurred during login");
+        Alert.alert(
+          "Login Failed",
+          error.message || "An error occurred during login"
+        );
       }
     } finally {
       setLoading(false);
@@ -91,25 +96,25 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     try {
       // First, find the correct email case from the database
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('email')
-        .ilike('email', emailAddress) // Case-insensitive search
+        .from("user_profiles")
+        .select("email")
+        .ilike("email", emailAddress) // Case-insensitive search
         .single();
 
       let emailToUse = emailAddress; // Default to original email
-      
+
       if (profile && !profileError) {
         emailToUse = profile.email; // Use the exact case from database
         console.log(`📧 Using email from database: ${emailToUse}`);
       }
 
       const { error } = await supabase.auth.resend({
-        type: 'signup',
+        type: "signup",
         email: emailToUse,
       });
 
       if (error) throw error;
-      
+
       Alert.alert(
         "Confirmation Email Sent",
         "Please check your email and click the confirmation link."
@@ -129,13 +134,13 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     try {
       // First, find the correct email case from the database
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('email')
-        .ilike('email', email) // Case-insensitive search
+        .from("user_profiles")
+        .select("email")
+        .ilike("email", email) // Case-insensitive search
         .single();
 
       let emailToUse = email; // Default to original email
-      
+
       if (profile && !profileError) {
         emailToUse = profile.email; // Use the exact case from database
         console.log(`📧 Using email from database: ${emailToUse}`);
@@ -148,14 +153,20 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
       );
     } catch (error) {
       console.error("Password reset error:", error);
-      
+
       // Handle specific error cases
       if (error.message?.includes("rate limit")) {
-        Alert.alert("Error", "Too many password reset attempts. Please wait before trying again.");
+        Alert.alert(
+          "Error",
+          "Too many password reset attempts. Please wait before trying again."
+        );
       } else if (error.message?.includes("not found")) {
         Alert.alert("Error", "No account found with this email address.");
       } else {
-        Alert.alert("Error", "Failed to send password reset email. Please try again.");
+        Alert.alert(
+          "Error",
+          "Failed to send password reset email. Please try again."
+        );
       }
     }
   };
