@@ -44,6 +44,10 @@ export default function MessagesScreen({ user: propUser, navigation, route }) {
   const [newPost, setNewPost] = useState("");
   const [forumPosts, setForumPosts] = useState([]);
 
+  // Community data state
+  const [communityData, setCommunityData] = useState(null);
+  const [memberCount, setMemberCount] = useState(0);
+
   // State for CRUD operations
   const [editingMessage, setEditingMessage] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
@@ -154,8 +158,111 @@ export default function MessagesScreen({ user: propUser, navigation, route }) {
     }
   };
 
+  const loadCommunityData = async () => {
+    try {
+      if (!communityId) return;
+
+      // Load community information
+      const { data: community, error: communityError } = await supabase
+        .from("communities")
+        .select("*")
+        .eq("id", communityId)
+        .single();
+
+      if (communityError) {
+        console.warn("Error loading community:", communityError);
+        // Use fallback data
+        setCommunityData({
+          name: communityName || "R/HOOD Community",
+          description: "A community for music lovers",
+          image_url: null,
+        });
+      } else {
+        setCommunityData(community);
+      }
+
+      // Load member count
+      const { count, error: countError } = await supabase
+        .from("community_members")
+        .select("*", { count: "exact", head: true })
+        .eq("community_id", communityId);
+
+      if (countError) {
+        console.warn("Error loading member count:", countError);
+        setMemberCount(0);
+      } else {
+        setMemberCount(count || 0);
+      }
+    } catch (error) {
+      console.error("Error loading community data:", error);
+      // Set fallback data
+      setCommunityData({
+        name: communityName || "R/HOOD Community",
+        description: "A community for music lovers",
+        image_url: null,
+      });
+      setMemberCount(0);
+    }
+  };
+
+  const loadCommunityPosts = async () => {
+    try {
+      if (!communityId) return;
+
+      // Load community forum posts
+      const { data: posts, error: postsError } = await supabase
+        .from("community_posts")
+        .select(
+          `
+          *,
+          author:user_profiles!community_posts_author_id_fkey(
+            id,
+            dj_name,
+            full_name,
+            profile_image_url
+          )
+        `
+        )
+        .eq("community_id", communityId)
+        .order("created_at", { ascending: false });
+
+      if (postsError) {
+        console.warn("Error loading community posts:", postsError);
+        setForumPosts([]);
+      } else {
+        // Transform posts to match expected format
+        const transformedPosts = (posts || []).map((post) => ({
+          id: post.id,
+          author:
+            post.author?.dj_name || post.author?.full_name || "Unknown User",
+          username: `@${post.author?.dj_name?.toLowerCase() || "user"}`,
+          avatar:
+            post.author?.profile_image_url ||
+            "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
+          timestamp: new Date(post.created_at),
+          content: post.content,
+          likes: post.likes || 0,
+          replies: post.replies || 0,
+          isPinned: post.is_pinned || false,
+          tags: post.tags || [],
+          isCurrentUser: post.author_id === currentUser?.id,
+          isLiked: post.is_liked || false,
+          isEdited: post.is_edited || false,
+        }));
+
+        setForumPosts(transformedPosts);
+      }
+    } catch (error) {
+      console.error("Error loading community posts:", error);
+      setForumPosts([]);
+    }
+  };
+
   const initializeGroupChat = async () => {
     try {
+      // Load community data first
+      await loadCommunityData();
+
       // Check if user is a member of the community
       const isMember = await connectionsService.isCommunityMember(communityId);
       if (!isMember) {
@@ -171,6 +278,9 @@ export default function MessagesScreen({ user: propUser, navigation, route }) {
         communityId
       );
       setMessages(groupMessages);
+
+      // Load community forum posts
+      await loadCommunityPosts();
 
       // Subscribe to group messages
       const newSubscription = connectionsService.subscribeToGroupMessages(
@@ -411,26 +521,66 @@ export default function MessagesScreen({ user: propUser, navigation, route }) {
   };
 
   // CRUD Operations for Forum Posts
-  const createPost = (content) => {
-    const newPost = {
-      id: Date.now(),
-      author: "You",
-      username: "@yourusername",
-      avatar:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-      timestamp: new Date(),
-      content: content.trim(),
-      likes: 0,
-      replies: 0,
-      isPinned: false,
-      tags: [],
-      isCurrentUser: true,
-    };
+  const createPost = async (content) => {
+    if (!currentUser || !communityId) {
+      Alert.alert("Error", "Unable to create post. Please try again.");
+      return;
+    }
 
-    const updatedPosts = [newPost, ...forumPosts];
-    setForumPosts(updatedPosts);
-    saveForumPosts(updatedPosts);
-    return newPost;
+    try {
+      // Create post in database
+      const { data: newPost, error: postError } = await supabase
+        .from("community_posts")
+        .insert({
+          community_id: communityId,
+          author_id: currentUser.id,
+          content: content.trim(),
+          likes: 0,
+          replies: 0,
+          is_pinned: false,
+          tags: [],
+        })
+        .select(
+          `
+          *,
+          author:user_profiles!community_posts_author_id_fkey(
+            id,
+            dj_name,
+            full_name,
+            profile_image_url
+          )
+        `
+        )
+        .single();
+
+      if (postError) throw postError;
+
+      // Transform to match expected format
+      const transformedPost = {
+        id: newPost.id,
+        author: newPost.author?.dj_name || newPost.author?.full_name || "You",
+        username: `@${newPost.author?.dj_name?.toLowerCase() || "user"}`,
+        avatar:
+          newPost.author?.profile_image_url ||
+          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
+        timestamp: new Date(newPost.created_at),
+        content: newPost.content,
+        likes: newPost.likes || 0,
+        replies: newPost.replies || 0,
+        isPinned: newPost.is_pinned || false,
+        tags: newPost.tags || [],
+        isCurrentUser: true,
+        isLiked: false,
+        isEdited: false,
+      };
+
+      // Add to local state
+      setForumPosts((prev) => [transformedPost, ...prev]);
+      return transformedPost;
+    } catch (error) {
+      console.error("Error creating post:", error);
+      Alert.alert("Error", "Failed to create post");
+    }
   };
 
   const updatePost = (postId, newContent) => {
@@ -513,9 +663,9 @@ export default function MessagesScreen({ user: propUser, navigation, route }) {
     Keyboard.dismiss(); // Dismiss keyboard after sending
   };
 
-  const handlePostToForum = () => {
+  const handlePostToForum = async () => {
     if (!newPost.trim()) return;
-    createPost(newPost);
+    await createPost(newPost);
     setNewPost("");
     Keyboard.dismiss(); // Dismiss keyboard after posting
   };
@@ -640,6 +790,15 @@ export default function MessagesScreen({ user: propUser, navigation, route }) {
             activeOpacity={0.7}
             style={styles.messageTouchable}
           >
+            {/* Sender name for messages from other users */}
+            {!isCurrentUser && (
+              <Text style={styles.senderName}>
+                {message.sender?.dj_name ||
+                  message.sender?.full_name ||
+                  "Unknown User"}
+              </Text>
+            )}
+
             <Text
               style={[
                 styles.messageText,
@@ -685,18 +844,25 @@ export default function MessagesScreen({ user: propUser, navigation, route }) {
           <View style={styles.headerInfo}>
             <View style={styles.groupIcon}>
               <Image
-                source={require("../assets/rhood_logo.webp")}
+                source={
+                  communityData?.image_url
+                    ? { uri: communityData.image_url }
+                    : require("../assets/rhood_logo.webp")
+                }
                 style={styles.groupLogo}
                 resizeMode="contain"
+                onError={(error) => {
+                  console.log("Community image load error:", error);
+                }}
               />
             </View>
 
             <View style={styles.groupDetails}>
               <Text style={styles.groupTitle}>
-                {communityName || "RHOOD Group"}
+                {communityData?.name || communityName || "R/HOOD Community"}
               </Text>
               <Text style={styles.groupSubtitle}>
-                12 members •{" "}
+                {memberCount} {memberCount === 1 ? "member" : "members"} •{" "}
                 {communityId ? "Community Chat" : "Community Forum"}
               </Text>
             </View>
@@ -1350,6 +1516,12 @@ const styles = StyleSheet.create({
   },
   messageTextRight: {
     color: "hsl(0, 0%, 0%)",
+  },
+  senderName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
+    marginBottom: 4,
   },
   messageTime: {
     fontSize: 12,

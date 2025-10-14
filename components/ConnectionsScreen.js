@@ -20,23 +20,31 @@ import * as Haptics from "expo-haptics";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase, db } from "../lib/supabase";
 import { SkeletonList } from "./Skeleton";
+import RhoodModal from "./RhoodModal";
 
 // No mock data - all data comes from database
 
 // All connection data comes from database
 
-export default function ConnectionsScreen({ user: propUser, onNavigate }) {
+export default function ConnectionsScreen({
+  user: propUser,
+  onNavigate,
+  initialTab = "discover",
+}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(propUser); // Use prop user as initial state
-  const [activeTab, setActiveTab] = useState("discover"); // 'connections' or 'discover'
+  const [activeTab, setActiveTab] = useState(initialTab); // 'connections' or 'discover'
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [discoverUsers, setDiscoverUsers] = useState([]);
   const [connectionsFadeAnim] = useState(new Animated.Value(0));
   const [discoverFadeAnim] = useState(new Animated.Value(0));
+  const [connectionMessage, setConnectionMessage] = useState("");
+  const [showConnectionModal, setShowConnectionModal] = useState(false);
+  const [lastMessages, setLastMessages] = useState({});
 
   // Update user state when prop changes
   useEffect(() => {
@@ -248,11 +256,8 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
         return;
       }
 
-      // Create real connection request
-      const connectionResult = await db.createConnection(
-        currentUser.id,
-        connection.id
-      );
+      // Create real connection request using new schema
+      const connectionResult = await db.createConnection(connection.id);
 
       // Get the display name with better fallbacks
       const displayName =
@@ -265,31 +270,30 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
 
       // Check if this was a new connection or existing one
       const isExistingConnection =
-        connectionResult.created_at !== new Date().toISOString();
+        connectionResult.status === "pending" && connectionResult.id;
 
       if (isExistingConnection) {
-        Alert.alert(
-          "Already Connected",
-          `You're already connected to ${displayName}`,
-          [{ text: "OK" }]
+        setConnectionMessage(
+          `Connection request sent to ${displayName}. They'll be notified and can accept your request.`
         );
-      } else {
-        Alert.alert(
-          "Connection Sent!",
-          `Connection request sent to ${displayName}`,
-          [{ text: "OK" }]
-        );
+        setShowConnectionModal(true);
 
         // Update the user's connection status in the local state
         setDiscoverUsers((prev) =>
           prev.map((user) =>
-            user.id === connection.id ? { ...user, isConnected: true } : user
+            user.id === connection.id
+              ? { ...user, isConnected: true, connectionStatus: "pending" }
+              : user
           )
         );
+      } else {
+        setConnectionMessage(`You're already connected to ${displayName}`);
+        setShowConnectionModal(true);
       }
     } catch (error) {
       console.error("Error sending connection request:", error);
-      Alert.alert("Error", "Failed to send connection request");
+      setConnectionMessage("Failed to send connection request");
+      setShowConnectionModal(true);
     } finally {
       setDiscoverLoading(false);
     }
@@ -324,37 +328,53 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
       console.log("🔍 Existing connections:", existingConnections);
       console.log("🔍 Current user ID:", currentUser.id);
 
-      const existingConnectionIds = new Set(
-        existingConnections.map((conn) => {
-          console.log("🔍 Connection data:", conn);
-          return conn.connected_user_id || conn.id;
-        })
-      );
+      // Create a map of user connections with their status
+      const connectionStatusMap = new Map();
+      existingConnections.forEach((conn) => {
+        console.log("🔍 Connection data:", conn);
+        const userId = conn.connected_user_id;
+        connectionStatusMap.set(userId, {
+          status: conn.connection_status,
+          initiated_by: conn.initiated_by,
+          created_at: conn.created_at,
+          accepted_at: conn.accepted_at,
+        });
+      });
 
       console.log(
-        "🔍 Existing connection IDs:",
-        Array.from(existingConnectionIds)
+        "🔍 Connection status map:",
+        Object.fromEntries(connectionStatusMap)
       );
 
       // Transform to match UI format with connection status
-      const formattedDiscoverUsers = recommendedUsers.map((user) => ({
-        id: user.id,
-        name: user.dj_name || user.full_name || "Unknown DJ",
-        username: `@${
-          user.username ||
-          user.dj_name?.toLowerCase().replace(/\s+/g, "") ||
-          "dj"
-        }`,
-        location: user.city || user.location || "Location not set",
-        genres: user.genres || [],
-        profileImage: user.profile_image_url || null,
-        gigsCompleted: user.gigs_completed || 0,
-        lastActive: "Recently",
-        status: "online",
-        isVerified: user.is_verified || false,
-        bio: user.bio || "DJ and music producer",
-        isConnected: existingConnectionIds.has(user.id), // Add connection status (pending or accepted)
-      }));
+      const formattedDiscoverUsers = recommendedUsers.map((user) => {
+        const connectionInfo = connectionStatusMap.get(user.id);
+        const isConnected =
+          connectionInfo &&
+          (connectionInfo.status === "pending" ||
+            connectionInfo.status === "accepted");
+
+        return {
+          id: user.id,
+          name: user.dj_name || user.full_name || "Unknown DJ",
+          username: `@${
+            user.username ||
+            user.dj_name?.toLowerCase().replace(/\s+/g, "") ||
+            "dj"
+          }`,
+          location: user.city || user.location || "Location not set",
+          genres: user.genres || [],
+          profileImage: user.profile_image_url || null,
+          gigsCompleted: user.gigs_completed || 0,
+          lastActive: "Recently",
+          status: "online",
+          isVerified: user.is_verified || false,
+          bio: user.bio || "DJ and music producer",
+          isConnected: isConnected,
+          connectionStatus: connectionInfo?.status || null,
+          connectionId: connectionInfo ? user.id : null,
+        };
+      });
 
       setDiscoverUsers(formattedDiscoverUsers);
       console.log(
@@ -414,10 +434,34 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
     }
   };
 
-  const getLastMessage = (connectionId) => {
-    // For now, return a placeholder. In a full implementation,
-    // this would fetch the last message from the thread
-    return "Tap to start a conversation";
+  const getUserName = (connection) => {
+    // Debug: Log the connection data to see what's available
+    console.log("🔍 Connection data for name:", connection);
+
+    // Return just the participant's name
+    const participantName =
+      connection.name ||
+      connection.dj_name ||
+      connection.full_name ||
+      connection.connected_user_name ||
+      "Unknown User";
+
+    console.log("🔍 Resolved name:", participantName);
+    return participantName;
+  };
+
+  const getLastMessageContent = async (connection) => {
+    // This would fetch the actual last message from the conversation
+    // For now, return a placeholder - in a real implementation, you'd fetch from messages table
+    try {
+      // TODO: Implement actual message fetching
+      // const lastMessage = await db.getLastMessage(connection.id);
+      // return lastMessage?.content || "No messages yet";
+      return "No messages yet";
+    } catch (error) {
+      console.error("Error fetching last message:", error);
+      return "No messages yet";
+    }
   };
 
   return (
@@ -437,7 +481,7 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>CONNECTIONS</Text>
           <Text style={styles.headerSubtitle}>
-            Discover and connect with DJs worldwide
+            Connect with DJs and manage your conversations
           </Text>
 
           {/* Tab Navigation */}
@@ -518,7 +562,7 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
                   activeTab === "connections" && styles.tabTextActive,
                 ]}
               >
-                Connections
+                Messages
               </Text>
             </TouchableOpacity>
           </View>
@@ -550,59 +594,57 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
           </View>
         </View>
 
-        {/* Pinned Group Chat Section - Only show on connections tab */}
-        {activeTab === "connections" && (
-          <View style={styles.pinnedGroup}>
-            <TouchableOpacity
-              style={styles.groupChatItem}
-              onPress={handleGroupChatPress}
-            >
-              {/* Group Avatar */}
-              <View style={styles.groupAvatarContainer}>
-                <View style={styles.groupAvatar}>
-                  <Image
-                    source={require("../assets/rhood_logo.webp")}
-                    style={styles.groupLogo}
-                    resizeMode="contain"
-                  />
-                </View>
-                {/* Online Status Indicator */}
-                <View style={styles.onlineIndicator} />
-              </View>
-
-              {/* Group Chat Info */}
-              <View style={styles.groupInfo}>
-                <View style={styles.groupHeader}>
-                  <Text style={styles.groupName}>R/HOOD Group</Text>
-                  <Text style={styles.groupTime}>2m</Text>
-                </View>
-                <Text style={styles.groupMessage} numberOfLines={1}>
-                  Sofia: Yeah, the set was amazing! 🔥
-                </Text>
-                <View style={styles.groupBadges}>
-                  <View style={styles.pinnedBadge}>
-                    <Text style={styles.pinnedBadgeText}>Pinned</Text>
-                  </View>
-                  <Text style={styles.memberCount}>12 members</Text>
-                </View>
-              </View>
-
-              {/* Unread Messages Counter */}
-              <View style={styles.unreadCounter}>
-                <Text style={styles.unreadCount}>3</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Content based on active tab */}
         {activeTab === "connections" ? (
-          /* Individual Connections List */
-          <View style={styles.connectionsList}>
+          /* Messages List */
+          <View style={styles.messagesList}>
             {loading ? (
               <SkeletonList count={5} />
             ) : (
               <Animated.View style={{ opacity: connectionsFadeAnim }}>
+                {/* R/HOOD Group Chat - Always pinned at top */}
+                <TouchableOpacity
+                  style={styles.messageItem}
+                  onPress={handleGroupChatPress}
+                >
+                  <View style={styles.messageContent}>
+                    {/* Group Avatar */}
+                    <View style={styles.avatarContainer}>
+                      <View style={styles.groupAvatar}>
+                        <Image
+                          source={require("../assets/rhood_logo.webp")}
+                          style={styles.groupLogo}
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <View style={styles.onlineIndicator} />
+                    </View>
+
+                    {/* Message Info */}
+                    <View style={styles.messageInfo}>
+                      <View style={styles.messageHeader}>
+                        <Text style={styles.messageName}>R/HOOD Group</Text>
+                        <Text style={styles.messageTime}>2m</Text>
+                      </View>
+                      <Text style={styles.messagePreview} numberOfLines={1}>
+                        Sofia: Yeah, the set was amazing! 🔥
+                      </Text>
+                      <View style={styles.messageBadges}>
+                        <View style={styles.pinnedBadge}>
+                          <Text style={styles.pinnedBadgeText}>Pinned</Text>
+                        </View>
+                        <Text style={styles.memberCount}>12 members</Text>
+                      </View>
+                    </View>
+
+                    {/* Unread Counter */}
+                    <View style={styles.unreadCounter}>
+                      <Text style={styles.unreadCount}>3</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Individual Messages */}
                 {filteredConnections.map((connection, index) => (
                   <AnimatedListItem
                     key={connection.id}
@@ -610,12 +652,12 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
                     delay={80}
                   >
                     <TouchableOpacity
-                      style={styles.connectionItem}
+                      style={styles.messageItem}
                       onPress={() => handleConnectionPress(connection)}
                     >
-                      <View style={styles.connectionContent}>
-                        {/* Profile Image with Online Status */}
-                        <View style={styles.profileContainer}>
+                      <View style={styles.messageContent}>
+                        {/* Profile Avatar */}
+                        <View style={styles.avatarContainer}>
                           <ProgressiveImage
                             source={
                               connection.profileImage
@@ -630,83 +672,50 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
                               />
                             }
                           />
-                          {/* For now, show all as online. In a real app, you'd track online status */}
-                          <View
-                            style={[
-                              styles.statusIndicator,
-                              {
-                                backgroundColor: "hsl(120, 100%, 50%)", // Always online for now
-                              },
-                            ]}
-                          />
+                          <View style={styles.onlineIndicator} />
                         </View>
 
-                        {/* Connection Info */}
-                        <View style={styles.connectionInfo}>
-                          {/* Name and Last Active Time */}
-                          <View style={styles.connectionHeader}>
-                            <Text
-                              style={styles.connectionName}
-                              numberOfLines={1}
-                            >
-                              {connection.dj_name || connection.full_name}
+                        {/* Message Info */}
+                        <View style={styles.messageInfo}>
+                          <View style={styles.messageHeader}>
+                            <Text style={styles.messageName} numberOfLines={1}>
+                              {getUserName(connection)}
                             </Text>
-                            <Text style={styles.lastActive}>
-                              {connection.followedAt
-                                ? new Date(
-                                    connection.followedAt
-                                  ).toLocaleDateString()
-                                : "Recently"}
+                            <Text style={styles.messageTime}>
+                              {connection.lastActive || "Recently"}
                             </Text>
                           </View>
-
-                          {/* Last Message Preview */}
-                          <Text style={styles.lastMessage} numberOfLines={1}>
-                            {getLastMessage(connection.id)}
+                          <Text style={styles.messagePreview} numberOfLines={1}>
+                            {lastMessages[connection.id] || "No messages yet"}
                           </Text>
-
-                          {/* Genre Tags */}
-                          <View style={styles.genreTags}>
-                            {(connection.genres || [])
-                              .slice(0, 2)
-                              .map((genre) => (
-                                <View key={genre} style={styles.genreTag}>
-                                  <Text style={styles.genreTagText}>
-                                    {genre}
-                                  </Text>
-                                </View>
-                              ))}
-                            {(!connection.genres ||
-                              connection.genres.length === 0) && (
-                              <View style={styles.genreTag}>
-                                <Text style={styles.genreTagText}>
-                                  Electronic
-                                </Text>
-                              </View>
-                            )}
-                          </View>
                         </View>
-
-                        {/* Unread Message Indicator */}
-                        {connection.id === 1 && (
-                          <View style={styles.unreadCounter}>
-                            <Text style={styles.unreadCount}>2</Text>
-                          </View>
-                        )}
-                        {connection.id === 2 && (
-                          <View style={styles.unreadCounter}>
-                            <Text style={styles.unreadCount}>1</Text>
-                          </View>
-                        )}
-                        {connection.id === 6 && (
-                          <View style={styles.unreadCounter}>
-                            <Text style={styles.unreadCount}>3</Text>
-                          </View>
-                        )}
                       </View>
                     </TouchableOpacity>
                   </AnimatedListItem>
                 ))}
+
+                {/* Empty State */}
+                {filteredConnections.length === 0 && !loading && (
+                  <View style={styles.emptyState}>
+                    <Ionicons
+                      name="chatbubbles-outline"
+                      size={64}
+                      color="hsl(0, 0%, 30%)"
+                    />
+                    <Text style={styles.emptyStateTitle}>No Messages Yet</Text>
+                    <Text style={styles.emptyStateDescription}>
+                      Start connecting with DJs to begin conversations
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.emptyStateButton}
+                      onPress={() => setActiveTab("discover")}
+                    >
+                      <Text style={styles.emptyStateButtonText}>
+                        Discover DJs
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </Animated.View>
             )}
           </View>
@@ -839,7 +848,7 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
               <Ionicons name="person-add" size={24} color="hsl(0, 0%, 70%)" />
               <Text style={styles.ctaTitle}>Find More Connections</Text>
               <Text style={styles.ctaDescription}>
-                Discover DJs and industry professionals
+                Connect with DJs and start conversations
               </Text>
               <TouchableOpacity
                 style={styles.ctaButton}
@@ -857,6 +866,17 @@ export default function ConnectionsScreen({ user: propUser, onNavigate }) {
         colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)"]}
         style={styles.bottomGradient}
         pointerEvents="none"
+      />
+
+      {/* Connection Status Modal */}
+      <RhoodModal
+        visible={showConnectionModal}
+        onClose={() => setShowConnectionModal(false)}
+        title="Connection Status"
+        message={connectionMessage}
+        type="success"
+        primaryButtonText="OK"
+        showCloseButton={false}
       />
     </View>
   );
@@ -1101,11 +1121,11 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)",
   },
-  lastMessage: {
-    fontSize: 14,
+  lastMessageContent: {
+    fontSize: 12,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 70%)",
-    marginBottom: 8,
+    color: "hsl(0, 0%, 60%)",
+    marginTop: 4,
   },
   genreTags: {
     flexDirection: "row",
@@ -1200,7 +1220,122 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 0%)",
   },
 
-  // Discover Tab Styles
+  // Messages List Styles
+  messagesList: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  messageItem: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  messageContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatarContainer: {
+    position: "relative",
+    marginRight: 12,
+  },
+  groupAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  groupLogo: {
+    width: 32,
+    height: 32,
+  },
+  profileImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  onlineIndicator: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "hsl(120, 100%, 50%)",
+    borderWidth: 2,
+    borderColor: "hsl(0, 0%, 8%)",
+  },
+  messageInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  messageHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  messageName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    fontFamily: "Arial",
+  },
+  messageTime: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 60%)",
+    fontFamily: "Arial",
+  },
+  messagePreview: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Arial",
+    marginBottom: 6,
+  },
+  messageBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  pinnedBadge: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  pinnedBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+    fontFamily: "Arial",
+  },
+  memberCount: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 60%)",
+    fontFamily: "Arial",
+  },
+  unreadCounter: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 8,
+  },
+  unreadCount: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+    fontFamily: "Arial",
+  },
   discoverList: {
     paddingHorizontal: 20,
     paddingTop: 20,

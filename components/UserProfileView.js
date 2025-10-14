@@ -180,8 +180,8 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
         return;
       }
 
-      // Create connection request
-      const connection = await db.createConnection(currentUser.id, userId);
+      // Create connection request using new schema
+      const connection = await db.createConnection(userId);
 
       // Get the display name with better fallbacks
       const displayName =
@@ -191,14 +191,15 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
         "this user";
 
       // Check if this was a new connection or existing one
-      const isExistingConnection =
-        connection.created_at !== new Date().toISOString();
+      const isNewConnection = connection.status === "pending" && connection.id;
 
-      if (isExistingConnection) {
-        setConnectionMessage(`You're already connected to ${displayName}`);
-      } else {
-        setConnectionMessage(`Connection request sent to ${displayName}`);
+      if (isNewConnection) {
+        setConnectionMessage(
+          `Connection request sent to ${displayName}. They'll be notified and can accept your request.`
+        );
         setIsConnected(true); // Update local state
+      } else {
+        setConnectionMessage(`You're already connected to ${displayName}`);
       }
       setShowConnectionModal(true);
     } catch (error) {

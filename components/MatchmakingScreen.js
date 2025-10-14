@@ -57,11 +57,11 @@ export default function MatchmakingScreen({ userId, onNavigate }) {
       await matchmaking.applyToOpportunity(userId, match.opportunity_id);
 
       // Get updated daily stats after successful application
-      const stats = await db.getDailyApplicationStats(userId);
+      const stats = await db.getUserDailyApplicationStats(userId);
 
       Alert.alert(
         "Success",
-        `Application submitted successfully! You have ${stats.remaining} applications remaining today.`,
+        `Application submitted successfully! You have ${stats.remaining_applications} applications remaining today.`,
         [{ text: "OK" }]
       );
       loadMatches(); // Refresh matches

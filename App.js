@@ -46,6 +46,7 @@ import RhoodModal from "./components/RhoodModal";
 import SwipeableOpportunityCard from "./components/SwipeableOpportunityCard";
 // import BriefForm from "./components/BriefForm"; // REMOVED - no longer needed for simplified swipe-to-apply
 import { db, auth, supabase } from "./lib/supabase";
+import { APPLICATION_LIMITS } from "./lib/performanceConstants";
 import {
   ANIMATION_DURATION,
   NATIVE_ANIMATION_CONFIG,
@@ -238,6 +239,10 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState("opportunities");
   const [screenParams, setScreenParams] = useState({});
+
+  // Notification badge state
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [showFadeOverlay, setShowFadeOverlay] = useState(false);
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
@@ -489,6 +494,13 @@ export default function App() {
       }
     };
   }, []);
+
+  // Load notification counts when user changes
+  useEffect(() => {
+    if (user) {
+      loadNotificationCounts();
+    }
+  }, [user]);
 
   // Setup push notifications
   const setupPushNotifications = async () => {
@@ -1471,12 +1483,12 @@ export default function App() {
       }
 
       // Get daily application stats before applying
-      const stats = await db.getDailyApplicationStats(userId);
+      const stats = await db.getUserDailyApplicationStats(userId);
 
-      if (!stats.canApply) {
+      if (!stats.can_apply) {
         Alert.alert(
           "Daily Limit Reached",
-          `You have reached your daily limit of 5 applications. You have ${stats.remaining} applications remaining today. Please try again tomorrow.`,
+          `You have reached your daily limit of ${APPLICATION_LIMITS.DAILY_LIMIT} applications. You have ${stats.remaining_applications} applications remaining today. Please try again tomorrow.`,
           [{ text: "OK" }]
         );
         return;
@@ -1485,11 +1497,11 @@ export default function App() {
       await db.applyToOpportunity(opportunityId, userId);
 
       // Get updated stats after successful application
-      const updatedStats = await db.getDailyApplicationStats(userId);
+      const updatedStats = await db.getUserDailyApplicationStats(userId);
 
       Alert.alert(
         "Success",
-        `Application submitted successfully! You have ${updatedStats.remaining} applications remaining today.`,
+        `Application submitted successfully! You have ${updatedStats.remaining_applications} applications remaining today.`,
         [{ text: "OK" }]
       );
     } catch (error) {
@@ -1622,7 +1634,9 @@ export default function App() {
     if (!dailyApplicationStats.can_apply) {
       Alert.alert(
         "Daily Limit Reached",
-        `You have reached your daily limit of 5 applications. You have ${
+        `You have reached your daily limit of ${
+          APPLICATION_LIMITS.DAILY_LIMIT
+        } applications. You have ${
           dailyApplicationStats?.remaining_applications || 0
         } applications remaining today. Please try again tomorrow.`,
         [{ text: "OK" }]
@@ -1917,6 +1931,39 @@ export default function App() {
     ]).start(() => {
       setShowMenu(false);
     });
+  };
+
+  // Load notification counts
+  const loadNotificationCounts = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [notificationCount, messageCount] = await Promise.all([
+        db.getUnreadNotificationCount(user.id),
+        db.getUnreadMessageCount(user.id),
+      ]);
+
+      setUnreadNotificationCount(notificationCount);
+      setUnreadMessageCount(messageCount);
+    } catch (error) {
+      console.error("Error loading notification counts:", error);
+    }
+  };
+
+  // Notification Badge Component
+  const NotificationBadge = ({ count, style }) => {
+    if (count === 0) return null;
+
+    return (
+      <View style={[styles.notificationBadge, style]}>
+        <Text style={styles.notificationBadgeText}>
+          {count > 99 ? "99+" : count}
+        </Text>
+      </View>
+    );
   };
 
   const completeOnboarding = async () => {
@@ -2256,19 +2303,11 @@ export default function App() {
           </View>
         );
 
-      case "messages":
-        return (
-          <MessagesScreen
-            user={user}
-            navigation={{ goBack: () => setCurrentScreen("connections") }}
-            route={{ params: screenParams }}
-          />
-        );
-
       case "connections":
         return (
           <ConnectionsScreen
             user={user}
+            initialTab={screenParams.initialTab || "discover"}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
@@ -2749,15 +2788,21 @@ export default function App() {
               ]}
               onPress={() => handleMenuNavigation("connections")}
             >
-              <Ionicons
-                name="people-outline"
-                size={20}
-                color={
-                  currentScreen === "connections"
-                    ? "#C2CC06"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
+              <View style={styles.tabIconContainer}>
+                <Ionicons
+                  name="people-outline"
+                  size={20}
+                  color={
+                    currentScreen === "connections"
+                      ? "#C2CC06"
+                      : "hsl(0, 0%, 70%)"
+                  }
+                />
+                <NotificationBadge
+                  count={unreadMessageCount}
+                  style={styles.tabNotificationBadge}
+                />
+              </View>
               <Text
                 style={[
                   styles.tabText,
@@ -2871,7 +2916,11 @@ export default function App() {
                       styles.menuItem,
                       currentScreen === "connections" && styles.menuItemActive,
                     ]}
-                    onPress={() => handleMenuNavigation("connections")}
+                    onPress={() =>
+                      handleMenuNavigation("connections", {
+                        initialTab: "connections",
+                      })
+                    }
                     activeOpacity={0.7}
                   >
                     <Ionicons
@@ -2883,6 +2932,23 @@ export default function App() {
                       <Text style={styles.menuItemText}>Messages</Text>
                       <Text style={styles.menuItemDescription}>
                         View all conversations
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.menuItem,
+                      currentScreen === "connections" && styles.menuItemActive,
+                    ]}
+                    onPress={() => handleMenuNavigation("connections")}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="people-outline" size={20} color="#C2CC06" />
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Connections</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Discover and connect with DJs
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -3873,6 +3939,37 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: "#C2CC06", // Brand lime green for active text
     fontWeight: "500", // Medium weight to match inactive tabs
+  },
+
+  // Notification Badge Styles
+  tabIconContainer: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: -6,
+    right: -8,
+    backgroundColor: "#FF3B30", // iOS red
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: "#000000", // Black border to stand out
+  },
+  tabNotificationBadge: {
+    top: -8,
+    right: -10,
+  },
+  notificationBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "bold",
+    textAlign: "center",
   },
   // Empty Opportunities Screen Styles
   emptyOpportunitiesContainer: {
