@@ -37,7 +37,25 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
 
     try {
       setLoading(true);
-      const { user } = await auth.signIn(email, password);
+      
+      // First, find the correct email case from the database
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('email')
+        .ilike('email', email) // Case-insensitive search
+        .single();
+
+      let emailToUse = email; // Default to original email
+      
+      if (profile && !profileError) {
+        emailToUse = profile.email; // Use the exact case from database
+        console.log(`📧 Found email in database: ${emailToUse}`);
+      } else {
+        console.log(`📧 Email not found in profiles, trying original: ${email}`);
+      }
+
+      // Now try to sign in with the correct email case
+      const { user } = await auth.signIn(emailToUse, password);
 
       if (user) {
         onLoginSuccess(user);
@@ -71,9 +89,23 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
 
   const handleResendConfirmation = async (emailAddress) => {
     try {
+      // First, find the correct email case from the database
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('email')
+        .ilike('email', emailAddress) // Case-insensitive search
+        .single();
+
+      let emailToUse = emailAddress; // Default to original email
+      
+      if (profile && !profileError) {
+        emailToUse = profile.email; // Use the exact case from database
+        console.log(`📧 Using email from database: ${emailToUse}`);
+      }
+
       const { error } = await supabase.auth.resend({
         type: 'signup',
-        email: emailAddress,
+        email: emailToUse,
       });
 
       if (error) throw error;
@@ -95,7 +127,21 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     }
 
     try {
-      await auth.resetPassword(email);
+      // First, find the correct email case from the database
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('email')
+        .ilike('email', email) // Case-insensitive search
+        .single();
+
+      let emailToUse = email; // Default to original email
+      
+      if (profile && !profileError) {
+        emailToUse = profile.email; // Use the exact case from database
+        console.log(`📧 Using email from database: ${emailToUse}`);
+      }
+
+      await auth.resetPassword(emailToUse);
       Alert.alert(
         "Password Reset Sent",
         "Check your email for password reset instructions"
