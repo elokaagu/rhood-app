@@ -262,9 +262,9 @@ END $$;
 CREATE OR REPLACE FUNCTION get_user_connections(user_uuid UUID)
 RETURNS TABLE (
   connected_user_id UUID,
-  connected_user_name TEXT,
-  connected_user_image TEXT,
-  connection_status TEXT,
+  connected_user_name VARCHAR,
+  connected_user_image VARCHAR,
+  connection_status VARCHAR,
   initiated_by UUID,
   created_at TIMESTAMP WITH TIME ZONE,
   accepted_at TIMESTAMP WITH TIME ZONE
@@ -279,12 +279,12 @@ BEGIN
     CASE 
       WHEN c.user_id_1 = user_uuid THEN COALESCE(up2.dj_name, up2.full_name, 'Unknown User')
       ELSE COALESCE(up1.dj_name, up1.full_name, 'Unknown User')
-    END as connected_user_name,
+    END::VARCHAR as connected_user_name,
     CASE 
       WHEN c.user_id_1 = user_uuid THEN up2.profile_image_url
       ELSE up1.profile_image_url
-    END as connected_user_image,
-    c.status as connection_status,
+    END::VARCHAR as connected_user_image,
+    c.status::VARCHAR as connection_status,
     c.initiated_by,
     c.created_at,
     c.accepted_at

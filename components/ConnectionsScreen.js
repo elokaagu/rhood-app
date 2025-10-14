@@ -46,6 +46,7 @@ export default function ConnectionsScreen({
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [isRhoodMember, setIsRhoodMember] = useState(false);
   const [rhoodMemberCount, setRhoodMemberCount] = useState(0);
+  const [lastMessages, setLastMessages] = useState({});
 
   // Update user state when prop changes
   useEffect(() => {
