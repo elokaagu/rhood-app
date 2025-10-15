@@ -1277,7 +1277,7 @@ export default function App() {
   // Enhanced progress bar handler with drag support
   const handleProgressBarPress = async (event) => {
     event.stopPropagation();
-    
+
     // Check if audio is ready
     if (globalAudioState.durationMillis <= 0 || globalAudioState.isLoading) {
       console.warn("⚠️ Cannot scrub - audio not ready");
@@ -1314,14 +1314,20 @@ export default function App() {
         },
         onPanResponderMove: async (_, gestureState) => {
           // Check if audio is ready
-          if (globalAudioState.durationMillis <= 0 || globalAudioState.isLoading) {
+          if (
+            globalAudioState.durationMillis <= 0 ||
+            globalAudioState.isLoading
+          ) {
             return;
           }
 
           // Get progress bar width
           const progressBarWidth = 300; // Approximate width
-          const percentage = Math.max(0, Math.min(1, gestureState.moveX / progressBarWidth));
-          
+          const percentage = Math.max(
+            0,
+            Math.min(1, gestureState.moveX / progressBarWidth)
+          );
+
           // Seek to the position
           const newPosition = percentage * globalAudioState.durationMillis;
           await seekToPosition(newPosition);
@@ -2891,6 +2897,11 @@ export default function App() {
             </Animated.View>
           </Animated.View>
         </Modal>
+
+        {/* Dark Fade Overlay Above Play Bar */}
+        {globalAudioState.currentTrack && (
+          <View style={styles.playBarFadeOverlay} />
+        )}
 
         {/* Global Audio Player - shows when there's a current track */}
         {globalAudioState.currentTrack && (
@@ -5030,5 +5041,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 12,
+  },
+
+  // Play Bar Fade Overlay
+  playBarFadeOverlay: {
+    position: "absolute",
+    bottom: 90, // Position above the play bar (play bar height is ~70px)
+    left: 0,
+    right: 0,
+    height: 40,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    pointerEvents: "none",
+    zIndex: 1,
   },
 });

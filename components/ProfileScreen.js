@@ -375,6 +375,7 @@ export default function ProfileScreen({ onNavigate, user }) {
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
@@ -726,6 +727,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
+    paddingBottom: 120, // Extra padding to prevent content from being hidden behind play bar
   },
   bottomGradient: {
     position: "absolute",

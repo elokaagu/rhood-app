@@ -38,7 +38,12 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   // Load initial data
   useEffect(() => {
-    console.log("MessagesScreen useEffect triggered:", { chatType, djId, communityId, userId: user?.id });
+    console.log("MessagesScreen useEffect triggered:", {
+      chatType,
+      djId,
+      communityId,
+      userId: user?.id,
+    });
     if (chatType === "individual" && djId) {
       console.log("Loading individual chat for DJ:", djId);
       loadIndividualChat();
@@ -182,9 +187,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
         messagesData = await db.getMessages(threadId);
       } else if (chatType === "group") {
         // Load group messages
-        console.log("Calling db.getGroupMessages with communityId:", communityId);
+        console.log(
+          "Calling db.getGroupMessages with communityId:",
+          communityId
+        );
         messagesData = await db.getGroupMessages(communityId);
-        console.log("getGroupMessages returned:", messagesData?.length || 0, "messages");
+        console.log(
+          "getGroupMessages returned:",
+          messagesData?.length || 0,
+          "messages"
+        );
       }
 
       // Transform messages for display

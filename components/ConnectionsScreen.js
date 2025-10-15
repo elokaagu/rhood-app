@@ -582,6 +582,7 @@ export default function ConnectionsScreen({
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1021,6 +1022,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
+    paddingBottom: 120, // Extra padding to prevent content from being hidden behind play bar
   },
   bottomGradient: {
     position: "absolute",

@@ -388,6 +388,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
 
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
@@ -717,6 +718,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
+    paddingBottom: 120, // Extra padding to prevent content from being hidden behind play bar
   },
   content: {
     padding: 20,

@@ -28,11 +28,13 @@ async function debugSocialMediaHandles() {
     }
 
     console.log(`✅ Found ${profiles?.length || 0} user profiles`);
-    
+
     if (profiles?.length > 0) {
       console.log("\n📋 Social Media Handles:");
       profiles.forEach((profile, index) => {
-        console.log(`${index + 1}. ${profile.dj_name || profile.full_name || "Unknown"}:`);
+        console.log(
+          `${index + 1}. ${profile.dj_name || profile.full_name || "Unknown"}:`
+        );
         console.log(`   Instagram: ${profile.instagram || "Not set"}`);
         console.log(`   SoundCloud: ${profile.soundcloud || "Not set"}`);
         console.log("");
@@ -60,12 +62,14 @@ async function debugSocialMediaHandles() {
     console.log("\n3. Testing profile update...");
     if (profiles?.length > 0) {
       const testProfile = profiles[0];
-      console.log(`Testing update for: ${testProfile.dj_name || testProfile.full_name}`);
-      
+      console.log(
+        `Testing update for: ${testProfile.dj_name || testProfile.full_name}`
+      );
+
       const testUpdate = {
         instagram: "https://instagram.com/testhandle",
         soundcloud: "https://soundcloud.com/testuser",
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       const { data: updatedProfile, error: updateError } = await supabase
@@ -78,11 +82,14 @@ async function debugSocialMediaHandles() {
         console.error("❌ Error updating profile:", updateError);
       } else {
         console.log("✅ Profile updated successfully:");
-        console.log(`   Instagram: ${updatedProfile[0]?.instagram || "Not set"}`);
-        console.log(`   SoundCloud: ${updatedProfile[0]?.soundcloud || "Not set"}`);
+        console.log(
+          `   Instagram: ${updatedProfile[0]?.instagram || "Not set"}`
+        );
+        console.log(
+          `   SoundCloud: ${updatedProfile[0]?.soundcloud || "Not set"}`
+        );
       }
     }
-
   } catch (error) {
     console.error("💥 Unexpected error:", error);
   }
