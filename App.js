@@ -3079,10 +3079,10 @@ export default function App() {
                   resizeMode="cover"
                 />
               )}
-              
+
               {/* Dark overlay for better text readability */}
               <View style={styles.fullScreenOverlay} />
-              
+
               <View
                 style={styles.fullScreenPlayer}
                 {...createGestureHandlers()}
@@ -4415,7 +4415,7 @@ const styles = StyleSheet.create({
   audioTrackArtist: {
     fontSize: 13, // Slightly smaller for hierarchy
     fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)", // Consistent green
+    color: "hsl(0, 0%, 85%)", // Changed from green to light gray
     fontWeight: "500", // Less bold
     opacity: 0.9,
   },
@@ -4598,7 +4598,7 @@ const styles = StyleSheet.create({
   fullScreenTrackArtist: {
     fontSize: 20, // Larger for better visibility
     fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)", // Use brand green
+    color: "hsl(0, 0%, 85%)", // Changed from green to light gray
     textAlign: "center",
     marginBottom: 8,
     fontWeight: "600",
