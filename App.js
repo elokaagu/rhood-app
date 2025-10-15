@@ -4635,8 +4635,10 @@ const styles = StyleSheet.create({
   // Full-Screen Player Menu Styles
   fullScreenMenuOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: "rgba(255, 0, 0, 0.8)",
     justifyContent: "flex-end",
+    zIndex: 9999,
+    elevation: 9999,
   },
   fullScreenMenuOverlayTouchable: {
     flex: 1,
@@ -4657,6 +4659,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 10,
+    zIndex: 10000,
   },
   fullScreenMenuContent: {
     padding: 20,
