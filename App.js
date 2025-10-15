@@ -3140,7 +3140,7 @@ export default function App() {
                 style={styles.fullScreenPlayer}
                 {...createGestureHandlers()}
               >
-                {/* Header with close button */}
+                {/* Header with close button and title */}
                 <View style={styles.fullScreenHeader}>
                   <TouchableOpacity
                     style={styles.closeButton}
@@ -3149,6 +3149,19 @@ export default function App() {
                     <Ionicons
                       name="chevron-down"
                       size={24}
+                      color="hsl(0, 0%, 100%)"
+                    />
+                  </TouchableOpacity>
+                  <Text style={styles.fullScreenHeaderTitle}>
+                    {globalAudioState.currentTrack.title}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => setShowFullScreenPlayer(false)}
+                  >
+                    <Ionicons
+                      name="ellipsis-vertical"
+                      size={20}
                       color="hsl(0, 0%, 100%)"
                     />
                   </TouchableOpacity>
@@ -4576,10 +4589,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // Full-Screen Player Styles - Redesigned to match reference
+  // Full-Screen Player Styles - Redesigned to match reference with R/HOOD theming
   fullScreenPlayerOverlay: {
     flex: 1,
-    backgroundColor: "hsl(250, 20%, 15%)", // Dark purple background like reference
+    backgroundColor: "hsl(0, 0%, 8%)", // Dark background like reference
   },
   fullScreenBackgroundImage: {
     position: "absolute",
@@ -4596,7 +4609,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.8)", // Darker overlay since no background image
+    backgroundColor: "rgba(0, 0, 0, 0.3)", // Subtle overlay
   },
   fullScreenPlayer: {
     flex: 1,
@@ -4608,27 +4621,35 @@ const styles = StyleSheet.create({
   },
   fullScreenHeader: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 40,
   },
   closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "hsl(0, 0%, 8%)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+  },
+  fullScreenHeaderTitle: {
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "600",
+    textAlign: "center",
+    flex: 1,
+    marginHorizontal: 16,
   },
   fullScreenAlbumArtContainer: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 32,
   },
   fullScreenAlbumArt: {
-    width: 280,
-    height: 280,
-    borderRadius: 16,
+    width: 320,
+    height: 320,
+    borderRadius: 12,
     shadowColor: "hsl(75, 100%, 60%)",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
@@ -4637,69 +4658,64 @@ const styles = StyleSheet.create({
   },
   fullScreenTrackInfo: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 32,
     paddingHorizontal: 20,
   },
   fullScreenTrackTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "900",
-    textAlign: "left",
+    textAlign: "center",
     marginBottom: 8,
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    lineHeight: 28,
   },
   fullScreenTrackArtist: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 85%)",
-    textAlign: "left",
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
     fontWeight: "500",
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    marginBottom: 4,
   },
   fullScreenProgressSection: {
-    marginBottom: 40,
+    marginBottom: 32,
   },
   fullScreenProgressBar: {
-    height: 8, // Increased from 4 to 8 for better visibility
+    height: 4,
     backgroundColor: "hsl(0, 0%, 20%)",
-    borderRadius: 4,
-    marginBottom: 12,
+    borderRadius: 2,
+    marginBottom: 16,
     position: "relative",
-    paddingVertical: 16, // Increased touch area
-    justifyContent: "center", // Center the progress fill
+    paddingVertical: 12,
+    justifyContent: "center",
   },
   fullScreenProgressFill: {
-    height: 8, // Match the bar height
+    height: 4,
     backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 4,
+    borderRadius: 2,
     position: "absolute",
-    top: 16, // Center within the touch area
+    top: 12,
   },
   fullScreenProgressThumb: {
     position: "absolute",
-    top: 12, // Center within the touch area
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    top: 8,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: "hsl(75, 100%, 60%)",
-    marginLeft: -10,
+    marginLeft: -8,
     shadowColor: "hsl(75, 100%, 60%)",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.6,
-    shadowRadius: 6,
-    elevation: 6,
-    borderWidth: 2,
-    borderColor: "hsl(0, 0%, 0%)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
   },
   fullScreenTimeContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 4,
   },
   fullScreenTimeText: {
     fontSize: 14,
@@ -4711,23 +4727,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 40,
-    gap: 24,
+    marginBottom: 32,
+    gap: 32,
   },
   fullScreenControlButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "hsl(0, 0%, 8%)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
   },
   fullScreenPlayButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: "hsl(75, 100%, 60%)",
     justifyContent: "center",
     alignItems: "center",
@@ -4741,17 +4755,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 32,
+    gap: 40,
   },
   fullScreenActionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "hsl(0, 0%, 8%)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
   },
 
   // Enhanced Progress Bar Styles
