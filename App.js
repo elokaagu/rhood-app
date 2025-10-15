@@ -3303,54 +3303,6 @@ export default function App() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Additional Actions */}
-                <View style={styles.fullScreenActions}>
-                  <TouchableOpacity
-                    style={styles.fullScreenActionButton}
-                    onPress={toggleLike}
-                  >
-                    <Ionicons
-                      name={
-                        globalAudioState.currentTrack?.isLiked
-                          ? "heart"
-                          : "heart-outline"
-                      }
-                      size={20}
-                      color={
-                        globalAudioState.currentTrack?.isLiked
-                          ? "hsl(0, 100%, 60%)"
-                          : "hsl(0, 0%, 70%)"
-                      }
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.fullScreenActionButton}
-                    onPress={shareTrack}
-                  >
-                    <Ionicons
-                      name="share-outline"
-                      size={20}
-                      color="hsl(0, 0%, 70%)"
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.fullScreenActionButton}
-                    onPress={() =>
-                      Alert.alert(
-                        "More Options",
-                        "Additional options coming soon!"
-                      )
-                    }
-                  >
-                    <Ionicons
-                      name="ellipsis-horizontal"
-                      size={20}
-                      color="hsl(0, 0%, 70%)"
-                    />
-                  </TouchableOpacity>
-                </View>
               </View>
             </View>
           </Modal>
@@ -4803,20 +4755,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
-  },
-  fullScreenActions: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 40,
-  },
-  fullScreenActionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
   },
 
   // Enhanced Progress Bar Styles
