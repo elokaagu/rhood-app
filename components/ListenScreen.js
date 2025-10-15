@@ -866,14 +866,14 @@ const styles = StyleSheet.create({
   recommendationTitle: {
     fontSize: 14,
     fontFamily: "Helvetica Neue",
-    fontWeight: "600",
+    fontWeight: "bold", // Changed from "600" to "bold"
     color: "hsl(0, 0%, 100%)",
     marginBottom: 2,
   },
   recommendationArtist: {
     fontSize: 12,
     fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)",
+    color: "hsl(0, 0%, 85%)", // Changed from green to light gray
   },
   // Loading More Styles
   loadingMoreContainer: {
