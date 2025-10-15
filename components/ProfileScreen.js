@@ -420,6 +420,7 @@ export default function ProfileScreen({ onNavigate, user }) {
                 <Ionicons name="checkmark" size={12} color="hsl(0, 0%, 0%)" />
               </View>
             )}
+            </View>
           </View>
 
           <View style={styles.profileInfo}>
