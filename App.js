@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -1251,6 +1251,16 @@ export default function App() {
       if (status.isLoaded && status.durationMillis > 0) {
         // Ensure position doesn't exceed duration
         const clampedPosition = Math.min(positionMillis, status.durationMillis);
+        
+        // Check if we're already close to this position to avoid unnecessary seeks
+        const currentPosition = status.positionMillis || 0;
+        const positionDiff = Math.abs(clampedPosition - currentPosition);
+        
+        if (positionDiff < 500) { // Less than 0.5 seconds difference
+          console.log(`⏭️ Skipping seek - already close to target position`);
+          return;
+        }
+
         await globalAudioRef.current.setPositionAsync(clampedPosition);
         console.log(`✅ Successfully seeked to ${clampedPosition}ms`);
 
@@ -1266,6 +1276,11 @@ export default function App() {
         );
       }
     } catch (error) {
+      // Handle specific "seeking interrupted" errors more gracefully
+      if (error.message && error.message.includes("interrupted")) {
+        console.warn("⚠️ Seek was interrupted - this is normal during rapid scrubbing");
+        return;
+      }
       console.error("❌ Error seeking:", error);
     }
   };
@@ -1300,6 +1315,28 @@ export default function App() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // Throttle seeking to prevent rapid successive calls
+  const seekThrottleRef = useRef(null);
+  const lastSeekPositionRef = useRef(0);
+
+  const throttledSeek = useCallback((positionMillis) => {
+    // Clear any existing throttle
+    if (seekThrottleRef.current) {
+      clearTimeout(seekThrottleRef.current);
+    }
+
+    // Only seek if position has changed significantly (more than 1 second)
+    const positionDiff = Math.abs(positionMillis - lastSeekPositionRef.current);
+    if (positionDiff < 1000) {
+      return;
+    }
+
+    seekThrottleRef.current = setTimeout(async () => {
+      lastSeekPositionRef.current = positionMillis;
+      await seekToPosition(positionMillis);
+    }, 100); // Throttle to max 10 seeks per second
+  }, []);
+
   // Pan responder for drag functionality
   const progressBarPanResponder = useMemo(
     () =>
@@ -1312,7 +1349,7 @@ export default function App() {
           // Start of drag - provide haptic feedback
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         },
-        onPanResponderMove: async (_, gestureState) => {
+        onPanResponderMove: (_, gestureState) => {
           // Check if audio is ready
           if (
             globalAudioState.durationMillis <= 0 ||
@@ -1328,15 +1365,19 @@ export default function App() {
             Math.min(1, gestureState.moveX / progressBarWidth)
           );
 
-          // Seek to the position
+          // Calculate new position and use throttled seek
           const newPosition = percentage * globalAudioState.durationMillis;
-          await seekToPosition(newPosition);
+          throttledSeek(newPosition);
         },
         onPanResponderRelease: () => {
-          // End of drag
+          // End of drag - clear throttle
+          if (seekThrottleRef.current) {
+            clearTimeout(seekThrottleRef.current);
+            seekThrottleRef.current = null;
+          }
         },
       }),
-    [globalAudioState.durationMillis, globalAudioState.isLoading]
+    [globalAudioState.durationMillis, globalAudioState.isLoading, throttledSeek]
   );
 
   // Queue management functions
