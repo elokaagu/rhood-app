@@ -49,7 +49,7 @@ export default function CommunityScreen({ onNavigate }) {
       onNavigate("messages", {
         communityId: community.id,
         communityName: community.name,
-        isGroupChat: true,
+        chatType: "group",
       });
   };
 

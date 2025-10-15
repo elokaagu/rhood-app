@@ -38,10 +38,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   // Load initial data
   useEffect(() => {
+    console.log("MessagesScreen useEffect triggered:", { chatType, djId, communityId, userId: user?.id });
     if (chatType === "individual" && djId) {
+      console.log("Loading individual chat for DJ:", djId);
       loadIndividualChat();
     } else if (chatType === "group" && communityId) {
+      console.log("Loading group chat for community:", communityId);
       loadGroupChat();
+    } else {
+      console.log("No valid chat parameters, setting loading to false");
+      setLoading(false);
     }
   }, [djId, communityId, chatType]);
 
@@ -118,6 +124,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   // Load group chat data
   const loadGroupChat = async () => {
     try {
+      console.log("loadGroupChat started for community:", communityId);
       setLoading(true);
 
       // Load community data
@@ -130,6 +137,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       if (communityError) {
         console.warn("Error loading community:", communityError);
       } else {
+        console.log("Community loaded:", community);
         setCommunityData(community);
       }
 
@@ -140,15 +148,19 @@ const MessagesScreen = ({ user, navigation, route }) => {
         .eq("community_id", communityId);
 
       if (!countError && memberCount !== null) {
+        console.log("Member count loaded:", memberCount);
         setMemberCount(memberCount);
       }
 
       // Load messages
+      console.log("Loading messages...");
       await loadMessages();
+      console.log("Messages loaded successfully");
     } catch (error) {
       console.error("Error loading group chat:", error);
       Alert.alert("Error", "Failed to load group chat");
     } finally {
+      console.log("Setting loading to false");
       setLoading(false);
     }
   };
@@ -156,6 +168,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   // Load messages for current chat
   const loadMessages = async () => {
     try {
+      console.log("loadMessages started:", { chatType, djId, communityId });
       let messagesData = [];
 
       if (chatType === "individual") {
@@ -169,7 +182,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
         messagesData = await db.getMessages(threadId);
       } else if (chatType === "group") {
         // Load group messages
+        console.log("Calling db.getGroupMessages with communityId:", communityId);
         messagesData = await db.getGroupMessages(communityId);
+        console.log("getGroupMessages returned:", messagesData?.length || 0, "messages");
       }
 
       // Transform messages for display
@@ -189,6 +204,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         isOwn: (msg.sender_id || msg.author_id) === user.id,
       }));
 
+      console.log("Transformed messages:", transformedMessages?.length || 0);
       setMessages(transformedMessages);
     } catch (error) {
       console.error("Error loading messages:", error);
