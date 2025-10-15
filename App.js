@@ -3392,62 +3392,109 @@ export default function App() {
           </Modal>
         )}
 
-        {/* Full-Screen Player Menu Modal */}
-        {console.log("🔍 Full-screen menu state:", showFullScreenMenu)}
-        {showFullScreenMenu && (
-          <Modal
-            visible={showFullScreenMenu}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setShowFullScreenMenu(false)}
+        {/* Full-Screen Player Menu Bottom Sheet */}
+        <Modal
+          visible={showFullScreenMenu}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowFullScreenMenu(false)}
+        >
+          <Animated.View
+            style={[
+              styles.fullScreenMenuOverlay,
+              {
+                opacity: menuOpacityAnim,
+              },
+            ]}
           >
             <TouchableOpacity
-              style={styles.menuOverlay}
+              style={styles.fullScreenMenuOverlayTouchable}
               activeOpacity={1}
               onPress={() => setShowFullScreenMenu(false)}
+            />
+            <Animated.View
+              style={[
+                styles.fullScreenMenuContainer,
+                {
+                  transform: [
+                    {
+                      translateY: menuSlideAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [300, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
             >
-              <View style={styles.menuContainer}>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => {
-                    console.log("🔍 Share Mix pressed");
-                    setShowFullScreenMenu(false);
-                    shareTrack();
-                  }}
-                >
-                  <Ionicons
-                    name="share-outline"
-                    size={20}
-                    color="hsl(0, 0%, 100%)"
-                  />
-                  <Text style={styles.menuItemText}>Share Mix</Text>
-                </TouchableOpacity>
+              <View style={styles.fullScreenMenuContent}>
+                <View style={styles.fullScreenMenuHeader}>
+                  <Text style={styles.tsBlockBoldHeading}>Mix Options</Text>
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => setShowFullScreenMenu(false)}
+                  >
+                    <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+                  </TouchableOpacity>
+                </View>
 
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => {
-                    console.log("🔍 Connect with DJ pressed");
-                    setShowFullScreenMenu(false);
-                    if (globalAudioState.currentTrack.user_id) {
-                      setShowFullScreenPlayer(false);
-                      setCurrentScreen("user-profile");
-                      setScreenParams({
-                        userId: globalAudioState.currentTrack.user_id,
-                      });
-                    }
-                  }}
-                >
-                  <Ionicons
-                    name="chatbubble-outline"
-                    size={20}
-                    color="hsl(0, 0%, 100%)"
-                  />
-                  <Text style={styles.menuItemText}>Connect with DJ</Text>
-                </TouchableOpacity>
+                <View style={styles.fullScreenMenuItems}>
+                  <TouchableOpacity
+                    style={styles.fullScreenMenuItem}
+                    onPress={() => {
+                      console.log("🔍 Share Mix pressed");
+                      setShowFullScreenMenu(false);
+                      shareTrack();
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="share-outline"
+                      size={20}
+                      color="#C2CC06"
+                    />
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Share Mix</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Share this mix with others
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.fullScreenMenuItem}
+                    onPress={() => {
+                      console.log("🔍 Connect with DJ pressed");
+                      setShowFullScreenMenu(false);
+                      if (globalAudioState.currentTrack?.user_id) {
+                        setShowFullScreenPlayer(false);
+                        setCurrentScreen("user-profile");
+                        setScreenParams({
+                          userId: globalAudioState.currentTrack.user_id,
+                        });
+                      } else {
+                        Alert.alert("Error", "Unable to view DJ profile");
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="person-add-outline"
+                      size={20}
+                      color="#C2CC06"
+                    />
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Connect with DJ</Text>
+                      <Text style={styles.menuItemDescription}>
+                        View DJ profile and connect
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </TouchableOpacity>
-          </Modal>
-        )}
+            </Animated.View>
+          </Animated.View>
+        </Modal>
 
         {/* Application Sent Modal */}
 
@@ -4525,6 +4572,58 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 15%)",
     borderColor: "hsl(75, 100%, 60%)",
     borderWidth: 1,
+  },
+
+  // Full-Screen Player Menu Styles
+  fullScreenMenuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "flex-end",
+  },
+  fullScreenMenuOverlayTouchable: {
+    flex: 1,
+  },
+  fullScreenMenuContainer: {
+    backgroundColor: "hsl(0, 0%, 5%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+    borderBottomWidth: 0,
+    maxHeight: "50%",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  fullScreenMenuContent: {
+    padding: 20,
+  },
+  fullScreenMenuHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 20%)",
+  },
+  fullScreenMenuItems: {
+    gap: 16,
+  },
+  fullScreenMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
   },
 
   // Global Audio Player Styles
