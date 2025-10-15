@@ -1274,45 +1274,64 @@ export default function App() {
   const miniProgressBarRef = useRef(null);
   const fullScreenProgressBarRef = useRef(null);
 
-  // Simple touch handler for progress bar scrubbing
+  // Enhanced progress bar handler with drag support
   const handleProgressBarPress = async (event) => {
     event.stopPropagation();
-    console.log(`🎯 Progress bar pressed`);
-    console.log(`🎯 Touch event:`, event.nativeEvent);
-
+    
     // Check if audio is ready
     if (globalAudioState.durationMillis <= 0 || globalAudioState.isLoading) {
       console.warn("⚠️ Cannot scrub - audio not ready");
       return;
     }
 
-    // Get the touch position - try multiple approaches
-    const { locationX, pageX } = event.nativeEvent;
+    // Get the touch position
+    const { locationX } = event.nativeEvent;
     const target = event.currentTarget;
     const progressBarWidth = target?.offsetWidth || target?.clientWidth || 300;
-
-    console.log(
-      `🎯 Touch details - locationX: ${locationX}, pageX: ${pageX}, width: ${progressBarWidth}`
-    );
 
     // Calculate the percentage position
     const percentage = Math.max(0, Math.min(1, locationX / progressBarWidth));
 
-    console.log(
-      `🎯 Scrub to position: ${percentage} (${locationX}/${progressBarWidth})`
-    );
-
     // Seek to the position immediately
     const newPosition = percentage * globalAudioState.durationMillis;
-    console.log(
-      `🎯 Seeking to ${newPosition}ms of ${globalAudioState.durationMillis}ms`
-    );
-
     await seekToPosition(newPosition);
 
     // Provide haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
+
+  // Pan responder for drag functionality
+  const progressBarPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponderCapture: () => false,
+        onPanResponderGrant: () => {
+          // Start of drag - provide haptic feedback
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        },
+        onPanResponderMove: async (_, gestureState) => {
+          // Check if audio is ready
+          if (globalAudioState.durationMillis <= 0 || globalAudioState.isLoading) {
+            return;
+          }
+
+          // Get progress bar width
+          const progressBarWidth = 300; // Approximate width
+          const percentage = Math.max(0, Math.min(1, gestureState.moveX / progressBarWidth));
+          
+          // Seek to the position
+          const newPosition = percentage * globalAudioState.durationMillis;
+          await seekToPosition(newPosition);
+        },
+        onPanResponderRelease: () => {
+          // End of drag
+        },
+      }),
+    [globalAudioState.durationMillis, globalAudioState.isLoading]
+  );
 
   // Queue management functions
   const addToQueue = (track) => {
@@ -2975,13 +2994,16 @@ export default function App() {
             </TouchableOpacity>
 
             {/* Progress Bar - Positioned at bottom */}
-            <TouchableOpacity
+            <View
               ref={miniProgressBarRef}
               style={styles.audioProgressContainer}
-              onPress={handleProgressBarPress}
-              activeOpacity={0.8}
+              {...progressBarPanResponder.panHandlers}
             >
-              <View style={styles.audioProgressBar}>
+              <TouchableOpacity
+                style={styles.audioProgressBar}
+                onPress={handleProgressBarPress}
+                activeOpacity={0.8}
+              >
                 <View
                   style={[
                     styles.audioProgressFill,
@@ -2999,8 +3021,8 @@ export default function App() {
                     },
                   ]}
                 />
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         )}
 
