@@ -248,6 +248,7 @@ export default function App() {
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
   const menuSlideAnim = useRef(new Animated.Value(0)).current;
   const menuOpacityAnim = useRef(new Animated.Value(0)).current;
+  const playButtonPulseAnim = useRef(new Animated.Value(1)).current;
 
   // Authentication state
   const [user, setUser] = useState(null);
@@ -293,6 +294,34 @@ export default function App() {
 
     initializeNotifications();
   }, []);
+
+  // Play button pulsing animation
+  useEffect(() => {
+    if (globalAudioState.isPlaying) {
+      const pulseAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(playButtonPulseAnim, {
+            toValue: 1.1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(playButtonPulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulseAnimation.start();
+      return () => pulseAnimation.stop();
+    } else {
+      Animated.timing(playButtonPulseAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [globalAudioState.isPlaying]);
 
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
@@ -433,7 +462,8 @@ export default function App() {
       secondaryButtonText: config.secondaryButtonText || null,
       onPrimaryPress: config.onPrimaryPress || null,
       onSecondaryPress: config.onSecondaryPress || null,
-      showCloseButton: config.showCloseButton !== undefined ? config.showCloseButton : true,
+      showCloseButton:
+        config.showCloseButton !== undefined ? config.showCloseButton : true,
     });
     setShowModal(true);
   };
@@ -2951,21 +2981,61 @@ export default function App() {
               </View>
 
               <View style={styles.audioControls}>
+                {/* Previous Track Button */}
                 <TouchableOpacity
-                  style={styles.audioControlButton}
+                  style={styles.skipButton}
                   onPress={(e) => {
                     e.stopPropagation();
-                    if (globalAudioState.isPlaying) {
-                      pauseGlobalAudio();
-                    } else {
-                      resumeGlobalAudio();
-                    }
+                    // TODO: Implement previous track functionality
                   }}
+                  activeOpacity={0.7}
                 >
                   <Ionicons
-                    name={globalAudioState.isPlaying ? "pause" : "play"}
-                    size={24}
-                    color="hsl(0, 0%, 100%)"
+                    name="play-skip-back"
+                    size={20}
+                    color="hsl(0, 0%, 60%)"
+                  />
+                </TouchableOpacity>
+
+                {/* Play/Pause Button */}
+                <Animated.View
+                  style={{
+                    transform: [{ scale: playButtonPulseAnim }],
+                  }}
+                >
+                  <TouchableOpacity
+                    style={styles.audioControlButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      if (globalAudioState.isPlaying) {
+                        pauseGlobalAudio();
+                      } else {
+                        resumeGlobalAudio();
+                      }
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={globalAudioState.isPlaying ? "pause" : "play"}
+                      size={22}
+                      color="hsl(0, 0%, 100%)"
+                    />
+                  </TouchableOpacity>
+                </Animated.View>
+
+                {/* Next Track Button */}
+                <TouchableOpacity
+                  style={styles.skipButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    // TODO: Implement next track functionality
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="play-skip-forward"
+                    size={20}
+                    color="hsl(0, 0%, 60%)"
                   />
                 </TouchableOpacity>
               </View>
@@ -4285,18 +4355,18 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     backgroundColor: "hsl(0, 0%, 8%)", // Fully opaque
-    borderRadius: 16,
-    paddingVertical: 20, // Increased padding for larger swipe area
+    borderRadius: 20, // More rounded corners
+    paddingVertical: 16, // Better spacing
     paddingHorizontal: 20,
     zIndex: 1001, // Higher than tab bar
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 12,
-    borderWidth: 1,
-    borderColor: "#C2CC06", // Brand color border
-    minHeight: 80, // Minimum height for easier swiping
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 16,
+    borderWidth: 0.5, // Thinner border
+    borderColor: "hsl(75, 100%, 50%)", // Softer green
+    minHeight: 90, // Slightly taller for better proportions
   },
   audioPlayerContent: {
     flexDirection: "row",
@@ -4304,11 +4374,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   audioAlbumArt: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 56, // Slightly larger
+    height: 56,
+    borderRadius: 12, // More rounded
+    marginRight: 16, // Better spacing
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   albumArtImage: {
     width: "100%",
@@ -4323,20 +4398,23 @@ const styles = StyleSheet.create({
   },
   audioTrackInfo: {
     flex: 1,
-    marginRight: 16,
+    marginRight: 20, // Better spacing
+    justifyContent: "center",
   },
   audioTrackTitle: {
-    fontSize: 14,
+    fontSize: 15, // Slightly larger
     fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
-    marginBottom: 4,
+    marginBottom: 2, // Tighter spacing
+    lineHeight: 18,
   },
   audioTrackArtist: {
-    fontSize: 14,
+    fontSize: 13, // Slightly smaller for hierarchy
     fontFamily: "Helvetica Neue",
-    color: "#C2CC06",
-    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)", // Consistent green
+    fontWeight: "500", // Less bold
+    opacity: 0.9,
   },
   artistNameTouchable: {
     paddingVertical: 2,
@@ -4347,21 +4425,30 @@ const styles = StyleSheet.create({
   audioControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8, // Tighter spacing
   },
   audioControlButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#C2CC06",
+    width: 44, // Larger touch target
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "hsl(75, 100%, 60%)", // Consistent green
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#C2CC06",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-    marginLeft: 8,
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+    marginLeft: 4,
+  },
+  skipButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 4,
   },
   audioCloseButton: {
     width: 40,
@@ -4373,20 +4460,25 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   audioProgressContainer: {
-    marginTop: 12,
-    paddingVertical: 8, // Larger touch area
+    marginTop: 16, // Better spacing
+    paddingVertical: 12, // Larger touch area
   },
   audioProgressBar: {
-    height: 6,
-    backgroundColor: "hsl(0, 0%, 15%)",
-    borderRadius: 3,
+    height: 4, // Thinner progress bar
+    backgroundColor: "hsl(0, 0%, 20%)", // Darker track
+    borderRadius: 2,
     marginBottom: 8,
     position: "relative",
+    overflow: "hidden",
   },
   audioProgressFill: {
     height: "100%",
-    backgroundColor: "#C2CC06",
+    backgroundColor: "hsl(75, 100%, 60%)", // Consistent green
     borderRadius: 2,
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
   },
   scrubberThumb: {
     position: "absolute",
@@ -4414,12 +4506,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: 4,
   },
   audioTimeText: {
-    fontSize: 12,
+    fontSize: 11, // Smaller for subtlety
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-    fontWeight: "500",
+    color: "hsl(0, 0%, 50%)", // More subtle
+    fontWeight: "400",
+    letterSpacing: 0.5,
   },
 
   // Full-Screen Player Styles
