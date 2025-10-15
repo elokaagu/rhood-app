@@ -2968,7 +2968,7 @@ export default function App() {
                   <Ionicons
                     name={globalAudioState.isPlaying ? "pause" : "play"}
                     size={22}
-                    color="hsl(0, 0%, 100%)"
+                    color="hsl(0, 0%, 0%)" // Changed to black/dark
                   />
                 </TouchableOpacity>
               </View>
