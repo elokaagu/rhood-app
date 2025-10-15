@@ -792,6 +792,8 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 3,
+    borderColor: "hsl(75, 100%, 60%)", // R/HOOD green border
   },
   verifiedBadge: {
     position: "absolute",
