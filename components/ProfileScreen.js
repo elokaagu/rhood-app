@@ -214,14 +214,6 @@ export default function ProfileScreen({ onNavigate, user }) {
     onNavigate && onNavigate("edit-profile");
   };
 
-  const handleShareProfile = () => {
-    // In a real app, this would use the Share API
-    Alert.alert(
-      "Share Profile",
-      "Profile sharing functionality would be implemented here"
-    );
-  };
-
   const handleSocialLinkPress = (platform, link) => {
     // Check if link exists and is not empty
     if (!link || link.trim() === "") {
@@ -359,16 +351,6 @@ export default function ProfileScreen({ onNavigate, user }) {
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={handleShareProfile}
-            >
-              <Ionicons
-                name="share-outline"
-                size={20}
-                color="hsl(0, 0%, 70%)"
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerButton}
               onPress={handleEditProfile}
             >
               <Ionicons
@@ -398,16 +380,6 @@ export default function ProfileScreen({ onNavigate, user }) {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={handleShareProfile}
-            >
-              <Ionicons
-                name="share-outline"
-                size={20}
-                color="hsl(0, 0%, 70%)"
-              />
-            </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerButton}
               onPress={handleEditProfile}
