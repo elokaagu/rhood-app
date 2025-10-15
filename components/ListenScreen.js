@@ -195,35 +195,39 @@ export default function ListenScreen({
   }, []);
 
   // Get unique genres for filter
-  const genres = ["All", "Recently Added", "Most Popular", ...new Set(mixes.map((mix) => mix.genre))];
+  const genres = [
+    "All",
+    "Recently Added",
+    ...new Set(mixes.map((mix) => mix.genre)),
+  ];
 
   // Generate search suggestions
   const generateSearchSuggestions = (query) => {
     if (query.length < 2) return [];
-    
+
     const suggestions = new Set();
-    
+
     // Add mix titles
-    mixes.forEach(mix => {
+    mixes.forEach((mix) => {
       if (mix.title.toLowerCase().includes(query.toLowerCase())) {
         suggestions.add(mix.title);
       }
     });
-    
+
     // Add artist names
-    mixes.forEach(mix => {
+    mixes.forEach((mix) => {
       if (mix.artist.toLowerCase().includes(query.toLowerCase())) {
         suggestions.add(mix.artist);
       }
     });
-    
+
     // Add genres
-    genres.forEach(genre => {
+    genres.forEach((genre) => {
       if (genre.toLowerCase().includes(query.toLowerCase())) {
         suggestions.add(genre);
       }
     });
-    
+
     return Array.from(suggestions).slice(0, 5);
   };
 
@@ -245,21 +249,18 @@ export default function ListenScreen({
       mix.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mix.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mix.description.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     let matchesFilter = true;
-    
+
     if (selectedGenre === "All") {
       matchesFilter = true;
     } else if (selectedGenre === "Recently Added") {
       // Sort by creation date (most recent first)
       matchesFilter = true;
-    } else if (selectedGenre === "Most Popular") {
-      // Sort by play count (most plays first)
-      matchesFilter = true;
     } else {
       matchesFilter = mix.genre === selectedGenre;
     }
-    
+
     return matchesSearch && matchesFilter;
   });
 
@@ -268,9 +269,6 @@ export default function ListenScreen({
     if (selectedGenre === "Recently Added") {
       // Sort by creation date (most recent first)
       return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-    } else if (selectedGenre === "Most Popular") {
-      // Sort by play count (most plays first)
-      return (b.plays || 0) - (a.plays || 0);
     }
     // Default sort by creation date
     return new Date(b.created_at || 0) - new Date(a.created_at || 0);
@@ -483,7 +481,7 @@ export default function ListenScreen({
             </TouchableOpacity>
           )}
         </View>
-        
+
         {/* Search Suggestions */}
         {showSuggestions && searchSuggestions.length > 0 && (
           <View style={styles.suggestionsContainer}>
@@ -541,7 +539,11 @@ export default function ListenScreen({
           <Text style={styles.recommendationsTitle}>More Like This</Text>
           <TouchableOpacity style={styles.viewAllButton} activeOpacity={0.7}>
             <Text style={styles.viewAllText}>View All</Text>
-            <Ionicons name="chevron-forward" size={16} color="hsl(75, 100%, 60%)" />
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color="hsl(75, 100%, 60%)"
+            />
           </TouchableOpacity>
         </View>
         <ScrollView
@@ -570,12 +572,16 @@ export default function ListenScreen({
               </Text>
             </TouchableOpacity>
           ))}
-          
+
           {/* Partial next card indicator */}
           {mixes.length > 5 && (
             <View style={styles.partialCardIndicator}>
               <View style={styles.partialCard}>
-                <Ionicons name="chevron-forward" size={24} color="hsl(75, 100%, 60%)" />
+                <Ionicons
+                  name="chevron-forward"
+                  size={24}
+                  color="hsl(75, 100%, 60%)"
+                />
                 <Text style={styles.partialCardText}>More</Text>
               </View>
             </View>
