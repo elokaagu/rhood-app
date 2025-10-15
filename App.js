@@ -3158,15 +3158,16 @@ export default function App() {
                   </TouchableOpacity>
                   <View style={styles.headerSpacer} />
                   <TouchableOpacity
-                    style={styles.closeButton}
+                    style={styles.threeDotsButton}
                     onPress={() => {
-                      console.log("🔍 Three dots button pressed");
+                      console.log("🔍 Three dots menu opened");
                       setShowFullScreenMenu(true);
                     }}
+                    activeOpacity={0.7}
                   >
                     <Ionicons
                       name="ellipsis-horizontal"
-                      size={20}
+                      size={24}
                       color="hsl(0, 0%, 100%)"
                     />
                   </TouchableOpacity>
@@ -3448,11 +3449,7 @@ export default function App() {
                     }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons
-                      name="share-outline"
-                      size={20}
-                      color="#C2CC06"
-                    />
+                    <Ionicons name="share-outline" size={20} color="#C2CC06" />
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>Share Mix</Text>
                       <Text style={styles.menuItemDescription}>
@@ -4826,6 +4823,16 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
+  },
+  threeDotsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 25%)",
   },
   fullScreenHeaderTitle: {
     fontSize: 18,
