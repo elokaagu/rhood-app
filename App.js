@@ -4586,7 +4586,7 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     paddingVertical: 20,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -4619,7 +4619,7 @@ const styles = StyleSheet.create({
   },
   menuItemActive: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     paddingVertical: 20,
     paddingHorizontal: 20,
     borderRadius: 12,
