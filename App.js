@@ -4358,7 +4358,7 @@ const styles = StyleSheet.create({
   },
   artistNameTouchable: {
     paddingVertical: 2,
-    paddingHorizontal: 4,
+    paddingHorizontal: 0, // Remove horizontal padding for alignment
     borderRadius: 4,
     marginTop: 2,
   },
