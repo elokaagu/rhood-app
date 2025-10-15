@@ -104,6 +104,7 @@ const EnhancedProgressBar = ({
 }) => {
   const progressAnim = useRef(new Animated.Value(progress)).current;
   const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubPosition, setScrubPosition] = useState(0);
 
   useEffect(() => {
     if (!isScrubbing) {
@@ -252,6 +253,8 @@ export default function App() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [showFadeOverlay, setShowFadeOverlay] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubPosition, setScrubPosition] = useState(0);
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
   const menuSlideAnim = useRef(new Animated.Value(0)).current;
   const menuOpacityAnim = useRef(new Animated.Value(0)).current;
@@ -1363,12 +1366,18 @@ export default function App() {
             return;
           }
 
+          // Start scrubbing
+          setIsScrubbing(true);
+
           // Get progress bar width dynamically
           const progressBarWidth = Dimensions.get("window").width - 48; // Account for padding
           const percentage = Math.max(
             0,
             Math.min(1, evt.nativeEvent.locationX / progressBarWidth)
           );
+
+          // Update scrub position immediately
+          setScrubPosition(percentage);
 
           // Calculate new position and seek immediately for tap
           const newPosition = percentage * globalAudioState.durationMillis;
@@ -1393,12 +1402,16 @@ export default function App() {
             Math.min(1, gestureState.moveX / progressBarWidth)
           );
 
+          // Update scrub position for immediate visual feedback
+          setScrubPosition(percentage);
+
           // Calculate new position and use throttled seek
           const newPosition = percentage * globalAudioState.durationMillis;
           throttledSeek(newPosition);
         },
         onPanResponderRelease: () => {
-          // End of drag - clear throttle
+          // End of drag - clear throttle and stop scrubbing
+          setIsScrubbing(false);
           if (seekThrottleRef.current) {
             clearTimeout(seekThrottleRef.current);
             seekThrottleRef.current = null;
@@ -3271,7 +3284,7 @@ export default function App() {
                       style={[
                         styles.fullScreenProgressFill,
                         {
-                          width: `${(globalAudioState.progress || 0) * 100}%`,
+                          width: `${(isScrubbing ? scrubPosition : globalAudioState.progress || 0) * 100}%`,
                         },
                       ]}
                     />
@@ -3279,7 +3292,7 @@ export default function App() {
                       style={[
                         styles.fullScreenProgressThumb,
                         {
-                          left: `${(globalAudioState.progress || 0) * 100}%`,
+                          left: `${(isScrubbing ? scrubPosition : globalAudioState.progress || 0) * 100}%`,
                         },
                       ]}
                     />
