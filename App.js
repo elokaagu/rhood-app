@@ -2990,6 +2990,15 @@ export default function App() {
                     },
                   ]}
                 />
+                {/* Scrubber Thumb */}
+                <View
+                  style={[
+                    styles.scrubberThumb,
+                    {
+                      left: `${(globalAudioState.progress || 0) * 100}%`,
+                    },
+                  ]}
+                />
               </View>
             </TouchableOpacity>
           </Animated.View>
@@ -4389,7 +4398,7 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 15%)", // Dark track
     borderBottomLeftRadius: 12, // Match container radius
     borderBottomRightRadius: 12,
-    overflow: "hidden",
+    overflow: "visible", // Allow thumb to extend beyond container
   },
   audioProgressBar: {
     height: "100%",
@@ -4403,13 +4412,13 @@ const styles = StyleSheet.create({
   },
   scrubberThumb: {
     position: "absolute",
-    top: -4,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#C2CC06",
-    marginLeft: -6,
-    shadowColor: "#C2CC06",
+    top: -4, // Position above the progress bar
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD green
+    marginLeft: -5, // Center the thumb
+    shadowColor: "hsl(75, 100%, 60%)",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
     shadowRadius: 4,
