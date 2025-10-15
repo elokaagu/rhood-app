@@ -3227,10 +3227,10 @@ export default function App() {
                       color="hsl(0, 0%, 100%)"
                     />
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity
                     style={styles.fullScreenMenuButton}
-                    onPress={() => setShowFullScreenMenu(true)}
+                    onPress={openFullScreenMenu}
                   >
                     <Ionicons
                       name="ellipsis-horizontal"
