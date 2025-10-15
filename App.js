@@ -2097,8 +2097,10 @@ export default function App() {
 
   // Full-screen menu animation functions
   const openFullScreenMenu = () => {
+    console.log("openFullScreenMenu called, showFullScreenMenu will be set to true");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowFullScreenMenu(true);
+    console.log("Starting animations for full-screen menu");
     Animated.parallel([
       Animated.timing(fullScreenMenuSlideAnim, {
         toValue: 1,
@@ -3230,7 +3232,10 @@ export default function App() {
 
                   <TouchableOpacity
                     style={styles.fullScreenMenuButton}
-                    onPress={openFullScreenMenu}
+                    onPress={() => {
+                      console.log("Three dots pressed, opening full-screen menu");
+                      openFullScreenMenu();
+                    }}
                   >
                     <Ionicons
                       name="ellipsis-horizontal"
@@ -3457,6 +3462,7 @@ export default function App() {
           animationType="fade"
           onRequestClose={closeFullScreenMenu}
         >
+          {console.log("Full-screen menu modal rendering, showFullScreenMenu:", showFullScreenMenu)}
           <Animated.View
             style={[
               styles.fullScreenMenuOverlay,
