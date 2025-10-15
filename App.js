@@ -4550,7 +4550,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuContainer: {
-    backgroundColor: "hsl(0, 0%, 5%)",
+    backgroundColor: "hsl(0, 0%, 3%)",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
@@ -4602,9 +4602,9 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: "hsl(0, 0%, 20%)",
+    backgroundColor: "hsl(0, 0%, 15%)",
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 25%)",
+    borderColor: "hsl(0, 0%, 20%)",
   },
   menuItemText: {
     fontSize: 18,
@@ -4627,7 +4627,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   menuItemActive: {
-    backgroundColor: "hsl(0, 0%, 25%)",
+    backgroundColor: "hsl(0, 0%, 15%)",
     borderColor: "hsl(75, 100%, 60%)",
     borderWidth: 2,
     borderRadius: 12,
