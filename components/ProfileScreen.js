@@ -201,7 +201,7 @@ export default function ProfileScreen({ onNavigate, user }) {
             instagram: userProfile.instagram || null,
             soundcloud: userProfile.soundcloud || null,
           },
-          audioId: primaryMix || defaultProfile.audioId,
+          audioId: primaryMix || null,
           isVerified: userProfile.is_verified || false,
           joinDate:
             userProfile.join_date || userProfile.created_at || "Unknown",
@@ -558,7 +558,8 @@ export default function ProfileScreen({ onNavigate, user }) {
               <Text style={styles.changeButtonText}>Change</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.audioCard}>
+          {profile.audioId ? (
+            <View style={styles.audioCard}>
             <View style={styles.audioHeader}>
               <View style={styles.audioInfo}>
                 <Text style={styles.audioTitle}>{profile.audioId.title}</Text>
@@ -602,6 +603,27 @@ export default function ProfileScreen({ onNavigate, user }) {
               </Text>
             </View>
           </View>
+          ) : (
+            <View style={styles.emptyAudioCard}>
+              <View style={styles.emptyAudioContent}>
+                <Ionicons 
+                  name="musical-notes-outline" 
+                  size={48} 
+                  color="hsl(0, 0%, 30%)" 
+                />
+                <Text style={styles.emptyAudioTitle}>No Audio ID Set</Text>
+                <Text style={styles.emptyAudioSubtitle}>
+                  Upload a mix to set as your Audio ID
+                </Text>
+                <TouchableOpacity
+                  style={styles.uploadMixButton}
+                  onPress={() => onNavigate && onNavigate("upload-mix")}
+                >
+                  <Text style={styles.uploadMixButtonText}>Upload Mix</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Social Links */}
@@ -1339,6 +1361,45 @@ const styles = StyleSheet.create({
   changeButtonText: {
     color: "hsl(0, 0%, 0%)",
     fontSize: 14,
+    fontWeight: "600",
+  },
+  // Empty Audio ID Styles
+  emptyAudioCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 200,
+  },
+  emptyAudioContent: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyAudioTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 16,
+    marginBottom: 8,
+    fontFamily: "TS Block Bold",
+  },
+  emptyAudioSubtitle: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 60%)",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  uploadMixButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  uploadMixButtonText: {
+    color: "hsl(0, 0%, 0%)",
+    fontSize: 16,
     fontWeight: "600",
   },
 });
