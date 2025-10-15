@@ -722,6 +722,40 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               <Text style={styles.charCount}>{profile.bio.length}/500</Text>
             </View>
 
+            {/* Audio ID Section */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Audio ID</Text>
+              {currentPrimaryMix ? (
+                <View style={styles.audioIdContainer}>
+                  <View style={styles.audioIdInfo}>
+                    <Text style={styles.audioIdTitle}>{currentPrimaryMix.title}</Text>
+                    <Text style={styles.audioIdDetails}>
+                      {currentPrimaryMix.genre} • {currentPrimaryMix.duration 
+                        ? `${Math.floor(currentPrimaryMix.duration / 60)}:${(currentPrimaryMix.duration % 60).toString().padStart(2, "0")}` 
+                        : "Unknown duration"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.audioIdButton}
+                    onPress={handleChangeAudioId}
+                  >
+                    <Text style={styles.audioIdButtonText}>Change</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.audioIdEmptyContainer}>
+                  <Ionicons name="musical-notes-outline" size={24} color="hsl(0, 0%, 30%)" />
+                  <Text style={styles.audioIdEmptyText}>No Audio ID set</Text>
+                  <TouchableOpacity
+                    style={styles.audioIdButton}
+                    onPress={handleChangeAudioId}
+                  >
+                    <Text style={styles.audioIdButtonText}>Select Mix</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Instagram</Text>
               <TextInput
@@ -781,50 +815,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           </View>
         </View>
 
-        {/* Audio ID Section */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Audio ID</Text>
-            {currentPrimaryMix ? (
-              <View style={styles.audioIdCard}>
-                <View style={styles.audioIdInfo}>
-                  <Text style={styles.audioIdTitle}>
-                    {currentPrimaryMix.title}
-                  </Text>
-                  <Text style={styles.audioIdDetails}>
-                    {currentPrimaryMix.genre} •{" "}
-                    {currentPrimaryMix.duration
-                      ? `${Math.floor(currentPrimaryMix.duration / 60)}:${(
-                          currentPrimaryMix.duration % 60
-                        )
-                          .toString()
-                          .padStart(2, "0")}`
-                      : "Unknown duration"}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.changeAudioIdButton}
-                  onPress={handleChangeAudioId}
-                >
-                  <Text style={styles.changeAudioIdButtonText}>Change</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.noAudioIdCard}>
-                <Ionicons
-                  name="musical-notes-outline"
-                  size={32}
-                  color="hsl(0, 0%, 30%)"
-                />
-                <Text style={styles.noAudioIdText}>No Audio ID set</Text>
-                <TouchableOpacity
-                  style={styles.changeAudioIdButton}
-                  onPress={handleChangeAudioId}
-                >
-                  <Text style={styles.changeAudioIdButtonText}>Select Mix</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-        </View>
       </ScrollView>
 
       {renderGenreModal()}
@@ -1159,7 +1149,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   // Audio ID Styles
-  audioIdCard: {
+  audioIdContainer: {
     backgroundColor: "hsl(0, 0%, 10%)",
     borderRadius: 8,
     padding: 12,
@@ -1182,18 +1172,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "hsl(0, 0%, 60%)",
   },
-  changeAudioIdButton: {
+  audioIdButton: {
     backgroundColor: "hsl(75, 100%, 60%)",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
   },
-  changeAudioIdButtonText: {
+  audioIdButtonText: {
     color: "hsl(0, 0%, 0%)",
     fontSize: 14,
     fontWeight: "600",
   },
-  noAudioIdCard: {
+  audioIdEmptyContainer: {
     backgroundColor: "hsl(0, 0%, 10%)",
     borderRadius: 8,
     padding: 12,
@@ -1203,11 +1193,11 @@ const styles = StyleSheet.create({
     borderColor: "hsl(0, 0%, 15%)",
     minHeight: 60,
   },
-  noAudioIdText: {
-    fontSize: 16,
+  audioIdEmptyText: {
+    fontSize: 14,
     color: "hsl(0, 0%, 60%)",
-    marginTop: 12,
-    marginBottom: 16,
+    marginTop: 8,
+    marginBottom: 12,
   },
   // Mix Selection Modal Styles
   modalOverlay: {
