@@ -1163,12 +1163,14 @@ const styles = StyleSheet.create({
   },
   // Audio ID Styles
   audioIdCard: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderRadius: 8,
+    padding: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
   },
   audioIdInfo: {
     flex: 1,
@@ -1195,11 +1197,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   noAudioIdCard: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 24,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderRadius: 8,
+    padding: 12,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+    minHeight: 60,
   },
   noAudioIdText: {
     fontSize: 16,
