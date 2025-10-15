@@ -2836,11 +2836,12 @@ export default function App() {
               style={[
                 styles.menuContainer,
                 {
+                  opacity: menuOpacityAnim,
                   transform: [
                     {
-                      translateX: menuSlideAnim.interpolate({
+                      scale: menuSlideAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [-300, 0],
+                        outputRange: [0.8, 1],
                       }),
                     },
                   ],
@@ -3318,10 +3319,12 @@ export default function App() {
                   djName: globalAudioState.currentTrack?.user?.dj_name,
                   bio: globalAudioState.currentTrack?.user?.bio,
                 })}
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.aboutDJCard}
                   onPress={() => {
-                    console.log("🔍 About DJ card pressed - navigating to profile");
+                    console.log(
+                      "🔍 About DJ card pressed - navigating to profile"
+                    );
                     if (globalAudioState.currentTrack?.user_id) {
                       setShowFullScreenPlayer(false);
                       setCurrentScreen("user-profile");
@@ -4439,27 +4442,28 @@ const styles = StyleSheet.create({
   // Hamburger Menu Styles
   menuOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "flex-start",
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   menuOverlayTouchable: {
     flex: 1,
   },
   menuContainer: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    width: "85%",
-    height: "100%",
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
-    borderWidth: 0,
+    backgroundColor: "hsl(0, 0%, 0%)",
+    width: "90%",
+    height: "80%",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
     shadowColor: "#000",
     shadowOffset: {
-      width: 4,
-      height: 0,
+      width: 0,
+      height: 8,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 16,
   },
   menuContent: {
     padding: 20,
@@ -4488,16 +4492,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuItems: {
-    gap: 8,
+    gap: 16,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 20,
     paddingHorizontal: 20,
-    borderRadius: 0,
-    backgroundColor: "transparent",
-    borderWidth: 0,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
   },
   menuItemText: {
     fontSize: 18,
