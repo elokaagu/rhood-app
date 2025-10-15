@@ -3228,20 +3228,6 @@ export default function App() {
                       color="hsl(0, 0%, 100%)"
                     />
                   </TouchableOpacity>
-                  <View style={styles.headerSpacer} />
-                  <TouchableOpacity
-                    style={styles.threeDotsButton}
-                    onPress={() => {
-                      openFullScreenMenu();
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="ellipsis-horizontal"
-                      size={24}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
                 </View>
 
                 {/* Album Art - Large centered image */}
