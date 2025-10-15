@@ -4600,10 +4600,12 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
     lineHeight: 22,
+    marginTop: 0,
+    marginBottom: 0,
   },
   menuItemContent: {
     flex: 1,
-    marginLeft: 20,
+    marginLeft: 16,
     justifyContent: "flex-start",
   },
   menuItemDescription: {
