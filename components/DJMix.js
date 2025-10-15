@@ -241,14 +241,9 @@ const DJMix = ({
             {/* Play Icon Overlay */}
             {isPlaying && (
               <View style={styles.playOverlay}>
-                <Animated.View
-                  style={[
-                    styles.playIconContainer,
-                    { transform: [{ scale: pulseAnim }] },
-                  ]}
-                >
+                <View style={styles.playIconContainer}>
                   <Ionicons name="play" size={16} color="hsl(75, 100%, 60%)" />
-                </Animated.View>
+                </View>
               </View>
             )}
           </View>
