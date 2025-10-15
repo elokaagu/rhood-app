@@ -1373,7 +1373,7 @@ export default function App() {
           // Calculate new position and seek immediately for tap
           const newPosition = percentage * globalAudioState.durationMillis;
           seekToPosition(newPosition);
-          
+
           // Provide haptic feedback
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         },
@@ -4542,7 +4542,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuContainer: {
-    backgroundColor: "hsl(0, 0%, 5%)",
+    backgroundColor: "hsl(0, 0%, 3%)",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
@@ -4585,17 +4585,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuItems: {
-    gap: 16,
+    gap: 12,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 20,
-    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: "hsl(0, 0%, 10%)",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+    backgroundColor: "transparent",
+    borderWidth: 0,
   },
   menuItemText: {
     fontSize: 16,
@@ -4616,9 +4615,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   menuItemActive: {
-    backgroundColor: "hsl(0, 0%, 15%)",
+    backgroundColor: "hsl(0, 0%, 12%)",
     borderColor: "hsl(75, 100%, 60%)",
-    borderWidth: 1,
+    borderWidth: 2,
+    borderRadius: 12,
   },
 
   // Full-Screen Player Menu Styles
