@@ -3137,7 +3137,7 @@ export default function App() {
               {/* Dark overlay for better text readability */}
               <View style={styles.fullScreenOverlay} />
 
-              <ScrollView 
+              <ScrollView
                 style={styles.fullScreenPlayer}
                 contentContainerStyle={styles.fullScreenPlayerContent}
                 showsVerticalScrollIndicator={false}
@@ -3306,14 +3306,32 @@ export default function App() {
                 </View>
 
                 {/* About the DJ Section */}
-                <View style={styles.aboutDJSection}>
-                  <Text style={styles.aboutDJTitle}>About the DJ</Text>
+                <View style={styles.aboutDJCard}>
+                  <View style={styles.aboutDJHeader}>
+                    <Image
+                      source={{
+                        uri: globalAudioState.currentTrack?.djProfileImage ||
+                          globalAudioState.currentTrack?.user?.profile_image_url ||
+                          "https://via.placeholder.com/60x60/333333/ffffff?text=DJ"
+                      }}
+                      style={styles.aboutDJAvatar}
+                    />
+                    <View style={styles.aboutDJInfo}>
+                      <Text style={styles.aboutDJTitle}>About the DJ</Text>
+                      <Text style={styles.aboutDJName}>
+                        {globalAudioState.currentTrack?.djName ||
+                          globalAudioState.currentTrack?.user?.dj_name ||
+                          globalAudioState.currentTrack?.user?.full_name ||
+                          "Unknown DJ"}
+                      </Text>
+                    </View>
+                  </View>
                   <Text style={styles.aboutDJText}>
-                    {globalAudioState.currentTrack?.djBio || 
-                     "Discover more about this talented DJ and their unique sound."}
+                    {globalAudioState.currentTrack?.djBio ||
+                      globalAudioState.currentTrack?.user?.bio ||
+                      "Discover more about this talented DJ and their unique sound."}
                   </Text>
                 </View>
-
               </ScrollView>
             </View>
           </Modal>
@@ -3347,7 +3365,7 @@ export default function App() {
                   />
                   <Text style={styles.menuItemText}>Share Mix</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => {
@@ -4636,7 +4654,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 40,
-    minHeight: Dimensions.get('window').height,
+    minHeight: Dimensions.get("window").height,
   },
   fullScreenHeader: {
     flexDirection: "row",
@@ -4772,17 +4790,47 @@ const styles = StyleSheet.create({
   },
 
   // About the DJ Section
-  aboutDJSection: {
+  aboutDJCard: {
     marginTop: 32,
-    paddingHorizontal: 24,
-    paddingBottom: 20,
+    marginHorizontal: 24,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  aboutDJHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  aboutDJAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  aboutDJInfo: {
+    flex: 1,
   },
   aboutDJTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  aboutDJName: {
+    fontSize: 14,
+    color: "hsl(75, 100%, 60%)",
+    fontWeight: "500",
   },
   aboutDJText: {
     fontSize: 14,
