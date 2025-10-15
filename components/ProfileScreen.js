@@ -396,24 +396,25 @@ export default function ProfileScreen({ onNavigate, user }) {
         {/* Main Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileHeader}>
-            <ProgressiveImage
-              source={profile.profileImage}
-              style={styles.profileImage}
-              placeholder={
-                <View
-                  style={[
-                    styles.profileImage,
-                    {
-                      backgroundColor: "hsl(0, 0%, 15%)",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    },
-                  ]}
-                >
-                  <Ionicons name="person" size={40} color="hsl(0, 0%, 50%)" />
-                </View>
-              }
-            />
+            <View style={styles.profileImageContainer}>
+              <ProgressiveImage
+                source={profile.profileImage}
+                style={styles.profileImage}
+                placeholder={
+                  <View
+                    style={[
+                      styles.profileImage,
+                      {
+                        backgroundColor: "hsl(0, 0%, 15%)",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      },
+                    ]}
+                  >
+                    <Ionicons name="person" size={40} color="hsl(0, 0%, 50%)" />
+                  </View>
+                }
+              />
             {profile.isVerified && (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark" size={12} color="hsl(0, 0%, 0%)" />
@@ -786,14 +787,19 @@ const styles = StyleSheet.create({
     position: "relative",
     marginBottom: 16,
   },
+  profileImageContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: "hsl(75, 100%, 60%)", // R/HOOD green border
+  },
   profileImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: "hsl(75, 100%, 60%)", // R/HOOD green border
   },
   verifiedBadge: {
     position: "absolute",
