@@ -3004,25 +3004,25 @@ export default function App() {
                   />
                 </TouchableOpacity>
               </View>
+            </TouchableOpacity>
 
-              {/* Progress Bar - Scrubbable */}
-              <TouchableOpacity
-                ref={miniProgressBarRef}
-                style={styles.audioProgressContainer}
-                onPress={handleProgressBarPress}
-                activeOpacity={0.8}
-              >
-                <View style={styles.audioProgressBar}>
-                  <View
-                    style={[
-                      styles.audioProgressFill,
-                      {
-                        width: `${(globalAudioState.progress || 0) * 100}%`,
-                      },
-                    ]}
-                  />
-                </View>
-              </TouchableOpacity>
+            {/* Progress Bar - Positioned at bottom */}
+            <TouchableOpacity
+              ref={miniProgressBarRef}
+              style={styles.audioProgressContainer}
+              onPress={handleProgressBarPress}
+              activeOpacity={0.8}
+            >
+              <View style={styles.audioProgressBar}>
+                <View
+                  style={[
+                    styles.audioProgressFill,
+                    {
+                      width: `${(globalAudioState.progress || 0) * 100}%`,
+                    },
+                  ]}
+                />
+              </View>
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -4320,21 +4320,20 @@ const styles = StyleSheet.create({
   globalAudioPlayer: {
     position: "absolute",
     bottom: 120, // Above floating tab bar
-    left: 16,
-    right: 16,
-    backgroundColor: "hsl(0, 0%, 8%)", // Fully opaque
-    borderRadius: 20, // More rounded corners
-    paddingVertical: 16, // Better spacing
-    paddingHorizontal: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: "hsl(0, 0%, 8%)", // Dark background
+    borderRadius: 50, // Very rounded, pill-shaped
+    paddingVertical: 12, // Compact vertical padding
+    paddingHorizontal: 16,
     zIndex: 1001, // Higher than tab bar
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 16,
-    borderWidth: 0.5, // Thinner border
-    borderColor: "hsl(75, 100%, 50%)", // Softer green
-    minHeight: 90, // Slightly taller for better proportions
+    borderWidth: 0, // Remove border for cleaner look
+    minHeight: 70, // Compact height
   },
   audioPlayerContent: {
     flexDirection: "row",
@@ -4342,16 +4341,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   audioAlbumArt: {
-    width: 56, // Slightly larger
-    height: 56,
-    borderRadius: 12, // More rounded
-    marginRight: 16, // Better spacing
+    width: 50, // Slightly smaller for compact design
+    height: 50,
+    borderRadius: 8, // Less rounded than main container
+    marginRight: 12, // Tighter spacing
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    borderWidth: 0.5, // Subtle border
+    borderColor: "hsl(0, 0%, 20%)", // Very subtle border
   },
   albumArtImage: {
     width: "100%",
@@ -4366,23 +4362,22 @@ const styles = StyleSheet.create({
   },
   audioTrackInfo: {
     flex: 1,
-    marginRight: 20, // Better spacing
+    marginRight: 16, // Better spacing
     justifyContent: "center",
   },
   audioTrackTitle: {
-    fontSize: 15, // Slightly larger
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontSize: 16, // Larger for better hierarchy
+    fontFamily: "Helvetica Neue",
+    fontWeight: "bold",
     color: "hsl(0, 0%, 100%)",
-    marginBottom: 2, // Tighter spacing
+    marginBottom: 2, // Tight spacing
     lineHeight: 18,
   },
   audioTrackArtist: {
-    fontSize: 13, // Slightly smaller for hierarchy
+    fontSize: 14, // Slightly larger
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 85%)", // Changed from green to light gray
-    fontWeight: "500", // Less bold
-    opacity: 0.9,
+    color: "hsl(0, 0%, 70%)", // Light gray for artist
+    fontWeight: "400",
   },
   artistNameTouchable: {
     paddingVertical: 2,
@@ -4393,26 +4388,25 @@ const styles = StyleSheet.create({
   audioControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8, // Tighter spacing
+    gap: 16, // More spacing between controls
   },
   audioControlButton: {
-    width: 44, // Larger touch target
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "hsl(75, 100%, 60%)", // Consistent green
+    width: 40, // Smaller, more compact
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD green
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "hsl(75, 100%, 60%)",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 6,
-    marginLeft: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   skipButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32, // Smaller skip buttons
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
@@ -4428,25 +4422,25 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   audioProgressContainer: {
-    marginTop: 16, // Better spacing
-    paddingVertical: 12, // Larger touch area
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3, // Very thin progress bar
+    backgroundColor: "hsl(0, 0%, 15%)", // Dark track
+    borderBottomLeftRadius: 50, // Match container radius
+    borderBottomRightRadius: 50,
+    overflow: "hidden",
   },
   audioProgressBar: {
-    height: 4, // Thinner progress bar
-    backgroundColor: "hsl(0, 0%, 20%)", // Darker track
-    borderRadius: 2,
-    marginBottom: 8,
+    height: "100%",
+    backgroundColor: "transparent", // No background needed
     position: "relative",
-    overflow: "hidden",
   },
   audioProgressFill: {
     height: "100%",
-    backgroundColor: "hsl(75, 100%, 60%)", // Consistent green
-    borderRadius: 2,
-    shadowColor: "hsl(75, 100%, 60%)",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
+    backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD green
+    borderRadius: 0, // No border radius for thin line
   },
   scrubberThumb: {
     position: "absolute",
