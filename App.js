@@ -4587,14 +4587,13 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 16,
+    paddingVertical: 20,
     paddingHorizontal: 20,
     borderRadius: 12,
     backgroundColor: "hsl(0, 0%, 12%)",
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 18%)",
     minHeight: 72,
-    paddingTop: 20,
   },
   menuItemText: {
     fontSize: 18,
@@ -4620,14 +4619,13 @@ const styles = StyleSheet.create({
   menuItemActive: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 16,
+    paddingVertical: 20,
     paddingHorizontal: 20,
     borderRadius: 12,
     backgroundColor: "hsl(0, 0%, 15%)",
     borderWidth: 2,
     borderColor: "hsl(75, 100%, 60%)",
     minHeight: 72,
-    paddingTop: 20,
   },
 
   // Full-Screen Player Menu Styles
