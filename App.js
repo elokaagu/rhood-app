@@ -4779,7 +4779,7 @@ const styles = StyleSheet.create({
     borderRadius: 0.5,
     marginBottom: 16,
     position: "relative",
-    paddingVertical: 8,
+    paddingVertical: 2,
     justifyContent: "center",
   },
   fullScreenProgressFill: {
@@ -4787,11 +4787,11 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(75, 100%, 60%)",
     borderRadius: 0.5,
     position: "absolute",
-    top: 8,
+    top: 2,
   },
   fullScreenProgressThumb: {
     position: "absolute",
-    top: 1,
+    top: 0,
     width: 12,
     height: 12,
     borderRadius: 6,
