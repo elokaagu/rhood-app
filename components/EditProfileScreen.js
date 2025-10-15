@@ -505,6 +505,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollViewContent}
       >
         <View style={styles.header}>
           <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
@@ -728,10 +729,17 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               {currentPrimaryMix ? (
                 <View style={styles.audioIdContainer}>
                   <View style={styles.audioIdInfo}>
-                    <Text style={styles.audioIdTitle}>{currentPrimaryMix.title}</Text>
+                    <Text style={styles.audioIdTitle}>
+                      {currentPrimaryMix.title}
+                    </Text>
                     <Text style={styles.audioIdDetails}>
-                      {currentPrimaryMix.genre} • {currentPrimaryMix.duration 
-                        ? `${Math.floor(currentPrimaryMix.duration / 60)}:${(currentPrimaryMix.duration % 60).toString().padStart(2, "0")}` 
+                      {currentPrimaryMix.genre} •{" "}
+                      {currentPrimaryMix.duration
+                        ? `${Math.floor(currentPrimaryMix.duration / 60)}:${(
+                            currentPrimaryMix.duration % 60
+                          )
+                            .toString()
+                            .padStart(2, "0")}`
                         : "Unknown duration"}
                     </Text>
                   </View>
@@ -744,7 +752,11 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                 </View>
               ) : (
                 <View style={styles.audioIdEmptyContainer}>
-                  <Ionicons name="musical-notes-outline" size={24} color="hsl(0, 0%, 30%)" />
+                  <Ionicons
+                    name="musical-notes-outline"
+                    size={24}
+                    color="hsl(0, 0%, 30%)"
+                  />
                   <Text style={styles.audioIdEmptyText}>No Audio ID set</Text>
                   <TouchableOpacity
                     style={styles.audioIdButton}
@@ -814,7 +826,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
             </View>
           </View>
         </View>
-
       </ScrollView>
 
       {renderGenreModal()}
@@ -911,6 +922,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
+    paddingBottom: 100, // Extra padding to prevent content from being hidden behind bottom navigation
   },
   header: {
     flexDirection: "row",
