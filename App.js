@@ -4605,7 +4605,7 @@ const styles = StyleSheet.create({
   },
   menuItemContent: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: 12,
     justifyContent: "flex-start",
     alignItems: "flex-start",
   },
