@@ -4543,7 +4543,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     borderBottomWidth: 0,
-    maxHeight: "65%",
+    maxHeight: "85%",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
