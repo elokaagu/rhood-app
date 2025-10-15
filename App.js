@@ -5501,6 +5501,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 12,
     marginBottom: 8,
+  },
   menuItemText: {
     fontSize: 16,
     fontFamily: "Helvetica Neue",
