@@ -3087,15 +3087,6 @@ export default function App() {
             onRequestClose={() => setShowFullScreenPlayer(false)}
           >
             <View style={styles.fullScreenPlayerOverlay}>
-              {/* Full-screen background image */}
-              {globalAudioState.currentTrack.image && (
-                <Image
-                  source={{ uri: globalAudioState.currentTrack.image }}
-                  style={styles.fullScreenBackgroundImage}
-                  resizeMode="cover"
-                />
-              )}
-
               {/* Dark overlay for better text readability */}
               <View style={styles.fullScreenOverlay} />
 
@@ -4554,7 +4545,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.3)", // Lighter overlay for better visibility
+    backgroundColor: "rgba(0, 0, 0, 0.8)", // Darker overlay since no background image
   },
   fullScreenPlayer: {
     flex: 1,
