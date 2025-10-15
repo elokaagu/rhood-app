@@ -2097,7 +2097,9 @@ export default function App() {
 
   // Full-screen menu animation functions
   const openFullScreenMenu = () => {
-    console.log("openFullScreenMenu called, showFullScreenMenu will be set to true");
+    console.log(
+      "openFullScreenMenu called, showFullScreenMenu will be set to true"
+    );
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowFullScreenMenu(true);
     console.log("Starting animations for full-screen menu");
@@ -3233,7 +3235,9 @@ export default function App() {
                   <TouchableOpacity
                     style={styles.fullScreenMenuButton}
                     onPress={() => {
-                      console.log("Three dots pressed, opening full-screen menu");
+                      console.log(
+                        "Three dots pressed, opening full-screen menu"
+                      );
                       openFullScreenMenu();
                     }}
                   >
@@ -3459,38 +3463,20 @@ export default function App() {
         <Modal
           visible={showFullScreenMenu}
           transparent={true}
-          animationType="fade"
+          animationType="slide"
           onRequestClose={closeFullScreenMenu}
         >
-          {console.log("Full-screen menu modal rendering, showFullScreenMenu:", showFullScreenMenu)}
-          <Animated.View
-            style={[
-              styles.fullScreenMenuOverlay,
-              {
-                opacity: fullScreenMenuOpacityAnim,
-              },
-            ]}
-          >
+          {console.log(
+            "Full-screen menu modal rendering, showFullScreenMenu:",
+            showFullScreenMenu
+          )}
+          <View style={styles.fullScreenMenuOverlay}>
             <TouchableOpacity
               style={styles.fullScreenMenuOverlayTouchable}
               activeOpacity={1}
               onPress={closeFullScreenMenu}
             />
-            <Animated.View
-              style={[
-                styles.fullScreenMenuContainer,
-                {
-                  transform: [
-                    {
-                      translateY: fullScreenMenuSlideAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [300, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
+            <View style={styles.fullScreenMenuContainer}>
               <View style={styles.fullScreenMenuContent}>
                 <View style={styles.fullScreenMenuHeader}>
                   <Text style={styles.tsBlockBoldHeading}>Mix Options</Text>
@@ -3549,9 +3535,9 @@ export default function App() {
                     </View>
                   </TouchableOpacity>
                 </View>
+                </View>
               </View>
-            </Animated.View>
-          </Animated.View>
+            </View>
           </Modal>
 
         {/* Application Sent Modal */}
