@@ -4586,7 +4586,7 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
     backgroundColor: "hsl(0, 0%, 12%)",
@@ -4616,7 +4616,7 @@ const styles = StyleSheet.create({
   menuItemActive: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
     backgroundColor: "hsl(0, 0%, 15%)",
