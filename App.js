@@ -248,7 +248,6 @@ export default function App() {
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
   const menuSlideAnim = useRef(new Animated.Value(0)).current;
   const menuOpacityAnim = useRef(new Animated.Value(0)).current;
-  const playButtonPulseAnim = useRef(new Animated.Value(1)).current;
 
   // Authentication state
   const [user, setUser] = useState(null);
@@ -294,34 +293,6 @@ export default function App() {
 
     initializeNotifications();
   }, []);
-
-  // Play button pulsing animation
-  useEffect(() => {
-    if (globalAudioState.isPlaying) {
-      const pulseAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(playButtonPulseAnim, {
-            toValue: 1.1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(playButtonPulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulseAnimation.start();
-      return () => pulseAnimation.stop();
-    } else {
-      Animated.timing(playButtonPulseAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [globalAudioState.isPlaying]);
 
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
@@ -2998,30 +2969,24 @@ export default function App() {
                 </TouchableOpacity>
 
                 {/* Play/Pause Button */}
-                <Animated.View
-                  style={{
-                    transform: [{ scale: playButtonPulseAnim }],
+                <TouchableOpacity
+                  style={styles.audioControlButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (globalAudioState.isPlaying) {
+                      pauseGlobalAudio();
+                    } else {
+                      resumeGlobalAudio();
+                    }
                   }}
+                  activeOpacity={0.8}
                 >
-                  <TouchableOpacity
-                    style={styles.audioControlButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      if (globalAudioState.isPlaying) {
-                        pauseGlobalAudio();
-                      } else {
-                        resumeGlobalAudio();
-                      }
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={globalAudioState.isPlaying ? "pause" : "play"}
-                      size={22}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
-                </Animated.View>
+                  <Ionicons
+                    name={globalAudioState.isPlaying ? "pause" : "play"}
+                    size={22}
+                    color="hsl(0, 0%, 100%)"
+                  />
+                </TouchableOpacity>
 
                 {/* Next Track Button */}
                 <TouchableOpacity
