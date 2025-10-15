@@ -2998,7 +2998,11 @@ export default function App() {
                     onPress={() => handleMenuNavigation("community")}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="people-outline" size={24} color="hsl(75, 100%, 60%)" />
+                    <Ionicons
+                      name="people-outline"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
+                    />
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>Community</Text>
                       <Text style={styles.menuItemDescription}>
@@ -3015,7 +3019,11 @@ export default function App() {
                     onPress={() => handleMenuNavigation("profile")}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="person-outline" size={24} color="hsl(75, 100%, 60%)" />
+                    <Ionicons
+                      name="person-outline"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
+                    />
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>Profile</Text>
                       <Text style={styles.menuItemDescription}>
@@ -4542,7 +4550,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuContainer: {
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: "hsl(0, 0%, 5%)",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
@@ -4594,9 +4602,9 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: "hsl(0, 0%, 12%)",
+    backgroundColor: "hsl(0, 0%, 20%)",
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderColor: "hsl(0, 0%, 25%)",
   },
   menuItemText: {
     fontSize: 18,
@@ -4619,7 +4627,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   menuItemActive: {
-    backgroundColor: "hsl(0, 0%, 15%)",
+    backgroundColor: "hsl(0, 0%, 25%)",
     borderColor: "hsl(75, 100%, 60%)",
     borderWidth: 2,
     borderRadius: 12,
