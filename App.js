@@ -415,6 +415,7 @@ export default function App() {
     secondaryButtonText: null,
     onPrimaryPress: null,
     onSecondaryPress: null,
+    showCloseButton: true,
   });
 
   // Global audio instance reference for cleanup
@@ -432,6 +433,7 @@ export default function App() {
       secondaryButtonText: config.secondaryButtonText || null,
       onPrimaryPress: config.onPrimaryPress || null,
       onSecondaryPress: config.onSecondaryPress || null,
+      showCloseButton: config.showCloseButton !== undefined ? config.showCloseButton : true,
     });
     setShowModal(true);
   };
@@ -1674,6 +1676,7 @@ export default function App() {
       } applications remaining today.`,
       primaryButtonText: "Apply Now",
       secondaryButtonText: "Cancel",
+      showCloseButton: false,
       onPrimaryPress: () => handleConfirmApply(currentOpportunity),
       onSecondaryPress: () => {
         console.log(
@@ -3236,6 +3239,7 @@ export default function App() {
           secondaryButtonText={modalConfig.secondaryButtonText}
           onPrimaryPress={modalConfig.onPrimaryPress}
           onSecondaryPress={modalConfig.onSecondaryPress}
+          showCloseButton={modalConfig.showCloseButton}
         />
 
         {/* Brief Form Modal - REMOVED (simplified to swipe-to-apply) */}
