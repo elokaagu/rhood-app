@@ -38,6 +38,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   const [showGenreModal, setShowGenreModal] = useState(false);
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [userMixes, setUserMixes] = useState([]);
+  const [showMixSelection, setShowMixSelection] = useState(false);
+  const [selectingMix, setSelectingMix] = useState(false);
+  const [currentPrimaryMix, setCurrentPrimaryMix] = useState(null);
 
   // Available genres for selection
   const availableGenres = [
@@ -100,6 +104,21 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           genres: userProfile.genres || [],
           profile_image_url: userProfile.profile_image_url || null,
         });
+
+        // Load user's mixes for Audio ID selection
+        try {
+          const mixes = await db.getUserMixes(user.id);
+          setUserMixes(mixes);
+          
+          // Set current primary mix if exists
+          if (userProfile.primary_mix_id) {
+            const primaryMix = mixes.find(mix => mix.id === userProfile.primary_mix_id);
+            setCurrentPrimaryMix(primaryMix || null);
+          }
+        } catch (mixesError) {
+          console.error("❌ Error loading user mixes:", mixesError);
+          setUserMixes([]);
+        }
       }
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -214,12 +233,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       }
 
       console.log("📝 Updating profile with:", updatedProfile);
-      console.log("🔍 Social media fields being saved:", {
-        instagram: updatedProfile.instagram,
-        soundcloud: updatedProfile.soundcloud,
-        originalInstagram: profile.instagram,
-        originalSoundcloud: profile.soundcloud
-      });
       await db.updateUserProfile(user.id, updatedProfile);
 
       // Show success modal
@@ -241,6 +254,41 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     setTimeout(() => {
       onSave && onSave(profile);
     }, 100);
+  };
+
+  const handleChangeAudioId = () => {
+    if (userMixes.length === 0) {
+      Alert.alert(
+        "No Mixes Available",
+        "You need to upload some mixes first before you can set an Audio ID. Go to the Listen screen to upload your first mix!",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Upload Mix", onPress: () => {/* Navigate to upload */} }
+        ]
+      );
+      return;
+    }
+    setShowMixSelection(true);
+  };
+
+  const handleSelectMix = async (mix) => {
+    try {
+      setSelectingMix(true);
+      
+      // Set as primary mix
+      await db.setPrimaryMix(user.id, mix.id);
+      
+      // Update local state
+      setCurrentPrimaryMix(mix);
+      
+      setShowMixSelection(false);
+      Alert.alert("Success!", "Your Audio ID has been updated successfully.");
+    } catch (error) {
+      console.error("❌ Error setting primary mix:", error);
+      Alert.alert("Error", "Failed to update Audio ID. Please try again.");
+    } finally {
+      setSelectingMix(false);
+    }
   };
 
   const handleGenreToggle = (genre) => {
@@ -725,6 +773,41 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
             </View>
           </View>
         </View>
+
+        {/* Audio ID Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Audio ID</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Current Audio ID</Text>
+            {currentPrimaryMix ? (
+              <View style={styles.audioIdCard}>
+                <View style={styles.audioIdInfo}>
+                  <Text style={styles.audioIdTitle}>{currentPrimaryMix.title}</Text>
+                  <Text style={styles.audioIdDetails}>
+                    {currentPrimaryMix.genre} • {currentPrimaryMix.duration ? `${Math.floor(currentPrimaryMix.duration / 60)}:${(currentPrimaryMix.duration % 60).toString().padStart(2, "0")}` : "Unknown duration"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.changeAudioIdButton}
+                  onPress={handleChangeAudioId}
+                >
+                  <Text style={styles.changeAudioIdButtonText}>Change</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.noAudioIdCard}>
+                <Ionicons name="musical-notes-outline" size={32} color="hsl(0, 0%, 30%)" />
+                <Text style={styles.noAudioIdText}>No Audio ID set</Text>
+                <TouchableOpacity
+                  style={styles.changeAudioIdButton}
+                  onPress={handleChangeAudioId}
+                >
+                  <Text style={styles.changeAudioIdButtonText}>Select Mix</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
       </ScrollView>
 
       {renderGenreModal()}
@@ -739,6 +822,51 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         primaryButtonText="Done"
         onPrimaryPress={handleSuccessModalClose}
       />
+
+      {/* Mix Selection Modal */}
+      <Modal
+        visible={showMixSelection}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowMixSelection(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Audio ID</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowMixSelection(false)}
+              >
+                <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.mixList}>
+              {userMixes.map((mix) => (
+                <TouchableOpacity
+                  key={mix.id}
+                  style={styles.mixItem}
+                  onPress={() => handleSelectMix(mix)}
+                  disabled={selectingMix}
+                >
+                  <View style={styles.mixInfo}>
+                    <Text style={styles.mixTitle}>{mix.title}</Text>
+                    <Text style={styles.mixDetails}>
+                      {mix.genre} • {mix.duration ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60).toString().padStart(2, "0")}` : "Unknown duration"}
+                    </Text>
+                  </View>
+                  {selectingMix ? (
+                    <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={20} color="hsl(0, 0%, 50%)" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -998,5 +1126,106 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Helvetica Neue",
     fontWeight: "bold",
+  },
+  // Audio ID Styles
+  audioIdCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  audioIdInfo: {
+    flex: 1,
+  },
+  audioIdTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  audioIdDetails: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 60%)",
+  },
+  changeAudioIdButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  changeAudioIdButtonText: {
+    color: "hsl(0, 0%, 0%)",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  noAudioIdCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noAudioIdText: {
+    fontSize: 16,
+    color: "hsl(0, 0%, 60%)",
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  // Mix Selection Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "70%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)",
+    fontFamily: "TS Block Bold",
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  mixList: {
+    maxHeight: 400,
+  },
+  mixItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 12%)",
+  },
+  mixInfo: {
+    flex: 1,
+  },
+  mixTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  mixDetails: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 60%)",
   },
 });
