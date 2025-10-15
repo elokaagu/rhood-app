@@ -2901,9 +2901,9 @@ export default function App() {
                 {
                   transform: [
                     {
-                      translateY: menuSlideAnim.interpolate({
+                      translateX: menuSlideAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [300, 0],
+                        outputRange: [-300, 0],
                       }),
                     },
                   ],
@@ -4536,23 +4536,22 @@ const styles = StyleSheet.create({
   menuOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
   },
   menuOverlayTouchable: {
     flex: 1,
   },
   menuContainer: {
-    backgroundColor: "hsl(0, 0%, 5%)",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-    borderBottomWidth: 0,
-    maxHeight: "70%",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    width: "85%",
+    height: "100%",
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    borderWidth: 0,
     shadowColor: "#000",
     shadowOffset: {
-      width: 0,
-      height: -4,
+      width: 4,
+      height: 0,
     },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -4585,23 +4584,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuItems: {
-    gap: 16,
+    gap: 8,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 20,
     paddingHorizontal: 20,
-    borderRadius: 12,
-    backgroundColor: "hsl(0, 0%, 10%)",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    borderWidth: 0,
   },
   menuItemText: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
+    lineHeight: 22,
   },
   menuItemContent: {
     flex: 1,
