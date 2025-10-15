@@ -87,10 +87,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       const userProfile = await db.getUserProfile(user.id);
 
       if (userProfile) {
-        console.log("🔍 Loading profile for editing:", {
-          instagram: userProfile.instagram,
-          soundcloud: userProfile.soundcloud
-        });
         setProfile({
           dj_name: userProfile.dj_name || "",
           first_name: userProfile.first_name || "",

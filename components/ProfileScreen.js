@@ -195,10 +195,6 @@ export default function ProfileScreen({ onNavigate, user }) {
           achievements: achievements,
         });
         console.log("✅ Profile loaded from database");
-        console.log("🔍 Social media handles:", {
-          instagram: userProfile.instagram,
-          soundcloud: userProfile.soundcloud
-        });
         console.log(
           `📊 Loaded ${recentGigs.length} gigs and ${achievements.length} achievements`
         );
