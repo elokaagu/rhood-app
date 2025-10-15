@@ -2704,6 +2704,15 @@ export default function App() {
             </View>
           </View>
           <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={styles.threeDotsButton} 
+              onPress={() => {
+                console.log("🔍 Three dots menu pressed");
+                setShowMenu(true);
+              }}
+            >
+              <Ionicons name="ellipsis-horizontal" size={24} color="hsl(0, 0%, 100%)" />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.menuButton} onPress={openMenu}>
               <Ionicons name="menu" size={24} color="hsl(0, 0%, 100%)" />
             </TouchableOpacity>
@@ -3548,6 +3557,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 30%)",
+    marginLeft: 8,
+  },
+  threeDotsButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
