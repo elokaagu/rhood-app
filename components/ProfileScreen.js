@@ -415,11 +415,11 @@ export default function ProfileScreen({ onNavigate, user }) {
                   </View>
                 }
               />
-            {profile.isVerified && (
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark" size={12} color="hsl(0, 0%, 0%)" />
-              </View>
-            )}
+              {profile.isVerified && (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark" size={12} color="hsl(0, 0%, 0%)" />
+                </View>
+              )}
             </View>
           </View>
 
@@ -792,8 +792,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 3,
-    borderColor: "hsl(75, 100%, 60%)", // R/HOOD green border
   },
   profileImage: {
     width: 100,
