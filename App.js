@@ -1292,7 +1292,7 @@ export default function App() {
   // Enhanced progress bar handler with drag support
   const handleProgressBarPress = async (event) => {
     event.stopPropagation();
-    
+
     // Check if audio is ready
     if (globalAudioState.durationMillis <= 0 || globalAudioState.isLoading) {
       console.warn("⚠️ Cannot scrub - audio not ready");
@@ -1302,7 +1302,10 @@ export default function App() {
     // Get the touch position
     const { locationX } = event.nativeEvent;
     const target = event.currentTarget;
-    const progressBarWidth = target?.offsetWidth || target?.clientWidth || Dimensions.get('window').width - 48;
+    const progressBarWidth =
+      target?.offsetWidth ||
+      target?.clientWidth ||
+      Dimensions.get("window").width - 48;
 
     // Calculate the percentage position
     const percentage = Math.max(0, Math.min(1, locationX / progressBarWidth));
@@ -1337,6 +1340,49 @@ export default function App() {
     }, 100); // Throttle to max 10 seeks per second
   }, []);
 
+  // Pan responder specifically for full-screen progress bar
+  const fullScreenProgressBarPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponderCapture: () => false,
+        onPanResponderGrant: () => {
+          // Start of drag - provide haptic feedback
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        },
+        onPanResponderMove: (_, gestureState) => {
+          // Check if audio is ready
+          if (
+            globalAudioState.durationMillis <= 0 ||
+            globalAudioState.isLoading
+          ) {
+            return;
+          }
+
+          // Get progress bar width dynamically
+          const progressBarWidth = Dimensions.get("window").width - 48; // Account for padding
+          const percentage = Math.max(
+            0,
+            Math.min(1, gestureState.moveX / progressBarWidth)
+          );
+
+          // Calculate new position and use throttled seek
+          const newPosition = percentage * globalAudioState.durationMillis;
+          throttledSeek(newPosition);
+        },
+        onPanResponderRelease: () => {
+          // End of drag - clear throttle
+          if (seekThrottleRef.current) {
+            clearTimeout(seekThrottleRef.current);
+            seekThrottleRef.current = null;
+          }
+        },
+      }),
+    [globalAudioState.durationMillis, globalAudioState.isLoading, throttledSeek]
+  );
+
   // Pan responder for drag functionality
   const progressBarPanResponder = useMemo(
     () =>
@@ -1359,7 +1405,7 @@ export default function App() {
           }
 
           // Get progress bar width dynamically
-          const progressBarWidth = Dimensions.get('window').width - 48; // Account for padding
+          const progressBarWidth = Dimensions.get("window").width - 48; // Account for padding
           const percentage = Math.max(
             0,
             Math.min(1, gestureState.moveX / progressBarWidth)
@@ -3146,7 +3192,7 @@ export default function App() {
                     style={styles.fullScreenProgressBar}
                     onPress={handleProgressBarPress}
                     activeOpacity={0.8}
-                    {...progressBarPanResponder.panHandlers}
+                    {...fullScreenProgressBarPanResponder.panHandlers}
                   >
                     <View
                       style={[
@@ -4619,31 +4665,36 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   fullScreenProgressBar: {
-    height: 4,
+    height: 8, // Increased from 4 to 8 for better visibility
     backgroundColor: "hsl(0, 0%, 20%)",
-    borderRadius: 2,
+    borderRadius: 4,
     marginBottom: 12,
     position: "relative",
-    paddingVertical: 12, // Larger touch area for better interaction
+    paddingVertical: 16, // Increased touch area
+    justifyContent: "center", // Center the progress fill
   },
   fullScreenProgressFill: {
-    height: "100%",
+    height: 8, // Match the bar height
     backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 2,
+    borderRadius: 4,
+    position: "absolute",
+    top: 16, // Center within the touch area
   },
   fullScreenProgressThumb: {
     position: "absolute",
-    top: -6,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    top: 12, // Center within the touch area
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: "hsl(75, 100%, 60%)",
-    marginLeft: -8,
+    marginLeft: -10,
     shadowColor: "hsl(75, 100%, 60%)",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: "hsl(0, 0%, 0%)",
   },
   fullScreenTimeContainer: {
     flexDirection: "row",
