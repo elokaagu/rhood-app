@@ -4537,7 +4537,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuContainer: {
-    backgroundColor: "pink",
+    backgroundColor: "hsl(0, 0%, 5%)",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
