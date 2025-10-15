@@ -3215,7 +3215,7 @@ export default function App() {
                 showsVerticalScrollIndicator={false}
                 {...createGestureHandlers()}
               >
-                {/* Header with close button and menu */}
+                {/* Header with close button */}
                 <View style={styles.fullScreenHeader}>
                   <TouchableOpacity
                     style={styles.closeButton}
@@ -3223,17 +3223,6 @@ export default function App() {
                   >
                     <Ionicons
                       name="chevron-down"
-                      size={24}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.fullScreenMenuButton}
-                    onPress={openFullScreenMenu}
-                  >
-                    <Ionicons
-                      name="ellipsis-horizontal"
                       size={24}
                       color="hsl(0, 0%, 100%)"
                     />
