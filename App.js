@@ -2875,7 +2875,6 @@ export default function App() {
           </LinearGradient>
         )}
 
-
         {/* Hamburger Menu Modal */}
         <Modal
           visible={showMenu}
@@ -4604,7 +4603,7 @@ const styles = StyleSheet.create({
   menuItemContent: {
     flex: 1,
     marginLeft: 20,
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   menuItemDescription: {
     fontSize: 14,
