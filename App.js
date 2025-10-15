@@ -4437,6 +4437,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 4,
+    marginRight: 24, // Increased spacing from play button
   },
   audioTimeText: {
     fontSize: 11, // Smaller for subtlety
