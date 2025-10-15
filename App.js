@@ -302,6 +302,7 @@ export default function App() {
 
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
+  const [showFullScreenMenu, setShowFullScreenMenu] = useState(false);
 
   // Gesture handlers for full-screen player
   const createGestureHandlers = () => {
@@ -3140,7 +3141,7 @@ export default function App() {
                 style={styles.fullScreenPlayer}
                 {...createGestureHandlers()}
               >
-                {/* Header with close button and title */}
+                {/* Header with close button and menu */}
                 <View style={styles.fullScreenHeader}>
                   <TouchableOpacity
                     style={styles.closeButton}
@@ -3152,15 +3153,13 @@ export default function App() {
                       color="hsl(0, 0%, 100%)"
                     />
                   </TouchableOpacity>
-                  <Text style={styles.fullScreenHeaderTitle}>
-                    {globalAudioState.currentTrack.title}
-                  </Text>
+                  <View style={styles.headerSpacer} />
                   <TouchableOpacity
                     style={styles.closeButton}
-                    onPress={() => setShowFullScreenPlayer(false)}
+                    onPress={() => setShowFullScreenMenu(true)}
                   >
                     <Ionicons
-                      name="ellipsis-vertical"
+                      name="ellipsis-horizontal"
                       size={20}
                       color="hsl(0, 0%, 100%)"
                     />
@@ -3354,6 +3353,60 @@ export default function App() {
                 </View>
               </View>
             </View>
+          </Modal>
+        )}
+
+        {/* Full-Screen Player Menu Modal */}
+        {showFullScreenMenu && (
+          <Modal
+            visible={showFullScreenMenu}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowFullScreenMenu(false)}
+          >
+            <TouchableOpacity
+              style={styles.menuOverlay}
+              activeOpacity={1}
+              onPress={() => setShowFullScreenMenu(false)}
+            >
+              <View style={styles.menuContainer}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowFullScreenMenu(false);
+                    shareTrack();
+                  }}
+                >
+                  <Ionicons
+                    name="share-outline"
+                    size={20}
+                    color="hsl(0, 0%, 100%)"
+                  />
+                  <Text style={styles.menuItemText}>Share Mix</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowFullScreenMenu(false);
+                    if (globalAudioState.currentTrack.user_id) {
+                      setShowFullScreenPlayer(false);
+                      setCurrentScreen("user-profile");
+                      setScreenParams({
+                        userId: globalAudioState.currentTrack.user_id,
+                      });
+                    }
+                  }}
+                >
+                  <Ionicons
+                    name="chatbubble-outline"
+                    size={20}
+                    color="hsl(0, 0%, 100%)"
+                  />
+                  <Text style={styles.menuItemText}>Connect with DJ</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           </Modal>
         )}
 
@@ -5194,5 +5247,38 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.3)",
     pointerEvents: "none",
     zIndex: 1,
+  },
+
+  // Menu Styles
+  headerSpacer: {
+    flex: 1,
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  menuContainer: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    marginHorizontal: 0,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    marginLeft: 16,
+    fontWeight: "500",
   },
 });
