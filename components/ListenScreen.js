@@ -131,7 +131,9 @@ export default function ListenScreen({
           if (mix.user_id) {
             const { data: profile } = await supabase
               .from("user_profiles")
-              .select("dj_name, first_name, last_name, bio, profile_image_url, username")
+              .select(
+                "dj_name, first_name, last_name, bio, profile_image_url, username"
+              )
               .eq("id", mix.user_id)
               .single();
 
@@ -142,7 +144,7 @@ export default function ListenScreen({
                   profile.last_name || ""
                 }`.trim() ||
                 "Unknown Artist";
-              
+
               userProfile = {
                 id: mix.user_id,
                 dj_name: profile.dj_name,

@@ -3310,16 +3310,20 @@ export default function App() {
                 {console.log("🔍 About DJ Debug:", {
                   hasTrack: !!globalAudioState.currentTrack,
                   hasUser: !!globalAudioState.currentTrack?.user,
-                  profileImageUrl: globalAudioState.currentTrack?.user?.profile_image_url,
+                  profileImageUrl:
+                    globalAudioState.currentTrack?.user?.profile_image_url,
                   djName: globalAudioState.currentTrack?.user?.dj_name,
-                  bio: globalAudioState.currentTrack?.user?.bio
+                  bio: globalAudioState.currentTrack?.user?.bio,
                 })}
                 <View style={styles.aboutDJCard}>
                   <View style={styles.aboutDJHeader}>
                     <ProgressiveImage
                       source={
                         globalAudioState.currentTrack?.user?.profile_image_url
-                          ? { uri: globalAudioState.currentTrack.user.profile_image_url }
+                          ? {
+                              uri: globalAudioState.currentTrack.user
+                                .profile_image_url,
+                            }
                           : null
                       }
                       style={styles.aboutDJAvatar}
@@ -3334,7 +3338,11 @@ export default function App() {
                             },
                           ]}
                         >
-                          <Ionicons name="person" size={24} color="hsl(0, 0%, 50%)" />
+                          <Ionicons
+                            name="person"
+                            size={24}
+                            color="hsl(0, 0%, 50%)"
+                          />
                         </View>
                       }
                     />
