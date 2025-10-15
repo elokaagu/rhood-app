@@ -4614,10 +4614,14 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   menuItemActive: {
-    backgroundColor: "hsl(0, 0%, 25%)",
-    borderColor: "hsl(75, 100%, 60%)",
-    borderWidth: 2,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 25%)",
+    borderWidth: 2,
+    borderColor: "hsl(75, 100%, 60%)",
   },
 
   // Full-Screen Player Menu Styles
