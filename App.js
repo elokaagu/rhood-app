@@ -255,6 +255,8 @@ export default function App() {
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
   const menuSlideAnim = useRef(new Animated.Value(0)).current;
   const menuOpacityAnim = useRef(new Animated.Value(0)).current;
+  const fullScreenMenuSlideAnim = useRef(new Animated.Value(0)).current;
+  const fullScreenMenuOpacityAnim = useRef(new Animated.Value(0)).current;
 
   // Authentication state
   const [user, setUser] = useState(null);
@@ -2064,6 +2066,41 @@ export default function App() {
     });
   };
 
+  // Full-screen menu animation functions
+  const openFullScreenMenu = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowFullScreenMenu(true);
+    Animated.parallel([
+      Animated.timing(fullScreenMenuSlideAnim, {
+        toValue: 1,
+        duration: ANIMATION_DURATION.NORMAL,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fullScreenMenuOpacityAnim, {
+        toValue: 1,
+        duration: ANIMATION_DURATION.FAST,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeFullScreenMenu = () => {
+    Animated.parallel([
+      Animated.timing(fullScreenMenuSlideAnim, {
+        toValue: 0,
+        duration: ANIMATION_DURATION.NORMAL,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fullScreenMenuOpacityAnim, {
+        toValue: 0,
+        duration: ANIMATION_DURATION.FAST,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowFullScreenMenu(false);
+    });
+  };
+
   // Load notification counts
   const loadNotificationCounts = async () => {
     try {
@@ -3161,7 +3198,7 @@ export default function App() {
                     style={styles.threeDotsButton}
                     onPress={() => {
                       console.log("🔍 Three dots menu opened");
-                      setShowFullScreenMenu(true);
+                      openFullScreenMenu();
                     }}
                     activeOpacity={0.7}
                   >
@@ -3398,20 +3435,20 @@ export default function App() {
           visible={showFullScreenMenu}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setShowFullScreenMenu(false)}
+          onRequestClose={closeFullScreenMenu}
         >
           <Animated.View
             style={[
               styles.fullScreenMenuOverlay,
               {
-                opacity: menuOpacityAnim,
+                opacity: fullScreenMenuOpacityAnim,
               },
             ]}
           >
             <TouchableOpacity
               style={styles.fullScreenMenuOverlayTouchable}
               activeOpacity={1}
-              onPress={() => setShowFullScreenMenu(false)}
+              onPress={closeFullScreenMenu}
             />
             <Animated.View
               style={[
@@ -3419,7 +3456,7 @@ export default function App() {
                 {
                   transform: [
                     {
-                      translateY: menuSlideAnim.interpolate({
+                      translateY: fullScreenMenuSlideAnim.interpolate({
                         inputRange: [0, 1],
                         outputRange: [300, 0],
                       }),
@@ -3433,7 +3470,7 @@ export default function App() {
                   <Text style={styles.tsBlockBoldHeading}>Mix Options</Text>
                   <TouchableOpacity
                     style={styles.closeButton}
-                    onPress={() => setShowFullScreenMenu(false)}
+                    onPress={closeFullScreenMenu}
                   >
                     <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
                   </TouchableOpacity>
@@ -3444,7 +3481,7 @@ export default function App() {
                     style={styles.fullScreenMenuItem}
                     onPress={() => {
                       console.log("🔍 Share Mix pressed");
-                      setShowFullScreenMenu(false);
+                      closeFullScreenMenu();
                       shareTrack();
                     }}
                     activeOpacity={0.7}
@@ -3462,7 +3499,7 @@ export default function App() {
                     style={styles.fullScreenMenuItem}
                     onPress={() => {
                       console.log("🔍 Connect with DJ pressed");
-                      setShowFullScreenMenu(false);
+                      closeFullScreenMenu();
                       if (globalAudioState.currentTrack?.user_id) {
                         setShowFullScreenPlayer(false);
                         setCurrentScreen("user-profile");
