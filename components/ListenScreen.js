@@ -833,7 +833,7 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 0%)",
   },
   bottomSpacing: {
-    height: 20,
+    height: 140, // Increased from 20 to account for play bar height
   },
   // Recommendations Section Styles
   recommendationsSection: {
