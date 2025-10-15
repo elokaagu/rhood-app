@@ -673,22 +673,6 @@ export default function ProfileScreen({ onNavigate, user }) {
           </View>
         </View>
 
-        {/* Upload Mix Button - Only show when no Audio ID */}
-        {!profile.audioId && (
-          <TouchableOpacity
-            style={styles.uploadButton}
-            onPress={() => onNavigate && onNavigate("upload-mix")}
-          >
-            <LinearGradient
-              colors={["hsl(75, 100%, 60%)", "hsl(75, 100%, 50%)"]}
-              style={styles.uploadButtonGradient}
-            >
-              <Ionicons name="cloud-upload-outline" size={24} color="black" />
-              <Text style={styles.uploadButtonText}>Upload Mix</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-
         {/* Recent Gigs */}
         {profile.recentGigs && profile.recentGigs.length > 0 && (
           <View style={styles.gigsContainer}>
