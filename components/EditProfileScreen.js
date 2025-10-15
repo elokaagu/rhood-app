@@ -974,6 +974,8 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
+    borderWidth: 3,
+    borderColor: "hsl(75, 100%, 60%)", // R/HOOD green border
   },
   placeholderImage: {
     width: 100,
@@ -982,8 +984,8 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 10%)",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderWidth: 3,
+    borderColor: "hsl(75, 100%, 60%)", // R/HOOD green border
   },
   imageOverlay: {
     position: "absolute",
