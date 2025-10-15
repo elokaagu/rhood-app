@@ -1292,7 +1292,7 @@ export default function App() {
   // Enhanced progress bar handler with drag support
   const handleProgressBarPress = async (event) => {
     event.stopPropagation();
-
+    
     // Check if audio is ready
     if (globalAudioState.durationMillis <= 0 || globalAudioState.isLoading) {
       console.warn("⚠️ Cannot scrub - audio not ready");
@@ -1302,7 +1302,7 @@ export default function App() {
     // Get the touch position
     const { locationX } = event.nativeEvent;
     const target = event.currentTarget;
-    const progressBarWidth = target?.offsetWidth || target?.clientWidth || 300;
+    const progressBarWidth = target?.offsetWidth || target?.clientWidth || Dimensions.get('window').width - 48;
 
     // Calculate the percentage position
     const percentage = Math.max(0, Math.min(1, locationX / progressBarWidth));
@@ -1358,8 +1358,8 @@ export default function App() {
             return;
           }
 
-          // Get progress bar width
-          const progressBarWidth = 300; // Approximate width
+          // Get progress bar width dynamically
+          const progressBarWidth = Dimensions.get('window').width - 48; // Account for padding
           const percentage = Math.max(
             0,
             Math.min(1, gestureState.moveX / progressBarWidth)
@@ -3142,7 +3142,12 @@ export default function App() {
 
                 {/* Progress Bar */}
                 <View style={styles.fullScreenProgressSection}>
-                  <View style={styles.fullScreenProgressBar}>
+                  <TouchableOpacity
+                    style={styles.fullScreenProgressBar}
+                    onPress={handleProgressBarPress}
+                    activeOpacity={0.8}
+                    {...progressBarPanResponder.panHandlers}
+                  >
                     <View
                       style={[
                         styles.fullScreenProgressFill,
@@ -3159,7 +3164,7 @@ export default function App() {
                         },
                       ]}
                     />
-                  </View>
+                  </TouchableOpacity>
                   <View style={styles.fullScreenTimeContainer}>
                     <Text style={styles.fullScreenTimeText}>
                       {formatTime(globalAudioState.positionMillis || 0)}
@@ -4619,6 +4624,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginBottom: 12,
     position: "relative",
+    paddingVertical: 12, // Larger touch area for better interaction
   },
   fullScreenProgressFill: {
     height: "100%",
