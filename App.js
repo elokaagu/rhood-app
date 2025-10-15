@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -97,15 +103,6 @@ const EnhancedProgressBar = ({
 }) => {
   const progressAnim = useRef(new Animated.Value(progress)).current;
   const [isScrubbing, setIsScrubbing] = useState(false);
-
-  // Format time helper function
-  const formatTime = (milliseconds) => {
-    if (!milliseconds || milliseconds < 0) return "0:00";
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
 
   useEffect(() => {
     if (!isScrubbing) {
@@ -234,6 +231,15 @@ export default function App() {
     "TS-Block-Bold": require("./assets/TS Block Bold.ttf"),
   });
 
+  // Format time helper function
+  const formatTime = (milliseconds) => {
+    if (!milliseconds || milliseconds < 0) return "0:00";
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
   const [showSplash, setShowSplash] = useState(true);
   const [isFirstTime, setIsFirstTime] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -356,7 +362,6 @@ export default function App() {
   const [audioPlayerSwipeTranslateY] = useState(new Animated.Value(0));
   const [audioPlayerSwipeOpacity] = useState(new Animated.Value(1));
   const [isAudioPlayerSwiping, setIsAudioPlayerSwiping] = useState(false);
-
 
   // Audio player animation effects
   useEffect(() => {
@@ -1243,12 +1248,13 @@ export default function App() {
       if (status.isLoaded && status.durationMillis > 0) {
         // Ensure position doesn't exceed duration
         const clampedPosition = Math.min(positionMillis, status.durationMillis);
-        
+
         // Check if we're already close to this position to avoid unnecessary seeks
         const currentPosition = status.positionMillis || 0;
         const positionDiff = Math.abs(clampedPosition - currentPosition);
-        
-        if (positionDiff < 500) { // Less than 0.5 seconds difference
+
+        if (positionDiff < 500) {
+          // Less than 0.5 seconds difference
           console.log(`⏭️ Skipping seek - already close to target position`);
           return;
         }
@@ -1270,7 +1276,9 @@ export default function App() {
     } catch (error) {
       // Handle specific "seeking interrupted" errors more gracefully
       if (error.message && error.message.includes("interrupted")) {
-        console.warn("⚠️ Seek was interrupted - this is normal during rapid scrubbing");
+        console.warn(
+          "⚠️ Seek was interrupted - this is normal during rapid scrubbing"
+        );
         return;
       }
       console.error("❌ Error seeking:", error);
