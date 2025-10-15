@@ -9,6 +9,8 @@ import {
   Linking,
   Alert,
   Animated,
+  ActivityIndicator,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -35,6 +37,9 @@ export default function ProfileScreen({ onNavigate, user }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackPosition, setPlaybackPosition] = useState(0);
   const [playbackDuration, setPlaybackDuration] = useState(0);
+  const [userMixes, setUserMixes] = useState([]);
+  const [showMixSelection, setShowMixSelection] = useState(false);
+  const [selectingMix, setSelectingMix] = useState(false);
   const soundRef = useRef(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
 
@@ -84,6 +89,15 @@ export default function ProfileScreen({ onNavigate, user }) {
       setLoading(true);
       const { db } = await import("../lib/supabase");
       const userProfile = await db.getUserProfile(user.id);
+      
+      // Load user's mixes for selection
+      try {
+        const mixes = await db.getUserMixes(user.id);
+        setUserMixes(mixes);
+      } catch (mixesError) {
+        console.error("❌ Error loading user mixes:", mixesError);
+        setUserMixes([]);
+      }
 
       // Load user's gigs
       let recentGigs = [];
@@ -170,11 +184,11 @@ export default function ProfileScreen({ onNavigate, user }) {
         setProfile({
           id: userProfile.id,
           name: userProfile.dj_name || userProfile.full_name || "Unknown DJ",
-          username: userProfile.username 
+          username: userProfile.username
             ? `@${userProfile.username}`
             : `@${(userProfile.dj_name || userProfile.full_name || "dj")
-              .toLowerCase()
-              .replace(/\s+/g, "")}`,
+                .toLowerCase()
+                .replace(/\s+/g, "")}`,
           gigsCompleted: userProfile.gigs_completed || 0,
           credits: userProfile.credits || 0,
           bio: userProfile.bio || "No bio available",
@@ -210,6 +224,42 @@ export default function ProfileScreen({ onNavigate, user }) {
 
   const handleEditProfile = () => {
     onNavigate && onNavigate("edit-profile");
+  };
+
+  const handleChangeAudioId = () => {
+    if (userMixes.length === 0) {
+      Alert.alert(
+        "No Mixes Available",
+        "You need to upload some mixes first before you can set an Audio ID. Go to the Listen screen to upload your first mix!",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Upload Mix", onPress: () => onNavigate && onNavigate("upload-mix") }
+        ]
+      );
+      return;
+    }
+    setShowMixSelection(true);
+  };
+
+  const handleSelectMix = async (mix) => {
+    try {
+      setSelectingMix(true);
+      const { db } = await import("../lib/supabase");
+      
+      // Set as primary mix
+      await db.setPrimaryMix(user.id, mix.id);
+      
+      // Reload profile to show updated Audio ID
+      await loadProfile();
+      
+      setShowMixSelection(false);
+      Alert.alert("Success!", "Your Audio ID has been updated successfully.");
+    } catch (error) {
+      console.error("❌ Error setting primary mix:", error);
+      Alert.alert("Error", "Failed to update Audio ID. Please try again.");
+    } finally {
+      setSelectingMix(false);
+    }
   };
 
   const handleShareProfile = () => {
@@ -496,7 +546,15 @@ export default function ProfileScreen({ onNavigate, user }) {
 
         {/* Audio ID */}
         <View style={styles.audioContainer}>
-          <Text style={styles.sectionTitle}>Audio ID</Text>
+          <View style={styles.audioHeader}>
+            <Text style={styles.sectionTitle}>Audio ID</Text>
+            <TouchableOpacity
+              style={styles.changeButton}
+              onPress={handleChangeAudioId}
+            >
+              <Text style={styles.changeButtonText}>Change</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.audioCard}>
             <View style={styles.audioHeader}>
               <View style={styles.audioInfo}>
@@ -546,12 +604,6 @@ export default function ProfileScreen({ onNavigate, user }) {
         {/* Social Links */}
         <View style={styles.socialContainer}>
           <Text style={styles.sectionTitle}>SOCIAL LINKS</Text>
-          {console.log("🔍 Rendering social links with:", {
-            instagram: profile.socialLinks.instagram,
-            soundcloud: profile.socialLinks.soundcloud,
-            hasInstagram: !!profile.socialLinks.instagram,
-            hasSoundcloud: !!profile.socialLinks.soundcloud
-          })}
           <View style={styles.socialLinks}>
             {/* Instagram Link */}
             <TouchableOpacity
@@ -737,6 +789,51 @@ export default function ProfileScreen({ onNavigate, user }) {
         style={styles.bottomGradient}
         pointerEvents="none"
       />
+
+      {/* Mix Selection Modal */}
+      <Modal
+        visible={showMixSelection}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowMixSelection(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Audio ID</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowMixSelection(false)}
+              >
+                <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.mixList}>
+              {userMixes.map((mix) => (
+                <TouchableOpacity
+                  key={mix.id}
+                  style={styles.mixItem}
+                  onPress={() => handleSelectMix(mix)}
+                  disabled={selectingMix}
+                >
+                  <View style={styles.mixInfo}>
+                    <Text style={styles.mixTitle}>{mix.title}</Text>
+                    <Text style={styles.mixDetails}>
+                      {mix.genre} • {mix.duration ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60).toString().padStart(2, "0")}` : "Unknown duration"}
+                    </Text>
+                  </View>
+                  {selectingMix ? (
+                    <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={20} color="hsl(0, 0%, 50%)" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1153,5 +1250,78 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "black",
+  },
+  // Mix Selection Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "70%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)",
+    fontFamily: "TS Block Bold",
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  mixList: {
+    maxHeight: 400,
+  },
+  mixItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 12%)",
+  },
+  mixInfo: {
+    flex: 1,
+  },
+  mixTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  mixDetails: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 60%)",
+  },
+  // Audio ID Change Button Styles
+  audioHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  changeButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  changeButtonText: {
+    color: "hsl(0, 0%, 0%)",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
