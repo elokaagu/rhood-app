@@ -3071,6 +3071,18 @@ export default function App() {
             onRequestClose={() => setShowFullScreenPlayer(false)}
           >
             <View style={styles.fullScreenPlayerOverlay}>
+              {/* Full-screen background image */}
+              {globalAudioState.currentTrack.image && (
+                <Image
+                  source={{ uri: globalAudioState.currentTrack.image }}
+                  style={styles.fullScreenBackgroundImage}
+                  resizeMode="cover"
+                />
+              )}
+              
+              {/* Dark overlay for better text readability */}
+              <View style={styles.fullScreenOverlay} />
+              
               <View
                 style={styles.fullScreenPlayer}
                 {...createGestureHandlers()}
@@ -3089,16 +3101,7 @@ export default function App() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Album Artwork */}
-                <View style={styles.albumArtContainer}>
-                  <AnimatedAlbumArt
-                    image={globalAudioState.currentTrack.image}
-                    isPlaying={globalAudioState.isPlaying}
-                    style={styles.albumArt}
-                  />
-                </View>
-
-                {/* Track Info */}
+                {/* Track Info - positioned over the image */}
                 <View style={styles.fullScreenTrackInfo}>
                   <Text style={styles.fullScreenTrackTitle}>
                     {globalAudioState.currentTrack.title}
@@ -4521,12 +4524,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "hsl(0, 0%, 0%)",
   },
+  fullScreenBackgroundImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+  },
+  fullScreenOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.4)", // Semi-transparent dark overlay
+  },
   fullScreenPlayer: {
     flex: 1,
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 40,
-    backgroundColor: "hsl(0, 0%, 0%)", // Pure black background
+    backgroundColor: "transparent", // Make background transparent to show image
+    zIndex: 1, // Ensure content is above background image
   },
   fullScreenHeader: {
     flexDirection: "row",
@@ -4559,29 +4580,42 @@ const styles = StyleSheet.create({
   },
   fullScreenTrackInfo: {
     alignItems: "center",
-    marginBottom: 40,
+    marginTop: 60, // Move down to account for removed album art
+    marginBottom: 60, // More space before controls
+    paddingHorizontal: 20,
   },
   fullScreenTrackTitle: {
-    fontSize: 28,
+    fontSize: 32, // Larger for better visibility over background
     fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)", // Brand textPrimary
     fontWeight: "900",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 12,
+    textShadowColor: "rgba(0, 0, 0, 0.8)", // Add shadow for better readability
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   fullScreenTrackArtist: {
-    fontSize: 18,
+    fontSize: 20, // Larger for better visibility
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
+    color: "hsl(75, 100%, 60%)", // Use brand green
     textAlign: "center",
-    marginBottom: 4,
+    marginBottom: 8,
+    fontWeight: "600",
+    textShadowColor: "rgba(0, 0, 0, 0.8)", // Add shadow for better readability
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   fullScreenTrackGenre: {
     fontSize: 16,
     fontFamily: "Helvetica Neue",
-    color: "#C2CC06", // Brand primary color
+    color: "hsl(0, 0%, 80%)", // Lighter for better visibility
     textAlign: "center",
-    fontWeight: "600",
+    marginBottom: 20,
+    fontWeight: "500",
+    textShadowColor: "rgba(0, 0, 0, 0.6)", // Add shadow for better readability
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   fullScreenProgressSection: {
     marginBottom: 40,
