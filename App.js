@@ -754,13 +754,13 @@ export default function App() {
       setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
 
       // Configure audio mode for playback
-        await Audio.setAudioModeAsync({
+      await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
-          playsInSilentModeIOS: true,
-          shouldDuckAndroid: true,
-          playThroughEarpieceAndroid: false,
-        });
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
       console.log("🎵 Audio mode configured for background playback");
 
       // Create and load new sound using expo-audio
@@ -799,14 +799,14 @@ export default function App() {
         sound = loadedSound;
       } catch (loadError) {
         // Handle audio loading error gracefully
-          console.log(
+        console.log(
           "🎵 Audio loading error, but continuing with playback attempt"
-          );
-          setGlobalAudioState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error: "Audio playback not available in Expo Go",
-          }));
+        );
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: "Audio playback not available in Expo Go",
+        }));
         return;
       }
 
@@ -2819,15 +2819,15 @@ export default function App() {
               onPress={() => handleMenuNavigation("connections")}
             >
               <View style={styles.tabIconContainer}>
-              <Ionicons
-                name="people-outline"
-                size={20}
-                color={
-                  currentScreen === "connections"
+                <Ionicons
+                  name="people-outline"
+                  size={20}
+                  color={
+                    currentScreen === "connections"
                       ? "hsl(75, 100%, 60%)"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
+                      : "hsl(0, 0%, 70%)"
+                  }
+                />
                 <NotificationBadge
                   count={unreadMessageCount}
                   style={styles.tabNotificationBadge}
@@ -2912,7 +2912,7 @@ export default function App() {
             >
               <View style={styles.menuContent}>
                 <View style={styles.menuHeader}>
-                  <Text style={styles.tsBlockBoldHeading}>MENU</Text>
+                  <Text style={styles.menuTitle}>MENU</Text>
                   <TouchableOpacity
                     style={styles.closeButton}
                     onPress={closeMenu}
@@ -2932,8 +2932,8 @@ export default function App() {
                   >
                     <Ionicons
                       name="information-circle-outline"
-                      size={20}
-                      color="#C2CC06"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
                     />
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>About R/HOOD</Text>
@@ -2957,8 +2957,8 @@ export default function App() {
                   >
                     <Ionicons
                       name="chatbubbles-outline"
-                      size={20}
-                      color="#C2CC06"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
                     />
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>Messages</Text>
@@ -2979,8 +2979,8 @@ export default function App() {
                   >
                     <Ionicons
                       name="notifications-outline"
-                      size={20}
-                      color="#C2CC06"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
                     />
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>Notifications</Text>
@@ -2998,7 +2998,7 @@ export default function App() {
                     onPress={() => handleMenuNavigation("community")}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="people-outline" size={20} color="#C2CC06" />
+                    <Ionicons name="people-outline" size={24} color="hsl(75, 100%, 60%)" />
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>Community</Text>
                       <Text style={styles.menuItemDescription}>
@@ -3015,7 +3015,7 @@ export default function App() {
                     onPress={() => handleMenuNavigation("profile")}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="person-outline" size={20} color="#C2CC06" />
+                    <Ionicons name="person-outline" size={24} color="hsl(75, 100%, 60%)" />
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>Profile</Text>
                       <Text style={styles.menuItemDescription}>
@@ -3034,8 +3034,8 @@ export default function App() {
                   >
                     <Ionicons
                       name="settings-outline"
-                      size={20}
-                      color="#C2CC06"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
                     />
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>Settings</Text>
@@ -3057,124 +3057,124 @@ export default function App() {
 
         {/* Global Audio Player - shows when there's a current track */}
         {globalAudioState.currentTrack && (
-            <Animated.View
-              style={[
-                styles.globalAudioPlayer,
-                {
-                  opacity: Animated.multiply(
-                    audioPlayerOpacity,
-                    audioPlayerSwipeOpacity
-                  ),
-                  transform: [
-                    {
-                      translateY: Animated.add(
-                        audioPlayerTranslateY,
-                        audioPlayerSwipeTranslateY
-                      ),
-                    },
-                  ],
-                },
-              ]}
-              {...audioPlayerPanResponder.panHandlers}
-            >
+          <Animated.View
+            style={[
+              styles.globalAudioPlayer,
+              {
+                opacity: Animated.multiply(
+                  audioPlayerOpacity,
+                  audioPlayerSwipeOpacity
+                ),
+                transform: [
+                  {
+                    translateY: Animated.add(
+                      audioPlayerTranslateY,
+                      audioPlayerSwipeTranslateY
+                    ),
+                  },
+                ],
+              },
+            ]}
+            {...audioPlayerPanResponder.panHandlers}
+          >
             <TouchableOpacity
               onPress={() => setShowFullScreenPlayer(true)}
               activeOpacity={0.9}
               style={styles.audioPlayerContent}
             >
-                {/* Album Art */}
-                <View style={styles.audioAlbumArt}>
-                  {globalAudioState.currentTrack.image ? (
-                    <Image
-                      source={{ uri: globalAudioState.currentTrack.image }}
-                      style={styles.albumArtImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.albumArtPlaceholder}>
-                      <Ionicons
-                        name="musical-notes"
-                        size={24}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.audioTrackInfo}>
-                  <AutoScrollText
-                    text={globalAudioState.currentTrack.title}
-                    style={styles.audioTrackTitle}
-                    containerWidth={200}
+              {/* Album Art */}
+              <View style={styles.audioAlbumArt}>
+                {globalAudioState.currentTrack.image ? (
+                  <Image
+                    source={{ uri: globalAudioState.currentTrack.image }}
+                    style={styles.albumArtImage}
+                    resizeMode="cover"
                   />
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (globalAudioState.currentTrack.user_id) {
-                        setCurrentScreen("user-profile");
-                        setScreenParams({
-                          userId: globalAudioState.currentTrack.user_id,
-                        });
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  style={styles.artistNameTouchable}
-                  >
-                    <Text style={styles.audioTrackArtist} numberOfLines={1}>
-                      {globalAudioState.currentTrack.artist}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Timer - Compact format */}
-                <View style={styles.audioTimeContainer}>
-                  <Text style={styles.audioTimeText}>
-                    {formatTime(globalAudioState.positionMillis || 0)} /{" "}
-                    {formatTime(globalAudioState.durationMillis || 0)}
-                  </Text>
-                </View>
-
-                <View style={styles.audioControls}>
-                {/* Play/Pause Button */}
-                  <TouchableOpacity
-                    style={styles.audioControlButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      if (globalAudioState.isPlaying) {
-                        pauseGlobalAudio();
-                      } else {
-                        resumeGlobalAudio();
-                      }
-                    }}
-                  activeOpacity={0.8}
-                  >
+                ) : (
+                  <View style={styles.albumArtPlaceholder}>
                     <Ionicons
-                      name={globalAudioState.isPlaying ? "pause" : "play"}
+                      name="musical-notes"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
+                    />
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.audioTrackInfo}>
+                <AutoScrollText
+                  text={globalAudioState.currentTrack.title}
+                  style={styles.audioTrackTitle}
+                  containerWidth={200}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    if (globalAudioState.currentTrack.user_id) {
+                      setCurrentScreen("user-profile");
+                      setScreenParams({
+                        userId: globalAudioState.currentTrack.user_id,
+                      });
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  style={styles.artistNameTouchable}
+                >
+                  <Text style={styles.audioTrackArtist} numberOfLines={1}>
+                    {globalAudioState.currentTrack.artist}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Timer - Compact format */}
+              <View style={styles.audioTimeContainer}>
+                <Text style={styles.audioTimeText}>
+                  {formatTime(globalAudioState.positionMillis || 0)} /{" "}
+                  {formatTime(globalAudioState.durationMillis || 0)}
+                </Text>
+              </View>
+
+              <View style={styles.audioControls}>
+                {/* Play/Pause Button */}
+                <TouchableOpacity
+                  style={styles.audioControlButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (globalAudioState.isPlaying) {
+                      pauseGlobalAudio();
+                    } else {
+                      resumeGlobalAudio();
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={globalAudioState.isPlaying ? "pause" : "play"}
                     size={22}
                     color="hsl(0, 0%, 0%)" // Changed to black/dark
-                    />
-                  </TouchableOpacity>
-                </View>
+                  />
+                </TouchableOpacity>
+              </View>
             </TouchableOpacity>
 
             {/* Progress Bar - Positioned at bottom */}
             <View
-                  ref={miniProgressBarRef}
-                  style={styles.audioProgressContainer}
+              ref={miniProgressBarRef}
+              style={styles.audioProgressContainer}
               {...progressBarPanResponder.panHandlers}
             >
               <TouchableOpacity
                 style={styles.audioProgressBar}
-                  onPress={handleProgressBarPress}
-                  activeOpacity={0.8}
-                >
-                    <View
-                      style={[
-                        styles.audioProgressFill,
-                        {
-                          width: `${(globalAudioState.progress || 0) * 100}%`,
-                        },
-                      ]}
-                    />
+                onPress={handleProgressBarPress}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.audioProgressFill,
+                    {
+                      width: `${(globalAudioState.progress || 0) * 100}%`,
+                    },
+                  ]}
+                />
                 {/* Scrubber Thumb */}
                 <View
                   style={[
@@ -3184,9 +3184,9 @@ export default function App() {
                     },
                   ]}
                 />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         )}
 
         {/* Full-Screen Audio Player Modal */}
@@ -3371,7 +3371,7 @@ export default function App() {
                 </View>
 
                 {/* About the DJ Section */}
-                  <TouchableOpacity
+                <TouchableOpacity
                   style={styles.aboutDJCard}
                   onPress={() => {
                     console.log(
@@ -3410,8 +3410,8 @@ export default function App() {
                               alignItems: "center",
                             },
                           ]}
-                  >
-                    <Ionicons
+                        >
+                          <Ionicons
                             name="person"
                             size={24}
                             color="hsl(0, 0%, 50%)"
@@ -3439,7 +3439,7 @@ export default function App() {
                     {globalAudioState.currentTrack?.user?.bio ||
                       "Discover more about this talented DJ and their unique sound."}
                   </Text>
-                  </TouchableOpacity>
+                </TouchableOpacity>
               </ScrollView>
             </View>
           </Modal>
@@ -3541,7 +3541,7 @@ export default function App() {
               </View>
             </Animated.View>
           </Animated.View>
-          </Modal>
+        </Modal>
 
         {/* Application Sent Modal */}
 
@@ -4532,7 +4532,7 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
     fontFamily: "Helvetica Neue",
   },
-  // Hamburger Menu Styles
+  // Hamburger Menu Styles - Replica of Original Reference
   menuOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.8)",
@@ -4542,7 +4542,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuContainer: {
-    backgroundColor: "hsl(0, 0%, 3%)",
+    backgroundColor: "hsl(0, 0%, 8%)",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
@@ -4559,63 +4559,67 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   menuContent: {
-    padding: 20,
+    padding: 24,
   },
   menuHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 30,
-    paddingBottom: 20,
+    marginBottom: 24,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 20%)",
   },
   menuTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
+    letterSpacing: 1,
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "hsl(0, 0%, 15%)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
   },
   menuItems: {
-    gap: 12,
+    gap: 8,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: "transparent",
-    borderWidth: 0,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
   },
   menuItemText: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
+    lineHeight: 22,
   },
   menuItemContent: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: 20,
     justifyContent: "center",
   },
   menuItemDescription: {
     fontSize: 14,
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
+    color: "hsl(0, 0%, 70%)",
     marginTop: 4,
     lineHeight: 18,
+    fontWeight: "400",
   },
   menuItemActive: {
-    backgroundColor: "hsl(0, 0%, 12%)",
+    backgroundColor: "hsl(0, 0%, 15%)",
     borderColor: "hsl(75, 100%, 60%)",
     borderWidth: 2,
     borderRadius: 12,
