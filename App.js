@@ -2952,22 +2952,6 @@ export default function App() {
               </View>
 
               <View style={styles.audioControls}>
-                {/* Previous Track Button */}
-                <TouchableOpacity
-                  style={styles.skipButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    // TODO: Implement previous track functionality
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="play-skip-back"
-                    size={20}
-                    color="hsl(0, 0%, 60%)"
-                  />
-                </TouchableOpacity>
-
                 {/* Play/Pause Button */}
                 <TouchableOpacity
                   style={styles.audioControlButton}
@@ -2985,22 +2969,6 @@ export default function App() {
                     name={globalAudioState.isPlaying ? "pause" : "play"}
                     size={22}
                     color="hsl(0, 0%, 100%)"
-                  />
-                </TouchableOpacity>
-
-                {/* Next Track Button */}
-                <TouchableOpacity
-                  style={styles.skipButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    // TODO: Implement next track functionality
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="play-skip-forward"
-                    size={20}
-                    color="hsl(0, 0%, 60%)"
                   />
                 </TouchableOpacity>
               </View>
@@ -4388,7 +4356,7 @@ const styles = StyleSheet.create({
   audioControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16, // More spacing between controls
+    justifyContent: "center", // Center the single button
   },
   audioControlButton: {
     width: 40, // Smaller, more compact
@@ -4402,15 +4370,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
-  },
-  skipButton: {
-    width: 32, // Smaller skip buttons
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
-    marginHorizontal: 4,
   },
   audioCloseButton: {
     width: 40,
