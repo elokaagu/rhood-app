@@ -4644,7 +4644,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fullScreenMenuContainer: {
-    backgroundColor: "hsl(0, 0%, 5%)",
+    backgroundColor: "yellow",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
@@ -4660,6 +4660,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 10,
     zIndex: 10000,
+    minHeight: 200,
   },
   fullScreenMenuContent: {
     padding: 20,
