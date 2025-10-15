@@ -357,14 +357,6 @@ export default function App() {
   const [audioPlayerSwipeOpacity] = useState(new Animated.Value(1));
   const [isAudioPlayerSwiping, setIsAudioPlayerSwiping] = useState(false);
 
-  // Format time helper function
-  const formatTime = (milliseconds) => {
-    if (!milliseconds || isNaN(milliseconds)) return "0:00";
-    const seconds = Math.floor(milliseconds / 1000);
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
 
   // Audio player animation effects
   useEffect(() => {
@@ -1313,15 +1305,6 @@ export default function App() {
 
     // Provide haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  // Format time helper function
-  const formatTime = (milliseconds) => {
-    if (!milliseconds || milliseconds < 0) return "0:00";
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   // Throttle seeking to prevent rapid successive calls
