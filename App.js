@@ -4555,6 +4555,7 @@ const styles = StyleSheet.create({
   },
   menuContent: {
     padding: 24,
+    paddingBottom: 40,
   },
   menuHeader: {
     flexDirection: "row",
