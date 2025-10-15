@@ -2034,6 +2034,16 @@ export default function App() {
   // Menu animation functions
   const openMenu = () => {
     console.log("🔍 Opening main menu");
+    // Close full-screen player if it's open to prevent modal conflicts
+    if (showFullScreenPlayer) {
+      console.log("🔍 Closing full-screen player to open main menu");
+      setShowFullScreenPlayer(false);
+    }
+    // Close full-screen menu if it's open
+    if (showFullScreenMenu) {
+      console.log("🔍 Closing full-screen menu to open main menu");
+      closeFullScreenMenu();
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowMenu(true);
     Animated.parallel([
