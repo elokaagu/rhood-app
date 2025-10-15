@@ -4585,7 +4585,7 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingVertical: 20,
     paddingHorizontal: 20,
     borderRadius: 12,
