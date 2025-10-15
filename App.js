@@ -50,6 +50,7 @@ import ProfileScreen from "./components/ProfileScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import RhoodModal from "./components/RhoodModal";
 import SwipeableOpportunityCard from "./components/SwipeableOpportunityCard";
+import ProgressiveImage from "./components/ProgressiveImage";
 // import BriefForm from "./components/BriefForm"; // REMOVED - no longer needed for simplified swipe-to-apply
 import { db, auth, supabase } from "./lib/supabase";
 import { APPLICATION_LIMITS } from "./lib/performanceConstants";
@@ -3306,15 +3307,36 @@ export default function App() {
                 </View>
 
                 {/* About the DJ Section */}
+                {console.log("🔍 About DJ Debug:", {
+                  hasTrack: !!globalAudioState.currentTrack,
+                  hasUser: !!globalAudioState.currentTrack?.user,
+                  profileImageUrl: globalAudioState.currentTrack?.user?.profile_image_url,
+                  djName: globalAudioState.currentTrack?.user?.dj_name,
+                  bio: globalAudioState.currentTrack?.user?.bio
+                })}
                 <View style={styles.aboutDJCard}>
                   <View style={styles.aboutDJHeader}>
-                    <Image
-                      source={{
-                        uri:
-                          globalAudioState.currentTrack?.user?.profile_image_url ||
-                          "https://via.placeholder.com/60x60/333333/ffffff?text=DJ",
-                      }}
+                    <ProgressiveImage
+                      source={
+                        globalAudioState.currentTrack?.user?.profile_image_url
+                          ? { uri: globalAudioState.currentTrack.user.profile_image_url }
+                          : null
+                      }
                       style={styles.aboutDJAvatar}
+                      placeholder={
+                        <View
+                          style={[
+                            styles.aboutDJAvatar,
+                            {
+                              backgroundColor: "hsl(0, 0%, 15%)",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            },
+                          ]}
+                        >
+                          <Ionicons name="person" size={24} color="hsl(0, 0%, 50%)" />
+                        </View>
+                      }
                     />
                     <View style={styles.aboutDJInfo}>
                       <Text style={styles.aboutDJTitle}>About the DJ</Text>
