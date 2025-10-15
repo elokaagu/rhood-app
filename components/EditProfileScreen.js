@@ -782,10 +782,8 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         </View>
 
         {/* Audio ID Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Audio ID</Text>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Current Audio ID</Text>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Audio ID</Text>
             {currentPrimaryMix ? (
               <View style={styles.audioIdCard}>
                 <View style={styles.audioIdInfo}>
@@ -826,7 +824,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                 </TouchableOpacity>
               </View>
             )}
-          </View>
         </View>
       </ScrollView>
 
