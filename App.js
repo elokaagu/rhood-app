@@ -3159,7 +3159,10 @@ export default function App() {
                   <View style={styles.headerSpacer} />
                   <TouchableOpacity
                     style={styles.closeButton}
-                    onPress={() => setShowFullScreenMenu(true)}
+                    onPress={() => {
+                      console.log("🔍 Three dots button pressed");
+                      setShowFullScreenMenu(true);
+                    }}
                   >
                     <Ionicons
                       name="ellipsis-horizontal"
@@ -3367,6 +3370,7 @@ export default function App() {
         )}
 
         {/* Full-Screen Player Menu Modal */}
+        {console.log("🔍 Full-screen menu state:", showFullScreenMenu)}
         {showFullScreenMenu && (
           <Modal
             visible={showFullScreenMenu}
@@ -3383,6 +3387,7 @@ export default function App() {
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => {
+                    console.log("🔍 Share Mix pressed");
                     setShowFullScreenMenu(false);
                     shareTrack();
                   }}
@@ -3398,6 +3403,7 @@ export default function App() {
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() => {
+                    console.log("🔍 Connect with DJ pressed");
                     setShowFullScreenMenu(false);
                     if (globalAudioState.currentTrack.user_id) {
                       setShowFullScreenPlayer(false);
