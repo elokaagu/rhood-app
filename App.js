@@ -3303,6 +3303,15 @@ export default function App() {
                   </TouchableOpacity>
                 </View>
 
+                {/* About the DJ Section */}
+                <View style={styles.aboutDJSection}>
+                  <Text style={styles.aboutDJTitle}>About the DJ</Text>
+                  <Text style={styles.aboutDJText}>
+                    {globalAudioState.currentTrack?.djBio || 
+                     "Discover more about this talented DJ and their unique sound."}
+                  </Text>
+                </View>
+
               </View>
             </View>
           </Modal>
@@ -4755,6 +4764,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
+  },
+
+  // About the DJ Section
+  aboutDJSection: {
+    marginTop: 32,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+  },
+  aboutDJTitle: {
+    fontSize: 18,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  aboutDJText: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    lineHeight: 20,
+    fontWeight: "400",
   },
 
   // Enhanced Progress Bar Styles
