@@ -195,6 +195,10 @@ export default function ProfileScreen({ onNavigate, user }) {
           achievements: achievements,
         });
         console.log("✅ Profile loaded from database");
+        console.log("🔍 Social media handles:", {
+          instagram: userProfile.instagram,
+          soundcloud: userProfile.soundcloud
+        });
         console.log(
           `📊 Loaded ${recentGigs.length} gigs and ${achievements.length} achievements`
         );
@@ -546,6 +550,12 @@ export default function ProfileScreen({ onNavigate, user }) {
         {/* Social Links */}
         <View style={styles.socialContainer}>
           <Text style={styles.sectionTitle}>SOCIAL LINKS</Text>
+          {console.log("🔍 Rendering social links with:", {
+            instagram: profile.socialLinks.instagram,
+            soundcloud: profile.socialLinks.soundcloud,
+            hasInstagram: !!profile.socialLinks.instagram,
+            hasSoundcloud: !!profile.socialLinks.soundcloud
+          })}
           <View style={styles.socialLinks}>
             {/* Instagram Link */}
             <TouchableOpacity
