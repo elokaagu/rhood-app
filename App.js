@@ -4537,7 +4537,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuContainer: {
-    backgroundColor: "hsl(0, 0%, 0%)",
+    backgroundColor: "pink",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
@@ -5494,13 +5494,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
-  menuContainer: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    marginHorizontal: 0,
   },
   menuItem: {
     flexDirection: "row",
