@@ -2872,7 +2872,12 @@ export default function App() {
                       size={20}
                       color="#C2CC06"
                     />
-                    <Text style={styles.menuItemText}>About R/HOOD</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>About R/HOOD</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Learn more about the app
+                      </Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -2892,7 +2897,12 @@ export default function App() {
                       size={20}
                       color="#C2CC06"
                     />
-                    <Text style={styles.menuItemText}>Messages</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Messages</Text>
+                      <Text style={styles.menuItemDescription}>
+                        View all conversations
+                      </Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -2909,7 +2919,12 @@ export default function App() {
                       size={20}
                       color="#C2CC06"
                     />
-                    <Text style={styles.menuItemText}>Notifications</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Notifications</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Stay updated on activity
+                      </Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -2921,7 +2936,12 @@ export default function App() {
                     activeOpacity={0.7}
                   >
                     <Ionicons name="people-outline" size={20} color="#C2CC06" />
-                    <Text style={styles.menuItemText}>Community</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Community</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Connect with other DJs
+                      </Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -2933,7 +2953,12 @@ export default function App() {
                     activeOpacity={0.7}
                   >
                     <Ionicons name="person-outline" size={20} color="#C2CC06" />
-                    <Text style={styles.menuItemText}>Profile</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Profile</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Manage your profile
+                      </Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -2949,7 +2974,12 @@ export default function App() {
                       size={20}
                       color="#C2CC06"
                     />
-                    <Text style={styles.menuItemText}>Settings</Text>
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Settings</Text>
+                      <Text style={styles.menuItemDescription}>
+                        App preferences
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -4424,6 +4454,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     borderBottomWidth: 0,
+    maxHeight: "70%",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -4440,10 +4471,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
-    paddingBottom: 15,
+    marginBottom: 30,
+    paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
+    borderBottomColor: "hsl(0, 0%, 20%)",
   },
   menuTitle: {
     fontSize: 20,
@@ -4460,13 +4491,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuItems: {
-    gap: 12,
+    gap: 16,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     borderRadius: 12,
     backgroundColor: "hsl(0, 0%, 10%)",
     borderWidth: 1,
@@ -4477,7 +4508,18 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
-    marginLeft: 12,
+  },
+  menuItemContent: {
+    flex: 1,
+    marginLeft: 16,
+    justifyContent: "center",
+  },
+  menuItemDescription: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+    marginTop: 4,
+    lineHeight: 18,
   },
   menuItemActive: {
     backgroundColor: "hsl(0, 0%, 15%)",
