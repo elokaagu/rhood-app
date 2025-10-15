@@ -4928,7 +4928,7 @@ const styles = StyleSheet.create({
   },
   fullScreenProgressBar: {
     height: 4,
-    backgroundColor: "hsl(0, 0%, 20%)",
+    backgroundColor: "hsla(0, 0%, 20%, 0.3)",
     borderRadius: 2,
     marginBottom: 16,
     position: "relative",
