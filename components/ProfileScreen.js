@@ -89,7 +89,7 @@ export default function ProfileScreen({ onNavigate, user }) {
       setLoading(true);
       const { db } = await import("../lib/supabase");
       const userProfile = await db.getUserProfile(user.id);
-      
+
       // Load user's mixes for selection
       try {
         const mixes = await db.getUserMixes(user.id);
@@ -233,7 +233,10 @@ export default function ProfileScreen({ onNavigate, user }) {
         "You need to upload some mixes first before you can set an Audio ID. Go to the Listen screen to upload your first mix!",
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Upload Mix", onPress: () => onNavigate && onNavigate("upload-mix") }
+          {
+            text: "Upload Mix",
+            onPress: () => onNavigate && onNavigate("upload-mix"),
+          },
         ]
       );
       return;
@@ -245,13 +248,13 @@ export default function ProfileScreen({ onNavigate, user }) {
     try {
       setSelectingMix(true);
       const { db } = await import("../lib/supabase");
-      
+
       // Set as primary mix
       await db.setPrimaryMix(user.id, mix.id);
-      
+
       // Reload profile to show updated Audio ID
       await loadProfile();
-      
+
       setShowMixSelection(false);
       Alert.alert("Success!", "Your Audio ID has been updated successfully.");
     } catch (error) {
@@ -808,7 +811,7 @@ export default function ProfileScreen({ onNavigate, user }) {
                 <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.mixList}>
               {userMixes.map((mix) => (
                 <TouchableOpacity
@@ -820,13 +823,27 @@ export default function ProfileScreen({ onNavigate, user }) {
                   <View style={styles.mixInfo}>
                     <Text style={styles.mixTitle}>{mix.title}</Text>
                     <Text style={styles.mixDetails}>
-                      {mix.genre} • {mix.duration ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60).toString().padStart(2, "0")}` : "Unknown duration"}
+                      {mix.genre} •{" "}
+                      {mix.duration
+                        ? `${Math.floor(mix.duration / 60)}:${(
+                            mix.duration % 60
+                          )
+                            .toString()
+                            .padStart(2, "0")}`
+                        : "Unknown duration"}
                     </Text>
                   </View>
                   {selectingMix ? (
-                    <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+                    <ActivityIndicator
+                      size="small"
+                      color="hsl(75, 100%, 60%)"
+                    />
                   ) : (
-                    <Ionicons name="chevron-forward" size={20} color="hsl(0, 0%, 50%)" />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="hsl(0, 0%, 50%)"
+                    />
                   )}
                 </TouchableOpacity>
               ))}
