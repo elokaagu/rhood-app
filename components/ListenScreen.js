@@ -86,6 +86,8 @@ export default function ListenScreen({
   const [mixes, setMixes] = useState([]);
   const [playingMixId, setPlayingMixId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -194,6 +196,48 @@ export default function ListenScreen({
 
   // Get unique genres for filter
   const genres = ["All", ...new Set(mixes.map((mix) => mix.genre))];
+
+  // Generate search suggestions
+  const generateSearchSuggestions = (query) => {
+    if (query.length < 2) return [];
+    
+    const suggestions = new Set();
+    
+    // Add mix titles
+    mixes.forEach(mix => {
+      if (mix.title.toLowerCase().includes(query.toLowerCase())) {
+        suggestions.add(mix.title);
+      }
+    });
+    
+    // Add artist names
+    mixes.forEach(mix => {
+      if (mix.artist.toLowerCase().includes(query.toLowerCase())) {
+        suggestions.add(mix.artist);
+      }
+    });
+    
+    // Add genres
+    genres.forEach(genre => {
+      if (genre.toLowerCase().includes(query.toLowerCase())) {
+        suggestions.add(genre);
+      }
+    });
+    
+    return Array.from(suggestions).slice(0, 5);
+  };
+
+  // Update search suggestions when query changes
+  useEffect(() => {
+    if (searchQuery.length >= 2) {
+      const suggestions = generateSearchSuggestions(searchQuery);
+      setSearchSuggestions(suggestions);
+      setShowSuggestions(suggestions.length > 0);
+    } else {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [searchQuery, mixes]);
 
   // Filter mixes
   const filteredMixes = mixes.filter((mix) => {
@@ -349,6 +393,11 @@ export default function ListenScreen({
     setSelectedGenre(genre);
   };
 
+  const handleSuggestionSelect = (suggestion) => {
+    setSearchQuery(suggestion);
+    setShowSuggestions(false);
+  };
+
   const handleAddToQueue = (mix) => {
     if (onAddToQueue) {
       onAddToQueue(mix);
@@ -374,24 +423,54 @@ export default function ListenScreen({
       </View>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search mixes, artists, or genres..."
-          placeholderTextColor="hsl(0, 0%, 50%)"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity
-            onPress={() => setSearchQuery("")}
-            style={styles.clearButton}
-          >
-            <Ionicons name="close-circle" size={20} color="hsl(0, 0%, 50%)" />
-          </TouchableOpacity>
+      <View style={styles.searchWrapper}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search mixes, artists, or genres..."
+            placeholderTextColor="hsl(0, 0%, 50%)"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+            onFocus={() => {
+              if (searchSuggestions.length > 0) {
+                setShowSuggestions(true);
+              }
+            }}
+            onBlur={() => {
+              // Delay hiding suggestions to allow tapping
+              setTimeout(() => setShowSuggestions(false), 150);
+            }}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery("");
+                setShowSuggestions(false);
+              }}
+              style={styles.clearButton}
+            >
+              <Ionicons name="close-circle" size={20} color="hsl(0, 0%, 50%)" />
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        {/* Search Suggestions */}
+        {showSuggestions && searchSuggestions.length > 0 && (
+          <View style={styles.suggestionsContainer}>
+            {searchSuggestions.map((suggestion, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.suggestionItem}
+                onPress={() => handleSuggestionSelect(suggestion)}
+              >
+                <Ionicons name="search" size={16} color="hsl(0, 0%, 60%)" />
+                <Text style={styles.suggestionText}>{suggestion}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
       </View>
 
@@ -640,13 +719,13 @@ const styles = StyleSheet.create({
   },
   tsBlockBoldHeading: {
     fontFamily: "TS-Block-Bold",
-    fontSize: 22,
+    fontSize: 18, // Reduced from 22 for better balance
     color: "#FFFFFF", // Brand white
     textAlign: "left", // Left aligned as per guidelines
     textTransform: "uppercase", // Always uppercase
-    lineHeight: 26, // Tight line height for stacked effect
-    letterSpacing: 1, // Slight spacing for impact
-    marginBottom: 16,
+    lineHeight: 22, // Adjusted line height
+    letterSpacing: 0.5, // Reduced letter spacing
+    marginBottom: 12, // Reduced margin for tighter spacing
   },
   headerSubtitle: {
     fontSize: 16,
@@ -706,12 +785,13 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   recommendationsTitle: {
-    fontSize: 18,
+    fontSize: 16, // Reduced from 18 for consistency
     fontFamily: "TS-Block-Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 16,
     textTransform: "uppercase",
+    letterSpacing: 0.5, // Added letter spacing for consistency
   },
   recommendationsScroll: {
     marginHorizontal: -20,
@@ -820,6 +900,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   // Search Bar Styles
+  searchWrapper: {
+    margin: 20,
+    marginBottom: 16,
+    position: "relative",
+  },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -827,10 +912,38 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    margin: 20,
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
+  },
+  suggestionsContainer: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+    borderTopWidth: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    marginTop: -1,
+    zIndex: 1000,
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  suggestionText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 85%)",
+    marginLeft: 12,
   },
   searchInput: {
     flex: 1,
@@ -840,7 +953,10 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
   },
   clearButton: {
-    padding: 4,
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    marginLeft: 8,
   },
   // Genre Filter Styles
   genreFilterContainer: {
@@ -851,9 +967,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   genreChip: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+    backgroundColor: "hsl(0, 0%, 12%)", // Slightly lighter background
+    borderWidth: 1.5, // Thicker border for better visibility
+    borderColor: "hsl(0, 0%, 25%)", // Lighter border color
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -866,7 +982,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Helvetica Neue",
     fontWeight: "500",
-    color: "hsl(0, 0%, 70%)",
+    color: "hsl(0, 0%, 85%)", // Lighter text for better contrast
   },
   genreChipTextActive: {
     color: "hsl(0, 0%, 0%)",

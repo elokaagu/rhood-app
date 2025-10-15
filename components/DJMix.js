@@ -207,7 +207,10 @@ const DJMix = ({
         {...panResponder.panHandlers}
       >
         <TouchableOpacity
-          style={styles.mixCard}
+          style={[
+            styles.mixCard,
+            isPlaying && styles.mixCardPlaying
+          ]}
           onPress={onPlayPause}
           activeOpacity={0.7}
           delayPressIn={isOwnMix ? 100 : 0}
@@ -237,6 +240,15 @@ const DJMix = ({
                 />
               </View>
             )}
+            
+            {/* Play Icon Overlay */}
+            {isPlaying && (
+              <View style={styles.playOverlay}>
+                <Animated.View style={[styles.playIconContainer, { transform: [{ scale: pulseAnim }] }]}>
+                  <Ionicons name="play" size={16} color="hsl(75, 100%, 60%)" />
+                </Animated.View>
+              </View>
+            )}
           </View>
 
           {/* Track Info */}
@@ -254,6 +266,21 @@ const DJMix = ({
                 {mix.artist}
               </Text>
             </TouchableOpacity>
+            
+            {/* Additional Mix Info */}
+            <View style={styles.mixDetails}>
+              <Text style={styles.mixDetailText}>
+                {mix.duration || "5:00"}
+              </Text>
+              <Text style={styles.mixDetailSeparator}>•</Text>
+              <Text style={styles.mixDetailText}>
+                {mix.plays || 0} plays
+              </Text>
+              <Text style={styles.mixDetailSeparator}>•</Text>
+              <Text style={styles.mixDetailText}>
+                {mix.genre || "Electronic"}
+              </Text>
+            </View>
           </View>
 
           {/* Options Menu - Show for all mixes */}
@@ -365,6 +392,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  mixCardPlaying: {
+    borderColor: "hsl(75, 100%, 60%)", // R/HOOD green border
+    borderWidth: 2,
+    backgroundColor: "hsl(0, 0%, 3%)", // Slightly lighter background
+  },
   deleteButtonContainer: {
     position: "absolute",
     right: 0,
@@ -393,6 +425,27 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     overflow: "hidden",
     marginRight: 12,
+  },
+  playOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    borderRadius: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  playIconContainer: {
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "hsl(75, 100%, 60%)",
   },
   albumArt: {
     width: "100%",
@@ -495,6 +548,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
     fontWeight: "600",
+  },
+  mixDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  mixDetailText: {
+    color: "hsl(0, 0%, 60%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "400",
+  },
+  mixDetailSeparator: {
+    color: "hsl(0, 0%, 40%)",
+    fontSize: 12,
+    marginHorizontal: 6,
   },
 });
 
