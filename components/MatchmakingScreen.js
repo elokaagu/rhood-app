@@ -68,8 +68,17 @@ export default function MatchmakingScreen({ userId, onNavigate }) {
     } catch (error) {
       console.error("Error applying:", error);
 
-      // Check if it's a daily limit error
-      if (error.message.includes("Daily application limit")) {
+      // Check if it's a mix requirement error
+      if (error.message.includes("upload at least one mix")) {
+        Alert.alert(
+          "Mix Required",
+          error.message,
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Upload Mix", onPress: () => onNavigate && onNavigate("upload-mix") }
+          ]
+        );
+      } else if (error.message.includes("Daily application limit")) {
         Alert.alert("Daily Limit Reached", error.message);
       } else if (error.message.includes("already applied")) {
         Alert.alert("Already Applied", error.message);

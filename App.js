@@ -1505,8 +1505,21 @@ export default function App() {
         [{ text: "OK" }]
       );
     } catch (error) {
-      // Check if it's a daily limit error
-      if (error.message.includes("Daily application limit")) {
+      // Check if it's a mix requirement error
+      if (error.message.includes("upload at least one mix")) {
+        showCustomModal({
+          type: "warning",
+          title: "Mix Required",
+          message: error.message,
+          primaryButtonText: "Upload Mix",
+          onPrimaryPress: () => {
+            setCurrentScreen("upload-mix");
+            hideCustomModal();
+          },
+          secondaryButtonText: "Cancel",
+          onSecondaryPress: hideCustomModal,
+        });
+      } else if (error.message.includes("Daily application limit")) {
         showCustomModal({
           type: "warning",
           title: "Daily Limit Reached",
