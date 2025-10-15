@@ -250,11 +250,8 @@ export default function App() {
   // Notification badge state
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  const [showMenu, setShowMenu] = useState(false);
   const [showFadeOverlay, setShowFadeOverlay] = useState(false);
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
-  const menuSlideAnim = useRef(new Animated.Value(0)).current;
-  const menuOpacityAnim = useRef(new Animated.Value(0)).current;
   const fullScreenMenuSlideAnim = useRef(new Animated.Value(0)).current;
   const fullScreenMenuOpacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -2052,49 +2049,6 @@ export default function App() {
     }
   };
 
-  // Menu animation functions
-  const openMenu = () => {
-    // Close full-screen player if it's open to prevent modal conflicts
-    if (showFullScreenPlayer) {
-      setShowFullScreenPlayer(false);
-    }
-    // Close full-screen menu if it's open
-    if (showFullScreenMenu) {
-      closeFullScreenMenu();
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowMenu(true);
-    Animated.parallel([
-      Animated.timing(menuSlideAnim, {
-        toValue: 1,
-        duration: ANIMATION_DURATION.NORMAL,
-        useNativeDriver: true,
-      }),
-      Animated.timing(menuOpacityAnim, {
-        toValue: 1,
-        duration: ANIMATION_DURATION.FAST,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const closeMenu = () => {
-    Animated.parallel([
-      Animated.timing(menuSlideAnim, {
-        toValue: 0,
-        duration: ANIMATION_DURATION.NORMAL,
-        useNativeDriver: true,
-      }),
-      Animated.timing(menuOpacityAnim, {
-        toValue: 0,
-        duration: ANIMATION_DURATION.FAST,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setShowMenu(false);
-    });
-  };
-
   // Full-screen menu animation functions
   const openFullScreenMenu = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -2767,9 +2721,6 @@ export default function App() {
             </View>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.menuButton} onPress={openMenu}>
-              <Ionicons name="menu" size={24} color="hsl(0, 0%, 100%)" />
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -2875,188 +2826,6 @@ export default function App() {
           </LinearGradient>
         )}
 
-        {/* Hamburger Menu Modal */}
-        <Modal
-          visible={showMenu}
-          transparent={true}
-          animationType="none"
-          onRequestClose={closeMenu}
-        >
-          <Animated.View
-            style={[
-              styles.menuOverlay,
-              {
-                opacity: menuOpacityAnim,
-              },
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.menuOverlayTouchable}
-              activeOpacity={1}
-              onPress={closeMenu}
-            />
-            <Animated.View
-              style={[
-                styles.menuContainer,
-                {
-                  transform: [
-                    {
-                      translateY: menuSlideAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [300, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <View style={styles.menuContent}>
-                <View style={styles.menuHeader}>
-                  <Text style={styles.menuTitle}>MENU</Text>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={closeMenu}
-                  >
-                    <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.menuItems}>
-                  <TouchableOpacity
-                    style={[
-                      styles.menuItem,
-                      currentScreen === "about" && styles.menuItemActive,
-                    ]}
-                    onPress={() => handleMenuNavigation("about")}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="information-circle-outline"
-                      size={24}
-                      color="hsl(75, 100%, 60%)"
-                    />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>About R/HOOD</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Learn more about the app
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.menuItem,
-                      currentScreen === "connections" && styles.menuItemActive,
-                    ]}
-                    onPress={() =>
-                      handleMenuNavigation("connections", {
-                        initialTab: "connections",
-                      })
-                    }
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="chatbubbles-outline"
-                      size={24}
-                      color="hsl(75, 100%, 60%)"
-                    />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Messages</Text>
-                      <Text style={styles.menuItemDescription}>
-                        View all conversations
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.menuItem,
-                      currentScreen === "notifications" &&
-                        styles.menuItemActive,
-                    ]}
-                    onPress={() => handleMenuNavigation("notifications")}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="notifications-outline"
-                      size={24}
-                      color="hsl(75, 100%, 60%)"
-                    />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Notifications</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Stay updated on activity
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.menuItem,
-                      currentScreen === "community" && styles.menuItemActive,
-                    ]}
-                    onPress={() => handleMenuNavigation("community")}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="people-outline"
-                      size={24}
-                      color="hsl(75, 100%, 60%)"
-                    />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Community</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Connect with other DJs
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.menuItem,
-                      currentScreen === "profile" && styles.menuItemActive,
-                    ]}
-                    onPress={() => handleMenuNavigation("profile")}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="person-outline"
-                      size={24}
-                      color="hsl(75, 100%, 60%)"
-                    />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Profile</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Manage your profile
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.menuItem,
-                      currentScreen === "settings" && styles.menuItemActive,
-                    ]}
-                    onPress={() => handleMenuNavigation("settings")}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="settings-outline"
-                      size={24}
-                      color="hsl(75, 100%, 60%)"
-                    />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Settings</Text>
-                      <Text style={styles.menuItemDescription}>
-                        App preferences
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Animated.View>
-          </Animated.View>
-        </Modal>
 
         {/* Dark Fade Overlay Above Play Bar */}
         {globalAudioState.currentTrack && (
@@ -3647,16 +3416,6 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  menuButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 30%)",
   },
   logoContainer: {
     flexDirection: "row",
@@ -4539,98 +4298,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
     fontFamily: "Helvetica Neue",
-  },
-  // Hamburger Menu Styles - Replica of Original Reference
-  menuOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "flex-end",
-  },
-  menuOverlayTouchable: {
-    flex: 1,
-  },
-  menuContainer: {
-    backgroundColor: "hsl(0, 0%, 3%)",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-    borderBottomWidth: 0,
-    maxHeight: "70%",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: -4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  menuContent: {
-    padding: 24,
-  },
-  menuHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 20%)",
-  },
-  menuTitle: {
-    fontSize: 24,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
-    color: "hsl(0, 0%, 100%)",
-    letterSpacing: 1,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  menuItems: {
-    gap: 8,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    backgroundColor: "hsl(0, 0%, 15%)",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
-  },
-  menuItemText: {
-    fontSize: 18,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 100%)",
-    fontWeight: "600",
-    lineHeight: 22,
-  },
-  menuItemContent: {
-    flex: 1,
-    marginLeft: 20,
-    justifyContent: "center",
-  },
-  menuItemDescription: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    marginTop: 4,
-    lineHeight: 18,
-    fontWeight: "400",
-  },
-  menuItemActive: {
-    backgroundColor: "hsl(0, 0%, 15%)",
-    borderColor: "hsl(75, 100%, 60%)",
-    borderWidth: 2,
-    borderRadius: 12,
   },
 
   // Full-Screen Player Menu Styles
