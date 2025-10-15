@@ -3462,7 +3462,7 @@ export default function App() {
         {/* Full-Screen Player Menu Bottom Sheet */}
         <Modal
           visible={showFullScreenMenu}
-          transparent={true}
+          transparent={false}
           animationType="slide"
           onRequestClose={closeFullScreenMenu}
         >
@@ -3470,75 +3470,16 @@ export default function App() {
             "Full-screen menu modal rendering, showFullScreenMenu:",
             showFullScreenMenu
           )}
-          <View style={styles.fullScreenMenuOverlay}>
-            <TouchableOpacity
-              style={styles.fullScreenMenuOverlayTouchable}
-              activeOpacity={1}
+          <View style={{flex: 1, backgroundColor: 'red', justifyContent: 'center', alignItems: 'center'}}>
+            <Text style={{color: 'white', fontSize: 24}}>TEST MODAL</Text>
+            <TouchableOpacity 
+              style={{backgroundColor: 'blue', padding: 20, marginTop: 20}}
               onPress={closeFullScreenMenu}
-            />
-            <View style={styles.fullScreenMenuContainer}>
-              <View style={styles.fullScreenMenuContent}>
-                <View style={styles.fullScreenMenuHeader}>
-                  <Text style={styles.tsBlockBoldHeading}>Mix Options</Text>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={closeFullScreenMenu}
-                  >
-                    <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.fullScreenMenuItems}>
-                  <TouchableOpacity
-                    style={styles.fullScreenMenuItem}
-                    onPress={() => {
-                      closeFullScreenMenu();
-                      shareTrack();
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="share-outline" size={20} color="#C2CC06" />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Share Mix</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Share this mix with others
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.fullScreenMenuItem}
-                    onPress={() => {
-                      closeFullScreenMenu();
-                      if (globalAudioState.currentTrack?.user_id) {
-                        setShowFullScreenPlayer(false);
-                        setCurrentScreen("user-profile");
-                        setScreenParams({
-                          userId: globalAudioState.currentTrack.user_id,
-                        });
-                      } else {
-                        Alert.alert("Error", "Unable to view DJ profile");
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="person-add-outline"
-                      size={20}
-                      color="#C2CC06"
-                    />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Connect with DJ</Text>
-                      <Text style={styles.menuItemDescription}>
-                        View DJ profile and connect
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-                </View>
-              </View>
-            </View>
-          </Modal>
+            >
+              <Text style={{color: 'white'}}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
 
         {/* Application Sent Modal */}
 
