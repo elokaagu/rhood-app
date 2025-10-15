@@ -3318,7 +3318,22 @@ export default function App() {
                   djName: globalAudioState.currentTrack?.user?.dj_name,
                   bio: globalAudioState.currentTrack?.user?.bio,
                 })}
-                <View style={styles.aboutDJCard}>
+                <TouchableOpacity 
+                  style={styles.aboutDJCard}
+                  onPress={() => {
+                    console.log("🔍 About DJ card pressed - navigating to profile");
+                    if (globalAudioState.currentTrack?.user_id) {
+                      setShowFullScreenPlayer(false);
+                      setCurrentScreen("user-profile");
+                      setScreenParams({
+                        userId: globalAudioState.currentTrack.user_id,
+                      });
+                    } else {
+                      Alert.alert("Error", "Unable to view DJ profile");
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
                   <View style={styles.aboutDJHeader}>
                     <ProgressiveImage
                       source={
@@ -3358,12 +3373,18 @@ export default function App() {
                           "Unknown DJ"}
                       </Text>
                     </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="hsl(0, 0%, 50%)"
+                      style={styles.aboutDJArrow}
+                    />
                   </View>
                   <Text style={styles.aboutDJText}>
                     {globalAudioState.currentTrack?.user?.bio ||
                       "Discover more about this talented DJ and their unique sound."}
                   </Text>
-                </View>
+                </TouchableOpacity>
               </ScrollView>
             </View>
           </Modal>
@@ -4866,6 +4887,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "hsl(75, 100%, 60%)",
     fontWeight: "500",
+  },
+  aboutDJArrow: {
+    marginLeft: 8,
   },
   aboutDJText: {
     fontSize: 14,
