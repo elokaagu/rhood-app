@@ -125,12 +125,13 @@ export default function ListenScreen({
       const transformedMixes = await Promise.all(
         data.map(async (mix) => {
           let artistName = "Unknown Artist";
+          let userProfile = null;
 
-          // Try to fetch user profile for artist name
+          // Try to fetch user profile for artist name and bio
           if (mix.user_id) {
             const { data: profile } = await supabase
               .from("user_profiles")
-              .select("dj_name, first_name, last_name")
+              .select("dj_name, first_name, last_name, bio, profile_image_url, username")
               .eq("id", mix.user_id)
               .single();
 
@@ -141,6 +142,16 @@ export default function ListenScreen({
                   profile.last_name || ""
                 }`.trim() ||
                 "Unknown Artist";
+              
+              userProfile = {
+                id: mix.user_id,
+                dj_name: profile.dj_name,
+                first_name: profile.first_name,
+                last_name: profile.last_name,
+                bio: profile.bio,
+                profile_image_url: profile.profile_image_url,
+                username: profile.username,
+              };
             }
           }
 
@@ -161,6 +172,7 @@ export default function ListenScreen({
               "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
             audioUrl: mix.file_url,
             plays: mix.plays || mix.play_count || 0,
+            user: userProfile, // Include full user profile data
           };
 
           // Debug logging for uploaded mixes

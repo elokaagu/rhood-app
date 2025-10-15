@@ -3310,25 +3310,24 @@ export default function App() {
                   <View style={styles.aboutDJHeader}>
                     <Image
                       source={{
-                        uri: globalAudioState.currentTrack?.djProfileImage ||
+                        uri:
                           globalAudioState.currentTrack?.user?.profile_image_url ||
-                          "https://via.placeholder.com/60x60/333333/ffffff?text=DJ"
+                          "https://via.placeholder.com/60x60/333333/ffffff?text=DJ",
                       }}
                       style={styles.aboutDJAvatar}
                     />
                     <View style={styles.aboutDJInfo}>
                       <Text style={styles.aboutDJTitle}>About the DJ</Text>
                       <Text style={styles.aboutDJName}>
-                        {globalAudioState.currentTrack?.djName ||
-                          globalAudioState.currentTrack?.user?.dj_name ||
-                          globalAudioState.currentTrack?.user?.full_name ||
+                        {globalAudioState.currentTrack?.user?.dj_name ||
+                          globalAudioState.currentTrack?.user?.first_name ||
+                          globalAudioState.currentTrack?.artist ||
                           "Unknown DJ"}
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.aboutDJText}>
-                    {globalAudioState.currentTrack?.djBio ||
-                      globalAudioState.currentTrack?.user?.bio ||
+                    {globalAudioState.currentTrack?.user?.bio ||
                       "Discover more about this talented DJ and their unique sound."}
                   </Text>
                 </View>
