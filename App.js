@@ -3137,8 +3137,10 @@ export default function App() {
               {/* Dark overlay for better text readability */}
               <View style={styles.fullScreenOverlay} />
 
-              <View
+              <ScrollView 
                 style={styles.fullScreenPlayer}
+                contentContainerStyle={styles.fullScreenPlayerContent}
+                showsVerticalScrollIndicator={false}
                 {...createGestureHandlers()}
               >
                 {/* Header with close button and menu */}
@@ -3312,7 +3314,7 @@ export default function App() {
                   </Text>
                 </View>
 
-              </View>
+              </ScrollView>
             </View>
           </Modal>
         )}
@@ -4627,11 +4629,14 @@ const styles = StyleSheet.create({
   },
   fullScreenPlayer: {
     flex: 1,
+    backgroundColor: "transparent",
+    zIndex: 1,
+  },
+  fullScreenPlayerContent: {
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 40,
-    backgroundColor: "transparent",
-    zIndex: 1,
+    minHeight: Dimensions.get('window').height,
   },
   fullScreenHeader: {
     flexDirection: "row",
@@ -4696,24 +4701,24 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   fullScreenProgressBar: {
-    height: 2,
+    height: 1,
     backgroundColor: "hsl(0, 0%, 20%)",
-    borderRadius: 1,
+    borderRadius: 0.5,
     marginBottom: 16,
     position: "relative",
     paddingVertical: 8,
     justifyContent: "center",
   },
   fullScreenProgressFill: {
-    height: 2,
+    height: 1,
     backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 1,
+    borderRadius: 0.5,
     position: "absolute",
     top: 8,
   },
   fullScreenProgressThumb: {
     position: "absolute",
-    top: 2,
+    top: 1,
     width: 12,
     height: 12,
     borderRadius: 6,
