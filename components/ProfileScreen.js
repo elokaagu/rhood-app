@@ -792,8 +792,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 3,
-    borderColor: "hsl(75, 100%, 60%)", // R/HOOD green border
   },
   profileImage: {
     width: 100,
