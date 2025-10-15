@@ -195,7 +195,7 @@ export default function ListenScreen({
   }, []);
 
   // Get unique genres for filter
-  const genres = ["All", ...new Set(mixes.map((mix) => mix.genre))];
+  const genres = ["All", "Recently Added", "Most Popular", ...new Set(mixes.map((mix) => mix.genre))];
 
   // Generate search suggestions
   const generateSearchSuggestions = (query) => {
@@ -245,8 +245,35 @@ export default function ListenScreen({
       mix.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mix.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mix.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesGenre = selectedGenre === "All" || mix.genre === selectedGenre;
-    return matchesSearch && matchesGenre;
+    
+    let matchesFilter = true;
+    
+    if (selectedGenre === "All") {
+      matchesFilter = true;
+    } else if (selectedGenre === "Recently Added") {
+      // Sort by creation date (most recent first)
+      matchesFilter = true;
+    } else if (selectedGenre === "Most Popular") {
+      // Sort by play count (most plays first)
+      matchesFilter = true;
+    } else {
+      matchesFilter = mix.genre === selectedGenre;
+    }
+    
+    return matchesSearch && matchesFilter;
+  });
+
+  // Sort filtered mixes based on selected filter
+  const sortedMixes = [...filteredMixes].sort((a, b) => {
+    if (selectedGenre === "Recently Added") {
+      // Sort by creation date (most recent first)
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    } else if (selectedGenre === "Most Popular") {
+      // Sort by play count (most plays first)
+      return (b.plays || 0) - (a.plays || 0);
+    }
+    // Default sort by creation date
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
   });
 
   // Sync local playing state with global audio state
@@ -489,6 +516,7 @@ export default function ListenScreen({
               selectedGenre === genre && styles.genreChipActive,
             ]}
             onPress={() => handleGenreFilter(genre)}
+            activeOpacity={0.7}
           >
             <Text
               style={[
@@ -511,7 +539,7 @@ export default function ListenScreen({
       <View style={styles.recommendationsSection}>
         <View style={styles.recommendationsHeader}>
           <Text style={styles.recommendationsTitle}>More Like This</Text>
-          <TouchableOpacity style={styles.viewAllButton}>
+          <TouchableOpacity style={styles.viewAllButton} activeOpacity={0.7}>
             <Text style={styles.viewAllText}>View All</Text>
             <Ionicons name="chevron-forward" size={16} color="hsl(75, 100%, 60%)" />
           </TouchableOpacity>
@@ -527,6 +555,7 @@ export default function ListenScreen({
               key={`rec-${mix.id}`}
               style={styles.recommendationCard}
               onPress={() => handleMixPress(mix)}
+              activeOpacity={0.8}
             >
               <Image
                 source={{ uri: mix.image }}
@@ -564,6 +593,7 @@ export default function ListenScreen({
           <TouchableOpacity
             style={styles.uploadButton}
             onPress={handleUploadMix}
+            activeOpacity={0.8}
           >
             <Text style={styles.uploadButtonText}>Upload Mix</Text>
           </TouchableOpacity>
@@ -578,7 +608,7 @@ export default function ListenScreen({
   return (
     <View style={styles.container}>
       <FlatList
-        data={loading ? [] : filteredMixes}
+        data={loading ? [] : sortedMixes}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item: mix, index }) => (
           <AnimatedListItem index={index} delay={80}>
@@ -642,6 +672,7 @@ export default function ListenScreen({
                 <TouchableOpacity
                   style={styles.emptyStateButton}
                   onPress={handleUploadMix}
+                  activeOpacity={0.8}
                 >
                   <Text style={styles.emptyStateButtonText}>
                     Upload Your First Mix
@@ -695,6 +726,7 @@ export default function ListenScreen({
               <TouchableOpacity
                 style={styles.modalCancelButton}
                 onPress={() => setShowUploadModal(false)}
+                activeOpacity={0.7}
               >
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
@@ -707,6 +739,7 @@ export default function ListenScreen({
                     onNavigate("upload-mix");
                   }
                 }}
+                activeOpacity={0.8}
               >
                 <LinearGradient
                   colors={["hsl(75, 100%, 60%)", "hsl(75, 100%, 50%)"]}
