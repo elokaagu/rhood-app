@@ -4323,7 +4323,7 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     backgroundColor: "hsl(0, 0%, 8%)", // Dark background
-    borderRadius: 50, // Very rounded, pill-shaped
+    borderRadius: 12, // Reduced from 50 to match other elements
     paddingVertical: 12, // Compact vertical padding
     paddingHorizontal: 16,
     zIndex: 1001, // Higher than tab bar
@@ -4428,8 +4428,8 @@ const styles = StyleSheet.create({
     right: 0,
     height: 3, // Very thin progress bar
     backgroundColor: "hsl(0, 0%, 15%)", // Dark track
-    borderBottomLeftRadius: 50, // Match container radius
-    borderBottomRightRadius: 50,
+    borderBottomLeftRadius: 12, // Match container radius
+    borderBottomRightRadius: 12,
     overflow: "hidden",
   },
   audioProgressBar: {
