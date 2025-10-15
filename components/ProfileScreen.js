@@ -179,7 +179,7 @@ export default function ProfileScreen({ onNavigate, user }) {
                 .replace(/\s+/g, "")}`,
           gigsCompleted: userProfile.gigs_completed || 0,
           credits: userProfile.credits || 0,
-          bio: userProfile.bio || "No bio available",
+          bio: userProfile.bio || "",
           location: userProfile.city || "Location not set",
           genres: userProfile.genres || [],
           profileImage: userProfile.profile_image_url
@@ -213,7 +213,6 @@ export default function ProfileScreen({ onNavigate, user }) {
   const handleEditProfile = () => {
     onNavigate && onNavigate("edit-profile");
   };
-
 
   const handleShareProfile = () => {
     // In a real app, this would use the Share API
@@ -462,7 +461,7 @@ export default function ProfileScreen({ onNavigate, user }) {
               </Text>
             </View>
 
-            <Text style={styles.bio}>{profile.bio}</Text>
+            {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
 
             <View style={styles.locationContainer}>
               <Ionicons name="location" size={16} color="hsl(0, 0%, 70%)" />

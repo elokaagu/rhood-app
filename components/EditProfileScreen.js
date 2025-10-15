@@ -109,10 +109,12 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         try {
           const mixes = await db.getUserMixes(user.id);
           setUserMixes(mixes);
-          
+
           // Set current primary mix if exists
           if (userProfile.primary_mix_id) {
-            const primaryMix = mixes.find(mix => mix.id === userProfile.primary_mix_id);
+            const primaryMix = mixes.find(
+              (mix) => mix.id === userProfile.primary_mix_id
+            );
             setCurrentPrimaryMix(primaryMix || null);
           }
         } catch (mixesError) {
@@ -263,7 +265,12 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         "You need to upload some mixes first before you can set an Audio ID. Go to the Listen screen to upload your first mix!",
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Upload Mix", onPress: () => {/* Navigate to upload */} }
+          {
+            text: "Upload Mix",
+            onPress: () => {
+              /* Navigate to upload */
+            },
+          },
         ]
       );
       return;
@@ -274,13 +281,13 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   const handleSelectMix = async (mix) => {
     try {
       setSelectingMix(true);
-      
+
       // Set as primary mix
       await db.setPrimaryMix(user.id, mix.id);
-      
+
       // Update local state
       setCurrentPrimaryMix(mix);
-      
+
       setShowMixSelection(false);
       Alert.alert("Success!", "Your Audio ID has been updated successfully.");
     } catch (error) {
@@ -782,9 +789,18 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
             {currentPrimaryMix ? (
               <View style={styles.audioIdCard}>
                 <View style={styles.audioIdInfo}>
-                  <Text style={styles.audioIdTitle}>{currentPrimaryMix.title}</Text>
+                  <Text style={styles.audioIdTitle}>
+                    {currentPrimaryMix.title}
+                  </Text>
                   <Text style={styles.audioIdDetails}>
-                    {currentPrimaryMix.genre} • {currentPrimaryMix.duration ? `${Math.floor(currentPrimaryMix.duration / 60)}:${(currentPrimaryMix.duration % 60).toString().padStart(2, "0")}` : "Unknown duration"}
+                    {currentPrimaryMix.genre} •{" "}
+                    {currentPrimaryMix.duration
+                      ? `${Math.floor(currentPrimaryMix.duration / 60)}:${(
+                          currentPrimaryMix.duration % 60
+                        )
+                          .toString()
+                          .padStart(2, "0")}`
+                      : "Unknown duration"}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -796,7 +812,11 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               </View>
             ) : (
               <View style={styles.noAudioIdCard}>
-                <Ionicons name="musical-notes-outline" size={32} color="hsl(0, 0%, 30%)" />
+                <Ionicons
+                  name="musical-notes-outline"
+                  size={32}
+                  color="hsl(0, 0%, 30%)"
+                />
                 <Text style={styles.noAudioIdText}>No Audio ID set</Text>
                 <TouchableOpacity
                   style={styles.changeAudioIdButton}
@@ -841,7 +861,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                 <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.mixList}>
               {userMixes.map((mix) => (
                 <TouchableOpacity
@@ -853,13 +873,27 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                   <View style={styles.mixInfo}>
                     <Text style={styles.mixTitle}>{mix.title}</Text>
                     <Text style={styles.mixDetails}>
-                      {mix.genre} • {mix.duration ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60).toString().padStart(2, "0")}` : "Unknown duration"}
+                      {mix.genre} •{" "}
+                      {mix.duration
+                        ? `${Math.floor(mix.duration / 60)}:${(
+                            mix.duration % 60
+                          )
+                            .toString()
+                            .padStart(2, "0")}`
+                        : "Unknown duration"}
                     </Text>
                   </View>
                   {selectingMix ? (
-                    <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+                    <ActivityIndicator
+                      size="small"
+                      color="hsl(75, 100%, 60%)"
+                    />
                   ) : (
-                    <Ionicons name="chevron-forward" size={20} color="hsl(0, 0%, 50%)" />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="hsl(0, 0%, 50%)"
+                    />
                   )}
                 </TouchableOpacity>
               ))}
