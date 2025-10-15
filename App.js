@@ -1349,10 +1349,32 @@ export default function App() {
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onStartShouldSetPanResponderCapture: () => false,
-        onMoveShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          // Only start dragging if there's significant movement
+          return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+        },
         onMoveShouldSetPanResponderCapture: () => false,
-        onPanResponderGrant: () => {
-          // Start of drag - provide haptic feedback
+        onPanResponderGrant: (evt) => {
+          // Check if audio is ready
+          if (
+            globalAudioState.durationMillis <= 0 ||
+            globalAudioState.isLoading
+          ) {
+            return;
+          }
+
+          // Get progress bar width dynamically
+          const progressBarWidth = Dimensions.get("window").width - 48; // Account for padding
+          const percentage = Math.max(
+            0,
+            Math.min(1, evt.nativeEvent.locationX / progressBarWidth)
+          );
+
+          // Calculate new position and seek immediately for tap
+          const newPosition = percentage * globalAudioState.durationMillis;
+          seekToPosition(newPosition);
+          
+          // Provide haptic feedback
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         },
         onPanResponderMove: (_, gestureState) => {
@@ -3247,10 +3269,8 @@ export default function App() {
 
                 {/* Progress Bar */}
                 <View style={styles.fullScreenProgressSection}>
-                  <TouchableOpacity
+                  <View
                     style={styles.fullScreenProgressBar}
-                    onPress={handleProgressBarPress}
-                    activeOpacity={0.8}
                     {...fullScreenProgressBarPanResponder.panHandlers}
                   >
                     <View
@@ -3269,7 +3289,7 @@ export default function App() {
                         },
                       ]}
                     />
-                  </TouchableOpacity>
+                  </View>
                   <View style={styles.fullScreenTimeContainer}>
                     <Text style={styles.fullScreenTimeText}>
                       {formatTime(globalAudioState.positionMillis || 0)}
@@ -4913,24 +4933,24 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   fullScreenProgressBar: {
-    height: 1,
+    height: 4,
     backgroundColor: "hsl(0, 0%, 20%)",
-    borderRadius: 0.5,
+    borderRadius: 2,
     marginBottom: 16,
     position: "relative",
-    paddingVertical: 2,
+    paddingVertical: 12,
     justifyContent: "center",
   },
   fullScreenProgressFill: {
-    height: 1,
+    height: 4,
     backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 0.5,
+    borderRadius: 2,
     position: "absolute",
-    top: 2,
+    top: 12,
   },
   fullScreenProgressThumb: {
     position: "absolute",
-    top: 0,
+    top: 8,
     width: 12,
     height: 12,
     borderRadius: 6,
