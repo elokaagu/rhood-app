@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
   trackArtist: {
     fontSize: 14,
     fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)",
+    color: "hsl(0, 0%, 85%)", // Changed from green to light gray
     marginBottom: 2,
   },
   trackDescription: {
