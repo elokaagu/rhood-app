@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
   trackTitle: {
     fontSize: 16,
     fontFamily: "Helvetica Neue",
-    fontWeight: "600",
+    fontWeight: "bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 2,
   },
