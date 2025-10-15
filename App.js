@@ -2836,12 +2836,11 @@ export default function App() {
               style={[
                 styles.menuContainer,
                 {
-                  opacity: menuOpacityAnim,
                   transform: [
                     {
-                      scale: menuSlideAnim.interpolate({
+                      translateY: menuSlideAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [0.8, 1],
+                        outputRange: [300, 0],
                       }),
                     },
                   ],
@@ -2873,12 +2872,7 @@ export default function App() {
                       size={20}
                       color="#C2CC06"
                     />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>About R/HOOD</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Learn more about the app
-                      </Text>
-                    </View>
+                    <Text style={styles.menuItemText}>About R/HOOD</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -2898,12 +2892,7 @@ export default function App() {
                       size={20}
                       color="#C2CC06"
                     />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Messages</Text>
-                      <Text style={styles.menuItemDescription}>
-                        View all conversations
-                      </Text>
-                    </View>
+                    <Text style={styles.menuItemText}>Messages</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -2920,12 +2909,7 @@ export default function App() {
                       size={20}
                       color="#C2CC06"
                     />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Notifications</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Stay updated on activity
-                      </Text>
-                    </View>
+                    <Text style={styles.menuItemText}>Notifications</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -2937,12 +2921,7 @@ export default function App() {
                     activeOpacity={0.7}
                   >
                     <Ionicons name="people-outline" size={20} color="#C2CC06" />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Community</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Connect with other DJs
-                      </Text>
-                    </View>
+                    <Text style={styles.menuItemText}>Community</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -2954,12 +2933,7 @@ export default function App() {
                     activeOpacity={0.7}
                   >
                     <Ionicons name="person-outline" size={20} color="#C2CC06" />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Profile</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Manage your profile
-                      </Text>
-                    </View>
+                    <Text style={styles.menuItemText}>Profile</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -2975,12 +2949,7 @@ export default function App() {
                       size={20}
                       color="#C2CC06"
                     />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Settings</Text>
-                      <Text style={styles.menuItemDescription}>
-                        App preferences
-                      </Text>
-                    </View>
+                    <Text style={styles.menuItemText}>Settings</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -4442,28 +4411,27 @@ const styles = StyleSheet.create({
   // Hamburger Menu Styles
   menuOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "flex-end",
   },
   menuOverlayTouchable: {
     flex: 1,
   },
   menuContainer: {
-    backgroundColor: "hsl(0, 0%, 0%)",
-    width: "90%",
-    height: "80%",
-    borderRadius: 20,
+    backgroundColor: "hsl(0, 0%, 5%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderColor: "hsl(0, 0%, 15%)",
+    borderBottomWidth: 0,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: -4,
     },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 16,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
   },
   menuContent: {
     padding: 20,
@@ -4472,10 +4440,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 30,
-    paddingBottom: 20,
+    marginBottom: 20,
+    paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 20%)",
+    borderBottomColor: "hsl(0, 0%, 15%)",
   },
   menuTitle: {
     fontSize: 20,
@@ -4492,36 +4460,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuItems: {
-    gap: 16,
+    gap: 12,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 20,
-    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: "hsl(0, 0%, 10%)",
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderColor: "hsl(0, 0%, 15%)",
   },
   menuItemText: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
-    lineHeight: 22,
-  },
-  menuItemContent: {
-    flex: 1,
-    marginLeft: 16,
-    justifyContent: "center",
-  },
-  menuItemDescription: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-    marginTop: 4,
-    lineHeight: 18,
+    marginLeft: 12,
   },
   menuItemActive: {
     backgroundColor: "hsl(0, 0%, 15%)",
