@@ -509,11 +509,18 @@ export default function ListenScreen({
     <>
       {/* Smart Recommendations */}
       <View style={styles.recommendationsSection}>
-        <Text style={styles.recommendationsTitle}>More Like This</Text>
+        <View style={styles.recommendationsHeader}>
+          <Text style={styles.recommendationsTitle}>More Like This</Text>
+          <TouchableOpacity style={styles.viewAllButton}>
+            <Text style={styles.viewAllText}>View All</Text>
+            <Ionicons name="chevron-forward" size={16} color="hsl(75, 100%, 60%)" />
+          </TouchableOpacity>
+        </View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.recommendationsScroll}
+          contentContainerStyle={styles.recommendationsContent}
         >
           {mixes.slice(0, 5).map((mix, index) => (
             <TouchableOpacity
@@ -534,6 +541,16 @@ export default function ListenScreen({
               </Text>
             </TouchableOpacity>
           ))}
+          
+          {/* Partial next card indicator */}
+          {mixes.length > 5 && (
+            <View style={styles.partialCardIndicator}>
+              <View style={styles.partialCard}>
+                <Ionicons name="chevron-forward" size={24} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.partialCardText}>More</Text>
+              </View>
+            </View>
+          )}
         </ScrollView>
       </View>
 
@@ -1024,5 +1041,54 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
     textAlign: "center",
+  },
+  // Enhanced Recommendations Styles
+  recommendationsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  viewAllText: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
+    marginRight: 4,
+  },
+  recommendationsContent: {
+    paddingRight: 20,
+  },
+  partialCardIndicator: {
+    width: 60,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  partialCard: {
+    width: 50,
+    height: 50,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  partialCardText: {
+    fontSize: 10,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
+    marginTop: 2,
   },
 });
