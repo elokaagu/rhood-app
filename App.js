@@ -2095,14 +2095,6 @@ export default function App() {
     });
   };
 
-  const handleMenuNavigation = (screen, params = {}) => {
-    closeMenu();
-    setTimeout(() => {
-      setCurrentScreen(screen);
-      setScreenParams(params);
-    }, 300);
-  };
-
   // Full-screen menu animation functions
   const openFullScreenMenu = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
