@@ -207,10 +207,7 @@ const DJMix = ({
         {...panResponder.panHandlers}
       >
         <TouchableOpacity
-          style={[
-            styles.mixCard,
-            isPlaying && styles.mixCardPlaying
-          ]}
+          style={[styles.mixCard, isPlaying && styles.mixCardPlaying]}
           onPress={onPlayPause}
           activeOpacity={0.7}
           delayPressIn={isOwnMix ? 100 : 0}
@@ -240,11 +237,16 @@ const DJMix = ({
                 />
               </View>
             )}
-            
+
             {/* Play Icon Overlay */}
             {isPlaying && (
               <View style={styles.playOverlay}>
-                <Animated.View style={[styles.playIconContainer, { transform: [{ scale: pulseAnim }] }]}>
+                <Animated.View
+                  style={[
+                    styles.playIconContainer,
+                    { transform: [{ scale: pulseAnim }] },
+                  ]}
+                >
                   <Ionicons name="play" size={16} color="hsl(75, 100%, 60%)" />
                 </Animated.View>
               </View>
@@ -266,16 +268,10 @@ const DJMix = ({
                 {mix.artist}
               </Text>
             </TouchableOpacity>
-            
+
             {/* Additional Mix Info */}
             <View style={styles.mixDetails}>
-              <Text style={styles.mixDetailText}>
-                {mix.duration || "5:00"}
-              </Text>
-              <Text style={styles.mixDetailSeparator}>•</Text>
-              <Text style={styles.mixDetailText}>
-                {mix.plays || 0} plays
-              </Text>
+              <Text style={styles.mixDetailText}>5:00</Text>
               <Text style={styles.mixDetailSeparator}>•</Text>
               <Text style={styles.mixDetailText}>
                 {mix.genre || "Electronic"}
