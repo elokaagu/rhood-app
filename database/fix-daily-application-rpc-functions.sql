@@ -1,4 +1,4 @@
--- Add daily application limit functionality
+-- Fix daily application RPC functions to use applied_at instead of created_at
 -- Run this in your Supabase SQL editor
 
 -- Function to check if user can apply (hasn't exceeded daily limit)
@@ -53,27 +53,38 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Add a trigger to prevent applications if daily limit is exceeded
-CREATE OR REPLACE FUNCTION prevent_exceed_daily_limit()
-RETURNS TRIGGER AS $$
+-- Create a function to get user's daily application stats
+CREATE OR REPLACE FUNCTION get_user_daily_application_stats(user_uuid UUID)
+RETURNS TABLE (
+  daily_count INTEGER,
+  remaining_applications INTEGER,
+  can_apply BOOLEAN
+) AS $$
+DECLARE
+  daily_applications INTEGER;
+  max_daily_applications INTEGER := 5;
 BEGIN
-  -- Check if user has exceeded daily limit
-  IF NOT check_daily_application_limit(NEW.user_id) THEN
-    RAISE EXCEPTION 'Daily application limit of 5 applications has been exceeded. Please try again tomorrow.';
-  END IF;
-  
-  RETURN NEW;
+  -- Count applications made by the user today
+  SELECT COUNT(*)
+  INTO daily_applications
+  FROM applications
+  WHERE user_id = user_uuid
+    AND DATE(applied_at) = CURRENT_DATE;
+
+  -- Return the stats
+  RETURN QUERY
+  SELECT 
+    COALESCE(daily_applications, 0)::INTEGER as daily_count,
+    (max_daily_applications - COALESCE(daily_applications, 0))::INTEGER as remaining_applications,
+    (COALESCE(daily_applications, 0) < max_daily_applications)::BOOLEAN as can_apply;
 END;
 $$ LANGUAGE plpgsql;
-
--- Create trigger to enforce daily limit
-DROP TRIGGER IF EXISTS enforce_daily_application_limit ON applications;
-CREATE TRIGGER enforce_daily_application_limit
-  BEFORE INSERT ON applications
-  FOR EACH ROW
-  EXECUTE FUNCTION prevent_exceed_daily_limit();
 
 -- Grant execute permissions to authenticated users
 GRANT EXECUTE ON FUNCTION check_daily_application_limit(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_daily_application_count(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_remaining_daily_applications(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_user_daily_application_stats(UUID) TO authenticated;
+
+-- Test the functions (replace with actual user UUID)
+-- SELECT * FROM get_user_daily_application_stats('your-user-uuid-here');

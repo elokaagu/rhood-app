@@ -7,10 +7,10 @@
 -- Delete applications made today by the user
 DELETE FROM applications 
 WHERE user_id = 'your-user-uuid-here'
-  AND DATE(created_at) = CURRENT_DATE;
+  AND DATE(applied_at) = CURRENT_DATE;
 
 -- Verify the reset worked by checking the daily application stats
 SELECT * FROM get_user_daily_application_stats('your-user-uuid-here');
 
 -- Alternative: If you want to reset for ALL users (use with caution)
--- DELETE FROM applications WHERE DATE(created_at) = CURRENT_DATE;
+-- DELETE FROM applications WHERE DATE(applied_at) = CURRENT_DATE;

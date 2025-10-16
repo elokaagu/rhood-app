@@ -1860,6 +1860,13 @@ export default function App() {
 
   const handleConfirmApply = async (opportunity) => {
     try {
+      console.log(
+        "🎯 Starting application process for opportunity:",
+        opportunity.title
+      );
+      console.log("🎯 User ID:", user.id);
+      console.log("🎯 Opportunity ID:", opportunity.id);
+
       setShowModal(false);
 
       // Apply to opportunity using existing logic
@@ -1897,8 +1904,17 @@ export default function App() {
         });
       }, 300);
     } catch (error) {
+      console.error("🚨 Application error details:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        fullError: error,
+      });
+
       // Check if it's a daily limit error
       if (error.message.includes("Daily application limit")) {
+        console.log("🚨 Daily limit error detected");
         showCustomModal({
           type: "warning",
           title: "Daily Limit Reached",
@@ -1906,6 +1922,7 @@ export default function App() {
           primaryButtonText: "OK",
         });
       } else if (error.message.includes("already applied")) {
+        console.log("🚨 Already applied error detected");
         // Show modal and automatically move to next opportunity
         showCustomModal({
           type: "info",
@@ -1920,14 +1937,23 @@ export default function App() {
             setSelectedOpportunity(null);
           },
         });
+      } else if (error.message.includes("upload at least one mix")) {
+        console.log("🚨 No mixes uploaded error detected");
+        showCustomModal({
+          type: "warning",
+          title: "Upload Required",
+          message: error.message,
+          primaryButtonText: "OK",
+        });
       } else {
         // Only log unexpected errors to console
-        console.error("Unexpected error applying to opportunity:", error);
+        console.error("🚨 Unexpected error applying to opportunity:", error);
         showCustomModal({
           type: "error",
           title: "Application Failed",
-          message:
-            "There was an error submitting your application. Please try again.",
+          message: `There was an error submitting your application: ${
+            error.message || "Unknown error"
+          }. Please try again.`,
           primaryButtonText: "OK",
         });
       }
@@ -3284,7 +3310,11 @@ export default function App() {
                       style={[
                         styles.fullScreenProgressFill,
                         {
-                          width: `${(isScrubbing ? scrubPosition : globalAudioState.progress || 0) * 100}%`,
+                          width: `${
+                            (isScrubbing
+                              ? scrubPosition
+                              : globalAudioState.progress || 0) * 100
+                          }%`,
                         },
                       ]}
                     />
@@ -3292,7 +3322,11 @@ export default function App() {
                       style={[
                         styles.fullScreenProgressThumb,
                         {
-                          left: `${(isScrubbing ? scrubPosition : globalAudioState.progress || 0) * 100}%`,
+                          left: `${
+                            (isScrubbing
+                              ? scrubPosition
+                              : globalAudioState.progress || 0) * 100
+                          }%`,
                         },
                       ]}
                     />

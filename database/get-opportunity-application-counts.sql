@@ -17,7 +17,7 @@ BEGIN
   INTO daily_applications
   FROM applications
   WHERE user_id = user_uuid
-    AND DATE(created_at) = CURRENT_DATE;
+    AND DATE(applied_at) = CURRENT_DATE;
 
   -- Return the stats
   RETURN QUERY
