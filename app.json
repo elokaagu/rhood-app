@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rhoodapp.mobile",
+      "buildNumber": "70",
       "newArchEnabled": false,
       "usesAppleSignIn": true,
       "infoPlist": {
