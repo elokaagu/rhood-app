@@ -16,7 +16,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { supabase, db } from "../lib/supabase";
 import ProgressiveImage from "./ProgressiveImage";
-import { multimediaService } from "../lib/multimediaService";
+// Dynamic import for multimedia service to avoid native module loading issues
 
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
@@ -242,6 +242,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleImageUpload = async () => {
     try {
       setUploadingMedia(true);
+      const { multimediaService } = await import("../lib/multimediaService");
       const mediaData = await multimediaService.uploadImage();
       if (mediaData) {
         setSelectedMedia(mediaData);
@@ -258,6 +259,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleVideoUpload = async () => {
     try {
       setUploadingMedia(true);
+      const { multimediaService } = await import("../lib/multimediaService");
       const mediaData = await multimediaService.uploadVideo();
       if (mediaData) {
         setSelectedMedia(mediaData);
@@ -274,6 +276,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleDocumentUpload = async () => {
     try {
       setUploadingMedia(true);
+      const { multimediaService } = await import("../lib/multimediaService");
       const mediaData = await multimediaService.uploadDocument();
       if (mediaData) {
         setSelectedMedia(mediaData);
@@ -293,6 +296,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleAudioUpload = async () => {
     try {
       setUploadingMedia(true);
+      const { multimediaService } = await import("../lib/multimediaService");
       const mediaData = await multimediaService.uploadAudio();
       if (mediaData) {
         setSelectedMedia(mediaData);
@@ -308,6 +312,46 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   const clearSelectedMedia = () => {
     setSelectedMedia(null);
+  };
+
+  // Helper function to get file icon
+  const getFileIcon = (extension) => {
+    const iconMap = {
+      pdf: "document-text",
+      doc: "document-text",
+      docx: "document-text",
+      txt: "document-text",
+      xls: "document-text",
+      xlsx: "document-text",
+      ppt: "document-text",
+      pptx: "document-text",
+      zip: "archive",
+      rar: "archive",
+      "7z": "archive",
+      mp3: "musical-notes",
+      wav: "musical-notes",
+      aac: "musical-notes",
+      flac: "musical-notes",
+      mp4: "videocam",
+      mov: "videocam",
+      avi: "videocam",
+      mkv: "videocam",
+      jpg: "image",
+      jpeg: "image",
+      png: "image",
+      gif: "image",
+      webp: "image",
+    };
+    return iconMap[extension?.toLowerCase()] || "document";
+  };
+
+  // Helper function to format file size
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   // Send a new message
@@ -484,8 +528,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const renderMessage = (message) => (
     <View
       key={message.id}
-      style={[
-        styles.messageContainer,
+        style={[
+          styles.messageContainer,
         message.isOwn ? styles.ownMessage : styles.otherMessage,
       ]}
     >
@@ -500,9 +544,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
         </View>
       )}
 
-      <View
-        style={[
-          styles.messageBubble,
+        <View
+          style={[
+            styles.messageBubble,
           message.isOwn ? styles.ownBubble : styles.otherBubble,
         ]}
       >
@@ -533,19 +577,19 @@ const MessagesScreen = ({ user, navigation, route }) => {
               {(message.message_type === "file" ||
                 message.message_type === "audio") && (
                 <View style={styles.messageFile}>
-                  <Ionicons
-                    name={multimediaService.getFileIcon(message.file_extension)}
-                    size={24}
-                    color="hsl(75, 100%, 60%)"
-                  />
-                  <View style={styles.fileInfo}>
-                    <Text style={styles.fileName}>
-                      {message.media_filename}
-                    </Text>
-                    <Text style={styles.fileSize}>
-                      {multimediaService.formatFileSize(message.media_size)}
-                    </Text>
-                  </View>
+                   <Ionicons
+                     name={getFileIcon(message.file_extension)}
+                     size={24}
+                     color="hsl(75, 100%, 60%)"
+                   />
+                   <View style={styles.fileInfo}>
+                     <Text style={styles.fileName}>
+                       {message.media_filename}
+                     </Text>
+                     <Text style={styles.fileSize}>
+                       {formatFileSize(message.media_size)}
+                     </Text>
+                   </View>
                 </View>
               )}
             </View>
@@ -553,26 +597,26 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         {/* Render text content */}
         {message.content && (
-          <Text
-            style={[
-              styles.messageText,
+            <Text
+              style={[
+                styles.messageText,
               message.isOwn ? styles.ownMessageText : styles.otherMessageText,
-            ]}
-          >
-            {message.content}
-          </Text>
+              ]}
+            >
+              {message.content}
+            </Text>
         )}
 
-        <Text
-          style={[
-            styles.messageTime,
+              <Text
+                style={[
+                  styles.messageTime,
             message.isOwn ? styles.ownMessageTime : styles.otherMessageTime,
-          ]}
-        >
+                ]}
+              >
           {formatTime(message.timestamp)}
-        </Text>
-      </View>
-    </View>
+              </Text>
+            </View>
+        </View>
   );
 
   // Render loading state
@@ -589,8 +633,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
   if (messages.length === 0) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-        {/* Header */}
-        <View style={styles.header}>
+      {/* Header */}
+      <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
@@ -599,7 +643,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           </TouchableOpacity>
 
           {chatType === "individual" && otherUser && (
-            <View style={styles.headerInfo}>
+          <View style={styles.headerInfo}>
               <ProgressiveImage
                 source={{ uri: otherUser.profile_image_url }}
                 style={styles.headerAvatar}
@@ -608,15 +652,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
               <View style={styles.headerText}>
                 <Text style={styles.headerName}>
                   {otherUser.dj_name || otherUser.full_name || "Unknown User"}
-                </Text>
+              </Text>
                 <Text style={styles.headerLocation}>
                   {otherUser.location ||
                     otherUser.city ||
                     otherUser.country ||
                     "Unknown Location"}
-                </Text>
-              </View>
+              </Text>
             </View>
+          </View>
           )}
 
           {chatType === "group" && communityData && (
@@ -636,8 +680,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   {memberCount} member{memberCount !== 1 ? "s" : ""}
                 </Text>
               </View>
-            </View>
-          )}
+              </View>
+            )}
         </View>
 
         {/* Empty State */}
@@ -650,7 +694,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           <Text style={styles.emptyTitle}>No messages yet</Text>
           <Text style={styles.emptySubtitle}>
             Start the conversation by sending a message!
-          </Text>
+                </Text>
         </View>
 
         {/* Message Input */}
@@ -665,7 +709,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   ? "Connection request pending..."
                   : "Connect to start messaging"}
               </Text>
-              <TouchableOpacity
+                  <TouchableOpacity
                 style={styles.connectButton}
                 onPress={() => navigation.goBack()}
               >
@@ -674,22 +718,22 @@ const MessagesScreen = ({ user, navigation, route }) => {
                     ? "View Status"
                     : "Send Request"}
                 </Text>
-              </TouchableOpacity>
+                  </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.inputWrapper}>
-              <TextInput
+          <TextInput
                 style={styles.messageInput}
                 placeholder="Type a message..."
-                placeholderTextColor="hsl(0, 0%, 50%)"
+            placeholderTextColor="hsl(0, 0%, 50%)"
                 value={newMessage}
                 onChangeText={setNewMessage}
-                multiline
+            multiline
                 maxLength={500}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.sendButton,
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
                   (!newMessage.trim() || sending) && styles.sendButtonDisabled,
                 ]}
                 onPress={sendMessage}
@@ -700,8 +744,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 ) : (
                   <Ionicons name="send" size={20} color="hsl(0, 0%, 0%)" />
                 )}
-              </TouchableOpacity>
-            </View>
+          </TouchableOpacity>
+        </View>
           )}
         </KeyboardAvoidingView>
       </Animated.View>
@@ -713,12 +757,12 @@ const MessagesScreen = ({ user, navigation, route }) => {
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
+          </TouchableOpacity>
 
         {chatType === "individual" && otherUser && (
           <View style={styles.headerInfo}>
@@ -736,9 +780,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   otherUser.city ||
                   otherUser.country ||
                   "Unknown Location"}
-              </Text>
+                </Text>
+              </View>
             </View>
-          </View>
         )}
 
         {chatType === "group" && communityData && (
@@ -758,7 +802,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 {memberCount} member{memberCount !== 1 ? "s" : ""}
               </Text>
             </View>
-          </View>
+            </View>
         )}
       </View>
 
@@ -795,14 +839,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
             {(selectedMedia.type === "file" ||
               selectedMedia.type === "audio") && (
               <View style={styles.mediaPreviewFile}>
-                <Ionicons
-                  name={multimediaService.getFileIcon(selectedMedia.extension)}
-                  size={24}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.mediaPreviewText}>
-                  {selectedMedia.filename}
-                </Text>
+                 <Ionicons
+                   name={getFileIcon(selectedMedia.extension)}
+                   size={24}
+                   color="hsl(75, 100%, 60%)"
+                 />
+                 <Text style={styles.mediaPreviewText}>
+                   {selectedMedia.filename}
+                 </Text>
               </View>
             )}
           </View>
@@ -828,7 +872,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
               >
                 <Ionicons name="image" size={24} color="hsl(75, 100%, 60%)" />
                 <Text style={styles.mediaPickerButtonText}>Photo</Text>
-              </TouchableOpacity>
+            </TouchableOpacity>
               <TouchableOpacity
                 style={styles.mediaPickerButton}
                 onPress={handleVideoUpload}
@@ -841,7 +885,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 />
                 <Text style={styles.mediaPickerButtonText}>Video</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+            <TouchableOpacity
                 style={styles.mediaPickerButton}
                 onPress={handleAudioUpload}
                 disabled={uploadingMedia}
@@ -852,8 +896,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   color="hsl(75, 100%, 60%)"
                 />
                 <Text style={styles.mediaPickerButtonText}>Audio</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+            </TouchableOpacity>
+            <TouchableOpacity
                 style={styles.mediaPickerButton}
                 onPress={handleDocumentUpload}
                 disabled={uploadingMedia}
@@ -864,16 +908,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   color="hsl(75, 100%, 60%)"
                 />
                 <Text style={styles.mediaPickerButtonText}>File</Text>
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
+          </View>
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setShowMediaPicker(false)}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-          </View>
         </View>
+      </View>
       )}
 
       {/* Message Input */}
