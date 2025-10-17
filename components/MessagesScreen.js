@@ -577,19 +577,19 @@ const MessagesScreen = ({ user, navigation, route }) => {
               {(message.message_type === "file" ||
                 message.message_type === "audio") && (
                 <View style={styles.messageFile}>
-                   <Ionicons
-                     name={getFileIcon(message.file_extension)}
-                     size={24}
-                     color="hsl(75, 100%, 60%)"
-                   />
-                   <View style={styles.fileInfo}>
-                     <Text style={styles.fileName}>
-                       {message.media_filename}
-                     </Text>
-                     <Text style={styles.fileSize}>
-                       {formatFileSize(message.media_size)}
-                     </Text>
-                   </View>
+                  <Ionicons
+                    name={getFileIcon(message.file_extension)}
+                    size={24}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <View style={styles.fileInfo}>
+                    <Text style={styles.fileName}>
+                      {message.media_filename}
+                    </Text>
+                    <Text style={styles.fileSize}>
+                      {formatFileSize(message.media_size)}
+                    </Text>
+                  </View>
                 </View>
               )}
             </View>
@@ -839,14 +839,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
             {(selectedMedia.type === "file" ||
               selectedMedia.type === "audio") && (
               <View style={styles.mediaPreviewFile}>
-                 <Ionicons
-                   name={getFileIcon(selectedMedia.extension)}
-                   size={24}
-                   color="hsl(75, 100%, 60%)"
-                 />
-                 <Text style={styles.mediaPreviewText}>
-                   {selectedMedia.filename}
-                 </Text>
+                <Ionicons
+                  name={getFileIcon(selectedMedia.extension)}
+                  size={24}
+                  color="hsl(75, 100%, 60%)"
+                />
+                <Text style={styles.mediaPreviewText}>
+                  {selectedMedia.filename}
+                </Text>
               </View>
             )}
           </View>
@@ -923,6 +923,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       {/* Message Input */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         style={styles.inputContainer}
       >
         <View style={styles.inputWrapper}>
@@ -1028,6 +1029,7 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
+    paddingBottom: 80, // Space for fixed input container
   },
   messagesContent: {
     padding: 16,
@@ -1137,6 +1139,11 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 8%)",
     borderTopWidth: 2,
     borderTopColor: "hsl(75, 100%, 60%)",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
   },
   inputWrapper: {
     flexDirection: "row",
@@ -1146,7 +1153,7 @@ const styles = StyleSheet.create({
   },
   messageInput: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: "hsl(0, 0%, 12%)",
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -1157,6 +1164,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderWidth: 1,
     borderColor: "hsl(75, 100%, 60%)",
+    minHeight: 44, // Ensure minimum height for better visibility
   },
   sendButton: {
     backgroundColor: "hsl(75, 100%, 60%)",
