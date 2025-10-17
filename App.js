@@ -2369,7 +2369,6 @@ export default function App() {
         <SafeAreaView style={styles.container}>
           <View style={styles.center}>
             <Text style={styles.title}>R/HOOD</Text>
-            <Text style={styles.subtitle}>Underground Music Platform</Text>
           </View>
         </SafeAreaView>
       </SafeAreaProvider>
