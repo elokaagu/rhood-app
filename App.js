@@ -1944,6 +1944,12 @@ export default function App() {
           title: "Upload Required",
           message: error.message,
           primaryButtonText: "OK",
+          onPrimaryPress: () => {
+            // Advance to next opportunity since card was already swiped away
+            setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+            setShowModal(false);
+            setSelectedOpportunity(null);
+          },
         });
       } else {
         // Only log unexpected errors to console
