@@ -62,6 +62,110 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }
   }, [djId, communityId, chatType]);
 
+  // Set up real-time message subscriptions
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log("💬 Setting up real-time message subscriptions");
+
+    let messageChannel;
+
+    const setupSubscription = async () => {
+      if (chatType === "individual" && djId) {
+        // Get thread ID first
+        const threadId = await db.findOrCreateIndividualMessageThread(
+          user.id,
+          djId
+        );
+
+        // Subscribe to individual messages
+        messageChannel = supabase
+          .channel(`messages-individual-${user.id}-${djId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+              filter: `thread_id=eq.${threadId}`,
+            },
+            (payload) => {
+              console.log("💬 New individual message received:", payload.new);
+              // Add new message to the list
+              const newMessage = {
+                id: payload.new.id,
+                content: payload.new.content || payload.new.message || "",
+                senderId: payload.new.sender_id || payload.new.author_id,
+                senderName:
+                  payload.new.sender?.full_name ||
+                  payload.new.sender?.dj_name ||
+                  "Unknown",
+                senderImage: payload.new.sender?.profile_image_url,
+                timestamp: payload.new.created_at,
+                isOwn:
+                  (payload.new.sender_id || payload.new.author_id) === user.id,
+              };
+
+              setMessages((prev) => [...prev, newMessage]);
+
+              // Auto-scroll to bottom when new message arrives
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }
+          )
+          .subscribe();
+      } else if (chatType === "group" && communityId) {
+        // Subscribe to group messages
+        messageChannel = supabase
+          .channel(`messages-group-${communityId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+              filter: `community_id=eq.${communityId}`,
+            },
+            (payload) => {
+              console.log("💬 New group message received:", payload.new);
+              // Add new message to the list
+              const newMessage = {
+                id: payload.new.id,
+                content: payload.new.content || payload.new.message || "",
+                senderId: payload.new.sender_id || payload.new.author_id,
+                senderName:
+                  payload.new.sender?.full_name ||
+                  payload.new.sender?.dj_name ||
+                  "Unknown",
+                senderImage: payload.new.sender?.profile_image_url,
+                timestamp: payload.new.created_at,
+                isOwn:
+                  (payload.new.sender_id || payload.new.author_id) === user.id,
+              };
+
+              setMessages((prev) => [...prev, newMessage]);
+
+              // Auto-scroll to bottom when new message arrives
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }
+          )
+          .subscribe();
+      }
+    };
+
+    setupSubscription();
+
+    return () => {
+      if (messageChannel) {
+        console.log("💬 Cleaning up message subscription");
+        supabase.removeChannel(messageChannel);
+      }
+    };
+  }, [user?.id, chatType, djId, communityId]);
+
   // Fade in animation
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -242,15 +346,24 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleImageUpload = async () => {
     try {
       setUploadingMedia(true);
+      console.log("📸 Starting image upload...");
+
       const { multimediaService } = await import("../lib/multimediaService");
       const mediaData = await multimediaService.uploadImage();
+
       if (mediaData) {
+        console.log("✅ Image uploaded successfully:", mediaData);
         setSelectedMedia(mediaData);
         setShowMediaPicker(false);
+      } else {
+        console.log("📸 Image upload canceled by user");
       }
     } catch (error) {
-      console.error("Error uploading image:", error);
-      Alert.alert("Upload Error", "Failed to upload image. Please try again.");
+      console.error("❌ Error uploading image:", error);
+      Alert.alert(
+        "Upload Error",
+        `Failed to upload image: ${error.message || "Please try again."}`
+      );
     } finally {
       setUploadingMedia(false);
     }
@@ -259,15 +372,24 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleVideoUpload = async () => {
     try {
       setUploadingMedia(true);
+      console.log("🎥 Starting video upload...");
+
       const { multimediaService } = await import("../lib/multimediaService");
       const mediaData = await multimediaService.uploadVideo();
+
       if (mediaData) {
+        console.log("✅ Video uploaded successfully:", mediaData);
         setSelectedMedia(mediaData);
         setShowMediaPicker(false);
+      } else {
+        console.log("🎥 Video upload canceled by user");
       }
     } catch (error) {
-      console.error("Error uploading video:", error);
-      Alert.alert("Upload Error", "Failed to upload video. Please try again.");
+      console.error("❌ Error uploading video:", error);
+      Alert.alert(
+        "Upload Error",
+        `Failed to upload video: ${error.message || "Please try again."}`
+      );
     } finally {
       setUploadingMedia(false);
     }
@@ -276,17 +398,23 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleDocumentUpload = async () => {
     try {
       setUploadingMedia(true);
+      console.log("📄 Starting document upload...");
+
       const { multimediaService } = await import("../lib/multimediaService");
       const mediaData = await multimediaService.uploadDocument();
+
       if (mediaData) {
+        console.log("✅ Document uploaded successfully:", mediaData);
         setSelectedMedia(mediaData);
         setShowMediaPicker(false);
+      } else {
+        console.log("📄 Document upload canceled by user");
       }
     } catch (error) {
-      console.error("Error uploading document:", error);
+      console.error("❌ Error uploading document:", error);
       Alert.alert(
         "Upload Error",
-        "Failed to upload document. Please try again."
+        `Failed to upload document: ${error.message || "Please try again."}`
       );
     } finally {
       setUploadingMedia(false);
@@ -296,15 +424,24 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleAudioUpload = async () => {
     try {
       setUploadingMedia(true);
+      console.log("🎵 Starting audio upload...");
+
       const { multimediaService } = await import("../lib/multimediaService");
       const mediaData = await multimediaService.uploadAudio();
+
       if (mediaData) {
+        console.log("✅ Audio uploaded successfully:", mediaData);
         setSelectedMedia(mediaData);
         setShowMediaPicker(false);
+      } else {
+        console.log("🎵 Audio upload canceled by user");
       }
     } catch (error) {
-      console.error("Error uploading audio:", error);
-      Alert.alert("Upload Error", "Failed to upload audio. Please try again.");
+      console.error("❌ Error uploading audio:", error);
+      Alert.alert(
+        "Upload Error",
+        `Failed to upload audio: ${error.message || "Please try again."}`
+      );
     } finally {
       setUploadingMedia(false);
     }
@@ -312,6 +449,25 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   const clearSelectedMedia = () => {
     setSelectedMedia(null);
+  };
+
+  // Handle view status button
+  const handleViewStatus = () => {
+    let statusMessage = "Connection status unknown";
+
+    if (connectionStatus === "pending") {
+      statusMessage =
+        "Connection request is pending. Waiting for the other user to accept your request.";
+    } else if (connectionStatus === "accepted") {
+      statusMessage = "Connection is active! You can now chat freely.";
+    } else if (connectionStatus === "blocked") {
+      statusMessage = "This connection has been blocked.";
+    } else {
+      statusMessage =
+        "No connection found. You may need to send a connection request first.";
+    }
+
+    Alert.alert("Connection Status", statusMessage);
   };
 
   // Helper function to get file icon
@@ -711,7 +867,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
               </Text>
               <TouchableOpacity
                 style={styles.connectButton}
-                onPress={() => navigation.goBack()}
+                onPress={
+                  connectionStatus === "pending"
+                    ? handleViewStatus
+                    : () => navigation.goBack()
+                }
               >
                 <Text style={styles.connectButtonText}>
                   {connectionStatus === "pending"

@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -46,6 +47,8 @@ export default function NotificationsScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(propUser); // Use prop user as initial state
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [acceptedUser, setAcceptedUser] = useState(null);
 
   // Load current user and notifications on component mount
   useEffect(() => {
@@ -304,7 +307,19 @@ export default function NotificationsScreen({
       // Update local state to remove the notification
       setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
 
-      Alert.alert("Success", "Connection request accepted!");
+      // Extract user info from notification for the modal
+      const userInfo = {
+        name: notification.title.replace(" wants to connect with you", ""),
+        id: notification.data?.sender_id || notification.relatedId,
+      };
+
+      setAcceptedUser(userInfo);
+      setShowAcceptModal(true);
+
+      // Call the notification read callback to update badge counts
+      if (onNotificationRead) {
+        onNotificationRead();
+      }
     } catch (error) {
       console.error("Error accepting connection:", error);
       Alert.alert("Error", "Failed to accept connection request");
@@ -539,6 +554,64 @@ export default function NotificationsScreen({
         style={styles.bottomGradient}
         pointerEvents="none"
       />
+
+      {/* Connection Accepted Modal */}
+      <Modal
+        visible={showAcceptModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAcceptModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={styles.successIconContainer}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={48}
+                  color="hsl(75, 100%, 60%)"
+                />
+              </View>
+              <Text style={styles.modalTitle}>Connection Accepted!</Text>
+            </View>
+
+            <View style={styles.modalContent}>
+              <Text style={styles.modalMessage}>
+                You've successfully connected with{" "}
+                <Text style={styles.userName}>{acceptedUser?.name}</Text>.
+                They've been notified and you can now start chatting!
+              </Text>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.chatButton]}
+                onPress={() => {
+                  setShowAcceptModal(false);
+                  if (onNavigate && acceptedUser?.id) {
+                    onNavigate("messages", {
+                      isGroupChat: false,
+                      djId: acceptedUser.id,
+                    });
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chatbubble" size={20} color="hsl(0, 0%, 0%)" />
+                <Text style={styles.chatButtonText}>Start Chatting</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.closeButton]}
+                onPress={() => setShowAcceptModal(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -707,5 +780,82 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
     fontFamily: "Helvetica Neue",
     marginTop: 16,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  modalContainer: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  modalHeader: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  successIconContainer: {
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 100%)",
+    fontFamily: "Helvetica Neue",
+    textAlign: "center",
+  },
+  modalContent: {
+    marginBottom: 24,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: "hsl(0, 0%, 80%)",
+    fontFamily: "Helvetica Neue",
+    lineHeight: 24,
+    textAlign: "center",
+  },
+  userName: {
+    color: "hsl(75, 100%, 60%)",
+    fontWeight: "bold",
+  },
+  modalActions: {
+    gap: 12,
+  },
+  modalButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  chatButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  chatButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 0%)",
+    fontFamily: "Helvetica Neue",
+  },
+  closeButton: {
+    backgroundColor: "hsl(0, 0%, 15%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 25%)",
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 80%)",
+    fontFamily: "Helvetica Neue",
   },
 });
