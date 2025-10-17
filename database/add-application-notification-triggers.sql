@@ -88,7 +88,6 @@ CREATE OR REPLACE FUNCTION update_application_status(
 RETURNS BOOLEAN AS $$
 DECLARE
   application_record RECORD;
-  opportunity_record RECORD;
 BEGIN
   -- Validate status
   IF new_status NOT IN ('pending', 'approved', 'rejected') THEN
@@ -97,7 +96,7 @@ BEGIN
   
   -- Get application details
   SELECT a.*, o.title as opportunity_title, o.organizer_id
-  INTO application_record, opportunity_record
+  INTO application_record
   FROM applications a
   JOIN opportunities o ON a.opportunity_id = o.id
   WHERE a.id = application_id;
