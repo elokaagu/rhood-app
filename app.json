@@ -27,6 +27,7 @@
         "NSCameraUsageDescription": "This app needs access to camera to take photos for messages",
         "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select images and videos for messages",
         "NSMicrophoneUsageDescription": "This app needs access to microphone to record audio for messages",
+        "NSUserNotificationsUsageDescription": "This app needs notification permissions to show music controls on the lock screen",
         "CFBundleURLTypes": [
           {
             "CFBundleURLName": "rhoodapp",
@@ -73,7 +74,8 @@
         "expo-notifications",
         {
           "icon": "./assets/rhood_logo.png",
-          "color": "#ffffff"
+          "color": "#ffffff",
+          "iosDisplayInForeground": true
         }
       ]
     ],
