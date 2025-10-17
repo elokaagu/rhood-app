@@ -37,7 +37,11 @@ const formatRelativeTime = (timestamp) => {
   return `${diffInWeeks} week${diffInWeeks === 1 ? "" : "s"} ago`;
 };
 
-export default function NotificationsScreen({ user: propUser, onNavigate }) {
+export default function NotificationsScreen({
+  user: propUser,
+  onNavigate,
+  onNotificationRead,
+}) {
   const [notifications, setNotifications] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -47,6 +51,64 @@ export default function NotificationsScreen({ user: propUser, onNavigate }) {
   useEffect(() => {
     loadUserAndNotifications();
   }, []);
+
+  // Set up real-time subscription for notifications
+  useEffect(() => {
+    if (!currentUser) return;
+
+    console.log(
+      "🔔 Setting up real-time subscription for notifications screen"
+    );
+
+    const channel = supabase
+      .channel(`notifications-screen-${currentUser.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          console.log("🔔 New notification received in screen:", payload.new);
+          // Refresh notifications when new one arrives
+          handleRefresh();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          console.log("🔔 Notification updated in screen:", payload.new);
+          // Refresh notifications when one is updated
+          handleRefresh();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log("🔔 Cleaning up notifications screen subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser]);
+
+  // Set up periodic refresh as fallback (every 30 seconds)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const interval = setInterval(() => {
+      console.log("🔄 Periodic notification refresh");
+      handleRefresh();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [currentUser]);
 
   const loadUserAndNotifications = async () => {
     try {
@@ -191,6 +253,11 @@ export default function NotificationsScreen({ user: propUser, onNavigate }) {
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
       );
+
+      // Notify parent component to refresh notification count
+      if (onNotificationRead) {
+        onNotificationRead();
+      }
     } catch (error) {
       console.error("Error marking notification as read:", error);
       Alert.alert("Error", "Failed to mark notification as read");
@@ -222,7 +289,7 @@ export default function NotificationsScreen({ user: propUser, onNavigate }) {
     try {
       // Extract connection ID from notification data
       const connectionId = notification.data?.connection_id;
-      
+
       if (!connectionId) {
         Alert.alert("Error", "Connection ID not found");
         return;
@@ -385,21 +452,25 @@ export default function NotificationsScreen({ user: propUser, onNavigate }) {
                           {notification.title}
                         </Text>
                         <View style={styles.notificationActions}>
-                          {notification.type === "connection" && !notification.isRead && (
-                            <TouchableOpacity
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                handleAcceptConnection(notification);
-                              }}
-                              style={[styles.actionButton, styles.acceptButton]}
-                            >
-                              <Ionicons
-                                name="checkmark"
-                                size={16}
-                                color="hsl(0, 0%, 0%)"
-                              />
-                            </TouchableOpacity>
-                          )}
+                          {notification.type === "connection" &&
+                            !notification.isRead && (
+                              <TouchableOpacity
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  handleAcceptConnection(notification);
+                                }}
+                                style={[
+                                  styles.actionButton,
+                                  styles.acceptButton,
+                                ]}
+                              >
+                                <Ionicons
+                                  name="checkmark"
+                                  size={16}
+                                  color="hsl(0, 0%, 0%)"
+                                />
+                              </TouchableOpacity>
+                            )}
                           {!notification.isRead && (
                             <TouchableOpacity
                               onPress={(e) => {

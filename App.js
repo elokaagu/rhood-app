@@ -28,8 +28,9 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-audio";
-console.log("✅ Audio module imported from expo-audio in App.js");
+// Import Audio from expo-av (works in Expo Go)
+import { Audio } from "expo-av";
+console.log("✅ Audio module imported from expo-av");
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
 import * as Haptics from "expo-haptics";
@@ -37,7 +38,7 @@ import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
 import {
   setupAudioNotificationCategories,
-  setupNotificationListeners,
+  setupNotificationListeners as setupAudioNotificationListeners,
   requestNotificationPermissions,
 } from "./lib/notificationSetup";
 import ConnectionsScreen from "./components/ConnectionsScreen";
@@ -69,11 +70,11 @@ import AboutScreen from "./components/AboutScreen";
 import TermsOfServiceScreen from "./components/TermsOfServiceScreen";
 import PrivacyPolicyScreen from "./components/PrivacyPolicyScreen";
 import HelpCenterScreen from "./components/HelpCenterScreen";
-// Push notifications temporarily disabled for Expo Go
-// import {
-//   registerForPushNotifications,
-//   setupNotificationListeners,
-// } from "./lib/pushNotifications";
+// Push notifications - gracefully handle Expo Go limitations
+import {
+  registerForPushNotifications,
+  setupNotificationListeners,
+} from "./lib/pushNotifications";
 
 // Static Album Art Component
 const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
@@ -90,83 +91,6 @@ const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
           <Ionicons name="musical-notes" size={48} color="hsl(75, 100%, 60%)" />
         </View>
       )}
-    </View>
-  );
-};
-
-// Enhanced Progress Bar Component
-const EnhancedProgressBar = ({
-  progress,
-  duration,
-  position,
-  onSeek,
-  isPlaying,
-}) => {
-  const progressAnim = useRef(new Animated.Value(progress)).current;
-  const [isScrubbing, setIsScrubbing] = useState(false);
-  const [scrubPosition, setScrubPosition] = useState(0);
-
-  useEffect(() => {
-    if (!isScrubbing) {
-      Animated.timing(progressAnim, {
-        toValue: progress,
-        duration: 100,
-        useNativeDriver: false,
-      }).start();
-    }
-  }, [progress, isScrubbing]);
-
-  const handleSeek = (event) => {
-    const { locationX } = event.nativeEvent;
-    const progressBarWidth = 300; // Approximate width
-    const newProgress = Math.max(0, Math.min(1, locationX / progressBarWidth));
-
-    setIsScrubbing(true);
-    onSeek(newProgress);
-
-    // Haptic feedback
-    Vibration.vibrate(50);
-
-    setTimeout(() => setIsScrubbing(false), 200);
-  };
-
-  return (
-    <View style={styles.enhancedProgressContainer}>
-      <TouchableOpacity
-        style={styles.enhancedProgressBar}
-        onPress={handleSeek}
-        activeOpacity={0.8}
-      >
-        <View style={styles.progressTrack}>
-          <Animated.View
-            style={[
-              styles.progressFill,
-              {
-                width: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["0%", "100%"],
-                }),
-              },
-            ]}
-          />
-          <Animated.View
-            style={[
-              styles.progressThumb,
-              {
-                left: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 280], // Adjust based on bar width
-                }),
-              },
-            ]}
-          />
-        </View>
-      </TouchableOpacity>
-
-      <View style={styles.timeContainer}>
-        <Text style={styles.timeText}>{formatTime(position)}</Text>
-        <Text style={styles.timeText}>{formatTime(duration)}</Text>
-      </View>
     </View>
   );
 };
@@ -293,7 +217,7 @@ export default function App() {
         await setupAudioNotificationCategories();
 
         // Set up notification listeners
-        const removeListeners = setupNotificationListeners();
+        const removeListeners = setupAudioNotificationListeners();
 
         console.log("✅ Lock screen audio controls initialized");
 
@@ -314,9 +238,18 @@ export default function App() {
   const createGestureHandlers = () => {
     const panResponder = PanResponder.create({
       onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Don't handle gestures if we're currently scrubbing
+        if (isScrubbing) {
+          return false;
+        }
         return Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20;
       },
       onPanResponderMove: (evt, gestureState) => {
+        // Don't handle gestures if we're currently scrubbing
+        if (isScrubbing) {
+          return;
+        }
+
         // Handle horizontal swipes for track navigation
         if (Math.abs(gestureState.dx) > Math.abs(gestureState.dy)) {
           if (gestureState.dx > 50) {
@@ -331,6 +264,11 @@ export default function App() {
         }
       },
       onPanResponderRelease: (evt, gestureState) => {
+        // Don't handle gestures if we're currently scrubbing
+        if (isScrubbing) {
+          return;
+        }
+
         // Handle vertical swipes
         if (Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
           if (gestureState.dy > 100) {
@@ -478,7 +416,10 @@ export default function App() {
     try {
       setupPushNotifications();
     } catch (error) {
-      console.log('Push notifications not available (running in Expo Go):', error.message);
+      console.log(
+        "Push notifications not available (running in Expo Go):",
+        error.message
+      );
     }
 
     // Handle app state changes for background audio
@@ -510,6 +451,21 @@ export default function App() {
     if (user) {
       loadNotificationCounts();
     }
+  }, [user]);
+
+  // Refresh notification counts when app becomes active
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === "active" && user) {
+        loadNotificationCounts();
+      }
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
+    return () => subscription?.remove();
   }, [user]);
 
   // Setup push notifications
@@ -745,14 +701,10 @@ export default function App() {
   const playGlobalAudio = async (track) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      console.log("🎵 Starting to play track:", track.title);
-      console.log("🎵 Audio URL:", track.audioUrl);
-      console.log("🎵 Audio URL type:", typeof track.audioUrl);
-      console.log("🎵 Audio URL value:", JSON.stringify(track.audioUrl));
+      console.log("🎵 Playing:", track.title);
 
       // Stop current audio if playing
       if (globalAudioRef.current) {
-        console.log("🛑 Stopping current audio before playing new track");
         await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       }
@@ -760,37 +712,25 @@ export default function App() {
       setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
 
       // Configure audio mode for playback
-        await Audio.setAudioModeAsync({
+      await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
-          playsInSilentModeIOS: true,
-          shouldDuckAndroid: true,
-          playThroughEarpieceAndroid: false,
-        });
-      console.log("🎵 Audio mode configured for background playback");
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
 
-      // Create and load new sound using expo-audio
-      console.log("🔄 Creating new sound instance...");
-      console.log("🔄 Audio file path:", track.audioUrl);
-      console.log("🔄 Audio file type:", typeof track.audioUrl);
-
-      // Try to load the audio file
+      // Create and load new sound using expo-av
       let sound;
 
-      // Determine if audioUrl is a local require or remote URL
-      let audioSource;
-      if (typeof track.audioUrl === "string") {
-        audioSource = { uri: track.audioUrl };
-      } else if (typeof track.audioUrl === "number") {
-        audioSource = track.audioUrl;
-      } else {
-        audioSource = track.audioUrl;
-      }
+      // Determine audio source
+      const audioSource =
+        typeof track.audioUrl === "string"
+          ? { uri: track.audioUrl }
+          : track.audioUrl;
 
       // Load audio with streaming support for large files
       try {
-        console.log("🎵 Audio module available, proceeding with playback");
-
         const { sound: loadedSound } = await Audio.Sound.createAsync(
           audioSource,
           {
@@ -805,14 +745,14 @@ export default function App() {
         sound = loadedSound;
       } catch (loadError) {
         // Handle audio loading error gracefully
-          console.log(
+        console.log(
           "🎵 Audio loading error, but continuing with playback attempt"
-          );
-          setGlobalAudioState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error: "Audio playback not available in Expo Go",
-          }));
+        );
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: "Audio playback not available in Expo Go",
+        }));
         return;
       }
 
@@ -844,13 +784,15 @@ export default function App() {
       let durationUpdated = false; // Track if we've updated duration in DB
       sound.setOnPlaybackStatusUpdate(async (status) => {
         if (status.isLoaded) {
-          // Check if track has finished playing
+          // Check if track has finished playing (more robust detection)
           const hasFinished =
             status.didJustFinish ||
-            (status.positionMillis >= status.durationMillis - 100 &&
-              status.durationMillis > 0);
+            (status.positionMillis >= status.durationMillis - 50 && // Reduced threshold
+              status.durationMillis > 0 &&
+              !isScrubbing && // Don't trigger during scrubbing
+              !status.isPlaying); // Only if actually stopped playing
 
-          if (hasFinished && !status.isPlaying) {
+          if (hasFinished) {
             console.log("🎵 Track finished, checking for next track in queue");
 
             // Get current queue state
@@ -873,14 +815,29 @@ export default function App() {
             return; // Exit early since we're handling the finished state
           }
 
-          setGlobalAudioState((prev) => ({
-            ...prev,
-            isPlaying: status.isPlaying,
-            isLoading: false,
-            progress: status.positionMillis / status.durationMillis || 0,
-            positionMillis: status.positionMillis || 0,
-            durationMillis: status.durationMillis || 0,
-          }));
+          setGlobalAudioState((prev) => {
+            // Don't update progress if we're scrubbing to avoid conflicts
+            if (isScrubbing) {
+              return {
+                ...prev,
+                isPlaying: status.isPlaying,
+                isLoading: false,
+                // Keep existing progress and position during scrubbing
+                positionMillis: prev.positionMillis,
+                durationMillis: status.durationMillis || prev.durationMillis,
+              };
+            }
+
+            // Normal progress update when not scrubbing
+            return {
+              ...prev,
+              isPlaying: status.isPlaying,
+              isLoading: false,
+              progress: status.positionMillis / status.durationMillis || 0,
+              positionMillis: status.positionMillis || 0,
+              durationMillis: status.durationMillis || 0,
+            };
+          });
 
           // Update duration in database if not already set and we have the duration
           if (
@@ -1255,16 +1212,23 @@ export default function App() {
       console.log(`📊 Audio status before seek:`, status);
 
       if (status.isLoaded && status.durationMillis > 0) {
-        // Ensure position doesn't exceed duration
-        const clampedPosition = Math.min(positionMillis, status.durationMillis);
+        // Ensure position doesn't exceed duration and leave buffer to prevent finished trigger
+        const maxSeekPosition = status.durationMillis - 100; // Leave 100ms buffer
+        const clampedPosition = Math.min(positionMillis, maxSeekPosition);
 
         // Check if we're already close to this position to avoid unnecessary seeks
         const currentPosition = status.positionMillis || 0;
         const positionDiff = Math.abs(clampedPosition - currentPosition);
 
-        if (positionDiff < 500) {
-          // Less than 0.5 seconds difference
+        if (positionDiff < 200) {
+          // Less than 0.2 seconds difference for smoother scrubbing
           console.log(`⏭️ Skipping seek - already close to target position`);
+          return;
+        }
+
+        // Don't seek if audio is in a critical state (loading, buffering, etc.)
+        if (status.isBuffering || status.isLoading) {
+          console.log(`⏭️ Skipping seek - audio is buffering/loading`);
           return;
         }
 
@@ -1298,6 +1262,13 @@ export default function App() {
   const miniProgressBarRef = useRef(null);
   const fullScreenProgressBarRef = useRef(null);
 
+  // Constants for progress bar calculations
+  const PROGRESS_BAR_PADDING = 48;
+  const getProgressBarWidth = useCallback(
+    () => Dimensions.get("window").width - PROGRESS_BAR_PADDING,
+    []
+  );
+
   // Enhanced progress bar handler with drag support
   const handleProgressBarPress = async (event) => {
     event.stopPropagation();
@@ -1312,9 +1283,7 @@ export default function App() {
     const { locationX } = event.nativeEvent;
     const target = event.currentTarget;
     const progressBarWidth =
-      target?.offsetWidth ||
-      target?.clientWidth ||
-      Dimensions.get("window").width - 48;
+      target?.offsetWidth || target?.clientWidth || getProgressBarWidth();
 
     // Calculate the percentage position
     const percentage = Math.max(0, Math.min(1, locationX / progressBarWidth));
@@ -1327,39 +1296,60 @@ export default function App() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  // Throttle seeking to prevent rapid successive calls
+  // Optimized seeking system with unified throttling and debouncing
   const seekThrottleRef = useRef(null);
   const lastSeekPositionRef = useRef(0);
+  const scrubDebounceRef = useRef(null);
 
+  // Constants for seeking optimization
+  const SEEK_THRESHOLD_MS = 200; // Minimum position difference to seek
+  const SEEK_THROTTLE_MS = 100; // Throttle delay
+  const SCRUB_UPDATE_MS = 16; // ~60fps visual updates
+
+  // Unified scrub position update with debouncing
+  const updateScrubPosition = useCallback((percentage) => {
+    if (scrubDebounceRef.current) {
+      clearTimeout(scrubDebounceRef.current);
+    }
+
+    scrubDebounceRef.current = setTimeout(() => {
+      setScrubPosition(percentage);
+    }, SCRUB_UPDATE_MS);
+  }, []);
+
+  // Optimized throttled seek function
   const throttledSeek = useCallback((positionMillis) => {
     // Clear any existing throttle
     if (seekThrottleRef.current) {
       clearTimeout(seekThrottleRef.current);
     }
 
-    // Only seek if position has changed significantly (more than 1 second)
+    // Only seek if position has changed significantly
     const positionDiff = Math.abs(positionMillis - lastSeekPositionRef.current);
-    if (positionDiff < 1000) {
+    if (positionDiff < SEEK_THRESHOLD_MS) {
       return;
     }
 
     seekThrottleRef.current = setTimeout(async () => {
       lastSeekPositionRef.current = positionMillis;
       await seekToPosition(positionMillis);
-    }, 100); // Throttle to max 10 seeks per second
+    }, SEEK_THROTTLE_MS);
   }, []);
 
-  // Pan responder specifically for full-screen progress bar
-  const fullScreenProgressBarPanResponder = useMemo(
-    () =>
-      PanResponder.create({
+  // Unified pan responder factory for progress bars
+  const createProgressBarPanResponder = useCallback(
+    (options = {}) => {
+      const {
+        enableImmediateSeek = true,
+        enableThrottledSeek = true,
+        captureTouches = true,
+      } = options;
+
+      return PanResponder.create({
         onStartShouldSetPanResponder: () => true,
-        onStartShouldSetPanResponderCapture: () => false,
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          // Only start dragging if there's significant movement
-          return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
-        },
-        onMoveShouldSetPanResponderCapture: () => false,
+        onStartShouldSetPanResponderCapture: () => captureTouches,
+        onMoveShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponderCapture: () => captureTouches,
         onPanResponderGrant: (evt) => {
           // Check if audio is ready
           if (
@@ -1372,19 +1362,21 @@ export default function App() {
           // Start scrubbing
           setIsScrubbing(true);
 
-          // Get progress bar width dynamically
-          const progressBarWidth = Dimensions.get("window").width - 48; // Account for padding
+          // Calculate percentage from touch position
+          const progressBarWidth = getProgressBarWidth();
           const percentage = Math.max(
             0,
             Math.min(1, evt.nativeEvent.locationX / progressBarWidth)
           );
 
-          // Update scrub position immediately
-          setScrubPosition(percentage);
+          // Update visual feedback
+          updateScrubPosition(percentage);
 
-          // Calculate new position and seek immediately for tap
-          const newPosition = percentage * globalAudioState.durationMillis;
-          seekToPosition(newPosition);
+          // Seek immediately for tap
+          if (enableImmediateSeek) {
+            const newPosition = percentage * globalAudioState.durationMillis;
+            seekToPosition(newPosition);
+          }
 
           // Provide haptic feedback
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1398,73 +1390,76 @@ export default function App() {
             return;
           }
 
-          // Get progress bar width dynamically
-          const progressBarWidth = Dimensions.get("window").width - 48; // Account for padding
+          // Calculate percentage from gesture position
+          const progressBarWidth = getProgressBarWidth();
           const percentage = Math.max(
             0,
             Math.min(1, gestureState.moveX / progressBarWidth)
           );
 
-          // Update scrub position for immediate visual feedback
-          setScrubPosition(percentage);
+          // Update visual feedback
+          updateScrubPosition(percentage);
 
-          // Calculate new position and use throttled seek
-          const newPosition = percentage * globalAudioState.durationMillis;
-          throttledSeek(newPosition);
+          // Use throttled seek for smooth dragging
+          if (enableThrottledSeek) {
+            const newPosition = percentage * globalAudioState.durationMillis;
+            throttledSeek(newPosition);
+          }
         },
         onPanResponderRelease: () => {
-          // End of drag - clear throttle and stop scrubbing
+          // Clean up scrubbing state
           setIsScrubbing(false);
           if (seekThrottleRef.current) {
             clearTimeout(seekThrottleRef.current);
             seekThrottleRef.current = null;
           }
-        },
-      }),
-    [globalAudioState.durationMillis, globalAudioState.isLoading, throttledSeek]
-  );
-
-  // Pan responder for drag functionality
-  const progressBarPanResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onStartShouldSetPanResponderCapture: () => false,
-        onMoveShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponderCapture: () => false,
-        onPanResponderGrant: () => {
-          // Start of drag - provide haptic feedback
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        },
-        onPanResponderMove: (_, gestureState) => {
-          // Check if audio is ready
-          if (
-            globalAudioState.durationMillis <= 0 ||
-            globalAudioState.isLoading
-          ) {
-            return;
+          if (scrubDebounceRef.current) {
+            clearTimeout(scrubDebounceRef.current);
+            scrubDebounceRef.current = null;
           }
-
-          // Get progress bar width dynamically
-          const progressBarWidth = Dimensions.get("window").width - 48; // Account for padding
-          const percentage = Math.max(
-            0,
-            Math.min(1, gestureState.moveX / progressBarWidth)
-          );
-
-          // Calculate new position and use throttled seek
-          const newPosition = percentage * globalAudioState.durationMillis;
-          throttledSeek(newPosition);
         },
-        onPanResponderRelease: () => {
-          // End of drag - clear throttle
+        onPanResponderTerminate: () => {
+          // Handle unexpected termination
+          setIsScrubbing(false);
           if (seekThrottleRef.current) {
             clearTimeout(seekThrottleRef.current);
             seekThrottleRef.current = null;
           }
+          if (scrubDebounceRef.current) {
+            clearTimeout(scrubDebounceRef.current);
+            scrubDebounceRef.current = null;
+          }
         },
+      });
+    },
+    [
+      globalAudioState.durationMillis,
+      globalAudioState.isLoading,
+      throttledSeek,
+      updateScrubPosition,
+    ]
+  );
+
+  // Full-screen progress bar pan responder
+  const fullScreenProgressBarPanResponder = useMemo(
+    () =>
+      createProgressBarPanResponder({
+        enableImmediateSeek: true,
+        enableThrottledSeek: true,
+        captureTouches: true,
       }),
-    [globalAudioState.durationMillis, globalAudioState.isLoading, throttledSeek]
+    [createProgressBarPanResponder]
+  );
+
+  // Mini player progress bar pan responder
+  const progressBarPanResponder = useMemo(
+    () =>
+      createProgressBarPanResponder({
+        enableImmediateSeek: false, // Mini player only supports dragging, not tapping
+        enableThrottledSeek: true,
+        captureTouches: false, // Less aggressive for mini player
+      }),
+    [createProgressBarPanResponder]
   );
 
   // Queue management functions
@@ -2198,6 +2193,74 @@ export default function App() {
     }
   };
 
+  // Set up real-time subscriptions for notifications
+  useEffect(() => {
+    if (!user) return;
+
+    console.log(
+      "🔔 Setting up real-time notification subscriptions for user:",
+      user.id
+    );
+
+    // Subscribe to new notifications
+    const notificationChannel = supabase
+      .channel(`notifications-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("🔔 New notification received:", payload.new);
+          // Refresh notification counts when new notification arrives
+          loadNotificationCounts();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("🔔 Notification updated:", payload.new);
+          // Refresh notification counts when notification is marked as read
+          loadNotificationCounts();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to new messages
+    const messageChannel = supabase
+      .channel(`messages-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("💬 New message received:", payload.new);
+          // Refresh message counts when new message arrives
+          loadNotificationCounts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log("🔔 Cleaning up notification subscriptions");
+      supabase.removeChannel(notificationChannel);
+      supabase.removeChannel(messageChannel);
+    };
+  }, [user]);
+
   // Notification Badge Component
   const NotificationBadge = ({ count, style }) => {
     if (count === 0) return null;
@@ -2573,6 +2636,10 @@ export default function App() {
               setCurrentScreen(screen);
               setScreenParams(params);
             }}
+            onNotificationRead={() => {
+              // Refresh notification count when a notification is read
+              loadNotificationCounts();
+            }}
           />
         );
 
@@ -2866,15 +2933,15 @@ export default function App() {
               onPress={() => handleMenuNavigation("connections")}
             >
               <View style={styles.tabIconContainer}>
-              <Ionicons
-                name="people-outline"
-                size={20}
-                color={
-                  currentScreen === "connections"
+                <Ionicons
+                  name="people-outline"
+                  size={20}
+                  color={
+                    currentScreen === "connections"
                       ? "hsl(75, 100%, 60%)"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
+                      : "hsl(0, 0%, 70%)"
+                  }
+                />
                 <NotificationBadge
                   count={unreadMessageCount}
                   style={styles.tabNotificationBadge}
@@ -3024,11 +3091,17 @@ export default function App() {
                     onPress={() => handleMenuNavigation("notifications")}
                     activeOpacity={0.7}
                   >
-                    <Ionicons
-                      name="notifications-outline"
-                      size={24}
-                      color="hsl(75, 100%, 60%)"
-                    />
+                    <View style={styles.tabIconContainer}>
+                      <Ionicons
+                        name="notifications-outline"
+                        size={24}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                      <NotificationBadge
+                        count={unreadNotificationCount}
+                        style={styles.tabNotificationBadge}
+                      />
+                    </View>
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>Notifications</Text>
                       <Text style={styles.menuItemDescription}>
@@ -3112,124 +3185,124 @@ export default function App() {
 
         {/* Global Audio Player - shows when there's a current track */}
         {globalAudioState.currentTrack && (
-            <Animated.View
-              style={[
-                styles.globalAudioPlayer,
-                {
-                  opacity: Animated.multiply(
-                    audioPlayerOpacity,
-                    audioPlayerSwipeOpacity
-                  ),
-                  transform: [
-                    {
-                      translateY: Animated.add(
-                        audioPlayerTranslateY,
-                        audioPlayerSwipeTranslateY
-                      ),
-                    },
-                  ],
-                },
-              ]}
-              {...audioPlayerPanResponder.panHandlers}
-            >
+          <Animated.View
+            style={[
+              styles.globalAudioPlayer,
+              {
+                opacity: Animated.multiply(
+                  audioPlayerOpacity,
+                  audioPlayerSwipeOpacity
+                ),
+                transform: [
+                  {
+                    translateY: Animated.add(
+                      audioPlayerTranslateY,
+                      audioPlayerSwipeTranslateY
+                    ),
+                  },
+                ],
+              },
+            ]}
+            {...audioPlayerPanResponder.panHandlers}
+          >
             <TouchableOpacity
               onPress={() => setShowFullScreenPlayer(true)}
               activeOpacity={0.9}
               style={styles.audioPlayerContent}
             >
-                {/* Album Art */}
-                <View style={styles.audioAlbumArt}>
-                  {globalAudioState.currentTrack.image ? (
-                    <Image
-                      source={{ uri: globalAudioState.currentTrack.image }}
-                      style={styles.albumArtImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.albumArtPlaceholder}>
-                      <Ionicons
-                        name="musical-notes"
-                        size={24}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.audioTrackInfo}>
-                  <AutoScrollText
-                    text={globalAudioState.currentTrack.title}
-                    style={styles.audioTrackTitle}
-                    containerWidth={200}
+              {/* Album Art */}
+              <View style={styles.audioAlbumArt}>
+                {globalAudioState.currentTrack.image ? (
+                  <Image
+                    source={{ uri: globalAudioState.currentTrack.image }}
+                    style={styles.albumArtImage}
+                    resizeMode="cover"
                   />
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (globalAudioState.currentTrack.user_id) {
-                        setCurrentScreen("user-profile");
-                        setScreenParams({
-                          userId: globalAudioState.currentTrack.user_id,
-                        });
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  style={styles.artistNameTouchable}
-                  >
-                    <Text style={styles.audioTrackArtist} numberOfLines={1}>
-                      {globalAudioState.currentTrack.artist}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Timer - Compact format */}
-                <View style={styles.audioTimeContainer}>
-                  <Text style={styles.audioTimeText}>
-                    {formatTime(globalAudioState.positionMillis || 0)} /{" "}
-                    {formatTime(globalAudioState.durationMillis || 0)}
-                  </Text>
-                </View>
-
-                <View style={styles.audioControls}>
-                {/* Play/Pause Button */}
-                  <TouchableOpacity
-                    style={styles.audioControlButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      if (globalAudioState.isPlaying) {
-                        pauseGlobalAudio();
-                      } else {
-                        resumeGlobalAudio();
-                      }
-                    }}
-                  activeOpacity={0.8}
-                  >
+                ) : (
+                  <View style={styles.albumArtPlaceholder}>
                     <Ionicons
-                      name={globalAudioState.isPlaying ? "pause" : "play"}
+                      name="musical-notes"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
+                    />
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.audioTrackInfo}>
+                <AutoScrollText
+                  text={globalAudioState.currentTrack.title}
+                  style={styles.audioTrackTitle}
+                  containerWidth={200}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    if (globalAudioState.currentTrack.user_id) {
+                      setCurrentScreen("user-profile");
+                      setScreenParams({
+                        userId: globalAudioState.currentTrack.user_id,
+                      });
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  style={styles.artistNameTouchable}
+                >
+                  <Text style={styles.audioTrackArtist} numberOfLines={1}>
+                    {globalAudioState.currentTrack.artist}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Timer - Compact format */}
+              <View style={styles.audioTimeContainer}>
+                <Text style={styles.audioTimeText}>
+                  {formatTime(globalAudioState.positionMillis || 0)} /{" "}
+                  {formatTime(globalAudioState.durationMillis || 0)}
+                </Text>
+              </View>
+
+              <View style={styles.audioControls}>
+                {/* Play/Pause Button */}
+                <TouchableOpacity
+                  style={styles.audioControlButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (globalAudioState.isPlaying) {
+                      pauseGlobalAudio();
+                    } else {
+                      resumeGlobalAudio();
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={globalAudioState.isPlaying ? "pause" : "play"}
                     size={22}
                     color="hsl(0, 0%, 0%)" // Changed to black/dark
-                    />
-                  </TouchableOpacity>
-                </View>
+                  />
+                </TouchableOpacity>
+              </View>
             </TouchableOpacity>
 
             {/* Progress Bar - Positioned at bottom */}
             <View
-                  ref={miniProgressBarRef}
-                  style={styles.audioProgressContainer}
+              ref={miniProgressBarRef}
+              style={styles.audioProgressContainer}
               {...progressBarPanResponder.panHandlers}
             >
               <TouchableOpacity
                 style={styles.audioProgressBar}
-                  onPress={handleProgressBarPress}
-                  activeOpacity={0.8}
-                >
-                    <View
-                      style={[
-                        styles.audioProgressFill,
-                        {
-                          width: `${(globalAudioState.progress || 0) * 100}%`,
-                        },
-                      ]}
-                    />
+                onPress={handleProgressBarPress}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.audioProgressFill,
+                    {
+                      width: `${(globalAudioState.progress || 0) * 100}%`,
+                    },
+                  ]}
+                />
                 {/* Scrubber Thumb */}
                 <View
                   style={[
@@ -3239,9 +3312,9 @@ export default function App() {
                     },
                   ]}
                 />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         )}
 
         {/* Full-Screen Audio Player Modal */}
@@ -3311,6 +3384,7 @@ export default function App() {
                 {/* Progress Bar */}
                 <View style={styles.fullScreenProgressSection}>
                   <View
+                    ref={fullScreenProgressBarRef}
                     style={styles.fullScreenProgressBar}
                     {...fullScreenProgressBarPanResponder.panHandlers}
                   >
@@ -3420,7 +3494,7 @@ export default function App() {
                 </View>
 
                 {/* About the DJ Section */}
-                  <TouchableOpacity
+                <TouchableOpacity
                   style={styles.aboutDJCard}
                   onPress={() => {
                     console.log(
@@ -3459,8 +3533,8 @@ export default function App() {
                               alignItems: "center",
                             },
                           ]}
-                  >
-                    <Ionicons
+                        >
+                          <Ionicons
                             name="person"
                             size={24}
                             color="hsl(0, 0%, 50%)"
@@ -3488,7 +3562,7 @@ export default function App() {
                     {globalAudioState.currentTrack?.user?.bio ||
                       "Discover more about this talented DJ and their unique sound."}
                   </Text>
-                  </TouchableOpacity>
+                </TouchableOpacity>
               </ScrollView>
             </View>
           </Modal>
@@ -3565,10 +3639,10 @@ export default function App() {
                     </View>
                   </TouchableOpacity>
                 </View>
-                </View>
               </View>
             </View>
-          </Modal>
+          </View>
+        </Modal>
 
         {/* Application Sent Modal */}
 
@@ -4632,7 +4706,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
-    fontWeight: "600",
+    fontWeight: "bold",
     lineHeight: 20,
     marginBottom: 2,
   },
@@ -5549,6 +5623,6 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     // marginLeft: 16,
-    fontWeight: "500",
+    fontWeight: "bold",
   },
 });
