@@ -32,10 +32,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [memberCount, setMemberCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
-
-  // Multimedia state
   const [showMediaPicker, setShowMediaPicker] = useState(false);
-  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
 
   // Refs
@@ -238,12 +235,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }
   };
 
-  // Multimedia upload functions
+  // Attachment functions
   const handleImageUpload = async () => {
     try {
-      setUploadingMedia(true);
-      const { multimediaService } = await import("../lib/multimediaService");
-      const mediaData = await multimediaService.pickImage();
+      const multimediaService = await import("../lib/multimediaService");
+      const mediaData = await multimediaService.default.pickImage();
       if (mediaData) {
         setSelectedMedia(mediaData);
         setShowMediaPicker(false);
@@ -251,34 +247,23 @@ const MessagesScreen = ({ user, navigation, route }) => {
     } catch (error) {
       console.error("Error uploading image:", error);
       Alert.alert("Upload Error", "Failed to upload image. Please try again.");
-    } finally {
-      setUploadingMedia(false);
-    }
-  };
-
-  const handleVideoUpload = async () => {
-    try {
-      setUploadingMedia(true);
-      const { multimediaService } = await import("../lib/multimediaService");
-      const mediaData = await multimediaService.pickVideo();
-      if (mediaData) {
-        setSelectedMedia(mediaData);
-        setShowMediaPicker(false);
-      }
-    } catch (error) {
-      console.error("Error uploading video:", error);
-      Alert.alert("Upload Error", "Failed to upload video. Please try again.");
-    } finally {
-      setUploadingMedia(false);
     }
   };
 
   const handleDocumentUpload = async () => {
     try {
-      setUploadingMedia(true);
-      const { multimediaService } = await import("../lib/multimediaService");
-      const mediaData = await multimediaService.pickDocument();
-      if (mediaData) {
+      const multimediaService = await import("../lib/multimediaService");
+      const mediaData = await multimediaService.default.pickDocument();
+
+      if (mediaData && mediaData.type === "error") {
+        Alert.alert("Document Picker Not Available", mediaData.message, [
+          { text: "OK", style: "default" },
+        ]);
+        setShowMediaPicker(false);
+        return;
+      }
+
+      if (mediaData && mediaData.type !== "error") {
         setSelectedMedia(mediaData);
         setShowMediaPicker(false);
       }
@@ -288,70 +273,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
         "Upload Error",
         "Failed to upload document. Please try again."
       );
-    } finally {
-      setUploadingMedia(false);
-    }
-  };
-
-  const handleAudioUpload = async () => {
-    try {
-      setUploadingMedia(true);
-      const { multimediaService } = await import("../lib/multimediaService");
-      const mediaData = await multimediaService.pickAudio();
-      if (mediaData) {
-        setSelectedMedia(mediaData);
-        setShowMediaPicker(false);
-      }
-    } catch (error) {
-      console.error("Error uploading audio:", error);
-      Alert.alert("Upload Error", "Failed to upload audio. Please try again.");
-    } finally {
-      setUploadingMedia(false);
     }
   };
 
   const clearSelectedMedia = () => {
     setSelectedMedia(null);
-  };
-
-  // Helper function to get file icon
-  const getFileIcon = (extension) => {
-    const iconMap = {
-      pdf: "document-text",
-      doc: "document-text",
-      docx: "document-text",
-      txt: "document-text",
-      xls: "document-text",
-      xlsx: "document-text",
-      ppt: "document-text",
-      pptx: "document-text",
-      zip: "archive",
-      rar: "archive",
-      "7z": "archive",
-      mp3: "musical-notes",
-      wav: "musical-notes",
-      aac: "musical-notes",
-      flac: "musical-notes",
-      mp4: "videocam",
-      mov: "videocam",
-      avi: "videocam",
-      mkv: "videocam",
-      jpg: "image",
-      jpeg: "image",
-      png: "image",
-      gif: "image",
-      webp: "image",
-    };
-    return iconMap[extension?.toLowerCase()] || "document";
-  };
-
-  // Helper function to format file size
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   // Send a new message
@@ -380,6 +306,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
     const messageContent = newMessage.trim();
     const mediaData = selectedMedia;
+
+    // Validate media data - don't process error objects
+    if (mediaData && mediaData.type === "error") {
+      console.error("❌ Cannot send error object as media:", mediaData);
+      Alert.alert("Error", "Invalid media data. Please try again.");
+      return;
+    }
 
     setNewMessage("");
     setSelectedMedia(null);
@@ -418,8 +351,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
           message_type: mediaData ? mediaData.type : "text",
         };
 
-        // Add multimedia fields if media is present
-        if (mediaData) {
+        // Add multimedia fields if media is present and valid
+        if (mediaData && mediaData.type !== "error" && mediaData.url) {
           messageInsertData.media_url = mediaData.url;
           messageInsertData.media_filename = mediaData.filename;
           messageInsertData.media_size = mediaData.size;
@@ -481,8 +414,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
           message_type: mediaData ? mediaData.type : "text",
         };
 
-        // Add multimedia fields if media is present
-        if (mediaData) {
+        // Add multimedia fields if media is present and valid
+        if (mediaData && mediaData.type !== "error" && mediaData.url) {
           groupMessageInsertData.media_url = mediaData.url;
           groupMessageInsertData.media_filename = mediaData.filename;
           groupMessageInsertData.media_size = mediaData.size;
@@ -749,6 +682,72 @@ const MessagesScreen = ({ user, navigation, route }) => {
           </Text>
         </View>
 
+        {/* Selected Media Preview */}
+        {selectedMedia && (
+          <View style={styles.mediaPreviewContainer}>
+            <View style={styles.mediaPreview}>
+              {selectedMedia.type === "image" && (
+                <Image
+                  source={{ uri: selectedMedia.url }}
+                  style={styles.mediaPreviewImage}
+                />
+              )}
+              {selectedMedia.type === "document" && (
+                <View style={styles.mediaPreviewFile}>
+                  <Ionicons
+                    name="document"
+                    size={24}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.mediaPreviewText}>
+                    {selectedMedia.filename}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <TouchableOpacity
+              onPress={clearSelectedMedia}
+              style={styles.removeMediaButton}
+            >
+              <Ionicons name="close" size={20} color="hsl(0, 0%, 100%)" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Media Picker Modal */}
+        {showMediaPicker && (
+          <View style={styles.mediaPickerOverlay}>
+            <View style={styles.mediaPickerContainer}>
+              <View style={styles.mediaPickerButtons}>
+                <TouchableOpacity
+                  style={styles.mediaPickerButton}
+                  onPress={handleImageUpload}
+                >
+                  <Ionicons name="image" size={24} color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.mediaPickerButtonText}>Photo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.mediaPickerButton}
+                  onPress={handleDocumentUpload}
+                >
+                  <Ionicons
+                    name="document"
+                    size={24}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.mediaPickerButtonText}>File</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowMediaPicker(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Message Input */}
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -774,6 +773,12 @@ const MessagesScreen = ({ user, navigation, route }) => {
             </View>
           ) : (
             <View style={styles.inputWrapper}>
+              <TouchableOpacity
+                style={styles.attachButton}
+                onPress={() => setShowMediaPicker(true)}
+              >
+                <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
+              </TouchableOpacity>
               <TextInput
                 style={styles.messageInput}
                 placeholder="Type a message..."
@@ -786,10 +791,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
               <TouchableOpacity
                 style={[
                   styles.sendButton,
-                  (!newMessage.trim() || sending) && styles.sendButtonDisabled,
+                  ((!newMessage.trim() && !selectedMedia) || sending) &&
+                    styles.sendButtonDisabled,
                 ]}
                 onPress={sendMessage}
-                disabled={!newMessage.trim() || sending}
+                disabled={(!newMessage.trim() && !selectedMedia) || sending}
               >
                 {sending ? (
                   <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
@@ -868,110 +874,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
         {messages.map(renderMessage)}
       </ScrollView>
 
-      {/* Selected Media Preview */}
-      {selectedMedia && (
-        <View style={styles.mediaPreviewContainer}>
-          <View style={styles.mediaPreview}>
-            {selectedMedia.type === "image" && (
-              <Image
-                source={{ uri: selectedMedia.url }}
-                style={styles.mediaPreviewImage}
-              />
-            )}
-            {selectedMedia.type === "video" && (
-              <View style={styles.mediaPreviewVideo}>
-                <Ionicons
-                  name="videocam"
-                  size={24}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.mediaPreviewText}>Video</Text>
-              </View>
-            )}
-            {(selectedMedia.type === "file" ||
-              selectedMedia.type === "audio") && (
-              <View style={styles.mediaPreviewFile}>
-                <Ionicons
-                  name={getFileIcon(selectedMedia.extension)}
-                  size={24}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.mediaPreviewText}>
-                  {selectedMedia.filename}
-                </Text>
-              </View>
-            )}
-          </View>
-          <TouchableOpacity
-            onPress={clearSelectedMedia}
-            style={styles.removeMediaButton}
-          >
-            <Ionicons name="close" size={20} color="hsl(0, 0%, 100%)" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Media Picker Modal */}
-      {showMediaPicker && (
-        <View style={styles.mediaPickerOverlay}>
-          <View style={styles.mediaPickerContainer}>
-            <Text style={styles.mediaPickerTitle}>Choose Media Type</Text>
-            <View style={styles.mediaPickerButtons}>
-              <TouchableOpacity
-                style={styles.mediaPickerButton}
-                onPress={handleImageUpload}
-                disabled={uploadingMedia}
-              >
-                <Ionicons name="image" size={24} color="hsl(75, 100%, 60%)" />
-                <Text style={styles.mediaPickerButtonText}>Photo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.mediaPickerButton}
-                onPress={handleVideoUpload}
-                disabled={uploadingMedia}
-              >
-                <Ionicons
-                  name="videocam"
-                  size={24}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.mediaPickerButtonText}>Video</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.mediaPickerButton}
-                onPress={handleAudioUpload}
-                disabled={uploadingMedia}
-              >
-                <Ionicons
-                  name="musical-notes"
-                  size={24}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.mediaPickerButtonText}>Audio</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.mediaPickerButton}
-                onPress={handleDocumentUpload}
-                disabled={uploadingMedia}
-              >
-                <Ionicons
-                  name="document"
-                  size={24}
-                  color="hsl(75, 100%, 60%)"
-                />
-                <Text style={styles.mediaPickerButtonText}>File</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowMediaPicker(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
       {/* Message Input */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -982,7 +884,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
           <TouchableOpacity
             style={styles.attachButton}
             onPress={() => setShowMediaPicker(true)}
-            disabled={uploadingMedia}
           >
             <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
           </TouchableOpacity>
@@ -1343,7 +1244,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.8)",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 1000,
+    zIndex: 9999,
   },
   mediaPickerContainer: {
     backgroundColor: "hsl(0, 0%, 8%)",
@@ -1454,6 +1355,120 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Helvetica Neue",
     marginTop: 2,
+  },
+
+  // Attachment styles
+  attachButton: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  mediaPreviewContainer: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopWidth: 1,
+    borderTopColor: "hsl(0, 0%, 20%)",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  mediaPreview: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  mediaPreviewImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  mediaPreviewFile: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 15%)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginRight: 12,
+    maxWidth: 200,
+  },
+  mediaPreviewText: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    marginLeft: 8,
+  },
+  removeMediaButton: {
+    backgroundColor: "hsl(0, 0%, 30%)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  mediaPickerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
+  mediaPickerContainer: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 24,
+    width: "80%",
+    maxWidth: 300,
+  },
+  mediaPickerTitle: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 20,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  mediaPickerButtons: {
+    gap: 12,
+  },
+  mediaPickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 15%)",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  mediaPickerButtonText: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    marginLeft: 12,
+    fontWeight: "500",
+  },
+  cancelButton: {
+    backgroundColor: "hsl(0, 0%, 25%)",
+    paddingVertical: 12,
+    marginTop: 16,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
   },
 });
 
