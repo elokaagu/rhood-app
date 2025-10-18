@@ -435,9 +435,7 @@ export default function ConnectionsScreen({
       const formattedDiscoverUsers = recommendedUsers.map((user) => {
         const connectionInfo = connectionStatusMap.get(user.id);
         const isConnected =
-          connectionInfo &&
-          (connectionInfo.status === "pending" ||
-            connectionInfo.status === "accepted");
+          connectionInfo && connectionInfo.status === "accepted";
 
         return {
           id: user.id,
@@ -943,16 +941,30 @@ export default function ConnectionsScreen({
                           style={[
                             styles.discoverConnectButton,
                             user.isConnected && styles.discoverConnectedButton,
+                            user.connectionStatus === "pending" &&
+                              styles.discoverPendingButton,
                           ]}
                           onPress={() => handleConnect(user)}
-                          disabled={discoverLoading || user.isConnected}
+                          disabled={
+                            discoverLoading ||
+                            user.isConnected ||
+                            user.connectionStatus === "pending"
+                          }
                         >
                           <Ionicons
-                            name={user.isConnected ? "checkmark" : "add"}
+                            name={
+                              user.isConnected
+                                ? "checkmark"
+                                : user.connectionStatus === "pending"
+                                ? "time"
+                                : "add"
+                            }
                             size={16}
                             color={
                               user.isConnected
                                 ? "hsl(0, 0%, 100%)"
+                                : user.connectionStatus === "pending"
+                                ? "hsl(0, 0%, 60%)"
                                 : "hsl(0, 0%, 0%)"
                             }
                           />
@@ -960,9 +972,15 @@ export default function ConnectionsScreen({
                             style={[
                               styles.discoverConnectText,
                               user.isConnected && styles.discoverConnectedText,
+                              user.connectionStatus === "pending" &&
+                                styles.discoverPendingText,
                             ]}
                           >
-                            {user.isConnected ? "Connected" : "Connect"}
+                            {user.isConnected
+                              ? "Connected"
+                              : user.connectionStatus === "pending"
+                              ? "Pending"
+                              : "Connect"}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -1767,6 +1785,10 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 30%)",
     opacity: 0.8,
   },
+  discoverPendingButton: {
+    backgroundColor: "hsl(0, 0%, 20%)",
+    opacity: 0.6,
+  },
   discoverConnectText: {
     fontSize: 14,
     fontFamily: "Arial",
@@ -1775,5 +1797,8 @@ const styles = StyleSheet.create({
   },
   discoverConnectedText: {
     color: "hsl(0, 0%, 100%)",
+  },
+  discoverPendingText: {
+    color: "hsl(0, 0%, 60%)",
   },
 });

@@ -28,6 +28,7 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState(null);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   // Audio playback state
@@ -62,21 +63,30 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
       console.log("🔍 UserProfileView - Current user ID:", currentUser.id);
       console.log("🔍 UserProfileView - Target user ID:", userId);
 
-      const isUserConnected = connections.some((conn) => {
+      // Find any connection with this user (regardless of status)
+      const connection = connections.find((conn) => {
         console.log("🔍 UserProfileView - Checking connection:", conn);
-        const isConnected =
-          conn.connected_user_id === userId || conn.id === userId;
-        console.log("🔍 UserProfileView - Is connected?", isConnected);
-        return isConnected;
+        const isTargetUser = conn.connected_user_id === userId;
+        console.log("🔍 UserProfileView - Is target user?", isTargetUser);
+        return isTargetUser;
       });
 
-      setIsConnected(isUserConnected);
-      console.log(
-        "🔍 Connection status for user",
-        userId,
-        ":",
-        isUserConnected
-      );
+      if (connection) {
+        setConnectionStatus(connection.connection_status);
+        setIsConnected(connection.connection_status === "accepted");
+        console.log(
+          "🔍 Connection status for user",
+          userId,
+          ":",
+          connection.connection_status,
+          "Is connected:",
+          connection.connection_status === "accepted"
+        );
+      } else {
+        setConnectionStatus(null);
+        setIsConnected(false);
+        console.log("🔍 No connection found for user", userId);
+      }
     } catch (error) {
       console.error("Error checking connection status:", error);
     }
@@ -629,22 +639,40 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
               style={[
                 styles.connectButton,
                 isConnected && styles.connectedButton,
+                connectionStatus === "pending" && styles.pendingButton,
               ]}
               onPress={handleConnect}
-              disabled={isConnected}
+              disabled={isConnected || connectionStatus === "pending"}
             >
               <Ionicons
-                name={isConnected ? "checkmark" : "person-add-outline"}
+                name={
+                  isConnected
+                    ? "checkmark"
+                    : connectionStatus === "pending"
+                    ? "time"
+                    : "person-add-outline"
+                }
                 size={20}
-                color={isConnected ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 0%)"}
+                color={
+                  isConnected
+                    ? "hsl(0, 0%, 100%)"
+                    : connectionStatus === "pending"
+                    ? "hsl(0, 0%, 60%)"
+                    : "hsl(0, 0%, 0%)"
+                }
               />
               <Text
                 style={[
                   styles.connectButtonText,
                   isConnected && styles.connectedButtonText,
+                  connectionStatus === "pending" && styles.pendingButtonText,
                 ]}
               >
-                {isConnected ? "Connected" : "Connect"}
+                {isConnected
+                  ? "Connected"
+                  : connectionStatus === "pending"
+                  ? "Pending"
+                  : "Connect"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -922,6 +950,10 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 30%)",
     opacity: 0.8,
   },
+  pendingButton: {
+    backgroundColor: "hsl(0, 0%, 20%)",
+    opacity: 0.6,
+  },
   connectButtonText: {
     fontSize: 16,
     fontFamily: "Arial",
@@ -930,6 +962,9 @@ const styles = StyleSheet.create({
   },
   connectedButtonText: {
     color: "hsl(0, 0%, 100%)",
+  },
+  pendingButtonText: {
+    color: "hsl(0, 0%, 60%)",
   },
   bottomGradient: {
     position: "absolute",

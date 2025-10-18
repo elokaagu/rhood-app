@@ -9,19 +9,32 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
     "production": {
       "ios": {
         "appleId": "eloka@satellitelabs.xyz"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "internal"
       }
     }
   }

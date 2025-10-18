@@ -290,16 +290,25 @@ export default function NotificationsScreen({
 
   const handleAcceptConnection = async (notification) => {
     try {
+      console.log("🔗 Accepting connection for notification:", notification);
+
       // Extract connection ID from notification data
       const connectionId = notification.data?.connection_id;
 
       if (!connectionId) {
+        console.error(
+          "❌ Connection ID not found in notification:",
+          notification
+        );
         Alert.alert("Error", "Connection ID not found");
         return;
       }
 
+      console.log("🔗 Accepting connection with ID:", connectionId);
+
       // Accept the connection
-      await db.acceptConnection(connectionId);
+      const result = await db.acceptConnection(connectionId);
+      console.log("✅ Connection acceptance result:", result);
 
       // Mark notification as read
       await markNotificationAsRead(notification.id);
@@ -313,6 +322,10 @@ export default function NotificationsScreen({
         id: notification.data?.sender_id || notification.relatedId,
       };
 
+      console.log(
+        "🎉 Connection accepted! Showing success modal for user:",
+        userInfo
+      );
       setAcceptedUser(userInfo);
       setShowAcceptModal(true);
 
@@ -321,8 +334,11 @@ export default function NotificationsScreen({
         onNotificationRead();
       }
     } catch (error) {
-      console.error("Error accepting connection:", error);
-      Alert.alert("Error", "Failed to accept connection request");
+      console.error("❌ Error accepting connection:", error);
+      Alert.alert(
+        "Error",
+        `Failed to accept connection request: ${error.message}`
+      );
     }
   };
 

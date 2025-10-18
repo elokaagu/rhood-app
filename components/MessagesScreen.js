@@ -32,6 +32,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [memberCount, setMemberCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
+  const [currentThreadId, setCurrentThreadId] = useState(null);
 
   // Multimedia state
   const [showMediaPicker, setShowMediaPicker] = useState(false);
@@ -41,6 +42,25 @@ const MessagesScreen = ({ user, navigation, route }) => {
   // Refs
   const scrollViewRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Initialize thread ID for individual chats
+  useEffect(() => {
+    if (chatType === "individual" && user?.id && djId && !currentThreadId) {
+      const initializeThread = async () => {
+        try {
+          const threadId = await db.findOrCreateIndividualMessageThread(
+            user.id,
+            djId
+          );
+          setCurrentThreadId(threadId);
+          console.log("🧵 Initialized thread ID:", threadId);
+        } catch (error) {
+          console.error("Error initializing thread ID:", error);
+        }
+      };
+      initializeThread();
+    }
+  }, [chatType, user?.id, djId, currentThreadId]);
 
   // Load initial data
   useEffect(() => {
@@ -72,11 +92,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
     const setupSubscription = async () => {
       if (chatType === "individual" && djId) {
-        // Get thread ID first
-        const threadId = await db.findOrCreateIndividualMessageThread(
-          user.id,
-          djId
-        );
+        // Use stored thread ID or get/create one
+        let threadId = currentThreadId;
+        if (!threadId) {
+          threadId = await db.findOrCreateIndividualMessageThread(
+            user.id,
+            djId
+          );
+          setCurrentThreadId(threadId);
+        }
 
         // Subscribe to individual messages
         messageChannel = supabase
@@ -91,6 +115,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
             },
             (payload) => {
               console.log("💬 New individual message received:", payload.new);
+              console.log("💬 Message sender ID:", payload.new.sender_id);
+              console.log("💬 Current user ID:", user.id);
+              console.log(
+                "💬 Is own message:",
+                payload.new.sender_id === user.id
+              );
+
               // Add new message to the list
               const newMessage = {
                 id: payload.new.id,
@@ -104,8 +135,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 timestamp: payload.new.created_at,
                 isOwn:
                   (payload.new.sender_id || payload.new.author_id) === user.id,
+                messageType: payload.new.message_type || "text",
+                mediaUrl: payload.new.media_url,
+                mediaFilename: payload.new.media_filename,
+                mediaSize: payload.new.media_size,
+                mediaMimeType: payload.new.media_mime_type,
+                thumbnailUrl: payload.new.thumbnail_url,
+                fileExtension: payload.new.file_extension,
               };
 
+              console.log("💬 Adding message to UI:", newMessage);
               setMessages((prev) => [...prev, newMessage]);
 
               // Auto-scroll to bottom when new message arrives
@@ -166,6 +205,114 @@ const MessagesScreen = ({ user, navigation, route }) => {
     };
   }, [user?.id, chatType, djId, communityId]);
 
+  // Set up real-time connection status monitoring
+  useEffect(() => {
+    if (!user?.id || chatType !== "individual" || !djId) return;
+
+    console.log("🔗 Setting up real-time connection status monitoring");
+
+    const connectionChannel = supabase
+      .channel(`connection-status-${user.id}-${djId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "connections",
+          filter: `or(user_id_1.eq.${user.id},user_id_2.eq.${user.id})`,
+        },
+        (payload) => {
+          console.log("🔗 Connection status updated:", payload.new);
+
+          // Check if this update affects the current chat
+          const isRelevantConnection =
+            (payload.new.user_id_1 === user.id &&
+              payload.new.user_id_2 === djId) ||
+            (payload.new.user_id_2 === user.id &&
+              payload.new.user_id_1 === djId);
+
+          if (isRelevantConnection) {
+            console.log(
+              "🔗 Relevant connection status changed to:",
+              payload.new.status
+            );
+
+            // Update connection status
+            setConnectionStatus(payload.new.status);
+            setIsConnected(payload.new.status === "accepted");
+
+            // If connection was just accepted, reload messages and show success
+            if (payload.new.status === "accepted") {
+              console.log("🎉 Connection accepted! Reloading messages...");
+
+              // Show a brief success message
+              Alert.alert(
+                "Connection Accepted! 🎉",
+                "You can now start chatting with this user!",
+                [{ text: "Great!", style: "default" }]
+              );
+
+              // Reload messages to show any existing conversation
+              loadMessages();
+            }
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "connections",
+          filter: `or(user_id_1.eq.${user.id},user_id_2.eq.${user.id})`,
+        },
+        (payload) => {
+          console.log("🔗 New connection created:", payload.new);
+
+          // Check if this new connection affects the current chat
+          const isRelevantConnection =
+            (payload.new.user_id_1 === user.id &&
+              payload.new.user_id_2 === djId) ||
+            (payload.new.user_id_2 === user.id &&
+              payload.new.user_id_1 === djId);
+
+          if (isRelevantConnection) {
+            console.log(
+              "🔗 New relevant connection created with status:",
+              payload.new.status
+            );
+
+            // Update connection status
+            setConnectionStatus(payload.new.status);
+            setIsConnected(payload.new.status === "accepted");
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log("🔗 Cleaning up connection status subscription");
+      supabase.removeChannel(connectionChannel);
+    };
+  }, [user?.id, djId, chatType]);
+
+  // Periodic connection status check as fallback
+  useEffect(() => {
+    if (!user?.id || chatType !== "individual" || !djId) return;
+
+    console.log("🔄 Setting up periodic connection status check");
+
+    const interval = setInterval(async () => {
+      console.log("🔄 Periodic connection status check");
+      await checkConnectionStatus();
+    }, 10000); // Check every 10 seconds
+
+    return () => {
+      console.log("🔄 Cleaning up periodic connection status check");
+      clearInterval(interval);
+    };
+  }, [user?.id, djId, chatType]);
+
   // Fade in animation
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -224,6 +371,12 @@ const MessagesScreen = ({ user, navigation, route }) => {
         setConnectionStatus(connection.connection_status);
         setIsConnected(connection.connection_status === "accepted");
         console.log("Connection found:", connection.connection_status);
+
+        // If connection is accepted, reload messages to show any existing conversation
+        if (connection.connection_status === "accepted") {
+          console.log("🎉 Connection is accepted, reloading messages...");
+          await loadMessages();
+        }
       } else {
         setConnectionStatus(null);
         setIsConnected(false);
@@ -287,14 +440,59 @@ const MessagesScreen = ({ user, navigation, route }) => {
       let messagesData = [];
 
       if (chatType === "individual") {
-        // Get or create message thread
-        const threadId = await db.findOrCreateIndividualMessageThread(
-          user.id,
-          djId
-        );
+        // Use stored thread ID or get/create one
+        let threadId = currentThreadId;
+        if (!threadId) {
+          threadId = await db.findOrCreateIndividualMessageThread(
+            user.id,
+            djId
+          );
+          setCurrentThreadId(threadId);
+        }
+
+        console.log("🧵 Loading messages for thread ID:", threadId);
 
         // Load individual messages
         messagesData = await db.getMessages(threadId);
+
+        console.log(
+          "📨 Raw messages from database:",
+          messagesData?.length || 0
+        );
+        console.log("📨 Sample message data:", messagesData?.[0]);
+
+        // If no messages found, try alternative approach
+        if (!messagesData || messagesData.length === 0) {
+          console.log("🔄 No messages found, trying alternative query...");
+
+          // Try to find messages by sender/receiver combination
+          const { data: altMessages, error: altError } = await supabase
+            .from("messages")
+            .select(
+              `
+              *,
+              sender:user_profiles!messages_sender_id_fkey(
+                id,
+                dj_name,
+                full_name,
+                profile_image_url
+              )
+            `
+            )
+            .or(
+              `and(sender_id.eq.${user.id},thread_id.eq.${threadId}),and(sender_id.eq.${djId},thread_id.eq.${threadId})`
+            )
+            .order("created_at", { ascending: true });
+
+          if (!altError && altMessages) {
+            console.log(
+              "📨 Alternative query found:",
+              altMessages.length,
+              "messages"
+            );
+            messagesData = altMessages;
+          }
+        }
       } else if (chatType === "group") {
         // Load group messages
         console.log(
@@ -324,6 +522,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
           msg.sender?.profile_image_url || msg.author?.profile_image_url,
         timestamp: msg.created_at,
         isOwn: (msg.sender_id || msg.author_id) === user.id,
+        messageType: msg.message_type || "text",
+        mediaUrl: msg.media_url,
+        mediaFilename: msg.media_filename,
+        mediaSize: msg.media_size,
+        mediaMimeType: msg.media_mime_type,
+        thumbnailUrl: msg.thumbnail_url,
+        fileExtension: msg.file_extension,
       }));
 
       console.log("Transformed messages:", transformedMessages?.length || 0);
@@ -557,11 +762,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
           throw new Error("Missing user ID or DJ ID for individual chat");
         }
 
-        // Get or create message thread
-        const threadId = await db.findOrCreateIndividualMessageThread(
-          user.id,
-          djId
-        );
+        // Use stored thread ID or get/create one
+        let threadId = currentThreadId;
+        if (!threadId) {
+          threadId = await db.findOrCreateIndividualMessageThread(
+            user.id,
+            djId
+          );
+          setCurrentThreadId(threadId);
+        }
 
         console.log("🧵 Using thread ID:", threadId);
 
@@ -597,6 +806,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("✅ Individual message sent:", messageData);
+
+        // Reload messages to show the new message immediately
+        await loadMessages();
       } else if (chatType === "group") {
         // Validate required data
         if (!user?.id || !communityId) {
@@ -635,10 +847,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("✅ Group message sent:", messageData);
-      }
 
-      // Reload messages to show the new one
-      await loadMessages();
+        // Reload messages to show the new message immediately
+        await loadMessages();
+      }
 
       // Scroll to bottom
       setTimeout(() => {
@@ -882,6 +1094,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
             </View>
           ) : (
             <View style={styles.inputWrapper}>
+              <TouchableOpacity
+                style={styles.attachButton}
+                onPress={() => setShowMediaPicker(true)}
+                disabled={uploadingMedia}
+              >
+                <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
+              </TouchableOpacity>
               <TextInput
                 style={styles.messageInput}
                 placeholder="Type a message..."
@@ -894,10 +1113,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
               <TouchableOpacity
                 style={[
                   styles.sendButton,
-                  (!newMessage.trim() || sending) && styles.sendButtonDisabled,
+                  ((!newMessage.trim() && !selectedMedia) || sending) &&
+                    styles.sendButtonDisabled,
                 ]}
                 onPress={sendMessage}
-                disabled={!newMessage.trim() || sending}
+                disabled={(!newMessage.trim() && !selectedMedia) || sending}
               >
                 {sending ? (
                   <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
@@ -1079,47 +1299,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
           </View>
         </View>
       )}
-
-      {/* Message Input */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-        style={styles.inputContainer}
-      >
-        <View style={styles.inputWrapper}>
-          <TouchableOpacity
-            style={styles.attachButton}
-            onPress={() => setShowMediaPicker(true)}
-            disabled={uploadingMedia}
-          >
-            <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
-          </TouchableOpacity>
-          <TextInput
-            style={styles.messageInput}
-            placeholder="Type a message..."
-            placeholderTextColor="hsl(0, 0%, 50%)"
-            value={newMessage}
-            onChangeText={setNewMessage}
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              ((!newMessage.trim() && !selectedMedia) || sending) &&
-                styles.sendButtonDisabled,
-            ]}
-            onPress={sendMessage}
-            disabled={(!newMessage.trim() && !selectedMedia) || sending}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
-            ) : (
-              <Ionicons name="send" size={20} color="hsl(0, 0%, 0%)" />
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
     </Animated.View>
   );
 };
