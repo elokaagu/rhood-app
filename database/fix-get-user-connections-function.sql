@@ -46,3 +46,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 SELECT * FROM get_user_connections('64ee29a2-dfd1-4c0a-824a-81b15398ff32'::UUID);
 
 COMMENT ON FUNCTION get_user_connections IS 'Fixed function to get user connections with proper TEXT types';
+    

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -32,7 +32,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [memberCount, setMemberCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
-  const [currentThreadId, setCurrentThreadId] = useState(null);
 
   // Multimedia state
   const [showMediaPicker, setShowMediaPicker] = useState(false);
@@ -42,25 +41,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
   // Refs
   const scrollViewRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  // Initialize thread ID for individual chats
-  useEffect(() => {
-    if (chatType === "individual" && user?.id && djId && !currentThreadId) {
-      const initializeThread = async () => {
-        try {
-          const threadId = await db.findOrCreateIndividualMessageThread(
-            user.id,
-            djId
-          );
-          setCurrentThreadId(threadId);
-          console.log("🧵 Initialized thread ID:", threadId);
-        } catch (error) {
-          console.error("Error initializing thread ID:", error);
-        }
-      };
-      initializeThread();
-    }
-  }, [chatType, user?.id, djId, currentThreadId]);
 
   // Load initial data
   useEffect(() => {
@@ -81,237 +61,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
       setLoading(false);
     }
   }, [djId, communityId, chatType]);
-
-  // Set up real-time message subscriptions
-  useEffect(() => {
-    if (!user?.id) return;
-
-    console.log("💬 Setting up real-time message subscriptions");
-
-    let messageChannel;
-
-    const setupSubscription = async () => {
-      if (chatType === "individual" && djId) {
-        // Use stored thread ID or get/create one
-        let threadId = currentThreadId;
-        if (!threadId) {
-          threadId = await db.findOrCreateIndividualMessageThread(
-            user.id,
-            djId
-          );
-          setCurrentThreadId(threadId);
-        }
-
-        // Subscribe to individual messages
-        messageChannel = supabase
-          .channel(`messages-individual-${user.id}-${djId}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "messages",
-              filter: `thread_id=eq.${threadId}`,
-            },
-            (payload) => {
-              console.log("💬 New individual message received:", payload.new);
-              console.log("💬 Message sender ID:", payload.new.sender_id);
-              console.log("💬 Current user ID:", user.id);
-              console.log(
-                "💬 Is own message:",
-                payload.new.sender_id === user.id
-              );
-
-              // Add new message to the list
-              const newMessage = {
-                id: payload.new.id,
-                content: payload.new.content || payload.new.message || "",
-                senderId: payload.new.sender_id || payload.new.author_id,
-                senderName:
-                  payload.new.sender?.full_name ||
-                  payload.new.sender?.dj_name ||
-                  "Unknown",
-                senderImage: payload.new.sender?.profile_image_url,
-                timestamp: payload.new.created_at,
-                isOwn:
-                  (payload.new.sender_id || payload.new.author_id) === user.id,
-                messageType: payload.new.message_type || "text",
-                mediaUrl: payload.new.media_url,
-                mediaFilename: payload.new.media_filename,
-                mediaSize: payload.new.media_size,
-                mediaMimeType: payload.new.media_mime_type,
-                thumbnailUrl: payload.new.thumbnail_url,
-                fileExtension: payload.new.file_extension,
-              };
-
-              console.log("💬 Adding message to UI:", newMessage);
-              setMessages((prev) => [...prev, newMessage]);
-
-              // Auto-scroll to bottom when new message arrives
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 100);
-            }
-          )
-          .subscribe();
-      } else if (chatType === "group" && communityId) {
-        // Subscribe to group messages
-        messageChannel = supabase
-          .channel(`messages-group-${communityId}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "messages",
-              filter: `community_id=eq.${communityId}`,
-            },
-            (payload) => {
-              console.log("💬 New group message received:", payload.new);
-              // Add new message to the list
-              const newMessage = {
-                id: payload.new.id,
-                content: payload.new.content || payload.new.message || "",
-                senderId: payload.new.sender_id || payload.new.author_id,
-                senderName:
-                  payload.new.sender?.full_name ||
-                  payload.new.sender?.dj_name ||
-                  "Unknown",
-                senderImage: payload.new.sender?.profile_image_url,
-                timestamp: payload.new.created_at,
-                isOwn:
-                  (payload.new.sender_id || payload.new.author_id) === user.id,
-              };
-
-              setMessages((prev) => [...prev, newMessage]);
-
-              // Auto-scroll to bottom when new message arrives
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 100);
-            }
-          )
-          .subscribe();
-      }
-    };
-
-    setupSubscription();
-
-    return () => {
-      if (messageChannel) {
-        console.log("💬 Cleaning up message subscription");
-        supabase.removeChannel(messageChannel);
-      }
-    };
-  }, [user?.id, chatType, djId, communityId]);
-
-  // Set up real-time connection status monitoring
-  useEffect(() => {
-    if (!user?.id || chatType !== "individual" || !djId) return;
-
-    console.log("🔗 Setting up real-time connection status monitoring");
-
-    const connectionChannel = supabase
-      .channel(`connection-status-${user.id}-${djId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "connections",
-          filter: `or(user_id_1.eq.${user.id},user_id_2.eq.${user.id})`,
-        },
-        (payload) => {
-          console.log("🔗 Connection status updated:", payload.new);
-
-          // Check if this update affects the current chat
-          const isRelevantConnection =
-            (payload.new.user_id_1 === user.id &&
-              payload.new.user_id_2 === djId) ||
-            (payload.new.user_id_2 === user.id &&
-              payload.new.user_id_1 === djId);
-
-          if (isRelevantConnection) {
-            console.log(
-              "🔗 Relevant connection status changed to:",
-              payload.new.status
-            );
-
-            // Update connection status
-            setConnectionStatus(payload.new.status);
-            setIsConnected(payload.new.status === "accepted");
-
-            // If connection was just accepted, reload messages and show success
-            if (payload.new.status === "accepted") {
-              console.log("🎉 Connection accepted! Reloading messages...");
-
-              // Show a brief success message
-              Alert.alert(
-                "Connection Accepted! 🎉",
-                "You can now start chatting with this user!",
-                [{ text: "Great!", style: "default" }]
-              );
-
-              // Reload messages to show any existing conversation
-              loadMessages();
-            }
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "connections",
-          filter: `or(user_id_1.eq.${user.id},user_id_2.eq.${user.id})`,
-        },
-        (payload) => {
-          console.log("🔗 New connection created:", payload.new);
-
-          // Check if this new connection affects the current chat
-          const isRelevantConnection =
-            (payload.new.user_id_1 === user.id &&
-              payload.new.user_id_2 === djId) ||
-            (payload.new.user_id_2 === user.id &&
-              payload.new.user_id_1 === djId);
-
-          if (isRelevantConnection) {
-            console.log(
-              "🔗 New relevant connection created with status:",
-              payload.new.status
-            );
-
-            // Update connection status
-            setConnectionStatus(payload.new.status);
-            setIsConnected(payload.new.status === "accepted");
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log("🔗 Cleaning up connection status subscription");
-      supabase.removeChannel(connectionChannel);
-    };
-  }, [user?.id, djId, chatType]);
-
-  // Periodic connection status check as fallback
-  useEffect(() => {
-    if (!user?.id || chatType !== "individual" || !djId) return;
-
-    console.log("🔄 Setting up periodic connection status check");
-
-    const interval = setInterval(async () => {
-      console.log("🔄 Periodic connection status check");
-      await checkConnectionStatus();
-    }, 10000); // Check every 10 seconds
-
-    return () => {
-      console.log("🔄 Cleaning up periodic connection status check");
-      clearInterval(interval);
-    };
-  }, [user?.id, djId, chatType]);
 
   // Fade in animation
   useEffect(() => {
@@ -371,12 +120,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
         setConnectionStatus(connection.connection_status);
         setIsConnected(connection.connection_status === "accepted");
         console.log("Connection found:", connection.connection_status);
-
-        // If connection is accepted, reload messages to show any existing conversation
-        if (connection.connection_status === "accepted") {
-          console.log("🎉 Connection is accepted, reloading messages...");
-          await loadMessages();
-        }
       } else {
         setConnectionStatus(null);
         setIsConnected(false);
@@ -440,59 +183,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
       let messagesData = [];
 
       if (chatType === "individual") {
-        // Use stored thread ID or get/create one
-        let threadId = currentThreadId;
-        if (!threadId) {
-          threadId = await db.findOrCreateIndividualMessageThread(
-            user.id,
-            djId
-          );
-          setCurrentThreadId(threadId);
-        }
-
-        console.log("🧵 Loading messages for thread ID:", threadId);
+        // Get or create message thread
+        const threadId = await db.findOrCreateIndividualMessageThread(
+          user.id,
+          djId
+        );
 
         // Load individual messages
         messagesData = await db.getMessages(threadId);
-
-        console.log(
-          "📨 Raw messages from database:",
-          messagesData?.length || 0
-        );
-        console.log("📨 Sample message data:", messagesData?.[0]);
-
-        // If no messages found, try alternative approach
-        if (!messagesData || messagesData.length === 0) {
-          console.log("🔄 No messages found, trying alternative query...");
-
-          // Try to find messages by sender/receiver combination
-          const { data: altMessages, error: altError } = await supabase
-            .from("messages")
-            .select(
-              `
-              *,
-              sender:user_profiles!messages_sender_id_fkey(
-                id,
-                dj_name,
-                full_name,
-                profile_image_url
-              )
-            `
-            )
-            .or(
-              `and(sender_id.eq.${user.id},thread_id.eq.${threadId}),and(sender_id.eq.${djId},thread_id.eq.${threadId})`
-            )
-            .order("created_at", { ascending: true });
-
-          if (!altError && altMessages) {
-            console.log(
-              "📨 Alternative query found:",
-              altMessages.length,
-              "messages"
-            );
-            messagesData = altMessages;
-          }
-        }
       } else if (chatType === "group") {
         // Load group messages
         console.log(
@@ -522,13 +220,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
           msg.sender?.profile_image_url || msg.author?.profile_image_url,
         timestamp: msg.created_at,
         isOwn: (msg.sender_id || msg.author_id) === user.id,
-        messageType: msg.message_type || "text",
-        mediaUrl: msg.media_url,
-        mediaFilename: msg.media_filename,
-        mediaSize: msg.media_size,
-        mediaMimeType: msg.media_mime_type,
-        thumbnailUrl: msg.thumbnail_url,
-        fileExtension: msg.file_extension,
       }));
 
       console.log("Transformed messages:", transformedMessages?.length || 0);
@@ -551,24 +242,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleImageUpload = async () => {
     try {
       setUploadingMedia(true);
-      console.log("📸 Starting image upload...");
-
       const { multimediaService } = await import("../lib/multimediaService");
-      const mediaData = await multimediaService.uploadImage();
-
+      const mediaData = await multimediaService.pickImage();
       if (mediaData) {
-        console.log("✅ Image uploaded successfully:", mediaData);
         setSelectedMedia(mediaData);
         setShowMediaPicker(false);
-      } else {
-        console.log("📸 Image upload canceled by user");
       }
     } catch (error) {
-      console.error("❌ Error uploading image:", error);
-      Alert.alert(
-        "Upload Error",
-        `Failed to upload image: ${error.message || "Please try again."}`
-      );
+      console.error("Error uploading image:", error);
+      Alert.alert("Upload Error", "Failed to upload image. Please try again.");
     } finally {
       setUploadingMedia(false);
     }
@@ -577,24 +259,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleVideoUpload = async () => {
     try {
       setUploadingMedia(true);
-      console.log("🎥 Starting video upload...");
-
       const { multimediaService } = await import("../lib/multimediaService");
-      const mediaData = await multimediaService.uploadVideo();
-
+      const mediaData = await multimediaService.pickVideo();
       if (mediaData) {
-        console.log("✅ Video uploaded successfully:", mediaData);
         setSelectedMedia(mediaData);
         setShowMediaPicker(false);
-      } else {
-        console.log("🎥 Video upload canceled by user");
       }
     } catch (error) {
-      console.error("❌ Error uploading video:", error);
-      Alert.alert(
-        "Upload Error",
-        `Failed to upload video: ${error.message || "Please try again."}`
-      );
+      console.error("Error uploading video:", error);
+      Alert.alert("Upload Error", "Failed to upload video. Please try again.");
     } finally {
       setUploadingMedia(false);
     }
@@ -603,23 +276,17 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleDocumentUpload = async () => {
     try {
       setUploadingMedia(true);
-      console.log("📄 Starting document upload...");
-
       const { multimediaService } = await import("../lib/multimediaService");
-      const mediaData = await multimediaService.uploadDocument();
-
+      const mediaData = await multimediaService.pickDocument();
       if (mediaData) {
-        console.log("✅ Document uploaded successfully:", mediaData);
         setSelectedMedia(mediaData);
         setShowMediaPicker(false);
-      } else {
-        console.log("📄 Document upload canceled by user");
       }
     } catch (error) {
-      console.error("❌ Error uploading document:", error);
+      console.error("Error uploading document:", error);
       Alert.alert(
         "Upload Error",
-        `Failed to upload document: ${error.message || "Please try again."}`
+        "Failed to upload document. Please try again."
       );
     } finally {
       setUploadingMedia(false);
@@ -629,24 +296,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleAudioUpload = async () => {
     try {
       setUploadingMedia(true);
-      console.log("🎵 Starting audio upload...");
-
       const { multimediaService } = await import("../lib/multimediaService");
-      const mediaData = await multimediaService.uploadAudio();
-
+      const mediaData = await multimediaService.pickAudio();
       if (mediaData) {
-        console.log("✅ Audio uploaded successfully:", mediaData);
         setSelectedMedia(mediaData);
         setShowMediaPicker(false);
-      } else {
-        console.log("🎵 Audio upload canceled by user");
       }
     } catch (error) {
-      console.error("❌ Error uploading audio:", error);
-      Alert.alert(
-        "Upload Error",
-        `Failed to upload audio: ${error.message || "Please try again."}`
-      );
+      console.error("Error uploading audio:", error);
+      Alert.alert("Upload Error", "Failed to upload audio. Please try again.");
     } finally {
       setUploadingMedia(false);
     }
@@ -654,25 +312,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   const clearSelectedMedia = () => {
     setSelectedMedia(null);
-  };
-
-  // Handle view status button
-  const handleViewStatus = () => {
-    let statusMessage = "Connection status unknown";
-
-    if (connectionStatus === "pending") {
-      statusMessage =
-        "Connection request is pending. Waiting for the other user to accept your request.";
-    } else if (connectionStatus === "accepted") {
-      statusMessage = "Connection is active! You can now chat freely.";
-    } else if (connectionStatus === "blocked") {
-      statusMessage = "This connection has been blocked.";
-    } else {
-      statusMessage =
-        "No connection found. You may need to send a connection request first.";
-    }
-
-    Alert.alert("Connection Status", statusMessage);
   };
 
   // Helper function to get file icon
@@ -716,7 +355,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   };
 
   // Send a new message
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     if ((!newMessage.trim() && !selectedMedia) || sending) return;
 
     // Check connection status for individual chats
@@ -762,15 +401,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
           throw new Error("Missing user ID or DJ ID for individual chat");
         }
 
-        // Use stored thread ID or get/create one
-        let threadId = currentThreadId;
-        if (!threadId) {
-          threadId = await db.findOrCreateIndividualMessageThread(
-            user.id,
-            djId
-          );
-          setCurrentThreadId(threadId);
-        }
+        // Get or create message thread
+        const threadId = await db.findOrCreateIndividualMessageThread(
+          user.id,
+          djId
+        );
 
         console.log("🧵 Using thread ID:", threadId);
 
@@ -807,8 +442,30 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         console.log("✅ Individual message sent:", messageData);
 
-        // Reload messages to show the new message immediately
-        await loadMessages();
+        // Add message to UI immediately for better UX
+        const newMessageForUI = {
+          id: messageData.id,
+          content: messageData.content,
+          senderId: user.id,
+          senderName: user.full_name || user.dj_name || "You",
+          senderImage: user.profile_image_url,
+          timestamp: messageData.created_at,
+          isOwn: true,
+          messageType: messageData.message_type,
+          mediaUrl: messageData.media_url,
+          mediaFilename: messageData.media_filename,
+          mediaSize: messageData.media_size,
+          mediaMimeType: messageData.media_mime_type,
+          thumbnailUrl: messageData.thumbnail_url,
+          fileExtension: messageData.file_extension,
+        };
+
+        setMessages((prev) => [...prev, newMessageForUI]);
+
+        // Scroll to bottom immediately to show the new message
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
       } else if (chatType === "group") {
         // Validate required data
         if (!user?.id || !communityId) {
@@ -848,14 +505,31 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         console.log("✅ Group message sent:", messageData);
 
-        // Reload messages to show the new message immediately
-        await loadMessages();
-      }
+        // Add message to UI immediately for better UX
+        const newMessageForUI = {
+          id: messageData.id,
+          content: messageData.content,
+          senderId: user.id,
+          senderName: user.full_name || user.dj_name || "You",
+          senderImage: user.profile_image_url,
+          timestamp: messageData.created_at,
+          isOwn: true,
+          messageType: messageData.message_type,
+          mediaUrl: messageData.media_url,
+          mediaFilename: messageData.media_filename,
+          mediaSize: messageData.media_size,
+          mediaMimeType: messageData.media_mime_type,
+          thumbnailUrl: messageData.thumbnail_url,
+          fileExtension: messageData.file_extension,
+        };
 
-      // Scroll to bottom
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+        setMessages((prev) => [...prev, newMessageForUI]);
+
+        // Scroll to bottom immediately to show the new message
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
 
       console.log("🎉 Message sent successfully!");
     } catch (error) {
@@ -878,7 +552,17 @@ const MessagesScreen = ({ user, navigation, route }) => {
     } finally {
       setSending(false);
     }
-  };
+  }, [
+    newMessage,
+    selectedMedia,
+    sending,
+    chatType,
+    user,
+    djId,
+    communityId,
+    isConnected,
+    navigation,
+  ]);
 
   // Format timestamp
   const formatTime = (timestamp) => {
@@ -1079,11 +763,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
               </Text>
               <TouchableOpacity
                 style={styles.connectButton}
-                onPress={
-                  connectionStatus === "pending"
-                    ? handleViewStatus
-                    : () => navigation.goBack()
-                }
+                onPress={() => navigation.goBack()}
               >
                 <Text style={styles.connectButtonText}>
                   {connectionStatus === "pending"
@@ -1094,13 +774,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
             </View>
           ) : (
             <View style={styles.inputWrapper}>
-              <TouchableOpacity
-                style={styles.attachButton}
-                onPress={() => setShowMediaPicker(true)}
-                disabled={uploadingMedia}
-              >
-                <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
-              </TouchableOpacity>
               <TextInput
                 style={styles.messageInput}
                 placeholder="Type a message..."
@@ -1113,11 +786,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
               <TouchableOpacity
                 style={[
                   styles.sendButton,
-                  ((!newMessage.trim() && !selectedMedia) || sending) &&
-                    styles.sendButtonDisabled,
+                  (!newMessage.trim() || sending) && styles.sendButtonDisabled,
                 ]}
                 onPress={sendMessage}
-                disabled={(!newMessage.trim() && !selectedMedia) || sending}
+                disabled={!newMessage.trim() || sending}
               >
                 {sending ? (
                   <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
@@ -1299,6 +971,47 @@ const MessagesScreen = ({ user, navigation, route }) => {
           </View>
         </View>
       )}
+
+      {/* Message Input */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        style={styles.inputContainer}
+      >
+        <View style={styles.inputWrapper}>
+          <TouchableOpacity
+            style={styles.attachButton}
+            onPress={() => setShowMediaPicker(true)}
+            disabled={uploadingMedia}
+          >
+            <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
+          </TouchableOpacity>
+          <TextInput
+            style={styles.messageInput}
+            placeholder="Type a message..."
+            placeholderTextColor="hsl(0, 0%, 50%)"
+            value={newMessage}
+            onChangeText={setNewMessage}
+            multiline
+            maxLength={500}
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              ((!newMessage.trim() && !selectedMedia) || sending) &&
+                styles.sendButtonDisabled,
+            ]}
+            onPress={sendMessage}
+            disabled={(!newMessage.trim() && !selectedMedia) || sending}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
+            ) : (
+              <Ionicons name="send" size={20} color="hsl(0, 0%, 0%)" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </Animated.View>
   );
 };
