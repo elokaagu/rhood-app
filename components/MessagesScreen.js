@@ -61,6 +61,124 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }
   }, [djId, communityId, chatType]);
 
+  // Set up real-time subscription for messages
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log("📨 Setting up real-time subscription for messages");
+    
+    let channel;
+    
+    if (chatType === "individual" && djId) {
+      // Subscribe to individual message thread
+      channel = supabase
+        .channel(`messages-${user.id}-${djId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `thread_id=eq.${user.id}-${djId}`,
+          },
+          async (payload) => {
+            console.log("📨 New individual message received:", payload.new);
+            
+            // Get the thread ID to ensure we're in the right chat
+            const threadId = await db.findOrCreateIndividualMessageThread(user.id, djId);
+            
+            if (payload.new.thread_id === threadId) {
+              // Transform the new message for display
+              const newMessage = {
+                id: payload.new.id,
+                content: payload.new.content || "",
+                senderId: payload.new.sender_id,
+                senderName: "Loading...", // Will be updated when we reload
+                senderImage: null,
+                timestamp: payload.new.created_at,
+                isOwn: payload.new.sender_id === user.id,
+              };
+              
+              // Add to messages state
+              setMessages(prev => [...prev, newMessage]);
+              
+              // Scroll to bottom
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+              
+              // Reload messages to get proper sender info
+              setTimeout(() => {
+                loadMessages();
+              }, 500);
+            }
+          }
+        )
+        .subscribe();
+        
+    } else if (chatType === "group" && communityId) {
+      // Subscribe to group messages
+      channel = supabase
+        .channel(`group-messages-${communityId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "community_posts",
+            filter: `community_id=eq.${communityId}`,
+          },
+          (payload) => {
+            console.log("📨 New group message received:", payload.new);
+            
+            // Transform the new message for display
+            const newMessage = {
+              id: payload.new.id,
+              content: payload.new.content || "",
+              senderId: payload.new.author_id,
+              senderName: "Loading...", // Will be updated when we reload
+              senderImage: null,
+              timestamp: payload.new.created_at,
+              isOwn: payload.new.author_id === user.id,
+            };
+            
+            // Add to messages state
+            setMessages(prev => [...prev, newMessage]);
+            
+            // Scroll to bottom
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+            
+            // Reload messages to get proper sender info
+            setTimeout(() => {
+              loadMessages();
+            }, 500);
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      if (channel) {
+        console.log("📨 Cleaning up messages subscription");
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [user?.id, chatType, djId, communityId]);
+
+  // Refresh messages when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log("📨 MessagesScreen focused, refreshing messages");
+      if (messages.length > 0) {
+        loadMessages();
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, messages.length]);
+
   // Fade in animation
   useEffect(() => {
     Animated.timing(fadeAnim, {

@@ -1109,14 +1109,14 @@ export default function App() {
         // Hide lock screen notification
         await lockScreenControls.hideLockScreenNotification();
 
-      // Clean up iOS MediaSession (non-blocking)
-      MediaLibrary.setActiveAsync(false)
-        .then(() => {
-          console.log("🎵 MediaSession stopped");
-        })
-        .catch((mediaError) => {
-          console.log("⚠️ MediaSession stop failed:", mediaError.message);
-        });
+        // Clean up iOS MediaSession (non-blocking)
+        MediaLibrary.setActiveAsync(false)
+          .then(() => {
+            console.log("🎵 MediaSession stopped");
+          })
+          .catch((mediaError) => {
+            console.log("⚠️ MediaSession stop failed:", mediaError.message);
+          });
       } catch (error) {
         console.log("❌ Error stopping audio:", error);
       }
