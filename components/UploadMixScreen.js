@@ -83,7 +83,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
         // File size limit removed - allow files of any size
         const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
-        console.log(`📁 Selected file size: ${fileSizeMB}MB - no size restrictions`);
+        console.log(
+          `📁 Selected file size: ${fileSizeMB}MB - no size restrictions`
+        );
 
         // Check audio duration - removed duration limit to allow mixes of all lengths
         try {

@@ -573,6 +573,8 @@ export default function ConnectionsScreen({
   const loadLastMessagesForConnections = async (userId, connections) => {
     try {
       console.log("📨 Loading last messages for connections...");
+      console.log("📨 User ID:", userId);
+      console.log("📨 Connections:", connections.map(c => ({ id: c.id, name: c.name })));
 
       // Get last messages for all connections
       const lastMessagesData = await db.getLastMessagesForAllConnections(
@@ -580,6 +582,7 @@ export default function ConnectionsScreen({
       );
 
       console.log("📨 Last messages loaded:", lastMessagesData);
+      console.log("📨 Last messages keys:", Object.keys(lastMessagesData));
       setLastMessages(lastMessagesData);
     } catch (error) {
       console.error("❌ Error loading last messages:", error);
@@ -590,7 +593,12 @@ export default function ConnectionsScreen({
   const getLastMessageContent = (connection) => {
     // Get the last message from state
     const lastMessage = lastMessages[connection.id];
-    if (!lastMessage) return "";
+    console.log(`🔍 Getting last message for ${connection.name} (ID: ${connection.id}):`, lastMessage);
+    
+    if (!lastMessage) {
+      console.log(`❌ No last message found for ${connection.name}`);
+      return "No messages yet";
+    }
 
     // Format the message content based on type
     if (lastMessage.messageType === "image") {
@@ -602,7 +610,7 @@ export default function ConnectionsScreen({
     } else if (lastMessage.messageType === "file") {
       return "📎 File";
     } else {
-      return lastMessage.content || "";
+      return lastMessage.content || "No messages yet";
     }
   };
 
@@ -615,7 +623,12 @@ export default function ConnectionsScreen({
 
   const getLastMessageSender = (connection) => {
     const lastMessage = lastMessages[connection.id];
-    if (!lastMessage) return "";
+    console.log(`🔍 Getting sender for ${connection.name}:`, lastMessage);
+    
+    if (!lastMessage) {
+      console.log(`❌ No sender info for ${connection.name}`);
+      return "";
+    }
 
     // Show sender name if it's not the current user
     if (lastMessage.senderId !== user?.id) {
@@ -1511,7 +1524,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
+    color: "hsl(0, 0%, 100%)",
     fontFamily: "Arial",
     flex: 1,
   },
