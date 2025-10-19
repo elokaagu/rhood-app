@@ -181,6 +181,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   // Refresh messages when screen comes into focus
   useEffect(() => {
+    if (!navigation || typeof navigation.addListener !== 'function') {
+      console.log("📨 Navigation not available, skipping focus listener");
+      return;
+    }
+
     const unsubscribe = navigation.addListener("focus", () => {
       console.log("📨 MessagesScreen focused, refreshing messages");
       if (messages.length > 0) {
