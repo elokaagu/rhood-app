@@ -972,29 +972,30 @@ export default function App() {
       // Show lock screen notification
       await lockScreenControls.showLockScreenNotification(track);
 
-      // Set up iOS MediaSession for Now Playing info
-      try {
-        await MediaLibrary.requestPermissionsAsync();
-        await MediaLibrary.setActiveAsync(true);
-
-        // Set Now Playing metadata
-        await MediaLibrary.setMetadataAsync({
-          title: track.title || "R/HOOD Track",
-          artist: track.artist || "Unknown Artist",
-          album: "R/HOOD",
-          artwork: track.image ? { uri: track.image } : undefined,
-          duration: globalAudioState.durationMillis
-            ? Math.floor(globalAudioState.durationMillis / 1000)
-            : undefined,
+      // Set up iOS MediaSession for Now Playing info (non-blocking)
+      MediaLibrary.requestPermissionsAsync()
+        .then(() => MediaLibrary.setActiveAsync(true))
+        .then(() => {
+          // Set Now Playing metadata
+          return MediaLibrary.setMetadataAsync({
+            title: track.title || "R/HOOD Track",
+            artist: track.artist || "Unknown Artist",
+            album: "R/HOOD",
+            artwork: track.image ? { uri: track.image } : undefined,
+            duration: globalAudioState.durationMillis
+              ? Math.floor(globalAudioState.durationMillis / 1000)
+              : undefined,
+          });
+        })
+        .then(() => {
+          console.log("🎵 MediaSession configured for iOS Now Playing");
+        })
+        .catch((mediaError) => {
+          console.log(
+            "⚠️ MediaSession setup failed (expected in Expo Go):",
+            mediaError.message
+          );
         });
-
-        console.log("🎵 MediaSession configured for iOS Now Playing");
-      } catch (mediaError) {
-        console.log(
-          "⚠️ MediaSession setup failed (expected in Expo Go):",
-          mediaError.message
-        );
-      }
 
       console.log("🎉 Global audio started successfully:", track.title);
     } catch (error) {
@@ -1021,13 +1022,14 @@ export default function App() {
           globalAudioState.durationMillis
         );
 
-        // Update iOS MediaSession
-        try {
-          await MediaLibrary.setActiveAsync(false);
-          console.log("🎵 MediaSession paused");
-        } catch (mediaError) {
-          console.log("⚠️ MediaSession pause failed:", mediaError.message);
-        }
+        // Update iOS MediaSession (non-blocking)
+        MediaLibrary.setActiveAsync(false)
+          .then(() => {
+            console.log("🎵 MediaSession paused");
+          })
+          .catch((mediaError) => {
+            console.log("⚠️ MediaSession pause failed:", mediaError.message);
+          });
       } catch (error) {
         console.log("❌ Error pausing audio:", error);
       }
@@ -1084,13 +1086,14 @@ export default function App() {
           globalAudioState.durationMillis
         );
 
-        // Update iOS MediaSession
-        try {
-          await MediaLibrary.setActiveAsync(true);
-          console.log("🎵 MediaSession resumed");
-        } catch (mediaError) {
-          console.log("⚠️ MediaSession resume failed:", mediaError.message);
-        }
+        // Update iOS MediaSession (non-blocking)
+        MediaLibrary.setActiveAsync(true)
+          .then(() => {
+            console.log("🎵 MediaSession resumed");
+          })
+          .catch((mediaError) => {
+            console.log("⚠️ MediaSession resume failed:", mediaError.message);
+          });
       } catch (error) {
         console.log("❌ Error resuming audio:", error);
       }
@@ -1106,13 +1109,14 @@ export default function App() {
         // Hide lock screen notification
         await lockScreenControls.hideLockScreenNotification();
 
-        // Clean up iOS MediaSession
-        try {
-          await MediaLibrary.setActiveAsync(false);
+      // Clean up iOS MediaSession (non-blocking)
+      MediaLibrary.setActiveAsync(false)
+        .then(() => {
           console.log("🎵 MediaSession stopped");
-        } catch (mediaError) {
+        })
+        .catch((mediaError) => {
           console.log("⚠️ MediaSession stop failed:", mediaError.message);
-        }
+        });
       } catch (error) {
         console.log("❌ Error stopping audio:", error);
       }
