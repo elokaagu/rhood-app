@@ -30,6 +30,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 // Import Audio from expo-av (works in Expo Go)
 import { Audio } from "expo-av";
+import lockScreenControls from "./lib/lockScreenControls";
 console.log("✅ Audio module imported from expo-av");
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
@@ -341,6 +342,42 @@ export default function App() {
       ]).start();
     }
   }, [globalAudioState.currentTrack]);
+
+  // Setup lock screen controls
+  useEffect(() => {
+    const setupLockScreenControls = async () => {
+      try {
+        // Setup media control categories
+        await lockScreenControls.setupMediaCategories();
+
+        // Set up callbacks for lock screen actions
+        lockScreenControls.setCallbacks({
+          onPlayPause: () => {
+            if (globalAudioState.isPlaying) {
+              pauseGlobalAudio();
+            } else {
+              resumeGlobalAudio();
+            }
+          },
+          onNext: () => {
+            skipForward();
+          },
+          onPrevious: () => {
+            skipBackward();
+          },
+          onSeek: (seekAmount) => {
+            seekGlobalAudio(seekAmount);
+          },
+        });
+
+        console.log("🔒 Lock screen controls initialized");
+      } catch (error) {
+        console.error("❌ Error setting up lock screen controls:", error);
+      }
+    };
+
+    setupLockScreenControls();
+  }, []);
 
   // Application sent modal state
 
@@ -829,7 +866,7 @@ export default function App() {
             }
 
             // Normal progress update when not scrubbing
-            return {
+            const newState = {
               ...prev,
               isPlaying: status.isPlaying,
               isLoading: false,
@@ -837,6 +874,15 @@ export default function App() {
               positionMillis: status.positionMillis || 0,
               durationMillis: status.durationMillis || 0,
             };
+
+            // Update lock screen controls with current state
+            lockScreenControls.setPlaybackState(
+              status.isPlaying,
+              status.positionMillis || 0,
+              status.durationMillis || 0
+            );
+
+            return newState;
           });
 
           // Update duration in database if not already set and we have the duration
@@ -920,6 +966,9 @@ export default function App() {
         };
       });
 
+      // Show lock screen notification
+      await lockScreenControls.showLockScreenNotification(track);
+
       console.log("🎉 Global audio started successfully:", track.title);
     } catch (error) {
       console.log("❌ Error playing global audio:", error);
@@ -937,8 +986,51 @@ export default function App() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         await globalAudioRef.current.pauseAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
+
+        // Update lock screen controls
+        lockScreenControls.setPlaybackState(
+          false,
+          globalAudioState.positionMillis,
+          globalAudioState.durationMillis
+        );
       } catch (error) {
         console.log("❌ Error pausing audio:", error);
+      }
+    }
+  };
+
+  const seekGlobalAudio = async (seekAmount) => {
+    if (globalAudioRef.current && globalAudioState.durationMillis) {
+      try {
+        const currentPosition = globalAudioState.positionMillis || 0;
+        const newPosition = Math.max(
+          0,
+          Math.min(
+            globalAudioState.durationMillis,
+            currentPosition + seekAmount
+          )
+        );
+
+        await globalAudioRef.current.setPositionAsync(newPosition);
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          positionMillis: newPosition,
+        }));
+
+        // Update lock screen controls
+        lockScreenControls.setPlaybackState(
+          globalAudioState.isPlaying,
+          newPosition,
+          globalAudioState.durationMillis
+        );
+
+        console.log(
+          `⏩ Seeked ${seekAmount > 0 ? "forward" : "backward"} to ${Math.floor(
+            newPosition / 1000
+          )}s`
+        );
+      } catch (error) {
+        console.log("❌ Error seeking audio:", error);
       }
     }
   };
@@ -949,6 +1041,13 @@ export default function App() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         await globalAudioRef.current.playAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
+
+        // Update lock screen controls
+        lockScreenControls.setPlaybackState(
+          true,
+          globalAudioState.positionMillis,
+          globalAudioState.durationMillis
+        );
       } catch (error) {
         console.log("❌ Error resuming audio:", error);
       }
@@ -960,6 +1059,9 @@ export default function App() {
       try {
         await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
+
+        // Hide lock screen notification
+        await lockScreenControls.hideLockScreenNotification();
       } catch (error) {
         console.log("❌ Error stopping audio:", error);
       }
