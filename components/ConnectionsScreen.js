@@ -194,6 +194,12 @@ export default function ConnectionsScreen({
         console.log(
           `✅ Loaded ${formattedConnections.length} connections from database`
         );
+
+        // Load last messages for all connections
+        await loadLastMessagesForConnections(
+          currentUser.id,
+          formattedConnections
+        );
       } else {
         // No connections yet, show empty state
         setConnections([]);
@@ -219,6 +225,18 @@ export default function ConnectionsScreen({
     await loadUserAndConnections();
     setRefreshing(false);
   };
+
+  // Refresh messages when screen comes into focus
+  useEffect(() => {
+    const refreshMessages = async () => {
+      if (user?.id && connections.length > 0) {
+        await loadLastMessagesForConnections(user.id, connections);
+      }
+    };
+
+    // Refresh messages when component mounts or user/connections change
+    refreshMessages();
+  }, [user?.id, connections.length]);
 
   const checkRhoodMembership = async () => {
     try {
@@ -552,18 +570,58 @@ export default function ConnectionsScreen({
     return messageTime.toLocaleDateString();
   };
 
-  const getLastMessageContent = async (connection) => {
-    // This would fetch the actual last message from the conversation
-    // For now, return empty string - in a real implementation, you'd fetch from messages table
+  const loadLastMessagesForConnections = async (userId, connections) => {
     try {
-      // TODO: Implement actual message fetching
-      // const lastMessage = await db.getLastMessage(connection.id);
-      // return lastMessage?.content || "";
-      return "";
+      console.log("📨 Loading last messages for connections...");
+
+      // Get last messages for all connections
+      const lastMessagesData = await db.getLastMessagesForAllConnections(
+        userId
+      );
+
+      console.log("📨 Last messages loaded:", lastMessagesData);
+      setLastMessages(lastMessagesData);
     } catch (error) {
-      console.error("Error fetching last message:", error);
-      return "";
+      console.error("❌ Error loading last messages:", error);
+      setLastMessages({});
     }
+  };
+
+  const getLastMessageContent = (connection) => {
+    // Get the last message from state
+    const lastMessage = lastMessages[connection.id];
+    if (!lastMessage) return "";
+
+    // Format the message content based on type
+    if (lastMessage.messageType === "image") {
+      return "📷 Photo";
+    } else if (lastMessage.messageType === "video") {
+      return "🎥 Video";
+    } else if (lastMessage.messageType === "audio") {
+      return "🎵 Audio";
+    } else if (lastMessage.messageType === "file") {
+      return "📎 File";
+    } else {
+      return lastMessage.content || "";
+    }
+  };
+
+  const getLastMessageTime = (connection) => {
+    const lastMessage = lastMessages[connection.id];
+    if (!lastMessage || !lastMessage.timestamp) return "";
+
+    return formatMessageTime(lastMessage.timestamp);
+  };
+
+  const getLastMessageSender = (connection) => {
+    const lastMessage = lastMessages[connection.id];
+    if (!lastMessage) return "";
+
+    // Show sender name if it's not the current user
+    if (lastMessage.senderId !== user?.id) {
+      return `${lastMessage.senderName}: `;
+    }
+    return "You: ";
   };
 
   // Filter connections to only show those with messages (but always show R/HOOD Group)
@@ -821,9 +879,15 @@ export default function ConnectionsScreen({
                               {connection.lastActive || "Recently"}
                             </Text>
                           </View>
-                          <Text style={styles.messagePreview} numberOfLines={1}>
-                            {lastMessages[connection.id] || ""}
-                          </Text>
+                          <View style={styles.messagePreview}>
+                            <Text style={styles.messageText} numberOfLines={1}>
+                              {getLastMessageSender(connection)}
+                              {getLastMessageContent(connection)}
+                            </Text>
+                            <Text style={styles.messageTime}>
+                              {getLastMessageTime(connection)}
+                            </Text>
+                          </View>
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -1448,10 +1512,15 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
   },
   messagePreview: {
+    flex: 1,
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  messageText: {
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
     fontFamily: "Arial",
-    marginBottom: 6,
+    flex: 1,
   },
   messageBadges: {
     flexDirection: "row",
