@@ -95,7 +95,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           return;
         }
 
-        // Check audio duration (max 5 minutes)
+        // Check audio duration - removed duration limit to allow mixes of all lengths
         try {
           if (!Audio || !Audio.Sound || !Audio.Sound.createAsync) {
             // In Expo Go, we'll skip the duration check and allow upload
@@ -113,22 +113,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
           if (status.isLoaded && status.durationMillis) {
             const durationMinutes = status.durationMillis / 1000 / 60;
-            const maxDurationMinutes = 5;
 
             console.log(
               `🎵 Audio duration: ${durationMinutes.toFixed(2)} minutes`
             );
 
-            if (durationMinutes > maxDurationMinutes) {
-              Alert.alert(
-                "Mix Too Long",
-                `Your mix is ${durationMinutes.toFixed(
-                  1
-                )} minutes long. Maximum allowed length is ${maxDurationMinutes} minutes.`,
-                [{ text: "OK" }]
-              );
-              return;
-            }
+            // Duration limit removed - allow mixes of all lengths
+            console.log("✅ Mix duration accepted - no length restrictions");
           }
         } catch (durationError) {
           console.warn("⚠️ Could not check duration:", durationError.message);
