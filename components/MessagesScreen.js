@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase, db } from "../lib/supabase";
@@ -34,6 +35,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [connectionStatus, setConnectionStatus] = useState(null);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   // Refs
   const scrollViewRef = useRef(null);
@@ -66,6 +68,32 @@ const MessagesScreen = ({ user, navigation, route }) => {
       duration: 300,
       useNativeDriver: true,
     }).start();
+  }, []);
+
+  // Keyboard event listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      "keyboardDidShow",
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        // Scroll to bottom when keyboard opens
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+
+    const keyboardDidHideListener = Keyboard.addListener(
+      "keyboardDidHide",
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
   }, []);
 
   // Load individual chat data
@@ -506,7 +534,32 @@ const MessagesScreen = ({ user, navigation, route }) => {
     if (diff < 60000) return "now";
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
-    return date.toLocaleDateString();
+
+    // For messages older than 24 hours, show date and time
+    const isToday = date.toDateString() === now.toDateString();
+    const isYesterday =
+      new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
+
+    if (isToday) {
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } else if (isYesterday) {
+      return `Yesterday ${date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } else {
+      // Show date and time for older messages
+      return date.toLocaleDateString([], {
+        month: "2-digit",
+        day: "2-digit",
+        year: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
   };
 
   // Render individual message
@@ -751,6 +804,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         {/* Message Input */}
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 180 : 90}
           style={styles.inputContainer}
         >
           {chatType === "individual" && !isConnected ? (
@@ -815,7 +869,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 180 : 90}
     >
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         {/* Header */}
@@ -872,9 +926,18 @@ const MessagesScreen = ({ user, navigation, route }) => {
         {/* Messages */}
         <ScrollView
           ref={scrollViewRef}
-          style={styles.messagesContainer}
+          style={[
+            styles.messagesContainer,
+            {
+              marginBottom:
+                keyboardHeight > 0
+                  ? keyboardHeight - 190 // Account for playbar (90px) + input area (100px)
+                  : 0,
+            },
+          ]}
           contentContainerStyle={styles.messagesContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {messages.map(renderMessage)}
         </ScrollView>
@@ -896,6 +959,12 @@ const MessagesScreen = ({ user, navigation, route }) => {
               onChangeText={setNewMessage}
               multiline
               maxLength={500}
+              onFocus={() => {
+                // Scroll to bottom when input is focused
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 100);
+              }}
             />
             <TouchableOpacity
               style={[
