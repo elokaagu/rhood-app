@@ -66,9 +66,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
     if (!user?.id) return;
 
     console.log("📨 Setting up real-time subscription for messages");
-    
+
     let channel;
-    
+
     if (chatType === "individual" && djId) {
       // Subscribe to individual message thread
       channel = supabase
@@ -83,10 +83,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
           },
           async (payload) => {
             console.log("📨 New individual message received:", payload.new);
-            
+
             // Get the thread ID to ensure we're in the right chat
-            const threadId = await db.findOrCreateIndividualMessageThread(user.id, djId);
-            
+            const threadId = await db.findOrCreateIndividualMessageThread(
+              user.id,
+              djId
+            );
+
             if (payload.new.thread_id === threadId) {
               // Transform the new message for display
               const newMessage = {
@@ -98,15 +101,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 timestamp: payload.new.created_at,
                 isOwn: payload.new.sender_id === user.id,
               };
-              
+
               // Add to messages state
-              setMessages(prev => [...prev, newMessage]);
-              
+              setMessages((prev) => [...prev, newMessage]);
+
               // Scroll to bottom
               setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: true });
               }, 100);
-              
+
               // Reload messages to get proper sender info
               setTimeout(() => {
                 loadMessages();
@@ -115,7 +118,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
           }
         )
         .subscribe();
-        
     } else if (chatType === "group" && communityId) {
       // Subscribe to group messages
       channel = supabase
@@ -130,7 +132,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           },
           (payload) => {
             console.log("📨 New group message received:", payload.new);
-            
+
             // Transform the new message for display
             const newMessage = {
               id: payload.new.id,
@@ -141,15 +143,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
               timestamp: payload.new.created_at,
               isOwn: payload.new.author_id === user.id,
             };
-            
+
             // Add to messages state
-            setMessages(prev => [...prev, newMessage]);
-            
+            setMessages((prev) => [...prev, newMessage]);
+
             // Scroll to bottom
             setTimeout(() => {
               scrollViewRef.current?.scrollToEnd({ animated: true });
             }, 100);
-            
+
             // Reload messages to get proper sender info
             setTimeout(() => {
               loadMessages();
@@ -169,7 +171,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   // Refresh messages when screen comes into focus
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener("focus", () => {
       console.log("📨 MessagesScreen focused, refreshing messages");
       if (messages.length > 0) {
         loadMessages();
