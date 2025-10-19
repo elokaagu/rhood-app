@@ -81,19 +81,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       if (result.type === "success" || !result.canceled) {
         const file = result.assets ? result.assets[0] : result;
 
-        // Check file size (max 2GB)
-        const maxSizeMB = 2048; // 2GB
-        const maxSizeBytes = maxSizeMB * 1024 * 1024;
-
-        if (file.size > maxSizeBytes) {
-          const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
-          Alert.alert(
-            "File Too Large",
-            `Your file is ${fileSizeMB}MB. Maximum allowed size is ${maxSizeMB}MB (2GB).`,
-            [{ text: "OK" }]
-          );
-          return;
-        }
+        // File size limit removed - allow files of any size
+        const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+        console.log(`📁 Selected file size: ${fileSizeMB}MB - no size restrictions`);
 
         // Check audio duration - removed duration limit to allow mixes of all lengths
         try {
