@@ -59,7 +59,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       console.log("No valid chat parameters, setting loading to false");
       setLoading(false);
     }
-  }, [djId, communityId, chatType]);
+  }, [djId, communityId, chatType, user?.id]);
 
   // Set up real-time subscription for messages
   useEffect(() => {
@@ -248,6 +248,19 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }).start();
   }, []);
 
+  // Fallback: Retry loading messages if empty after initial load
+  useEffect(() => {
+    if (!loading && messages.length === 0 && user?.id) {
+      console.log("🔄 No messages found, retrying load after delay...");
+      const retryTimer = setTimeout(() => {
+        console.log("🔄 Retrying loadMessages...");
+        loadMessages();
+      }, 2000); // Retry after 2 seconds
+
+      return () => clearTimeout(retryTimer);
+    }
+  }, [loading, messages.length, user?.id]);
+
   // Keyboard event listeners
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -382,7 +395,12 @@ const MessagesScreen = ({ user, navigation, route }) => {
   // Load messages for current chat
   const loadMessages = async () => {
     try {
-      console.log("loadMessages started:", { chatType, djId, communityId, userId: user?.id });
+      console.log("loadMessages started:", {
+        chatType,
+        djId,
+        communityId,
+        userId: user?.id,
+      });
       let messagesData = [];
 
       if (chatType === "individual") {
@@ -396,7 +414,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         // Load individual messages
         messagesData = await db.getMessages(threadId);
-        console.log("📨 Individual messages loaded:", messagesData?.length || 0, "messages");
+        console.log(
+          "📨 Individual messages loaded:",
+          messagesData?.length || 0,
+          "messages"
+        );
       } else if (chatType === "group") {
         console.log("👥 Loading group chat messages...");
         // Load group messages
@@ -431,7 +453,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
         isOwn: (msg.sender_id || msg.author_id) === user.id,
       }));
 
-      console.log("✨ Transformed messages:", transformedMessages?.length || 0, "messages");
+      console.log(
+        "✨ Transformed messages:",
+        transformedMessages?.length || 0,
+        "messages"
+      );
       console.log("📝 Message details:", transformedMessages);
       setMessages(transformedMessages);
 
@@ -869,16 +895,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
           >
             <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={() => {
-              console.log("🔄 Manual refresh triggered");
-              loadMessages();
-            }}
-          >
-            <Ionicons name="refresh" size={24} color="hsl(75, 100%, 60%)" />
-          </TouchableOpacity>
 
           {chatType === "individual" && otherUser && (
             <View style={styles.headerInfo}>
@@ -1081,16 +1097,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
             >
               <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
             </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.refreshButton}
-              onPress={() => {
-                console.log("🔄 Manual refresh triggered");
-                loadMessages();
-              }}
-            >
-              <Ionicons name="refresh" size={24} color="hsl(75, 100%, 60%)" />
-            </TouchableOpacity>
 
             {chatType === "individual" && otherUser && (
               <View style={styles.headerInfo}>
@@ -1227,10 +1233,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginRight: 16,
-  },
-  refreshButton: {
-    marginRight: 16,
-    padding: 4,
   },
   headerInfo: {
     flexDirection: "row",
