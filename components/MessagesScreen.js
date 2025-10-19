@@ -114,10 +114,27 @@ const MessagesScreen = ({ user, navigation, route }) => {
                     scrollViewRef.current?.scrollToEnd({ animated: true });
                   }, 100);
 
-                  // Reload messages to get proper sender info
-                  setTimeout(() => {
-                    loadMessages();
-                  }, 500);
+                  // Update sender info for the new message without reloading all messages
+                  setTimeout(async () => {
+                    try {
+                      const senderProfile = await db.getUserProfilePublic(payload.new.sender_id);
+                      if (senderProfile) {
+                        setMessages((prev) => 
+                          prev.map(msg => 
+                            msg.id === payload.new.id 
+                              ? { 
+                                  ...msg, 
+                                  senderName: senderProfile.full_name || senderProfile.dj_name || "Unknown",
+                                  senderImage: senderProfile.profile_image_url 
+                                }
+                              : msg
+                          )
+                        );
+                      }
+                    } catch (error) {
+                      console.error("Error updating sender info:", error);
+                    }
+                  }, 200);
                 }
               )
               .subscribe();
@@ -162,10 +179,27 @@ const MessagesScreen = ({ user, navigation, route }) => {
               scrollViewRef.current?.scrollToEnd({ animated: true });
             }, 100);
 
-            // Reload messages to get proper sender info
-            setTimeout(() => {
-              loadMessages();
-            }, 500);
+            // Update sender info for the new message without reloading all messages
+            setTimeout(async () => {
+              try {
+                const senderProfile = await db.getUserProfilePublic(payload.new.author_id);
+                if (senderProfile) {
+                  setMessages((prev) => 
+                    prev.map(msg => 
+                      msg.id === payload.new.id 
+                        ? { 
+                            ...msg, 
+                            senderName: senderProfile.full_name || senderProfile.dj_name || "Unknown",
+                            senderImage: senderProfile.profile_image_url 
+                          }
+                        : msg
+                    )
+                  );
+                }
+              } catch (error) {
+                console.error("Error updating sender info:", error);
+              }
+            }, 200);
           }
         )
         .subscribe();

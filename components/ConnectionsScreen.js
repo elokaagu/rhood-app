@@ -1529,12 +1529,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     color: "hsl(0, 0%, 100%)",
     fontSize: 14,
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
   },
   messageText: {
     fontSize: 14,
     color: "hsl(0, 0%, 100%)",
-    fontFamily: "Arial",
+    fontFamily: "Helvetica Neue",
     flex: 1,
   },
   messageBadges: {
