@@ -574,7 +574,10 @@ export default function ConnectionsScreen({
     try {
       console.log("📨 Loading last messages for connections...");
       console.log("📨 User ID:", userId);
-      console.log("📨 Connections:", connections.map(c => ({ id: c.id, name: c.name })));
+      console.log(
+        "📨 Connections:",
+        connections.map((c) => ({ id: c.id, name: c.name }))
+      );
 
       // Get last messages for all connections
       const lastMessagesData = await db.getLastMessagesForAllConnections(
@@ -593,8 +596,11 @@ export default function ConnectionsScreen({
   const getLastMessageContent = (connection) => {
     // Get the last message from state
     const lastMessage = lastMessages[connection.id];
-    console.log(`🔍 Getting last message for ${connection.name} (ID: ${connection.id}):`, lastMessage);
-    
+    console.log(
+      `🔍 Getting last message for ${connection.name} (ID: ${connection.id}):`,
+      lastMessage
+    );
+
     if (!lastMessage) {
       console.log(`❌ No last message found for ${connection.name}`);
       return "No messages yet";
@@ -624,7 +630,7 @@ export default function ConnectionsScreen({
   const getLastMessageSender = (connection) => {
     const lastMessage = lastMessages[connection.id];
     console.log(`🔍 Getting sender for ${connection.name}:`, lastMessage);
-    
+
     if (!lastMessage) {
       console.log(`❌ No sender info for ${connection.name}`);
       return "";
@@ -1521,6 +1527,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "space-between",
     marginBottom: 6,
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 14,
+    fontFamily: "Arial",
   },
   messageText: {
     fontSize: 14,
