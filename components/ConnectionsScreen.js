@@ -624,15 +624,8 @@ export default function ConnectionsScreen({
     return "You: ";
   };
 
-  // Filter connections to only show those with messages (but always show R/HOOD Group)
-  const connectionsWithMessages = filteredConnections.filter((connection) => {
-    const lastMessage = lastMessages[connection.id];
-    return (
-      lastMessage &&
-      lastMessage !== "No messages yet" &&
-      lastMessage.trim() !== ""
-    );
-  });
+  // Show all connections (not just those with messages)
+  const connectionsWithMessages = filteredConnections;
 
   return (
     <View style={styles.container}>
@@ -1106,14 +1099,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollViewContent: {
-    paddingBottom: 120, // Extra padding to prevent content from being hidden behind play bar
+    paddingBottom: 80, // Reduced padding to prevent bottom navigation cut-off
   },
   bottomGradient: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: 120,
+    height: 80, // Reduced height to match padding
   },
   header: {
     padding: 20,
