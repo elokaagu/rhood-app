@@ -974,8 +974,10 @@ export default function App() {
 
       // Set up iOS MediaSession for Now Playing info (non-blocking)
       // Note: MediaLibrary may not work in Expo Go, so we'll skip it for now
-      if (Platform.OS === 'ios') {
-        console.log("🎵 iOS detected - MediaSession features will work in development builds");
+      if (Platform.OS === "ios") {
+        console.log(
+          "🎵 iOS detected - MediaSession features will work in development builds"
+        );
       }
 
       console.log("🎉 Global audio started successfully:", track.title);
@@ -1004,8 +1006,10 @@ export default function App() {
         );
 
         // Update iOS MediaSession (non-blocking)
-        if (Platform.OS === 'ios') {
-          console.log("🎵 iOS MediaSession pause (will work in development builds)");
+        if (Platform.OS === "ios") {
+          console.log(
+            "🎵 iOS MediaSession pause (will work in development builds)"
+          );
         }
       } catch (error) {
         console.log("❌ Error pausing audio:", error);
@@ -1064,8 +1068,10 @@ export default function App() {
         );
 
         // Update iOS MediaSession (non-blocking)
-        if (Platform.OS === 'ios') {
-          console.log("🎵 iOS MediaSession resume (will work in development builds)");
+        if (Platform.OS === "ios") {
+          console.log(
+            "🎵 iOS MediaSession resume (will work in development builds)"
+          );
         }
       } catch (error) {
         console.log("❌ Error resuming audio:", error);
@@ -1082,10 +1088,12 @@ export default function App() {
         // Hide lock screen notification
         await lockScreenControls.hideLockScreenNotification();
 
-      // Clean up iOS MediaSession (non-blocking)
-      if (Platform.OS === 'ios') {
-        console.log("🎵 iOS MediaSession stop (will work in development builds)");
-      }
+        // Clean up iOS MediaSession (non-blocking)
+        if (Platform.OS === "ios") {
+          console.log(
+            "🎵 iOS MediaSession stop (will work in development builds)"
+          );
+        }
       } catch (error) {
         console.log("❌ Error stopping audio:", error);
       }

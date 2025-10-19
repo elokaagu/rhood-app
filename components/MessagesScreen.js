@@ -73,8 +73,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
       // For individual chats, we need to get the thread ID first
       const setupIndividualSubscription = async () => {
         try {
-          const threadId = await db.findOrCreateIndividualMessageThread(user.id, djId);
-          
+          const threadId = await db.findOrCreateIndividualMessageThread(
+            user.id,
+            djId
+          );
+
           if (threadId) {
             channel = supabase
               .channel(`messages-${threadId}`)
@@ -87,7 +90,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   filter: `thread_id=eq.${threadId}`,
                 },
                 (payload) => {
-                  console.log("📨 New individual message received:", payload.new);
+                  console.log(
+                    "📨 New individual message received:",
+                    payload.new
+                  );
 
                   // Transform the new message for display
                   const newMessage = {
