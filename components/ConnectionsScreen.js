@@ -1342,7 +1342,7 @@ const styles = StyleSheet.create({
   lastMessageContent: {
     fontSize: 12,
     fontFamily: "Arial",
-    color: "hsl(0, 0%, 60%)",
+    color: "hsl(0, 0%, 100%)",
     marginTop: 4,
   },
   genreTags: {
