@@ -117,15 +117,20 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   // Update sender info for the new message without reloading all messages
                   setTimeout(async () => {
                     try {
-                      const senderProfile = await db.getUserProfilePublic(payload.new.sender_id);
+                      const senderProfile = await db.getUserProfilePublic(
+                        payload.new.sender_id
+                      );
                       if (senderProfile) {
-                        setMessages((prev) => 
-                          prev.map(msg => 
-                            msg.id === payload.new.id 
-                              ? { 
-                                  ...msg, 
-                                  senderName: senderProfile.full_name || senderProfile.dj_name || "Unknown",
-                                  senderImage: senderProfile.profile_image_url 
+                        setMessages((prev) =>
+                          prev.map((msg) =>
+                            msg.id === payload.new.id
+                              ? {
+                                  ...msg,
+                                  senderName:
+                                    senderProfile.full_name ||
+                                    senderProfile.dj_name ||
+                                    "Unknown",
+                                  senderImage: senderProfile.profile_image_url,
                                 }
                               : msg
                           )
@@ -182,15 +187,20 @@ const MessagesScreen = ({ user, navigation, route }) => {
             // Update sender info for the new message without reloading all messages
             setTimeout(async () => {
               try {
-                const senderProfile = await db.getUserProfilePublic(payload.new.author_id);
+                const senderProfile = await db.getUserProfilePublic(
+                  payload.new.author_id
+                );
                 if (senderProfile) {
-                  setMessages((prev) => 
-                    prev.map(msg => 
-                      msg.id === payload.new.id 
-                        ? { 
-                            ...msg, 
-                            senderName: senderProfile.full_name || senderProfile.dj_name || "Unknown",
-                            senderImage: senderProfile.profile_image_url 
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === payload.new.id
+                        ? {
+                            ...msg,
+                            senderName:
+                              senderProfile.full_name ||
+                              senderProfile.dj_name ||
+                              "Unknown",
+                            senderImage: senderProfile.profile_image_url,
                           }
                         : msg
                     )
@@ -372,19 +382,23 @@ const MessagesScreen = ({ user, navigation, route }) => {
   // Load messages for current chat
   const loadMessages = async () => {
     try {
-      console.log("loadMessages started:", { chatType, djId, communityId });
+      console.log("loadMessages started:", { chatType, djId, communityId, userId: user?.id });
       let messagesData = [];
 
       if (chatType === "individual") {
+        console.log("📱 Loading individual chat messages...");
         // Get or create message thread
         const threadId = await db.findOrCreateIndividualMessageThread(
           user.id,
           djId
         );
+        console.log("🧵 Thread ID:", threadId);
 
         // Load individual messages
         messagesData = await db.getMessages(threadId);
+        console.log("📨 Individual messages loaded:", messagesData?.length || 0, "messages");
       } else if (chatType === "group") {
+        console.log("👥 Loading group chat messages...");
         // Load group messages
         console.log(
           "Calling db.getGroupMessages with communityId:",
@@ -397,6 +411,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
           "messages"
         );
       }
+
+      console.log("📋 Raw messages data:", messagesData);
 
       // Transform messages for display
       const transformedMessages = messagesData.map((msg) => ({
@@ -415,7 +431,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
         isOwn: (msg.sender_id || msg.author_id) === user.id,
       }));
 
-      console.log("Transformed messages:", transformedMessages?.length || 0);
+      console.log("✨ Transformed messages:", transformedMessages?.length || 0, "messages");
+      console.log("📝 Message details:", transformedMessages);
       setMessages(transformedMessages);
 
       // Scroll to bottom after messages are loaded
@@ -852,6 +869,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
           >
             <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={() => {
+              console.log("🔄 Manual refresh triggered");
+              loadMessages();
+            }}
+          >
+            <Ionicons name="refresh" size={24} color="hsl(75, 100%, 60%)" />
+          </TouchableOpacity>
 
           {chatType === "individual" && otherUser && (
             <View style={styles.headerInfo}>
@@ -1054,6 +1081,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
             >
               <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
             </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={() => {
+                console.log("🔄 Manual refresh triggered");
+                loadMessages();
+              }}
+            >
+              <Ionicons name="refresh" size={24} color="hsl(75, 100%, 60%)" />
+            </TouchableOpacity>
 
             {chatType === "individual" && otherUser && (
               <View style={styles.headerInfo}>
@@ -1190,6 +1227,10 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginRight: 16,
+  },
+  refreshButton: {
+    marginRight: 16,
+    padding: 4,
   },
   headerInfo: {
     flexDirection: "row",
