@@ -30,7 +30,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 // Import Audio from expo-av (works in Expo Go)
 import { Audio } from "expo-av";
-import * as MediaLibrary from "expo-media-library";
 import lockScreenControls from "./lib/lockScreenControls";
 console.log("✅ Audio module imported from expo-av");
 import { LinearGradient } from "expo-linear-gradient";
