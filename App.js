@@ -30,7 +30,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 // Import Audio from expo-av (works in Expo Go)
 import { Audio } from "expo-av";
-import lockScreenControls from "./lib/lockScreenControls";
+// import lockScreenControls from "./lib/lockScreenControls"; // Temporarily disabled for Expo Go
 console.log("✅ Audio module imported from expo-av");
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
@@ -348,27 +348,27 @@ export default function App() {
     const setupLockScreenControls = async () => {
       try {
         // Setup media control categories
-        await lockScreenControls.setupMediaCategories();
+        // await lockScreenControls.setupMediaCategories(); // Temporarily disabled for Expo Go
 
         // Set up callbacks for lock screen actions
-        lockScreenControls.setCallbacks({
-          onPlayPause: () => {
-            if (globalAudioState.isPlaying) {
-              pauseGlobalAudio();
-            } else {
-              resumeGlobalAudio();
-            }
-          },
-          onNext: () => {
-            skipForward();
-          },
-          onPrevious: () => {
-            skipBackward();
-          },
-          onSeek: (seekAmount) => {
-            seekGlobalAudio(seekAmount);
-          },
-        });
+        // lockScreenControls.setCallbacks({ // Temporarily disabled for Expo Go
+        //   onPlayPause: () => {
+        //     if (globalAudioState.isPlaying) {
+        //       pauseGlobalAudio();
+        //     } else {
+        //       resumeGlobalAudio();
+        //     }
+        //   },
+        //   onNext: () => {
+        //     skipForward();
+        //   },
+        //   onPrevious: () => {
+        //     skipBackward();
+        //   },
+        //   onSeek: (seekAmount) => {
+        //     seekGlobalAudio(seekAmount);
+        //   },
+        // });
 
         console.log("🔒 Lock screen controls initialized");
       } catch (error) {
@@ -878,11 +878,11 @@ export default function App() {
             };
 
             // Update lock screen controls with current state
-            lockScreenControls.setPlaybackState(
-              status.isPlaying,
-              status.positionMillis || 0,
-              status.durationMillis || 0
-            );
+            // lockScreenControls.setPlaybackState( // Temporarily disabled for Expo Go
+            //   status.isPlaying,
+            //   status.positionMillis || 0,
+            //   status.durationMillis || 0
+            // );
 
             return newState;
           });
@@ -969,7 +969,7 @@ export default function App() {
       });
 
       // Show lock screen notification
-      await lockScreenControls.showLockScreenNotification(track);
+      // await lockScreenControls.showLockScreenNotification(track); // Temporarily disabled for Expo Go
 
       // Set up iOS MediaSession for Now Playing info (non-blocking)
       // Note: MediaLibrary may not work in Expo Go, so we'll skip it for now
@@ -998,11 +998,11 @@ export default function App() {
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
 
         // Update lock screen controls
-        lockScreenControls.setPlaybackState(
-          false,
-          globalAudioState.positionMillis,
-          globalAudioState.durationMillis
-        );
+        // lockScreenControls.setPlaybackState( // Temporarily disabled for Expo Go
+        //   false,
+        //   globalAudioState.positionMillis,
+        //   globalAudioState.durationMillis
+        // );
 
         // Update iOS MediaSession (non-blocking)
         if (Platform.OS === "ios") {
@@ -1060,11 +1060,11 @@ export default function App() {
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
 
         // Update lock screen controls
-        lockScreenControls.setPlaybackState(
-          true,
-          globalAudioState.positionMillis,
-          globalAudioState.durationMillis
-        );
+        // lockScreenControls.setPlaybackState( // Temporarily disabled for Expo Go
+        //   true,
+        //   globalAudioState.positionMillis,
+        //   globalAudioState.durationMillis
+        // );
 
         // Update iOS MediaSession (non-blocking)
         if (Platform.OS === "ios") {
@@ -1085,7 +1085,7 @@ export default function App() {
         globalAudioRef.current = null;
 
         // Hide lock screen notification
-        await lockScreenControls.hideLockScreenNotification();
+        // await lockScreenControls.hideLockScreenNotification(); // Temporarily disabled for Expo Go
 
         // Clean up iOS MediaSession (non-blocking)
         if (Platform.OS === "ios") {
