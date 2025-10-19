@@ -249,6 +249,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
       console.log("Transformed messages:", transformedMessages?.length || 0);
       setMessages(transformedMessages);
+
+      // Scroll to bottom after messages are loaded
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     } catch (error) {
       console.error("Error loading messages:", error);
       console.error("Error details:", {
@@ -804,7 +809,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         {/* Message Input */}
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 180 : 90}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
           style={styles.inputContainer}
         >
           {chatType === "individual" && !isConnected ? (
@@ -866,130 +871,131 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   // Render main chat interface
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 180 : 90}
-    >
-      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
-          </TouchableOpacity>
-
-          {chatType === "individual" && otherUser && (
-            <View style={styles.headerInfo}>
-              <ProgressiveImage
-                source={{ uri: otherUser.profile_image_url }}
-                style={styles.headerAvatar}
-                placeholderStyle={styles.headerAvatarPlaceholder}
-              />
-              <View style={styles.headerText}>
-                <Text style={styles.headerName}>
-                  {otherUser.dj_name || otherUser.full_name || "Unknown User"}
-                </Text>
-                <Text style={styles.headerLocation}>
-                  {otherUser.location ||
-                    otherUser.city ||
-                    otherUser.country ||
-                    "Unknown Location"}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {chatType === "group" && communityData && (
-            <View style={styles.headerInfo}>
-              <ProgressiveImage
-                source={
-                  communityData.image_url
-                    ? { uri: communityData.image_url }
-                    : require("../assets/rhood_logo.webp")
-                }
-                style={styles.headerAvatar}
-                placeholderStyle={styles.headerAvatarPlaceholder}
-              />
-              <View style={styles.headerText}>
-                <Text style={styles.headerName}>{communityData.name}</Text>
-                <Text style={styles.headerLocation}>
-                  {memberCount} member{memberCount !== 1 ? "s" : ""}
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Messages */}
-        <ScrollView
-          ref={scrollViewRef}
-          style={[
-            styles.messagesContainer,
-            {
-              marginBottom:
-                keyboardHeight > 0
-                  ? keyboardHeight - 190 // Account for playbar (90px) + input area (100px)
-                  : 0,
-            },
-          ]}
-          contentContainerStyle={styles.messagesContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {messages.map(renderMessage)}
-        </ScrollView>
-
-        {/* Message Input */}
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      >
+        <Animated.View style={[styles.chatContainer, { opacity: fadeAnim }]}>
+          {/* Header */}
+          <View style={styles.header}>
             <TouchableOpacity
-              style={styles.attachButton}
-              onPress={() => setShowMediaPicker(true)}
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
             >
-              <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
+              <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
             </TouchableOpacity>
-            <TextInput
-              style={styles.messageInput}
-              placeholder="Type a message..."
-              placeholderTextColor="hsl(0, 0%, 50%)"
-              value={newMessage}
-              onChangeText={setNewMessage}
-              multiline
-              maxLength={500}
-              onFocus={() => {
-                // Scroll to bottom when input is focused
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollToEnd({ animated: true });
-                }, 100);
-              }}
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                ((!newMessage.trim() && !selectedMedia) || sending) &&
-                  styles.sendButtonDisabled,
-              ]}
-              onPress={sendMessage}
-              disabled={(!newMessage.trim() && !selectedMedia) || sending}
-            >
-              {sending ? (
-                <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
-              ) : (
-                <Ionicons name="send" size={20} color="hsl(0, 0%, 0%)" />
-              )}
-            </TouchableOpacity>
+
+            {chatType === "individual" && otherUser && (
+              <View style={styles.headerInfo}>
+                <ProgressiveImage
+                  source={{ uri: otherUser.profile_image_url }}
+                  style={styles.headerAvatar}
+                  placeholderStyle={styles.headerAvatarPlaceholder}
+                />
+                <View style={styles.headerText}>
+                  <Text style={styles.headerName}>
+                    {otherUser.dj_name || otherUser.full_name || "Unknown User"}
+                  </Text>
+                  <Text style={styles.headerLocation}>
+                    {otherUser.location ||
+                      otherUser.city ||
+                      otherUser.country ||
+                      "Unknown Location"}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {chatType === "group" && communityData && (
+              <View style={styles.headerInfo}>
+                <ProgressiveImage
+                  source={
+                    communityData.image_url
+                      ? { uri: communityData.image_url }
+                      : require("../assets/rhood_logo.webp")
+                  }
+                  style={styles.headerAvatar}
+                  placeholderStyle={styles.headerAvatarPlaceholder}
+                />
+                <View style={styles.headerText}>
+                  <Text style={styles.headerName}>{communityData.name}</Text>
+                  <Text style={styles.headerLocation}>
+                    {memberCount} member{memberCount !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
-        </View>
-      </Animated.View>
-    </KeyboardAvoidingView>
+
+          {/* Messages */}
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.messagesContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {messages.map(renderMessage)}
+          </ScrollView>
+
+          {/* Message Input */}
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <TouchableOpacity
+                style={styles.attachButton}
+                onPress={() => setShowMediaPicker(true)}
+              >
+                <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
+              </TouchableOpacity>
+              <TextInput
+                style={styles.messageInput}
+                placeholder="Type a message..."
+                placeholderTextColor="hsl(0, 0%, 50%)"
+                value={newMessage}
+                onChangeText={setNewMessage}
+                multiline
+                maxLength={500}
+                onFocus={() => {
+                  // Scroll to bottom when input is focused
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 100);
+                }}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  ((!newMessage.trim() && !selectedMedia) || sending) &&
+                    styles.sendButtonDisabled,
+                ]}
+                onPress={sendMessage}
+                disabled={(!newMessage.trim() && !selectedMedia) || sending}
+              >
+                {sending ? (
+                  <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
+                ) : (
+                  <Ionicons name="send" size={20} color="hsl(0, 0%, 0%)" />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: "hsl(0, 0%, 0%)",
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  chatContainer: {
     flex: 1,
     backgroundColor: "hsl(0, 0%, 0%)",
   },
@@ -1055,6 +1061,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContent: {
+    flexGrow: 1,
     padding: 16,
     paddingBottom: 20,
   },

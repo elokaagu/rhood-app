@@ -30,6 +30,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 // Import Audio from expo-av (works in Expo Go)
 import { Audio } from "expo-av";
+import * as MediaLibrary from "expo-media-library";
 import lockScreenControls from "./lib/lockScreenControls";
 console.log("✅ Audio module imported from expo-av");
 import { LinearGradient } from "expo-linear-gradient";
@@ -755,6 +756,8 @@ export default function App() {
         playsInSilentModeIOS: true,
         shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false,
+        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
       });
 
       // Create and load new sound using expo-av
@@ -969,6 +972,25 @@ export default function App() {
       // Show lock screen notification
       await lockScreenControls.showLockScreenNotification(track);
 
+      // Set up iOS MediaSession for Now Playing info
+      try {
+        await MediaLibrary.requestPermissionsAsync();
+        await MediaLibrary.setActiveAsync(true);
+        
+        // Set Now Playing metadata
+        await MediaLibrary.setMetadataAsync({
+          title: track.title || "R/HOOD Track",
+          artist: track.artist || "Unknown Artist",
+          album: "R/HOOD",
+          artwork: track.image ? { uri: track.image } : undefined,
+          duration: globalAudioState.durationMillis ? Math.floor(globalAudioState.durationMillis / 1000) : undefined,
+        });
+        
+        console.log("🎵 MediaSession configured for iOS Now Playing");
+      } catch (mediaError) {
+        console.log("⚠️ MediaSession setup failed (expected in Expo Go):", mediaError.message);
+      }
+
       console.log("🎉 Global audio started successfully:", track.title);
     } catch (error) {
       console.log("❌ Error playing global audio:", error);
@@ -993,6 +1015,14 @@ export default function App() {
           globalAudioState.positionMillis,
           globalAudioState.durationMillis
         );
+
+        // Update iOS MediaSession
+        try {
+          await MediaLibrary.setActiveAsync(false);
+          console.log("🎵 MediaSession paused");
+        } catch (mediaError) {
+          console.log("⚠️ MediaSession pause failed:", mediaError.message);
+        }
       } catch (error) {
         console.log("❌ Error pausing audio:", error);
       }
@@ -1048,6 +1078,14 @@ export default function App() {
           globalAudioState.positionMillis,
           globalAudioState.durationMillis
         );
+
+        // Update iOS MediaSession
+        try {
+          await MediaLibrary.setActiveAsync(true);
+          console.log("🎵 MediaSession resumed");
+        } catch (mediaError) {
+          console.log("⚠️ MediaSession resume failed:", mediaError.message);
+        }
       } catch (error) {
         console.log("❌ Error resuming audio:", error);
       }
@@ -1060,8 +1098,16 @@ export default function App() {
         await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
 
-        // Hide lock screen notification
-        await lockScreenControls.hideLockScreenNotification();
+      // Hide lock screen notification
+      await lockScreenControls.hideLockScreenNotification();
+
+      // Clean up iOS MediaSession
+      try {
+        await MediaLibrary.setActiveAsync(false);
+        console.log("🎵 MediaSession stopped");
+      } catch (mediaError) {
+        console.log("⚠️ MediaSession stop failed:", mediaError.message);
+      }
       } catch (error) {
         console.log("❌ Error stopping audio:", error);
       }
