@@ -976,19 +976,24 @@ export default function App() {
       try {
         await MediaLibrary.requestPermissionsAsync();
         await MediaLibrary.setActiveAsync(true);
-        
+
         // Set Now Playing metadata
         await MediaLibrary.setMetadataAsync({
           title: track.title || "R/HOOD Track",
           artist: track.artist || "Unknown Artist",
           album: "R/HOOD",
           artwork: track.image ? { uri: track.image } : undefined,
-          duration: globalAudioState.durationMillis ? Math.floor(globalAudioState.durationMillis / 1000) : undefined,
+          duration: globalAudioState.durationMillis
+            ? Math.floor(globalAudioState.durationMillis / 1000)
+            : undefined,
         });
-        
+
         console.log("🎵 MediaSession configured for iOS Now Playing");
       } catch (mediaError) {
-        console.log("⚠️ MediaSession setup failed (expected in Expo Go):", mediaError.message);
+        console.log(
+          "⚠️ MediaSession setup failed (expected in Expo Go):",
+          mediaError.message
+        );
       }
 
       console.log("🎉 Global audio started successfully:", track.title);
@@ -1098,16 +1103,16 @@ export default function App() {
         await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
 
-      // Hide lock screen notification
-      await lockScreenControls.hideLockScreenNotification();
+        // Hide lock screen notification
+        await lockScreenControls.hideLockScreenNotification();
 
-      // Clean up iOS MediaSession
-      try {
-        await MediaLibrary.setActiveAsync(false);
-        console.log("🎵 MediaSession stopped");
-      } catch (mediaError) {
-        console.log("⚠️ MediaSession stop failed:", mediaError.message);
-      }
+        // Clean up iOS MediaSession
+        try {
+          await MediaLibrary.setActiveAsync(false);
+          console.log("🎵 MediaSession stopped");
+        } catch (mediaError) {
+          console.log("⚠️ MediaSession stop failed:", mediaError.message);
+        }
       } catch (error) {
         console.log("❌ Error stopping audio:", error);
       }
