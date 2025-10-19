@@ -70,54 +70,58 @@ const MessagesScreen = ({ user, navigation, route }) => {
     let channel;
 
     if (chatType === "individual" && djId) {
-      // Subscribe to individual message thread
-      channel = supabase
-        .channel(`messages-${user.id}-${djId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "messages",
-            filter: `thread_id=eq.${user.id}-${djId}`,
-          },
-          async (payload) => {
-            console.log("📨 New individual message received:", payload.new);
+      // For individual chats, we need to get the thread ID first
+      const setupIndividualSubscription = async () => {
+        try {
+          const threadId = await db.findOrCreateIndividualMessageThread(user.id, djId);
+          
+          if (threadId) {
+            channel = supabase
+              .channel(`messages-${threadId}`)
+              .on(
+                "postgres_changes",
+                {
+                  event: "INSERT",
+                  schema: "public",
+                  table: "messages",
+                  filter: `thread_id=eq.${threadId}`,
+                },
+                (payload) => {
+                  console.log("📨 New individual message received:", payload.new);
 
-            // Get the thread ID to ensure we're in the right chat
-            const threadId = await db.findOrCreateIndividualMessageThread(
-              user.id,
-              djId
-            );
+                  // Transform the new message for display
+                  const newMessage = {
+                    id: payload.new.id,
+                    content: payload.new.content || "",
+                    senderId: payload.new.sender_id,
+                    senderName: "Loading...", // Will be updated when we reload
+                    senderImage: null,
+                    timestamp: payload.new.created_at,
+                    isOwn: payload.new.sender_id === user.id,
+                  };
 
-            if (payload.new.thread_id === threadId) {
-              // Transform the new message for display
-              const newMessage = {
-                id: payload.new.id,
-                content: payload.new.content || "",
-                senderId: payload.new.sender_id,
-                senderName: "Loading...", // Will be updated when we reload
-                senderImage: null,
-                timestamp: payload.new.created_at,
-                isOwn: payload.new.sender_id === user.id,
-              };
+                  // Add to messages state
+                  setMessages((prev) => [...prev, newMessage]);
 
-              // Add to messages state
-              setMessages((prev) => [...prev, newMessage]);
+                  // Scroll to bottom
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 100);
 
-              // Scroll to bottom
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 100);
-
-              // Reload messages to get proper sender info
-              setTimeout(() => {
-                loadMessages();
-              }, 500);
-            }
+                  // Reload messages to get proper sender info
+                  setTimeout(() => {
+                    loadMessages();
+                  }, 500);
+                }
+              )
+              .subscribe();
           }
-        )
-        .subscribe();
+        } catch (error) {
+          console.error("❌ Error setting up individual subscription:", error);
+        }
+      };
+
+      setupIndividualSubscription();
     } else if (chatType === "group" && communityId) {
       // Subscribe to group messages
       channel = supabase
