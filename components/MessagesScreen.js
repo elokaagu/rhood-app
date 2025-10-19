@@ -188,13 +188,12 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
     const unsubscribe = navigation.addListener("focus", () => {
       console.log("📨 MessagesScreen focused, refreshing messages");
-      if (messages.length > 0) {
-        loadMessages();
-      }
+      // Always refresh messages when screen comes into focus to ensure latest data
+      loadMessages();
     });
 
     return unsubscribe;
-  }, [navigation, messages.length]);
+  }, [navigation]);
 
   // Fade in animation
   useEffect(() => {
