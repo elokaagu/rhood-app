@@ -491,6 +491,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     } catch (error) {
       console.error("Error uploading image:", error);
       Alert.alert("Upload Error", "Failed to upload image. Please try again.");
+      setShowMediaPicker(false); // Close picker on error
     }
   };
 
@@ -985,6 +986,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         {/* Media Picker Modal */}
         {showMediaPicker && (
+          console.log("📎 Rendering media picker modal") || true
+        ) && (
           <View style={styles.mediaPickerOverlay}>
             <View style={styles.mediaPickerContainer}>
               <View style={styles.mediaPickerButtons}>
@@ -1045,7 +1048,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
             <View style={styles.inputWrapper}>
               <TouchableOpacity
                 style={styles.attachButton}
-                onPress={() => setShowMediaPicker(true)}
+                onPress={() => {
+                  console.log("📎 Media picker button pressed");
+                  setShowMediaPicker(true);
+                }}
               >
                 <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
               </TouchableOpacity>
@@ -1156,7 +1162,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
             <View style={styles.inputWrapper}>
               <TouchableOpacity
                 style={styles.attachButton}
-                onPress={() => setShowMediaPicker(true)}
+                onPress={() => {
+                  console.log("📎 Media picker button pressed");
+                  setShowMediaPicker(true);
+                }}
               >
                 <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
               </TouchableOpacity>
