@@ -985,40 +985,43 @@ const MessagesScreen = ({ user, navigation, route }) => {
         )}
 
         {/* Media Picker Modal */}
-        {showMediaPicker && (
-          console.log("📎 Rendering media picker modal") || true
-        ) && (
-          <View style={styles.mediaPickerOverlay}>
-            <View style={styles.mediaPickerContainer}>
-              <View style={styles.mediaPickerButtons}>
+        {showMediaPicker &&
+          (console.log("📎 Rendering media picker modal") || true) && (
+            <View style={styles.mediaPickerOverlay}>
+              <View style={styles.mediaPickerContainer}>
+                <View style={styles.mediaPickerButtons}>
+                  <TouchableOpacity
+                    style={styles.mediaPickerButton}
+                    onPress={handleImageUpload}
+                  >
+                    <Ionicons
+                      name="image"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
+                    />
+                    <Text style={styles.mediaPickerButtonText}>Photo</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.mediaPickerButton}
+                    onPress={handleDocumentUpload}
+                  >
+                    <Ionicons
+                      name="document"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
+                    />
+                    <Text style={styles.mediaPickerButtonText}>File</Text>
+                  </TouchableOpacity>
+                </View>
                 <TouchableOpacity
-                  style={styles.mediaPickerButton}
-                  onPress={handleImageUpload}
+                  style={styles.cancelButton}
+                  onPress={() => setShowMediaPicker(false)}
                 >
-                  <Ionicons name="image" size={24} color="hsl(75, 100%, 60%)" />
-                  <Text style={styles.mediaPickerButtonText}>Photo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.mediaPickerButton}
-                  onPress={handleDocumentUpload}
-                >
-                  <Ionicons
-                    name="document"
-                    size={24}
-                    color="hsl(75, 100%, 60%)"
-                  />
-                  <Text style={styles.mediaPickerButtonText}>File</Text>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowMediaPicker(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        )}
+          )}
 
         {/* Message Input */}
         <KeyboardAvoidingView

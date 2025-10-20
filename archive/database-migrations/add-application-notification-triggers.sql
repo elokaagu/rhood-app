@@ -32,7 +32,7 @@ BEGIN
     
     -- Set notification content based on status
     IF NEW.status = 'approved' THEN
-      notification_title := '🎉 Application Approved!';
+      notification_title := 'Application Approved';
       notification_message := 'Great news! Your application for "' || opportunity_title || '" has been approved.';
     ELSE
       notification_title := 'Application Update';
