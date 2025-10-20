@@ -7,6 +7,7 @@ A React Native mobile application for the underground music community, featuring
 ## 🎵 Features
 
 ### ✨ Core Functionality
+
 - **Splash Screen**: Animated R/HOOD branding with loading progress
 - **User Onboarding**: Comprehensive DJ profile creation
 - **Social Integration**: Instagram and SoundCloud profile linking
@@ -15,6 +16,7 @@ A React Native mobile application for the underground music community, featuring
 - **Dark Theme**: Underground aesthetic with lime accents
 
 ### 🎨 Design System
+
 - **Brand Guidelines**: Complete R/HOOD visual identity
 - **Dark Theme**: Pure black backgrounds with high contrast
 - **Signature Colors**: Lime/yellow-green primary color
@@ -22,6 +24,7 @@ A React Native mobile application for the underground music community, featuring
 - **Professional UI**: Clean, modern interface design
 
 ### 📱 Mobile Features
+
 - **Cross-Platform**: React Native for iOS and Android
 - **Touch Optimized**: Mobile-first responsive design
 - **Smooth Animations**: Native performance animations
@@ -30,7 +33,9 @@ A React Native mobile application for the underground music community, featuring
 ## 🚀 Getting Started
 
 ### Quick Start
+
 1. **Clone and install**
+
    ```bash
    git clone https://github.com/elokaagu/rhood-app.git
    cd rhood-app
@@ -38,6 +43,7 @@ A React Native mobile application for the underground music community, featuring
    ```
 
 2. **Set up environment**
+
    - Follow our [Setup Guide](docs/SETUP_GUIDE.md) for detailed instructions
    - Configure Supabase and environment variables
 
@@ -47,6 +53,7 @@ A React Native mobile application for the underground music community, featuring
    ```
 
 ### Prerequisites
+
 - Node.js (v18.0.0 or higher)
 - npm or yarn
 - Expo CLI
@@ -74,21 +81,27 @@ rhoodapp/
 We provide comprehensive documentation to help you understand and contribute to the R/HOOD app:
 
 ### 📖 [Documentation Hub](docs/README.md)
+
 Complete documentation index with guides for all aspects of the app.
 
 ### 🏗️ [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)
+
 System architecture, technology stack, and design decisions.
 
 ### 💻 [Component Documentation](docs/COMPONENT_DOCUMENTATION.md)
+
 Detailed documentation for all React Native components.
 
 ### 🗄️ [Database Schema](docs/DATABASE_SCHEMA.md)
+
 Complete database design and API reference.
 
 ### 🚀 [Setup Guide](docs/SETUP_GUIDE.md)
+
 Step-by-step development environment setup.
 
 ### 🤝 [Contributing Guide](docs/CONTRIBUTING_GUIDE.md)
+
 Guidelines for contributing to the project.
 
 ## 🎨 Brand Guidelines
@@ -116,11 +129,13 @@ See `brand-guidelines.md` for complete design system documentation.
 ## 📱 Screenshots
 
 ### Splash Screen
+
 - Animated R/HOOD logo with loading progress
 - Underground music platform branding
 - Smooth fade and scale animations
 
 ### Onboarding Form
+
 - Comprehensive DJ profile creation
 - Social media integration (Instagram, SoundCloud)
 - City selection dropdown
@@ -138,6 +153,7 @@ We welcome contributions from the community! Please read our [Contributing Guide
 - Team collaboration
 
 ### Quick Start for Contributors
+
 1. Fork the repository
 2. Read the [Setup Guide](docs/SETUP_GUIDE.md)
 3. Check the [Contributing Guide](docs/CONTRIBUTING_GUIDE.md)
@@ -161,6 +177,7 @@ R/HOOD is an underground music platform designed to connect DJs, producers, and 
 - **Issues**: [GitHub Issues](https://github.com/elokaagu/rhood-app/issues)
 
 ### Getting Help
+
 - 📚 Check our [Documentation Hub](docs/README.md)
 - 🐛 Report bugs via [GitHub Issues](https://github.com/elokaagu/rhood-app/issues)
 - 💬 Ask questions in [GitHub Discussions](https://github.com/elokaagu/rhood-app/discussions)
