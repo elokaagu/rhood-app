@@ -29,54 +29,67 @@ A React Native mobile application for the underground music community, featuring
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- Node.js (v14 or higher)
-- npm or yarn
-- Expo CLI
-- iOS Simulator or Android Emulator (for development)
-
-### Installation
-
-1. **Clone the repository**
+### Quick Start
+1. **Clone and install**
    ```bash
-   git clone https://github.com/yourusername/rhoodapp.git
-   cd rhoodapp
-   ```
-
-2. **Install dependencies**
-   ```bash
+   git clone https://github.com/elokaagu/rhood-app.git
+   cd rhood-app
    npm install
-   # or
-   yarn install
    ```
 
-3. **Start the development server**
+2. **Set up environment**
+   - Follow our [Setup Guide](docs/SETUP_GUIDE.md) for detailed instructions
+   - Configure Supabase and environment variables
+
+3. **Start development**
    ```bash
    npm start
-   # or
-   yarn start
    ```
 
-4. **Run on device/simulator**
-   ```bash
-   # iOS
-   npm run ios
-   
-   # Android
-   npm run android
-   ```
+### Prerequisites
+- Node.js (v18.0.0 or higher)
+- npm or yarn
+- Expo CLI
+- Supabase account
+- iOS Simulator or Android Emulator
+
+For detailed setup instructions, see our [Setup Guide](docs/SETUP_GUIDE.md).
 
 ## 📁 Project Structure
 
 ```
 rhoodapp/
-├── components/           # React components
-│   └── SplashScreen.js  # Animated splash screen
-├── assets/              # Images and icons
+├── components/           # React Native components
+├── lib/                  # Utility libraries and services
+├── database/            # Database schema and migrations
+├── docs/                # Comprehensive documentation
+├── assets/              # Images, fonts, and media
+├── scripts/             # Build and deployment scripts
 ├── App.js              # Main application component
-├── brand-guidelines.md # Complete brand documentation
 └── README.md           # This file
 ```
+
+## 📚 Documentation
+
+We provide comprehensive documentation to help you understand and contribute to the R/HOOD app:
+
+### 📖 [Documentation Hub](docs/README.md)
+Complete documentation index with guides for all aspects of the app.
+
+### 🏗️ [Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)
+System architecture, technology stack, and design decisions.
+
+### 💻 [Component Documentation](docs/COMPONENT_DOCUMENTATION.md)
+Detailed documentation for all React Native components.
+
+### 🗄️ [Database Schema](docs/DATABASE_SCHEMA.md)
+Complete database design and API reference.
+
+### 🚀 [Setup Guide](docs/SETUP_GUIDE.md)
+Step-by-step development environment setup.
+
+### 🤝 [Contributing Guide](docs/CONTRIBUTING_GUIDE.md)
+Guidelines for contributing to the project.
 
 ## 🎨 Brand Guidelines
 
@@ -93,11 +106,12 @@ See `brand-guidelines.md` for complete design system documentation.
 ## 🔧 Technical Stack
 
 - **Framework**: React Native with Expo
-- **Navigation**: React Navigation
-- **State Management**: React Hooks (useState, useEffect)
-- **Storage**: AsyncStorage for local data persistence
+- **Backend**: Supabase (PostgreSQL + Auth + Storage)
+- **State Management**: React Hooks (useState, useEffect, useContext)
+- **Real-time**: Supabase Realtime subscriptions
+- **Storage**: AsyncStorage + Supabase Storage
 - **Styling**: StyleSheet with HSL color system
-- **Animations**: React Native Animated API
+- **Authentication**: JWT with Row Level Security
 
 ## 📱 Screenshots
 
@@ -115,11 +129,21 @@ See `brand-guidelines.md` for complete design system documentation.
 
 ## 🤝 Contributing
 
+We welcome contributions from the community! Please read our [Contributing Guide](docs/CONTRIBUTING_GUIDE.md) for detailed information on:
+
+- Code of conduct and guidelines
+- Development workflow and standards
+- Pull request process
+- Issue reporting
+- Team collaboration
+
+### Quick Start for Contributors
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Read the [Setup Guide](docs/SETUP_GUIDE.md)
+3. Check the [Contributing Guide](docs/CONTRIBUTING_GUIDE.md)
+4. Create a feature branch
+5. Make your changes
+6. Submit a pull request
 
 ## 📄 License
 
@@ -129,12 +153,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 R/HOOD is an underground music platform designed to connect DJs, producers, and music enthusiasts. The app provides a professional networking environment for the underground music community with features tailored to the music industry.
 
-## 📞 Contact
+## 📞 Support & Contact
 
 - **Project**: R/HOOD Underground Music Platform
-- **Developer**: [Your Name]
-- **Email**: [your.email@example.com]
-- **GitHub**: [@yourusername](https://github.com/yourusername)
+- **GitHub**: [@elokaagu](https://github.com/elokaagu)
+- **Documentation**: [docs/README.md](docs/README.md)
+- **Issues**: [GitHub Issues](https://github.com/elokaagu/rhood-app/issues)
+
+### Getting Help
+- 📚 Check our [Documentation Hub](docs/README.md)
+- 🐛 Report bugs via [GitHub Issues](https://github.com/elokaagu/rhood-app/issues)
+- 💬 Ask questions in [GitHub Discussions](https://github.com/elokaagu/rhood-app/discussions)
 
 ---
 
