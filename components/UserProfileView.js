@@ -275,6 +275,7 @@ export default function UserProfileView({
           artist: profile.dj_name || profile.full_name || "Unknown Artist",
           genre: profile.primaryMix?.genre || "Electronic",
           audioUrl: profile.primaryMix?.file_url || require("../assets/audio/unique-original-mix.mp3"),
+          image: profile.primaryMix?.artwork_url || profile.profile_image_url || null,
         };
 
         await onPlayAudio(trackData);

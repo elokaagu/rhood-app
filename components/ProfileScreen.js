@@ -269,6 +269,7 @@ export default function ProfileScreen({
           artist: profile.dj_name || profile.full_name || "Unknown Artist",
           genre: profile.audioId.genre || "Electronic",
           audioUrl: profile.audioId.audioUrl,
+          image: profile.audioId.artwork_url || profile.profileImage?.uri || null,
         };
 
         await onPlayAudio(trackData);
