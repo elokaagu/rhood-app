@@ -81,11 +81,22 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       if (result.type === "success" || !result.canceled) {
         const file = result.assets ? result.assets[0] : result;
 
-        // File size limit removed - allow files of any size
+        // Check file size against Supabase Pro limits
         const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
-        console.log(
-          `📁 Selected file size: ${fileSizeMB}MB - no size restrictions`
-        );
+        const maxSizeMB = 5120; // Supabase Pro tier limit (5GB)
+
+        console.log(`📁 Selected file size: ${fileSizeMB}MB`);
+
+        if (file.size > maxSizeMB * 1024 * 1024) {
+          Alert.alert(
+            "File Too Large",
+            `Your file is ${fileSizeMB}MB, but the maximum allowed size is ${maxSizeMB}MB (5GB).\n\nFor files this large, consider:\n1. Splitting into multiple parts\n2. Using higher compression\n3. Contacting support for enterprise limits`,
+            [{ text: "OK" }]
+          );
+          return;
+        }
+
+        console.log("✅ File size within limits");
 
         // Check audio duration - removed duration limit to allow mixes of all lengths
         try {
@@ -330,7 +341,26 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         });
 
       if (uploadError) {
-        throw uploadError;
+        console.error("❌ Upload error:", uploadError);
+
+        // Provide user-friendly error messages
+        if (
+          uploadError.message.includes("exceeded maximum size") ||
+          uploadError.message.includes("too large")
+        ) {
+          throw new Error(
+            `File too large: ${(selectedFile.size / 1024 / 1024).toFixed(
+              2
+            )}MB. ` +
+              `Maximum allowed size is 5GB on Pro tier. Please check your file size or contact support.`
+          );
+        } else if (uploadError.message.includes("quota")) {
+          throw new Error(
+            "Storage quota exceeded. Please delete some old mixes or contact support."
+          );
+        } else {
+          throw new Error(`Upload failed: ${uploadError.message}`);
+        }
       }
 
       setUploadProgress(40);
