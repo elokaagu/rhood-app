@@ -31,7 +31,15 @@ const defaultProfile = {
   },
 };
 
-export default function ProfileScreen({ onNavigate, user }) {
+export default function ProfileScreen({ 
+  onNavigate, 
+  user, 
+  globalAudioState, 
+  onPlayAudio, 
+  onPauseAudio, 
+  onResumeAudio, 
+  onStopAudio 
+}) {
   const [profile, setProfile] = useState(null); // Start with null, load from database
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -242,32 +250,28 @@ export default function ProfileScreen({ onNavigate, user }) {
 
   const handleAudioPlay = async () => {
     try {
-      if (soundRef.current) {
-        if (isPlaying) {
-          await soundRef.current.pauseAsync();
-          setIsPlaying(false);
+      // Check if this audio ID is currently playing
+      const isCurrentlyPlaying = globalAudioState.currentTrack && 
+        globalAudioState.currentTrack.id === profile.audioId.id;
+
+      if (isCurrentlyPlaying) {
+        // If it's playing, pause it
+        if (globalAudioState.isPlaying) {
+          onPauseAudio();
         } else {
-          await soundRef.current.playAsync();
-          setIsPlaying(true);
+          onResumeAudio();
         }
       } else {
-        const { sound } = await Audio.Sound.createAsync(
-          profile.audioId.audioUrl,
-          { shouldPlay: true }
-        );
-        soundRef.current = sound;
-        setIsPlaying(true);
+        // If it's not playing, play it using global audio system
+        const trackData = {
+          id: profile.audioId.id,
+          title: profile.audioId.title,
+          artist: profile.dj_name || profile.full_name || "Unknown Artist",
+          genre: profile.audioId.genre || "Electronic",
+          audioUrl: profile.audioId.audioUrl,
+        };
 
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded) {
-            setPlaybackPosition(status.positionMillis);
-            setPlaybackDuration(status.durationMillis);
-
-            // Update progress animation
-            const progress = status.positionMillis / status.durationMillis;
-            progressAnim.setValue(progress);
-          }
-        });
+        await onPlayAudio(trackData);
       }
     } catch (error) {
       console.error("Error playing audio:", error);
@@ -488,7 +492,13 @@ export default function ProfileScreen({ onNavigate, user }) {
                   onPress={handleAudioPlay}
                 >
                   <Ionicons
-                    name={isPlaying ? "pause" : "play"}
+                    name={
+                      globalAudioState.currentTrack && 
+                      globalAudioState.currentTrack.id === profile.audioId.id && 
+                      globalAudioState.isPlaying 
+                        ? "pause" 
+                        : "play"
+                    }
                     size={24}
                     color="hsl(0, 0%, 0%)"
                   />

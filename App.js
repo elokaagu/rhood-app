@@ -2790,6 +2790,11 @@ export default function App() {
           <ProfileScreen
             key={screenParams.profileRefreshKey || "profile"}
             user={user}
+            globalAudioState={globalAudioState}
+            onPlayAudio={playGlobalAudio}
+            onPauseAudio={pauseGlobalAudio}
+            onResumeAudio={resumeGlobalAudio}
+            onStopAudio={stopGlobalAudio}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
@@ -2874,6 +2879,11 @@ export default function App() {
         return (
           <UserProfileView
             userId={screenParams.userId}
+            globalAudioState={globalAudioState}
+            onPlayAudio={playGlobalAudio}
+            onPauseAudio={pauseGlobalAudio}
+            onResumeAudio={resumeGlobalAudio}
+            onStopAudio={stopGlobalAudio}
             onBack={() => setCurrentScreen("connections")}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);

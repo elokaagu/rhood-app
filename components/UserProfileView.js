@@ -20,7 +20,16 @@ import RhoodModal from "./RhoodModal";
 import * as Haptics from "expo-haptics";
 import backgroundAudioService from "../lib/backgroundAudioService";
 
-export default function UserProfileView({ userId, onBack, onNavigate }) {
+export default function UserProfileView({ 
+  userId, 
+  onBack, 
+  onNavigate, 
+  globalAudioState, 
+  onPlayAudio, 
+  onPauseAudio, 
+  onResumeAudio, 
+  onStopAudio 
+}) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -247,44 +256,28 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      if (isPlayingAudioId) {
-        // Pause the track
-        await backgroundAudioService.pauseTrack();
-        setIsPlayingAudioId(false);
+      // Check if this audio ID is currently playing
+      const isCurrentlyPlaying = globalAudioState.currentTrack && 
+        globalAudioState.currentTrack.id === profile.primaryMix?.id;
+
+      if (isCurrentlyPlaying) {
+        // If it's playing, pause it
+        if (globalAudioState.isPlaying) {
+          onPauseAudio();
+        } else {
+          onResumeAudio();
+        }
       } else {
-        // Prepare track data for background service
+        // If it's not playing, play it using global audio system
         const trackData = {
           id: profile.primaryMix?.id || "audio-id",
           title: profile.primaryMix?.title || "Audio ID",
           artist: profile.dj_name || profile.full_name || "Unknown Artist",
           genre: profile.primaryMix?.genre || "Electronic",
-          file_url: profile.primaryMix?.file_url,
-          audioUrl: require("../assets/audio/unique-original-mix.mp3"), // Fallback
+          audioUrl: profile.primaryMix?.file_url || require("../assets/audio/unique-original-mix.mp3"),
         };
 
-        // Play the track using background service
-        const success = await backgroundAudioService.playTrack(trackData);
-
-        if (success) {
-          setIsPlayingAudioId(true);
-
-          // Start progress updates
-          const progressInterval = setInterval(() => {
-            const playbackState = backgroundAudioService.getPlaybackState();
-            setAudioIdProgress(playbackState.progress);
-
-            if (!playbackState.isPlaying && isPlayingAudioId) {
-              setIsPlayingAudioId(false);
-              setAudioIdProgress(0);
-              clearInterval(progressInterval);
-            }
-          }, 1000);
-
-          // Store interval reference for cleanup
-          audioIdSoundRef.current = { progressInterval };
-        } else {
-          Alert.alert("Error", "Could not play audio");
-        }
+        await onPlayAudio(trackData);
       }
     } catch (error) {
       console.error("Error playing audio ID:", error);
@@ -528,7 +521,13 @@ export default function UserProfileView({ userId, onBack, onNavigate }) {
                   onPress={handleAudioIdPlay}
                 >
                   <Ionicons
-                    name={isPlayingAudioId ? "pause" : "play"}
+                    name={
+                      globalAudioState.currentTrack && 
+                      globalAudioState.currentTrack.id === profile.primaryMix?.id && 
+                      globalAudioState.isPlaying 
+                        ? "pause" 
+                        : "play"
+                    }
                     size={20}
                     color="hsl(0, 0%, 0%)"
                   />
