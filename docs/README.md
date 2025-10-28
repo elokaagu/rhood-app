@@ -98,11 +98,15 @@ Setup and configuration for push notifications.
 ### [Brand Guidelines](brand-guidelines.md)
 Complete brand guidelines and design system.
 
+### [Mix Artwork Flow](MIX_ARTWORK_FLOW.md)
+Complete guide for mix artwork storage, retrieval, and updates for studio integration.
+
 **Key Topics:**
-- Color palette and typography
-- Logo usage and variations
-- UI component guidelines
-- Visual identity standards
+- Database schema for artwork storage
+- Storage bucket structure and file organization
+- Upload and retrieval flow
+- Studio integration examples
+- SQL queries for managing artwork URLs
 
 ### [Brand Compliance Summary](brand-compliance-summary.md)
 Summary of brand compliance across the app.
