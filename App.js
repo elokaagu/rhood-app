@@ -958,7 +958,10 @@ export default function App() {
             // Update lock screen controls with current state (throttled to prevent spam)
             // Only update every 2 seconds to match notification update rate
             const now = Date.now();
-            if (!lockScreenControls.lastLockScreenUpdate || now - lockScreenControls.lastLockScreenUpdate > 2000) {
+            if (
+              !lockScreenControls.lastLockScreenUpdate ||
+              now - lockScreenControls.lastLockScreenUpdate > 2000
+            ) {
               lockScreenControls.setPlaybackState(
                 status.isPlaying,
                 status.positionMillis || 0,
@@ -1117,7 +1120,8 @@ export default function App() {
         await globalAudioRef.current.pauseAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
         // Update lock screen controls
-        lockScreenControls.setPlaybackState(false, 
+        lockScreenControls.setPlaybackState(
+          false,
           globalAudioState.positionMillis || 0,
           globalAudioState.durationMillis || 0
         );
@@ -1169,9 +1173,10 @@ export default function App() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         await globalAudioRef.current.playAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
-        
+
         // Update lock screen controls
-        lockScreenControls.setPlaybackState(true, 
+        lockScreenControls.setPlaybackState(
+          true,
           globalAudioState.positionMillis || 0,
           globalAudioState.durationMillis || 0
         );
