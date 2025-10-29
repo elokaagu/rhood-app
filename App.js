@@ -491,6 +491,27 @@ export default function App() {
     }
   }, [user]);
 
+  // Refresh daily application stats when on opportunities screen
+  useEffect(() => {
+    if (currentScreen === "opportunities" && user?.id) {
+      const refreshStats = async () => {
+        try {
+          const stats = await db.getUserDailyApplicationStats(user.id);
+          setDailyApplicationStats(stats);
+          console.log("🔄 Refreshed daily application stats:", stats);
+        } catch (error) {
+          console.error("Error refreshing daily stats:", error);
+        }
+      };
+      
+      // Refresh immediately and then every 5 seconds while on screen
+      refreshStats();
+      const interval = setInterval(refreshStats, 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [currentScreen, user?.id]);
+
   // Refresh notification counts when app becomes active
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
@@ -545,18 +566,22 @@ export default function App() {
 
       if (sessionError) {
         console.log("Session error:", sessionError.message);
-        
+
         // Handle specific refresh token errors
-        if (sessionError.message?.includes("Refresh Token") || 
-            sessionError.message?.includes("Invalid Refresh Token")) {
-          console.log("🔄 Invalid refresh token detected, clearing session and signing out");
+        if (
+          sessionError.message?.includes("Refresh Token") ||
+          sessionError.message?.includes("Invalid Refresh Token")
+        ) {
+          console.log(
+            "🔄 Invalid refresh token detected, clearing session and signing out"
+          );
           try {
             await supabase.auth.signOut();
           } catch (signOutError) {
             console.log("Sign out error:", signOutError);
           }
         }
-        
+
         // Clear invalid session
         setUser(null);
         await checkFirstTime(null);
@@ -582,7 +607,7 @@ export default function App() {
           await checkFirstTime(null);
           return;
         }
-        
+
         setUser(session?.user ?? null);
         setAuthLoading(false);
 
@@ -2045,15 +2070,24 @@ export default function App() {
       // Move to next card immediately
       setCurrentOpportunityIndex(currentOpportunityIndex + 1);
 
-      // Show success message
-      setTimeout(() => {
+      // Show success message with updated stats
+      setTimeout(async () => {
+        // Get the most up-to-date stats for the success message
+        let updatedRemaining = dailyApplicationStats?.remaining_applications || 0;
+        try {
+          const freshStats = await db.getUserDailyApplicationStats(user.id);
+          updatedRemaining = freshStats?.remaining_applications || 0;
+        } catch (error) {
+          console.error("Error getting fresh stats for success message:", error);
+        }
+        
         showCustomModal({
           type: "success",
           title: "Application Sent!",
           message: `Your application for ${
             opportunity.title
           } has been sent successfully. You have ${
-            dailyApplicationStats?.remaining_applications || 0
+            updatedRemaining
           } applications remaining today.`,
           primaryButtonText: "OK",
         });
