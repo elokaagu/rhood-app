@@ -238,6 +238,66 @@ export default function ConnectionsScreen({
     refreshMessages();
   }, [user?.id, connections.length]);
 
+  // Set up real-time subscription for messages to keep chat list updated
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log("📨 Setting up real-time subscription for messages list");
+
+    // Subscribe to all messages for the current user
+    const channel = supabase
+      .channel("messages-list-updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("📨 New message received in list:", payload.new);
+          // Refresh last messages when a new message arrives
+          if (user?.id && connections.length > 0) {
+            loadLastMessagesForConnections(user.id, connections);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "community_posts",
+        },
+        (payload) => {
+          console.log("📨 New group message received in list:", payload.new);
+          // Check if user is part of the R/HOOD group
+          if (payload.new.community_id === "550e8400-e29b-41d4-a716-446655440000") {
+            checkRhoodMembership();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log("📨 Cleaning up messages list subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, connections.length]);
+
+  // Periodic refresh to ensure accuracy (every 10 seconds)
+  useEffect(() => {
+    if (!user?.id || connections.length === 0) return;
+
+    const refreshInterval = setInterval(() => {
+      console.log("🔄 Periodic refresh of messages list");
+      loadLastMessagesForConnections(user.id, connections);
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [user?.id, connections.length]);
+
   const checkRhoodMembership = async () => {
     try {
       if (!user?.id) return;
