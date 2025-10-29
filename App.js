@@ -955,12 +955,17 @@ export default function App() {
               durationMillis: status.durationMillis || 0,
             };
 
-            // Update lock screen controls with current state
-            lockScreenControls.setPlaybackState(
-              status.isPlaying,
-              status.positionMillis || 0,
-              status.durationMillis || 0
-            );
+            // Update lock screen controls with current state (throttled to prevent spam)
+            // Only update every 2 seconds to match notification update rate
+            const now = Date.now();
+            if (!lockScreenControls.lastLockScreenUpdate || now - lockScreenControls.lastLockScreenUpdate > 2000) {
+              lockScreenControls.setPlaybackState(
+                status.isPlaying,
+                status.positionMillis || 0,
+                status.durationMillis || 0
+              );
+              lockScreenControls.lastLockScreenUpdate = now;
+            }
 
             return newState;
           });
