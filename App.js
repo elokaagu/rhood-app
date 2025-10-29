@@ -491,6 +491,10 @@ export default function App() {
     }
   }, [user]);
 
+  // State to track network errors for daily stats refresh
+  const [networkErrorCount, setNetworkErrorCount] = useState(0);
+  const intervalRef = useRef(null); // To store the interval ID
+
   // Refresh daily application stats when on opportunities screen
   useEffect(() => {
     if (currentScreen === "opportunities" && user?.id) {
@@ -498,17 +502,57 @@ export default function App() {
         try {
           const stats = await db.getUserDailyApplicationStats(user.id);
           setDailyApplicationStats(stats);
+          setNetworkErrorCount(0); // Reset error count on success
           console.log("🔄 Refreshed daily application stats:", stats);
         } catch (error) {
           console.error("Error refreshing daily stats:", error);
+
+          // Only log network errors, don't spam the console
+          if (error.message && error.message.includes("Network request failed")) {
+            setNetworkErrorCount(prevCount => {
+              const newCount = prevCount + 1;
+              if (newCount >= 3) {
+                // Stop refreshing after 3 consecutive network errors
+                console.warn("🚫 Stopping daily stats refresh due to persistent network errors");
+                if (intervalRef.current) {
+                  clearInterval(intervalRef.current);
+                  intervalRef.current = null;
+                }
+                // Don't show error for network issues that are likely temporary
+                return newCount;
+              }
+              return newCount;
+            });
+          } else {
+            // For other errors, reset the count
+            setNetworkErrorCount(0);
+          }
         }
       };
-      
+
+      // Clear any existing interval before setting a new one
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+
       // Refresh immediately and then every 5 seconds while on screen
       refreshStats();
-      const interval = setInterval(refreshStats, 5000);
-      
-      return () => clearInterval(interval);
+      intervalRef.current = setInterval(refreshStats, 5000);
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        setNetworkErrorCount(0); // Reset error count when leaving screen
+      };
+    } else {
+      // If not on opportunities screen or no user, clear interval if it exists
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setNetworkErrorCount(0); // Reset error count when leaving screen
     }
   }, [currentScreen, user?.id]);
 
@@ -2073,22 +2117,22 @@ export default function App() {
       // Show success message with updated stats
       setTimeout(async () => {
         // Get the most up-to-date stats for the success message
-        let updatedRemaining = dailyApplicationStats?.remaining_applications || 0;
+        let updatedRemaining =
+          dailyApplicationStats?.remaining_applications || 0;
         try {
           const freshStats = await db.getUserDailyApplicationStats(user.id);
           updatedRemaining = freshStats?.remaining_applications || 0;
         } catch (error) {
-          console.error("Error getting fresh stats for success message:", error);
+          console.error(
+            "Error getting fresh stats for success message:",
+            error
+          );
         }
-        
+
         showCustomModal({
           type: "success",
           title: "Application Sent!",
-          message: `Your application for ${
-            opportunity.title
-          } has been sent successfully. You have ${
-            updatedRemaining
-          } applications remaining today.`,
+          message: `Your application for ${opportunity.title} has been sent successfully. You have ${updatedRemaining} applications remaining today.`,
           primaryButtonText: "OK",
         });
       }, 300);
