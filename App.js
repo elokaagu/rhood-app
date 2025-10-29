@@ -545,8 +545,19 @@ export default function App() {
 
       if (sessionError) {
         console.log("Session error:", sessionError.message);
+        
+        // Handle specific refresh token errors
+        if (sessionError.message?.includes("Refresh Token") || 
+            sessionError.message?.includes("Invalid Refresh Token")) {
+          console.log("🔄 Invalid refresh token detected, clearing session and signing out");
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutError) {
+            console.log("Sign out error:", signOutError);
+          }
+        }
+        
         // Clear invalid session
-        await supabase.auth.signOut();
         setUser(null);
         await checkFirstTime(null);
       } else {
@@ -558,6 +569,20 @@ export default function App() {
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange(async (event, session) => {
+        // Handle token refresh errors
+        if (event === "TOKEN_REFRESHED" && !session) {
+          console.log("🔄 Token refresh failed, signing out");
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutError) {
+            console.log("Sign out error during token refresh:", signOutError);
+          }
+          setUser(null);
+          setAuthLoading(false);
+          await checkFirstTime(null);
+          return;
+        }
+        
         setUser(session?.user ?? null);
         setAuthLoading(false);
 
