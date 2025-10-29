@@ -508,12 +508,17 @@ export default function App() {
           console.error("Error refreshing daily stats:", error);
 
           // Only log network errors, don't spam the console
-          if (error.message && error.message.includes("Network request failed")) {
-            setNetworkErrorCount(prevCount => {
+          if (
+            error.message &&
+            error.message.includes("Network request failed")
+          ) {
+            setNetworkErrorCount((prevCount) => {
               const newCount = prevCount + 1;
               if (newCount >= 3) {
                 // Stop refreshing after 3 consecutive network errors
-                console.warn("🚫 Stopping daily stats refresh due to persistent network errors");
+                console.warn(
+                  "🚫 Stopping daily stats refresh due to persistent network errors"
+                );
                 if (intervalRef.current) {
                   clearInterval(intervalRef.current);
                   intervalRef.current = null;

@@ -273,7 +273,9 @@ export default function ConnectionsScreen({
         (payload) => {
           console.log("📨 New group message received in list:", payload.new);
           // Check if user is part of the R/HOOD group
-          if (payload.new.community_id === "550e8400-e29b-41d4-a716-446655440000") {
+          if (
+            payload.new.community_id === "550e8400-e29b-41d4-a716-446655440000"
+          ) {
             checkRhoodMembership();
           }
         }
