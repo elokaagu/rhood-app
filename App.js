@@ -2875,6 +2875,7 @@ export default function App() {
             user={user}
             navigation={{ goBack: () => setCurrentScreen("connections") }}
             route={{ params: screenParams }}
+            globalAudioState={globalAudioState}
           />
         );
 
