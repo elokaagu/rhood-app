@@ -3785,34 +3785,36 @@ export default function App() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.aboutDJHeader}>
-                    <ProgressiveImage
-                      source={
-                        globalAudioState.currentTrack?.user_image
-                          ? {
-                              uri: globalAudioState.currentTrack.user_image,
-                            }
-                          : null
-                      }
-                      style={styles.aboutDJAvatar}
-                      placeholder={
-                        <View
-                          style={[
-                            styles.aboutDJAvatar,
-                            {
-                              backgroundColor: "hsl(0, 0%, 15%)",
-                              justifyContent: "center",
-                              alignItems: "center",
-                            },
-                          ]}
-                        >
-                          <Ionicons
-                            name="person"
-                            size={24}
-                            color="hsl(0, 0%, 50%)"
-                          />
-                        </View>
-                      }
-                    />
+                    <View style={styles.aboutDJAvatar}>
+                      <ProgressiveImage
+                        source={
+                          globalAudioState.currentTrack?.user_image
+                            ? {
+                                uri: globalAudioState.currentTrack.user_image,
+                              }
+                            : null
+                        }
+                        style={styles.aboutDJAvatarImage}
+                        placeholder={
+                          <View
+                            style={[
+                              styles.aboutDJAvatarImage,
+                              {
+                                backgroundColor: "hsl(0, 0%, 15%)",
+                                justifyContent: "center",
+                                alignItems: "center",
+                              },
+                            ]}
+                          >
+                            <Ionicons
+                              name="person"
+                              size={24}
+                              color="hsl(0, 0%, 50%)"
+                            />
+                          </View>
+                        }
+                      />
+                    </View>
                     <View style={styles.aboutDJInfo}>
                       <Text style={styles.aboutDJTitle}>About the DJ</Text>
                       <Text style={styles.aboutDJName}>
@@ -5423,6 +5425,11 @@ const styles = StyleSheet.create({
     marginRight: 16,
     borderWidth: 2,
     borderColor: "hsl(75, 100%, 60%)",
+    overflow: "hidden",
+  },
+  aboutDJAvatarImage: {
+    width: "100%",
+    height: "100%",
   },
   aboutDJInfo: {
     flex: 1,
