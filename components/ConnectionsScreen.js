@@ -145,7 +145,9 @@ export default function ConnectionsScreen({
       );
 
       // Get all conversation participants (even if not connected)
-      const conversationParticipants = await db.getAllConversationParticipants(currentUser.id);
+      const conversationParticipants = await db.getAllConversationParticipants(
+        currentUser.id
+      );
 
       // Debug: Log the data
       console.log(
@@ -199,7 +201,12 @@ export default function ConnectionsScreen({
             connectionsMap[participant.userId] = {
               id: participant.userId,
               name: participant.name,
-              username: participant.username ? `@${participant.username}` : `@${participant.name?.toLowerCase().replace(/\s+/g, "") || "user"}`,
+              username: participant.username
+                ? `@${participant.username}`
+                : `@${
+                    participant.name?.toLowerCase().replace(/\s+/g, "") ||
+                    "user"
+                  }`,
               location: participant.location || "Location not set",
               genres: participant.genres || [],
               profileImage: participant.profileImage || null,
@@ -225,10 +232,7 @@ export default function ConnectionsScreen({
         );
 
         // Load last messages for all connections
-        await loadLastMessagesForConnections(
-          currentUser.id,
-          allConnections
-        );
+        await loadLastMessagesForConnections(currentUser.id, allConnections);
       } else {
         // No connections yet, show empty state
         setConnections([]);
