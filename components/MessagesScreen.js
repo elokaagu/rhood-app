@@ -19,7 +19,7 @@ import { supabase, db } from "../lib/supabase";
 import ProgressiveImage from "./ProgressiveImage";
 // Dynamic import for multimedia service to avoid native module loading issues
 
-const MessagesScreen = ({ user, navigation, route, globalAudioState }) => {
+const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
   const { djId, communityId, chatType = "individual" } = params || {};
 
@@ -1027,10 +1027,7 @@ const MessagesScreen = ({ user, navigation, route, globalAudioState }) => {
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-          style={[
-            styles.inputContainer,
-            globalAudioState?.currentTrack && { paddingBottom: 90 }
-          ]}
+          style={styles.inputContainer}
         >
           {chatType === "individual" && !isConnected ? (
             <View style={styles.connectionRequiredContainer}>
@@ -1164,10 +1161,7 @@ const MessagesScreen = ({ user, navigation, route, globalAudioState }) => {
           </ScrollView>
 
           {/* Message Input */}
-          <View style={[
-            styles.inputContainer,
-            globalAudioState?.currentTrack && { paddingBottom: 90 }
-          ]}>
+          <View style={styles.inputContainer}>
             <View style={styles.inputWrapper}>
               <TouchableOpacity
                 style={styles.attachButton}

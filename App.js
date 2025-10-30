@@ -2875,7 +2875,6 @@ export default function App() {
             user={user}
             navigation={{ goBack: () => setCurrentScreen("connections") }}
             route={{ params: screenParams }}
-            globalAudioState={globalAudioState}
           />
         );
 
@@ -3452,12 +3451,12 @@ export default function App() {
         </Modal>
 
         {/* Dark Fade Overlay Above Play Bar */}
-        {globalAudioState.currentTrack && (
+        {globalAudioState.currentTrack && currentScreen !== "messages" && (
           <View style={styles.playBarFadeOverlay} />
         )}
 
         {/* Global Audio Player - shows when there's a current track */}
-        {globalAudioState.currentTrack && (
+        {globalAudioState.currentTrack && currentScreen !== "messages" && (
           <Animated.View
             style={[
               styles.globalAudioPlayer,
