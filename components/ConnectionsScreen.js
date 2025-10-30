@@ -705,8 +705,18 @@ export default function ConnectionsScreen({
     return "You: ";
   };
 
-  // Show all connections (not just those with messages)
-  const connectionsWithMessages = filteredConnections;
+  // Filter out connections with no messages
+  const connectionsWithMessages = filteredConnections.filter((connection) => {
+    const lastMessage = lastMessages[connection.id];
+    // Show if there's a message (text or media)
+    return lastMessage && (
+      lastMessage.content || 
+      lastMessage.messageType === "image" || 
+      lastMessage.messageType === "video" || 
+      lastMessage.messageType === "audio" || 
+      lastMessage.messageType === "file"
+    );
+  });
 
   return (
     <View style={styles.container}>
