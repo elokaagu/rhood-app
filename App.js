@@ -3787,10 +3787,9 @@ export default function App() {
                   <View style={styles.aboutDJHeader}>
                     <ProgressiveImage
                       source={
-                        globalAudioState.currentTrack?.user?.profile_image_url
+                        globalAudioState.currentTrack?.user_image
                           ? {
-                              uri: globalAudioState.currentTrack.user
-                                .profile_image_url,
+                              uri: globalAudioState.currentTrack.user_image,
                             }
                           : null
                       }
@@ -3817,8 +3816,7 @@ export default function App() {
                     <View style={styles.aboutDJInfo}>
                       <Text style={styles.aboutDJTitle}>About the DJ</Text>
                       <Text style={styles.aboutDJName}>
-                        {globalAudioState.currentTrack?.user?.dj_name ||
-                          globalAudioState.currentTrack?.user?.first_name ||
+                        {globalAudioState.currentTrack?.user_dj_name ||
                           globalAudioState.currentTrack?.artist ||
                           "Unknown DJ"}
                       </Text>
@@ -3831,7 +3829,7 @@ export default function App() {
                     />
                   </View>
                   <Text style={styles.aboutDJText}>
-                    {globalAudioState.currentTrack?.user?.bio ||
+                    {globalAudioState.currentTrack?.user_bio ||
                       "Discover more about this talented DJ and their unique sound."}
                   </Text>
                 </TouchableOpacity>

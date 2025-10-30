@@ -20,15 +20,15 @@ import RhoodModal from "./RhoodModal";
 import * as Haptics from "expo-haptics";
 import backgroundAudioService from "../lib/backgroundAudioService";
 
-export default function UserProfileView({ 
-  userId, 
-  onBack, 
-  onNavigate, 
-  globalAudioState, 
-  onPlayAudio, 
-  onPauseAudio, 
-  onResumeAudio, 
-  onStopAudio 
+export default function UserProfileView({
+  userId,
+  onBack,
+  onNavigate,
+  globalAudioState,
+  onPlayAudio,
+  onPauseAudio,
+  onResumeAudio,
+  onStopAudio,
 }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -257,7 +257,8 @@ export default function UserProfileView({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Check if this audio ID is currently playing
-      const isCurrentlyPlaying = globalAudioState.currentTrack && 
+      const isCurrentlyPlaying =
+        globalAudioState.currentTrack &&
         globalAudioState.currentTrack.id === profile.primaryMix?.id;
 
       if (isCurrentlyPlaying) {
@@ -274,8 +275,17 @@ export default function UserProfileView({
           title: profile.primaryMix?.title || "Audio ID",
           artist: profile.dj_name || profile.full_name || "Unknown Artist",
           genre: profile.primaryMix?.genre || "Electronic",
-          audioUrl: profile.primaryMix?.file_url || require("../assets/audio/unique-original-mix.mp3"),
-          image: profile.primaryMix?.artwork_url || profile.profile_image_url || null,
+          audioUrl:
+            profile.primaryMix?.file_url ||
+            require("../assets/audio/unique-original-mix.mp3"),
+          image:
+            profile.primaryMix?.artwork_url ||
+            profile.profile_image_url ||
+            null,
+          user_id: profile.id, // User ID for navigation
+          user_image: profile.profile_image_url, // Profile image for About the DJ
+          user_dj_name: profile.dj_name, // DJ name for About the DJ
+          user_bio: profile.bio, // Bio for About the DJ
         };
 
         console.log("🎵 Playing trackData from UserProfileView:", {
@@ -530,10 +540,11 @@ export default function UserProfileView({
                 >
                   <Ionicons
                     name={
-                      globalAudioState.currentTrack && 
-                      globalAudioState.currentTrack.id === profile.primaryMix?.id && 
-                      globalAudioState.isPlaying 
-                        ? "pause" 
+                      globalAudioState.currentTrack &&
+                      globalAudioState.currentTrack.id ===
+                        profile.primaryMix?.id &&
+                      globalAudioState.isPlaying
+                        ? "pause"
                         : "play"
                     }
                     size={20}

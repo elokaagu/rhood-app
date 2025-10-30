@@ -31,14 +31,14 @@ const defaultProfile = {
   },
 };
 
-export default function ProfileScreen({ 
-  onNavigate, 
-  user, 
-  globalAudioState, 
-  onPlayAudio, 
-  onPauseAudio, 
-  onResumeAudio, 
-  onStopAudio 
+export default function ProfileScreen({
+  onNavigate,
+  user,
+  globalAudioState,
+  onPlayAudio,
+  onPauseAudio,
+  onResumeAudio,
+  onStopAudio,
 }) {
   const [profile, setProfile] = useState(null); // Start with null, load from database
   const [loading, setLoading] = useState(true);
@@ -251,7 +251,8 @@ export default function ProfileScreen({
   const handleAudioPlay = async () => {
     try {
       // Check if this audio ID is currently playing
-      const isCurrentlyPlaying = globalAudioState.currentTrack && 
+      const isCurrentlyPlaying =
+        globalAudioState.currentTrack &&
         globalAudioState.currentTrack.id === profile.audioId.id;
 
       if (isCurrentlyPlaying) {
@@ -269,7 +270,12 @@ export default function ProfileScreen({
           artist: profile.dj_name || profile.full_name || "Unknown Artist",
           genre: profile.audioId.genre || "Electronic",
           audioUrl: profile.audioId.audioUrl,
-          image: profile.audioId.artwork_url || profile.profileImage?.uri || null,
+          image:
+            profile.audioId.artwork_url || profile.profileImage?.uri || null,
+          user_id: user.id, // User ID for navigation
+          user_image: profile.profileImage?.uri, // Profile image for About the DJ
+          user_dj_name: profile.dj_name, // DJ name for About the DJ
+          user_bio: profile.bio, // Bio for About the DJ
         };
 
         console.log("🎵 Playing trackData from ProfileScreen:", {
@@ -501,10 +507,10 @@ export default function ProfileScreen({
                 >
                   <Ionicons
                     name={
-                      globalAudioState.currentTrack && 
-                      globalAudioState.currentTrack.id === profile.audioId.id && 
-                      globalAudioState.isPlaying 
-                        ? "pause" 
+                      globalAudioState.currentTrack &&
+                      globalAudioState.currentTrack.id === profile.audioId.id &&
+                      globalAudioState.isPlaying
+                        ? "pause"
                         : "play"
                     }
                     size={24}
