@@ -1086,14 +1086,20 @@ export default function App() {
         },
       });
 
-      // Show lock screen notification with track metadata
-      await lockScreenControls.showLockScreenNotification({
-        id: track.id,
-        title: track.title || "R/HOOD Mix",
-        artist: track.artist || "Unknown Artist",
-        image: track.image || null,
-        genre: track.genre || "Electronic",
-      });
+      // Note: iOS lock screen controls are handled automatically by expo-av
+      // We only manually create notifications for Android
+      // For iOS, expo-av uses MPNowPlayingInfoCenter automatically
+      if (Platform.OS === "android") {
+        await lockScreenControls.showLockScreenNotification({
+          id: track.id,
+          title: track.title || "R/HOOD Mix",
+          artist: track.artist || "Unknown Artist",
+          image: track.image || null,
+          genre: track.genre || "Electronic",
+        });
+      } else {
+        console.log("🔒 iOS: Using automatic Now Playing controls from expo-av");
+      }
 
       // Set up iOS MediaSession for Now Playing info
       if (Platform.OS === "ios") {
