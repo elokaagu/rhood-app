@@ -278,6 +278,13 @@ export default function UserProfileView({
           image: profile.primaryMix?.artwork_url || profile.profile_image_url || null,
         };
 
+        console.log("🎵 Playing trackData from UserProfileView:", {
+          title: trackData.title,
+          artist: trackData.artist,
+          image: trackData.image,
+          audioUrl: trackData.audioUrl ? "URL provided" : "No URL",
+        });
+
         await onPlayAudio(trackData);
       }
     } catch (error) {

@@ -818,7 +818,13 @@ export default function App() {
   const playGlobalAudio = async (track) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      console.log("🎵 Playing:", track.title);
+      console.log("🎵 playGlobalAudio called with track:", {
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        image: track.image,
+        audioUrl: track.audioUrl ? "URL provided" : "No URL",
+      });
 
       // Stop current audio if playing
       if (globalAudioRef.current) {
@@ -1098,7 +1104,9 @@ export default function App() {
           genre: track.genre || "Electronic",
         });
       } else {
-        console.log("🔒 iOS: Using automatic Now Playing controls from expo-av");
+        console.log(
+          "🔒 iOS: Using automatic Now Playing controls from expo-av"
+        );
       }
 
       // Set up iOS MediaSession for Now Playing info

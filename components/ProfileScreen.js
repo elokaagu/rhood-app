@@ -272,6 +272,13 @@ export default function ProfileScreen({
           image: profile.audioId.artwork_url || profile.profileImage?.uri || null,
         };
 
+        console.log("🎵 Playing trackData from ProfileScreen:", {
+          title: trackData.title,
+          artist: trackData.artist,
+          image: trackData.image,
+          audioUrl: trackData.audioUrl ? "URL provided" : "No URL",
+        });
+
         await onPlayAudio(trackData);
       }
     } catch (error) {
