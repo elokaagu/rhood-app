@@ -74,16 +74,63 @@ Run in Supabase SQL Editor: `database/fix-all-messaging-rls.sql`
 
 ---
 
+## 🔍 How to Verify Messages Are Working
+
+### Step 1: Check Console Logs
+When you open a chat, you should see:
+```
+📥 loadMessages started: { chatType: 'individual', djId: '...', userId: '...' }
+🧵 Using thread ID: abc123...
+📨 Individual messages loaded: X messages
+📋 First message preview: { id: '...', content: '...', sender: '...', timestamp: '...' }
+```
+
+If you see:
+```
+⚠️ NO MESSAGES RETURNED FROM DATABASE
+📋 Query details: { threadId: '...', table: 'messages', filter: '...' }
+```
+**This means the database query returned empty. Check if messages exist in that thread.**
+
+### Step 2: When Sending a Message
+After sending, you should see:
+```
+✅ Individual message sent successfully!
+✅ Message data saved to database: { id: '...', thread_id: '...', sender_id: '...', content: '...', created_at: '...' }
+```
+
+If you see:
+```
+❌ Error sending individual message
+❌ Error details: { code: '...', message: '...', hint: '...', details: '...' }
+```
+**This means the message failed to save. Check RLS policies.**
+
+### Step 3: Run SQL Test in Supabase
+Run `database/test-messages-quick.sql` to verify messages are actually in the database.
+
+---
+
 ## 🐛 Troubleshooting
 
 ### Messages Not Appearing
 **Symptoms**: Chat shows "NO MESSAGES YET" even after sending
 
 **Solutions**:
-1. Run `database/test-messages-quick.sql` to verify messages are in database
-2. Check app logs for thread ID mismatches
-3. Verify RLS policies were applied correctly
-4. Check that you're testing with an **accepted connection**
+1. **Check console logs** - Look for the messages above
+2. Run `database/test-messages-quick.sql` to verify messages are in database
+3. Check app logs for thread ID mismatches
+4. Verify RLS policies were applied correctly
+5. Check that you're testing with an **accepted connection**
+
+### Messages Sending But Not Saving
+**Symptoms**: Console shows "✅ Individual message sent successfully!" but message disappears
+
+**Solutions**:
+1. Check for RLS errors in console logs
+2. Verify `database/fix-all-messaging-rls.sql` was run successfully
+3. Check that `thread_id` matches in both INSERT and SELECT queries
+4. Verify you're logged in as the correct user
 
 ### Lock Screen Controls Not Showing
 **Symptoms**: No controls appear when phone is locked during playback

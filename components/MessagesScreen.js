@@ -446,7 +446,24 @@ const MessagesScreen = ({ user, navigation, route }) => {
           messagesData.length,
           "messages"
         );
-        console.log("📋 Raw messages:", messagesData);
+        
+        // Log detailed info about loaded messages
+        if (messagesData.length > 0) {
+          console.log("📋 First message preview:", {
+            id: messagesData[0].id,
+            content: messagesData[0].content?.substring(0, 50) || "NO CONTENT",
+            sender: messagesData[0].sender?.dj_name || messagesData[0].sender?.full_name || "Unknown",
+            timestamp: messagesData[0].created_at,
+          });
+        } else {
+          console.log("⚠️ NO MESSAGES RETURNED FROM DATABASE");
+          console.log("📋 Query details:", {
+            threadId,
+            table: "messages",
+            filter: `thread_id=eq.${threadId}`,
+          });
+        }
+        console.log("📋 All raw messages:", messagesData);
       } else if (chatType === "group") {
         console.log("👥 Loading group chat messages...");
         messagesData = await db.getGroupMessages(communityId);
@@ -641,10 +658,23 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         if (error) {
           console.error("❌ Error sending individual message:", error);
+          console.error("❌ Error details:", {
+            code: error.code,
+            message: error.message,
+            hint: error.hint,
+            details: error.details,
+          });
           throw error;
         }
 
-        console.log("✅ Individual message sent:", messageData);
+        console.log("✅ Individual message sent successfully!");
+        console.log("✅ Message data saved to database:", {
+          id: messageData.id,
+          thread_id: messageData.thread_id,
+          sender_id: messageData.sender_id,
+          content: messageData.content,
+          created_at: messageData.created_at,
+        });
         // Real-time subscription will add the message to UI automatically
       } else if (chatType === "group") {
         // Validate required data
