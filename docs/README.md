@@ -162,6 +162,18 @@ Debugging Apple Sign-In issues.
 
 Debug logging for TestFlight builds.
 
+### [Debugging Messages](DEBUGGING_MESSAGES.md)
+
+Complete debugging guide for messaging system issues.
+
+**Key Topics:**
+
+- Console log patterns to look for
+- SQL verification queries
+- Common issues and fixes
+- Database schema reference
+- Testing commands
+
 ---
 
 ## 📊 Performance & Optimization
