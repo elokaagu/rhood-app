@@ -824,6 +824,11 @@ export default function App() {
         artist: track.artist,
         image: track.image,
         audioUrl: track.audioUrl ? "URL provided" : "No URL",
+        user_id: track.user_id,
+        user_image: track.user_image,
+        user_dj_name: track.user_dj_name,
+        user_bio: track.user_bio,
+        user: track.user ? "User object present" : "No user object",
       });
 
       // Stop current audio if playing
@@ -1049,11 +1054,21 @@ export default function App() {
           );
         }
 
+        // Transform track to ensure user data is available
+        const enhancedTrack = {
+          ...track,
+          // If track has user object but not user_image, extract from user
+          user_id: track.user_id || track.user?.id,
+          user_image: track.user_image || track.user?.profile_image_url,
+          user_dj_name: track.user_dj_name || track.user?.dj_name,
+          user_bio: track.user_bio || track.user?.bio,
+        };
+
         return {
           ...prev,
           sound: sound,
           isPlaying: true,
-          currentTrack: track,
+          currentTrack: enhancedTrack,
           isLoading: false,
           queue: newQueue,
           currentQueueIndex: newIndex,
