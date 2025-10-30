@@ -405,12 +405,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
       if (chatType === "individual") {
         console.log("📱 Loading individual chat messages...");
+        console.log("📱 Using userId:", user.id, "djId:", djId);
         // Get or create message thread
         const threadId = await db.findOrCreateIndividualMessageThread(
           user.id,
           djId
         );
-        console.log("🧵 Thread ID:", threadId);
+        console.log("🧵 Thread ID for loading:", threadId);
 
         // Load individual messages
         messagesData = await db.getMessages(threadId);
@@ -419,6 +420,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
           messagesData?.length || 0,
           "messages"
         );
+        if (messagesData && messagesData.length > 0) {
+          console.log("📨 First message sample:", messagesData[0]);
+        }
       } else if (chatType === "group") {
         console.log("👥 Loading group chat messages...");
         // Load group messages
@@ -606,6 +610,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
           messageInsertData.file_extension = mediaData.extension;
         }
 
+        console.log("📤 Attempting to insert message:", JSON.stringify(messageInsertData, null, 2));
+
         // Send individual message
         const { data: messageData, error } = await supabase
           .from("messages")
@@ -615,6 +621,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         if (error) {
           console.error("❌ Error sending individual message:", error);
+          console.error("❌ Error details:", JSON.stringify(error, null, 2));
           throw error;
         }
 
