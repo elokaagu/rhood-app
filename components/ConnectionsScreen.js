@@ -706,17 +706,20 @@ export default function ConnectionsScreen({
   };
 
   // Filter out connections with no messages
-  const connectionsWithMessages = filteredConnections.filter((connection) => {
-    const lastMessage = lastMessages[connection.id];
-    // Show if there's a message (text or media)
-    return lastMessage && (
-      lastMessage.content || 
-      lastMessage.messageType === "image" || 
-      lastMessage.messageType === "video" || 
-      lastMessage.messageType === "audio" || 
-      lastMessage.messageType === "file"
-    );
-  });
+  const connectionsWithMessages = useMemo(() => {
+    return filteredConnections.filter((connection) => {
+      const lastMessage = lastMessages[connection.id];
+      // Show if there's a message (text or media)
+      return (
+        lastMessage &&
+        (lastMessage.content ||
+          lastMessage.messageType === "image" ||
+          lastMessage.messageType === "video" ||
+          lastMessage.messageType === "audio" ||
+          lastMessage.messageType === "file")
+      );
+    });
+  }, [filteredConnections, lastMessages]);
 
   return (
     <View style={styles.container}>
