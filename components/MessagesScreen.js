@@ -610,8 +610,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
           messageInsertData.file_extension = mediaData.extension;
         }
 
-        console.log("📤 Attempting to insert message:", JSON.stringify(messageInsertData, null, 2));
-
         // Send individual message
         const { data: messageData, error } = await supabase
           .from("messages")
@@ -621,7 +619,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         if (error) {
           console.error("❌ Error sending individual message:", error);
-          console.error("❌ Error details:", JSON.stringify(error, null, 2));
           throw error;
         }
 
