@@ -144,7 +144,10 @@ export default function ConnectionsScreen({
         null // Get all connections regardless of status
       );
 
-      // Debug: Log the connections data
+      // Get all conversation participants (even if not connected)
+      const conversationParticipants = await db.getAllConversationParticipants(currentUser.id);
+
+      // Debug: Log the data
       console.log(
         "🔍 Connections tab - Raw connections data:",
         connectionsData
@@ -153,19 +156,16 @@ export default function ConnectionsScreen({
         "🔍 Connections tab - Number of connections:",
         connectionsData?.length || 0
       );
+      console.log(
+        "🔍 Conversations tab - Number of conversation participants:",
+        conversationParticipants?.length || 0
+      );
 
+      // Create a map of existing connections
+      const connectionsMap = {};
       if (connectionsData && connectionsData.length > 0) {
-        // Transform database connections to match UI format
-        const formattedConnections = connectionsData.map((conn) => {
-          console.log(`🔍 Connection ${conn.connected_user_name}:`, {
-            id: conn.connected_user_id,
-            name: conn.connected_user_name,
-            image: conn.connected_user_image,
-            hasImage: !!conn.connected_user_image,
-            status: conn.connection_status,
-          });
-
-          return {
+        connectionsData.forEach((conn) => {
+          connectionsMap[conn.connected_user_id] = {
             id: conn.connected_user_id,
             name: conn.connected_user_name,
             username: conn.connected_user_username
@@ -182,28 +182,57 @@ export default function ConnectionsScreen({
             profileImage: conn.connected_user_image || null,
             rating: conn.connected_user_rating || 0,
             gigsCompleted: conn.connected_user_gigs || 0,
-            lastActive: "Recently", // Could calculate from last_seen if we add that field
-            mutualConnections: 0, // Could calculate if needed
-            status: "online", // Could be based on last_seen
+            lastActive: "Recently",
+            mutualConnections: 0,
+            status: "online",
             isVerified: conn.connected_user_verified || false,
-            connectionStatus: conn.connection_status, // Add actual connection status
+            connectionStatus: conn.connection_status,
           };
         });
+      }
 
-        setConnections(formattedConnections);
+      // Add conversation participants who aren't already in connections
+      if (conversationParticipants && conversationParticipants.length > 0) {
+        conversationParticipants.forEach((participant) => {
+          if (!connectionsMap[participant.userId]) {
+            // This user has a conversation but is not a connection
+            connectionsMap[participant.userId] = {
+              id: participant.userId,
+              name: participant.name,
+              username: participant.username ? `@${participant.username}` : `@${participant.name?.toLowerCase().replace(/\s+/g, "") || "user"}`,
+              location: participant.location || "Location not set",
+              genres: participant.genres || [],
+              profileImage: participant.profileImage || null,
+              rating: 0,
+              gigsCompleted: 0,
+              lastActive: "Recently",
+              mutualConnections: 0,
+              status: "online",
+              isVerified: participant.isVerified || false,
+              connectionStatus: null, // No connection status
+            };
+          }
+        });
+      }
+
+      // Convert map to array
+      const allConnections = Object.values(connectionsMap);
+
+      if (allConnections.length > 0) {
+        setConnections(allConnections);
         console.log(
-          `✅ Loaded ${formattedConnections.length} connections from database`
+          `✅ Loaded ${allConnections.length} total conversations (connections + participants)`
         );
 
         // Load last messages for all connections
         await loadLastMessagesForConnections(
           currentUser.id,
-          formattedConnections
+          allConnections
         );
       } else {
         // No connections yet, show empty state
         setConnections([]);
-        console.log("📭 No connections found");
+        console.log("📭 No conversations found");
       }
     } catch (error) {
       console.error("❌ Error loading connections:", error);
