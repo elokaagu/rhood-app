@@ -13,12 +13,14 @@ This document describes the complete peer-to-peer messaging flow in the R/HOOD a
 **When:** User taps "Connect" on another DJ's profile
 
 **What Happens:**
+
 - `handleConnect()` is called (in `UserProfileView.js` or `ConnectionsScreen.js`)
 - `db.createConnection(targetUserId)` is invoked
 - Uses `create_connection_request` RPC function (fallback to direct INSERT)
 - Creates entry in `connections` table with `status = 'pending'`
 
 **Database:**
+
 ```sql
 INSERT INTO connections (user_id_1, user_id_2, status, initiated_by)
 VALUES (smaller_id, larger_id, 'pending', requester_id)
@@ -27,17 +29,20 @@ VALUES (smaller_id, larger_id, 'pending', requester_id)
 ### 2. Target User Receives Notification
 
 **What Happens:**
+
 - Database trigger `notify_connection_request()` fires automatically
 - Creates notification for the target user
 - Shows "New Connection Request" with sender's name
 
 **Notification:**
+
 ```sql
 INSERT INTO notifications (user_id, title, message, type, related_id)
 VALUES (target_user_id, 'New Connection Request', 'sender_name wants to connect with you', 'connection_request', connection_id)
 ```
 
-**UI:** 
+**UI:**
+
 - User sees notification in NotificationsScreen
 - Badge count increases
 - Alert shows in notification list
@@ -47,26 +52,30 @@ VALUES (target_user_id, 'New Connection Request', 'sender_name wants to connect 
 **When:** User taps "Accept" on the connection request notification
 
 **What Happens:**
+
 - `handleAcceptConnection()` is called
 - `db.acceptConnection(connectionId)` is invoked
 - Uses `accept_connection_request` RPC function
 - Updates `connections` table: `status = 'accepted'`
 
 **Database:**
+
 ```sql
-UPDATE connections 
-SET status = 'accepted', accepted_at = NOW() 
+UPDATE connections
+SET status = 'accepted', accepted_at = NOW()
 WHERE id = connection_id
 ```
 
 ### 4. Original Requester Gets Notification
 
 **What Happens:**
+
 - Database trigger `notify_connection_accepted()` fires automatically
 - Creates notification for the original requester
 - Shows "Connection Accepted" message
 
 **Notification:**
+
 ```sql
 INSERT INTO notifications (user_id, title, message, type, related_id)
 VALUES (original_requester_id, 'Connection Accepted', 'accepter_name accepted your connection request', 'connection_accepted', connection_id)
@@ -75,11 +84,13 @@ VALUES (original_requester_id, 'Connection Accepted', 'accepter_name accepted yo
 ### 5. Success Modal Appears (Accepter Side)
 
 **What Happens:**
+
 - `setAcceptedUser()` is called with sender info
 - `setShowAcceptModal(true)` displays modal
 - Modal shows: "Connection Accepted!" with checkmark icon
 
 **Modal Options:**
+
 - **"Start Chatting"** button → Navigates directly to messages screen
 - **"Close"** button → Dismisses modal
 
@@ -92,12 +103,14 @@ VALUES (original_requester_id, 'Connection Accepted', 'accepter_name accepted yo
 **When:** User taps "Start Chatting" from modal or opens from connections list
 
 **What Happens:**
+
 - `MessagesScreen` loads with `djId` and `chatType='individual'`
 - `loadMessages()` checks connection status
 - If connected: loads all messages from database
 - If not connected: shows "Connect to start messaging" prompt
 
 **Database Query:**
+
 ```javascript
 // Get or create message thread
 const threadId = await db.findOrCreateIndividualMessageThread(user.id, djId);
@@ -111,6 +124,7 @@ const messages = await db.getMessages(threadId);
 **When:** User types message and taps send button
 
 **What Happens:**
+
 - `sendMessage()` is called
 - Validates connection status (must be accepted)
 - Gets/creates message thread
@@ -119,24 +133,27 @@ const messages = await db.getMessages(threadId);
 - Scrolled to bottom to show new message
 
 **Database Insert:**
+
 ```javascript
 await supabase.from("messages").insert({
   thread_id: threadId,
   sender_id: user.id,
   content: messageText,
-  message_type: 'text'
+  message_type: "text",
 });
 ```
 
 ### 3. Receiver Gets Notification
 
 **What Happens:**
+
 - Database trigger `notify_new_message()` fires automatically
 - Gets receiver from `message_threads` table (other participant)
 - Creates notification for receiver
 - Shows preview of message
 
 **Notification:**
+
 ```sql
 INSERT INTO notifications (user_id, title, message, type, related_id)
 VALUES (receiver_id, 'New Message', 'sender_name: message_preview', 'message', message_id)
@@ -145,16 +162,18 @@ VALUES (receiver_id, 'New Message', 'sender_name: message_preview', 'message', m
 ### 4. Real-time Message Delivery
 
 **What Happens:**
+
 - Supabase Realtime subscription on `messages` table
 - When new message inserted, `onReceiveMessage()` callback fires
 - Message immediately appears in chat for receiver
 - Auto-scrolls to bottom
 
 **Subscription:**
+
 ```javascript
 supabase
   .channel(`messages-${threadId}`)
-  .on('postgres_changes', { event: 'INSERT', table: 'messages' }, callback)
+  .on("postgres_changes", { event: "INSERT", table: "messages" }, callback);
 ```
 
 ---
@@ -162,6 +181,7 @@ supabase
 ## 🗄️ Database Schema
 
 ### connections
+
 ```sql
 CREATE TABLE connections (
   id UUID PRIMARY KEY,
@@ -175,6 +195,7 @@ CREATE TABLE connections (
 ```
 
 ### message_threads
+
 ```sql
 CREATE TABLE message_threads (
   id UUID PRIMARY KEY,
@@ -187,6 +208,7 @@ CREATE TABLE message_threads (
 ```
 
 ### messages
+
 ```sql
 CREATE TABLE messages (
   id UUID PRIMARY KEY,
@@ -200,6 +222,7 @@ CREATE TABLE messages (
 ```
 
 ### notifications
+
 ```sql
 CREATE TABLE notifications (
   id UUID PRIMARY KEY,
@@ -254,22 +277,26 @@ This updates the `notify_new_message()` function to work with thread-based messa
 ## 📱 User Experience
 
 **Connection Request:**
+
 - Instant feedback: "Connection request sent"
 - Waiting for acceptance
 - Cannot chat until connection accepted
 
 **After Acceptance:**
+
 - Immediate notification to both parties
 - Modal offers quick start: "Start Chatting" button
 - One tap to begin conversation
 
 **Sending Messages:**
+
 - Optimistic UI updates (message shows immediately)
 - Real-time delivery to receiver
 - Persistent storage in database
 - Notification on receiver's device
 
 **All Working Features:**
+
 - ✅ Connection requests
 - ✅ Acceptance notifications
 - ✅ Modal to start chatting
@@ -277,4 +304,3 @@ This updates the `notify_new_message()` function to work with thread-based messa
 - ✅ Real-time message delivery
 - ✅ Notification on new messages
 - ✅ Message history persistence
-
