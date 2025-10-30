@@ -857,7 +857,7 @@ export default function App() {
           ? { uri: track.audioUrl }
           : track.audioUrl;
 
-      // Load audio with streaming support for large files
+      // Load audio with streaming support for large files and metadata for lock screen
       try {
         const { sound: loadedSound } = await Audio.Sound.createAsync(
           audioSource,
@@ -867,7 +867,12 @@ export default function App() {
             volume: 1.0,
             progressUpdateIntervalMillis: 500,
           },
-          null,
+          {
+            title: track.title || "R/HOOD Mix",
+            artist: track.artist || "Unknown Artist",
+            album: "R/HOOD",
+            artwork: track.image || undefined,
+          },
           true // downloadFirst = true for better streaming
         );
         sound = loadedSound;
