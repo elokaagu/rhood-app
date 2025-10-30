@@ -78,6 +78,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
             djId
           );
 
+          console.log("🔔 Subscribing to thread:", threadId);
+
           if (threadId) {
             channel = supabase
               .channel(`messages-${threadId}`)
@@ -95,54 +97,57 @@ const MessagesScreen = ({ user, navigation, route }) => {
                     payload.new
                   );
 
-                  // Transform the new message for display
-                  const newMessage = {
-                    id: payload.new.id,
-                    content: payload.new.content || "",
-                    senderId: payload.new.sender_id,
-                    senderName: "Loading...", // Will be updated when we reload
-                    senderImage: null,
-                    timestamp: payload.new.created_at,
-                    isOwn: payload.new.sender_id === user.id,
-                  };
-
-                  // Add to messages state
-                  setMessages((prev) => [...prev, newMessage]);
-
-                  // Scroll to bottom
-                  setTimeout(() => {
-                    scrollViewRef.current?.scrollToEnd({ animated: true });
-                  }, 100);
-
-                  // Update sender info for the new message without reloading all messages
+                  // Fetch sender profile for the new message
                   setTimeout(async () => {
                     try {
                       const senderProfile = await db.getUserProfilePublic(
                         payload.new.sender_id
                       );
-                      if (senderProfile) {
-                        setMessages((prev) =>
-                          prev.map((msg) =>
-                            msg.id === payload.new.id
-                              ? {
-                                  ...msg,
-                                  senderName:
-                                    senderProfile.full_name ||
-                                    senderProfile.dj_name ||
-                                    "Unknown",
-                                  senderImage: senderProfile.profile_image_url,
-                                }
-                              : msg
-                          )
-                        );
-                      }
+                      
+                      // Transform the new message for display
+                      const newMessage = {
+                        id: payload.new.id,
+                        content: payload.new.content || "",
+                        senderId: payload.new.sender_id,
+                        senderName:
+                          senderProfile?.full_name ||
+                          senderProfile?.dj_name ||
+                          "Unknown",
+                        senderImage: senderProfile?.profile_image_url || null,
+                        timestamp: payload.new.created_at,
+                        isOwn: payload.new.sender_id === user.id,
+                        messageType: payload.new.message_type || "text",
+                        mediaUrl: payload.new.media_url,
+                        mediaFilename: payload.new.media_filename,
+                        mediaSize: payload.new.media_size,
+                        mediaMimeType: payload.new.media_mime_type,
+                        thumbnailUrl: payload.new.thumbnail_url,
+                        fileExtension: payload.new.file_extension,
+                      };
+
+                      // Add to messages state
+                      setMessages((prev) => {
+                        // Check if message already exists (avoid duplicates)
+                        if (prev.find((m) => m.id === newMessage.id)) {
+                          console.log("⚠️ Message already in state, skipping");
+                          return prev;
+                        }
+                        return [...prev, newMessage];
+                      });
+
+                      // Scroll to bottom
+                      setTimeout(() => {
+                        scrollViewRef.current?.scrollToEnd({ animated: true });
+                      }, 100);
                     } catch (error) {
-                      console.error("Error updating sender info:", error);
+                      console.error("❌ Error updating sender info:", error);
                     }
-                  }, 200);
+                  }, 100);
                 }
               )
               .subscribe();
+
+            console.log("✅ Individual subscription active for thread:", threadId);
           }
         } catch (error) {
           console.error("❌ Error setting up individual subscription:", error);
@@ -395,7 +400,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   // Load messages for current chat
   const loadMessages = async () => {
     try {
-      console.log("loadMessages started:", {
+      console.log("📥 loadMessages started:", {
         chatType,
         djId,
         communityId,
@@ -405,41 +410,57 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
       if (chatType === "individual") {
         console.log("📱 Loading individual chat messages...");
-        // Get or create message thread
+        
+        // Get or create message thread - using ID sorting to ensure consistency
         const threadId = await db.findOrCreateIndividualMessageThread(
           user.id,
           djId
         );
-        console.log("🧵 Thread ID:", threadId);
+        console.log("🧵 Using thread ID:", threadId);
 
-        // Load individual messages
-        messagesData = await db.getMessages(threadId);
+        // Load individual messages directly with sender info
+        const { data, error } = await supabase
+          .from("messages")
+          .select(
+            `
+            *,
+            sender:user_profiles!messages_sender_id_fkey(
+              id,
+              dj_name,
+              full_name,
+              profile_image_url
+            )
+          `
+          )
+          .eq("thread_id", threadId)
+          .order("created_at", { ascending: true });
+
+        if (error) {
+          console.error("❌ Error loading messages:", error);
+          throw error;
+        }
+
+        messagesData = data || [];
         console.log(
           "📨 Individual messages loaded:",
-          messagesData?.length || 0,
+          messagesData.length,
           "messages"
         );
+        console.log("📋 Raw messages:", messagesData);
       } else if (chatType === "group") {
         console.log("👥 Loading group chat messages...");
-        // Load group messages
-        console.log(
-          "Calling db.getGroupMessages with communityId:",
-          communityId
-        );
         messagesData = await db.getGroupMessages(communityId);
         console.log(
-          "getGroupMessages returned:",
+          "📨 Group messages loaded:",
           messagesData?.length || 0,
           "messages"
         );
       }
 
-      console.log("📋 Raw messages data:", messagesData);
-
       // Transform messages for display
       const transformedMessages = messagesData.map((msg) => ({
         id: msg.id,
-        content: msg.content || msg.message || "",
+        content: msg.content || "",
         senderId: msg.sender_id || msg.author_id,
         senderName:
           msg.sender?.full_name ||
@@ -451,14 +472,20 @@ const MessagesScreen = ({ user, navigation, route }) => {
           msg.sender?.profile_image_url || msg.author?.profile_image_url,
         timestamp: msg.created_at,
         isOwn: (msg.sender_id || msg.author_id) === user.id,
+        messageType: msg.message_type || "text",
+        mediaUrl: msg.media_url,
+        mediaFilename: msg.media_filename,
+        mediaSize: msg.media_size,
+        mediaMimeType: msg.media_mime_type,
+        thumbnailUrl: msg.thumbnail_url,
+        fileExtension: msg.file_extension,
       }));
 
       console.log(
         "✨ Transformed messages:",
-        transformedMessages?.length || 0,
+        transformedMessages.length,
         "messages"
       );
-      console.log("📝 Message details:", transformedMessages);
       setMessages(transformedMessages);
 
       // Scroll to bottom after messages are loaded
@@ -466,7 +493,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
-      console.error("Error loading messages:", error);
+      console.error("❌ Error loading messages:", error);
       console.error("Error details:", {
         chatType,
         userId: user?.id,
@@ -475,7 +502,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
         error: error.message,
       });
       setMessages([]);
-      // Don't throw error - just show empty state
     }
   };
 
@@ -619,31 +645,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("✅ Individual message sent:", messageData);
-
-        // Add message to UI immediately for better UX
-        const newMessageForUI = {
-          id: messageData.id,
-          content: messageData.content,
-          senderId: user.id,
-          senderName: user.full_name || user.dj_name || "You",
-          senderImage: user.profile_image_url,
-          timestamp: messageData.created_at,
-          isOwn: true,
-          messageType: messageData.message_type,
-          mediaUrl: messageData.media_url,
-          mediaFilename: messageData.media_filename,
-          mediaSize: messageData.media_size,
-          mediaMimeType: messageData.media_mime_type,
-          thumbnailUrl: messageData.thumbnail_url,
-          fileExtension: messageData.file_extension,
-        };
-
-        setMessages((prev) => [...prev, newMessageForUI]);
-
-        // Scroll to bottom immediately to show the new message
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        // Real-time subscription will add the message to UI automatically
       } else if (chatType === "group") {
         // Validate required data
         if (!user?.id || !communityId) {
@@ -682,31 +684,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("✅ Group message sent:", messageData);
-
-        // Add message to UI immediately for better UX
-        const newMessageForUI = {
-          id: messageData.id,
-          content: messageData.content,
-          senderId: user.id,
-          senderName: user.full_name || user.dj_name || "You",
-          senderImage: user.profile_image_url,
-          timestamp: messageData.created_at,
-          isOwn: true,
-          messageType: messageData.message_type,
-          mediaUrl: messageData.media_url,
-          mediaFilename: messageData.media_filename,
-          mediaSize: messageData.media_size,
-          mediaMimeType: messageData.media_mime_type,
-          thumbnailUrl: messageData.thumbnail_url,
-          fileExtension: messageData.file_extension,
-        };
-
-        setMessages((prev) => [...prev, newMessageForUI]);
-
-        // Scroll to bottom immediately to show the new message
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        // Real-time subscription will add the message to UI automatically
       }
 
       console.log("🎉 Message sent successfully!");
