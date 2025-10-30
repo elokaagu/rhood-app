@@ -1,6 +1,8 @@
 -- Cleanup script to merge duplicate message threads
 -- This will keep the oldest thread for each user pair and move messages to it
 
+-- IMPORTANT: Run fix-messages-updated-at-trigger.sql FIRST to avoid trigger errors
+
 -- Step 1: Find duplicate threads
 SELECT 
   LEAST(user_id_1, user_id_2) as user1,
