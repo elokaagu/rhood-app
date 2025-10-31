@@ -139,7 +139,7 @@ Run `database/test-messages-quick.sql` to verify messages are actually in the da
 
 1. **Check console logs** - Look for the messages above
 2. Run `database/test-messages-quick.sql` to verify messages are in database
-3. Check app logs for thread ID mismatches
+3. Check app logs for thread ID mismatchesew
 4. Verify RLS policies were applied correctly
 5. Check that you're testing with an **accepted connection**
 

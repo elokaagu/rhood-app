@@ -675,7 +675,12 @@ const MessagesScreen = ({ user, navigation, route }) => {
           content: messageData.content,
           created_at: messageData.created_at,
         });
-        // Real-time subscription will add the message to UI automatically
+        
+        // Reload messages to ensure UI updates (real-time subscription might have delay)
+        setTimeout(() => {
+          console.log("🔄 Reloading messages after send...");
+          loadMessages();
+        }, 500);
       } else if (chatType === "group") {
         // Validate required data
         if (!user?.id || !communityId) {
@@ -714,7 +719,12 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("✅ Group message sent:", messageData);
-        // Real-time subscription will add the message to UI automatically
+        
+        // Reload messages to ensure UI updates (real-time subscription might have delay)
+        setTimeout(() => {
+          console.log("🔄 Reloading messages after send...");
+          loadMessages();
+        }, 500);
       }
 
       console.log("🎉 Message sent successfully!");
