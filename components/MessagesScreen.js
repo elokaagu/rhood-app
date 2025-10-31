@@ -103,7 +103,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                       const senderProfile = await db.getUserProfilePublic(
                         payload.new.sender_id
                       );
-                      
+
                       // Transform the new message for display
                       const newMessage = {
                         id: payload.new.id,
@@ -147,7 +147,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
               )
               .subscribe();
 
-            console.log("✅ Individual subscription active for thread:", threadId);
+            console.log(
+              "✅ Individual subscription active for thread:",
+              threadId
+            );
           }
         } catch (error) {
           console.error("❌ Error setting up individual subscription:", error);
@@ -410,13 +413,20 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
       if (chatType === "individual") {
         console.log("📱 Loading individual chat messages...");
-        
+
         // Get or create message thread - using ID sorting to ensure consistency
         const threadId = await db.findOrCreateIndividualMessageThread(
           user.id,
           djId
         );
         console.log("🧵 Using thread ID:", threadId);
+
+        // FIRST: Verify we're authenticated
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log("✅ Session check:", {
+          userId: session?.user?.id,
+          isAuthenticated: !!session,
+        });
 
         // Load individual messages directly with sender info
         const { data, error } = await supabase
@@ -446,13 +456,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
           messagesData.length,
           "messages"
         );
-        
+
         // Log detailed info about loaded messages
         if (messagesData.length > 0) {
           console.log("📋 First message preview:", {
             id: messagesData[0].id,
             content: messagesData[0].content?.substring(0, 50) || "NO CONTENT",
-            sender: messagesData[0].sender?.dj_name || messagesData[0].sender?.full_name || "Unknown",
+            sender:
+              messagesData[0].sender?.dj_name ||
+              messagesData[0].sender?.full_name ||
+              "Unknown",
             timestamp: messagesData[0].created_at,
           });
         } else {
@@ -461,6 +474,20 @@ const MessagesScreen = ({ user, navigation, route }) => {
             threadId,
             table: "messages",
             filter: `thread_id=eq.${threadId}`,
+          });
+          
+          // Extra debugging: Try to query messages table directly without relations
+          console.log("🔍 Debugging: Checking if messages exist...");
+          const { data: debugData, error: debugError } = await supabase
+            .from("messages")
+            .select("id, thread_id, sender_id, content")
+            .eq("thread_id", threadId)
+            .limit(10);
+          
+          console.log("🔍 Debug query result:", {
+            count: debugData?.length || 0,
+            error: debugError?.message,
+            errorCode: debugError?.code,
           });
         }
         console.log("📋 All raw messages:", messagesData);
@@ -675,7 +702,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           content: messageData.content,
           created_at: messageData.created_at,
         });
-        
+
         // Reload messages to ensure UI updates (real-time subscription might have delay)
         setTimeout(() => {
           console.log("🔄 Reloading messages after send...");
@@ -719,7 +746,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("✅ Group message sent:", messageData);
-        
+
         // Reload messages to ensure UI updates (real-time subscription might have delay)
         setTimeout(() => {
           console.log("🔄 Reloading messages after send...");
