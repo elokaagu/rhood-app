@@ -78,6 +78,12 @@ BEGIN
     RAISE EXCEPTION 'message_threads table missing required columns!';
   END IF;
   
+  -- Drop existing policies inside DO block to avoid race conditions
+  DROP POLICY IF EXISTS "Users can view thread messages" ON messages;
+  DROP POLICY IF EXISTS "Users can insert thread messages" ON messages;
+  DROP POLICY IF EXISTS "Users can update their own messages" ON messages;
+  DROP POLICY IF EXISTS "Users can delete their own messages" ON messages;
+  
   -- Create RLS policies based on which columns exist
   IF has_user_id_1 THEN
     -- Use user_id_1 and user_id_2 (current production schema)
