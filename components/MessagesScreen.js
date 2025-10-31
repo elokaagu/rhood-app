@@ -53,6 +53,23 @@ const MessagesScreen = ({ user, navigation, route }) => {
         console.log("🧵 Thread ID:", currentThreadId);
 
         // Load messages for this thread
+        console.log("🔍 Querying messages for thread:", currentThreadId);
+        console.log("🔍 Current user ID:", user.id);
+        
+        // First, try a simple query without joins to test RLS
+        const { data: simpleData, error: simpleError } = await supabase
+          .from("messages")
+          .select("id, thread_id, sender_id, content, created_at")
+          .eq("thread_id", currentThreadId);
+
+        console.log("🔍 Simple query result:", {
+          count: simpleData?.length || 0,
+          error: simpleError?.message,
+          errorCode: simpleError?.code,
+          data: simpleData,
+        });
+
+        // Now try with the join
         const { data, error } = await supabase
           .from("messages")
           .select(
@@ -69,9 +86,21 @@ const MessagesScreen = ({ user, navigation, route }) => {
           .eq("thread_id", currentThreadId)
           .order("created_at", { ascending: true });
 
+        console.log("🔍 Full query result:", {
+          count: data?.length || 0,
+          error: error?.message,
+          errorCode: error?.code,
+        });
+
         if (error) {
           console.error("❌ Error loading messages:", error);
-          Alert.alert("Error", "Failed to load messages");
+          console.error("❌ Error details:", {
+            code: error.code,
+            message: error.message,
+            hint: error.hint,
+            details: error.details,
+          });
+          Alert.alert("Error", `Failed to load messages: ${error.message}`);
           return;
         }
 
