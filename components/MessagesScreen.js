@@ -274,32 +274,49 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   // Send message
   const sendMessage = useCallback(async () => {
-    if (!newMessage.trim() || sending) return;
+    if (!newMessage.trim() || sending) {
+      console.log("⚠️ Cannot send:", { hasMessage: !!newMessage.trim(), sending });
+      return;
+    }
+
+    if (!user?.id) {
+      console.error("❌ No user ID");
+      Alert.alert("Error", "You must be logged in to send messages");
+      return;
+    }
 
     const messageContent = newMessage.trim();
+    console.log("📤 Sending message:", { 
+      content: messageContent, 
+      chatType, 
+      djId, 
+      communityId,
+      userId: user.id,
+      isConnected,
+      threadId 
+    });
+
     setNewMessage("");
     setSending(true);
 
     try {
       if (chatType === "individual" && djId) {
-        if (!isConnected) {
-          Alert.alert(
-            "Connection Required",
-            "You must be connected to this user to send messages."
-          );
-          setNewMessage(messageContent);
-          return;
+        // Get thread ID (should already be set, but ensure it exists)
+        let currentThreadId = threadId;
+        
+        if (!currentThreadId) {
+          console.log("🔍 Thread ID not set, fetching...");
+          currentThreadId = await db.findOrCreateIndividualMessageThread(user.id, djId);
+          setThreadId(currentThreadId);
         }
 
-        // Get thread ID (should already be set, but ensure it exists)
-        const currentThreadId =
-          threadId ||
-          (await db.findOrCreateIndividualMessageThread(user.id, djId));
+        console.log("🧵 Using thread ID:", currentThreadId);
 
         if (!currentThreadId) {
           throw new Error("Failed to get thread ID");
         }
 
+        console.log("💾 Inserting message to database...");
         const { data, error } = await supabase
           .from("messages")
           .insert({
@@ -313,12 +330,27 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         if (error) {
           console.error("❌ Error sending message:", error);
-          Alert.alert("Error", "Failed to send message");
+          console.error("❌ Error details:", {
+            code: error.code,
+            message: error.message,
+            hint: error.hint,
+            details: error.details,
+          });
+          Alert.alert(
+            "Error", 
+            `Failed to send message: ${error.message || "Unknown error"}`
+          );
           setNewMessage(messageContent);
+          setSending(false);
           return;
         }
 
-        console.log("✅ Message sent:", data.id);
+        console.log("✅ Message sent successfully:", data.id);
+        
+        // Reload messages to ensure UI updates
+        setTimeout(() => {
+          loadMessages();
+        }, 300);
       } else if (chatType === "group" && communityId) {
         const { data, error } = await supabase
           .from("community_posts")
@@ -333,16 +365,35 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         if (error) {
           console.error("❌ Error sending group message:", error);
-          Alert.alert("Error", "Failed to send message");
+          console.error("❌ Error details:", {
+            code: error.code,
+            message: error.message,
+            hint: error.hint,
+            details: error.details,
+          });
+          Alert.alert(
+            "Error", 
+            `Failed to send message: ${error.message || "Unknown error"}`
+          );
           setNewMessage(messageContent);
+          setSending(false);
           return;
         }
 
         console.log("✅ Group message sent:", data.id);
+        
+        // Reload messages to ensure UI updates
+        setTimeout(() => {
+          loadMessages();
+        }, 300);
       }
     } catch (error) {
       console.error("❌ Error in sendMessage:", error);
-      Alert.alert("Error", "Failed to send message");
+      console.error("❌ Error stack:", error.stack);
+      Alert.alert(
+        "Error", 
+        `Failed to send message: ${error.message || "Unknown error"}`
+      );
       setNewMessage(messageContent);
     } finally {
       setSending(false);
@@ -356,6 +407,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     user?.id,
     isConnected,
     threadId,
+    loadMessages,
   ]);
 
   // Format timestamp
