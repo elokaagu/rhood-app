@@ -61,6 +61,12 @@ BEGIN
     WHERE table_name = 'message_threads' AND column_name = 'participant_1'
   ) INTO has_participant_1;
   
+  -- Drop existing policies first to avoid conflicts
+  DROP POLICY IF EXISTS "Users can view thread messages" ON messages;
+  DROP POLICY IF EXISTS "Users can insert thread messages" ON messages;
+  DROP POLICY IF EXISTS "Users can update their own messages" ON messages;
+  DROP POLICY IF EXISTS "Users can delete their own messages" ON messages;
+  
   -- Create RLS policies based on which columns exist
   IF has_user_id_1 THEN
     -- Use user_id_1 and user_id_2 (current production schema)
