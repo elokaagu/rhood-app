@@ -857,7 +857,7 @@ export default function App() {
           ? { uri: track.audioUrl }
           : track.audioUrl;
 
-      // Load audio with streaming support for large files and metadata for lock screen
+      // Load audio with streaming support for large files
       try {
         const { sound: loadedSound } = await Audio.Sound.createAsync(
           audioSource,
@@ -866,26 +866,27 @@ export default function App() {
             isLooping: false,
             volume: 1.0,
             progressUpdateIntervalMillis: 500,
-          },
-          {
-            title: track.title || "R/HOOD Mix",
-            artist: track.artist || "Unknown Artist",
-            album: "R/HOOD",
-            artwork: track.image || undefined,
-          },
-          true // downloadFirst = true for better streaming
+          }
         );
         sound = loadedSound;
       } catch (loadError) {
-        // Handle audio loading error gracefully
-        console.log(
-          "🎵 Audio loading error, but continuing with playback attempt"
-        );
+        // Log the actual error for debugging
+        console.error("❌ Audio loading error:", loadError);
+        console.error("❌ Audio loading error details:", {
+          message: loadError.message,
+          code: loadError.code,
+          name: loadError.name,
+          audioSource: audioSource,
+        });
         setGlobalAudioState((prev) => ({
           ...prev,
           isLoading: false,
-          error: "Audio playback not available in Expo Go",
+          error: "Failed to load audio: " + loadError.message,
         }));
+        Alert.alert(
+          "Audio Error",
+          `Failed to load audio: ${loadError.message}. Please try again.`
+        );
         return;
       }
 
