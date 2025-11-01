@@ -371,12 +371,22 @@ const MessagesScreen = ({ user, navigation, route }) => {
       setShowMediaPicker(false);
     } catch (error) {
       console.error(`❌ Error uploading ${label}:`, error);
+      const errorMessage =
+        error.message || `Failed to upload ${label}. Please try again.`;
+      
       Alert.alert(
         "Upload Error",
-        error.message || `Failed to upload ${label}. Please try again.`
+        errorMessage,
+        [
+          {
+            text: "OK",
+            style: "default",
+          },
+        ]
       );
     } finally {
       setUploadingMedia(false);
+      setShowMediaPicker(false);
     }
   }, []);
 
