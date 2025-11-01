@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase, db } from "../lib/supabase";
+import { multimediaService } from "../lib/multimediaService";
 import ProgressiveImage from "./ProgressiveImage";
 
 const MessagesScreen = ({ user, navigation, route }) => {
@@ -32,6 +33,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
   const [threadId, setThreadId] = useState(null);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState(null);
 
   // Refs
   const scrollViewRef = useRef(null);
@@ -115,7 +119,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
           senderImage: msg.sender?.profile_image_url,
           timestamp: msg.created_at,
           isOwn: msg.sender_id === user.id,
-          messageType: msg.message_type || "text",
+          messageType: (msg.message_type || "text").toLowerCase(),
+          mediaUrl: msg.media_url,
+          mediaFilename: msg.media_filename,
+          mediaSize: msg.media_size,
+          mediaMimeType: msg.media_mime_type,
+          thumbnailUrl: msg.thumbnail_url,
+          fileExtension: msg.file_extension,
         }));
 
         console.log("📨 Loaded messages:", transformedMessages.length);
@@ -146,7 +156,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
           senderImage: msg.author?.profile_image_url,
           timestamp: msg.created_at,
           isOwn: msg.author_id === user.id,
-          messageType: msg.message_type || "text",
+          messageType: (msg.message_type || "text").toLowerCase(),
+          mediaUrl: msg.media_url,
+          mediaFilename: msg.media_filename,
+          mediaSize: msg.media_size,
+          mediaMimeType: msg.media_mime_type,
+          thumbnailUrl: msg.thumbnail_url,
+          fileExtension: msg.file_extension,
         }));
 
         setMessages(transformedMessages);
@@ -215,7 +231,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
               senderImage: senderProfile?.profile_image_url,
               timestamp: payload.new.created_at,
               isOwn: payload.new.sender_id === user.id,
-              messageType: payload.new.message_type || "text",
+              messageType: (payload.new.message_type || "text").toLowerCase(),
+              mediaUrl: payload.new.media_url,
+              mediaFilename: payload.new.media_filename,
+              mediaSize: payload.new.media_size,
+              mediaMimeType: payload.new.media_mime_type,
+              thumbnailUrl: payload.new.thumbnail_url,
+              fileExtension: payload.new.file_extension,
             };
 
             setMessages((prev) => {
@@ -262,7 +284,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
               senderImage: senderProfile?.profile_image_url,
               timestamp: payload.new.created_at,
               isOwn: payload.new.author_id === user.id,
-              messageType: payload.new.message_type || "text",
+              messageType: (payload.new.message_type || "text").toLowerCase(),
+              mediaUrl: payload.new.media_url,
+              mediaFilename: payload.new.media_filename,
+              mediaSize: payload.new.media_size,
+              mediaMimeType: payload.new.media_mime_type,
+              thumbnailUrl: payload.new.thumbnail_url,
+              fileExtension: payload.new.file_extension,
             };
 
             setMessages((prev) => {
@@ -304,11 +332,80 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }).start();
   }, []);
 
+  const selectAndUploadMedia = useCallback(async (pickerFn, label) => {
+    try {
+      setUploadingMedia(true);
+      const picked = await pickerFn();
+
+      if (!picked) {
+        return;
+      }
+
+      if (picked.type === "error" && picked.available === false) {
+        Alert.alert(
+          "Feature Unavailable",
+          picked.message ||
+            "This action requires a development build or production app."
+        );
+        setShowMediaPicker(false);
+        return;
+      }
+
+      const uploadResult = await multimediaService.uploadToStorage(picked);
+      const normalizedType = picked.type === "document" ? "file" : picked.type;
+
+      setSelectedMedia({
+        type: normalizedType,
+        url: uploadResult.url,
+        filename: uploadResult.filename || picked.filename,
+        size: picked.size ?? uploadResult.size ?? 0,
+        mimeType: picked.mimeType ?? uploadResult.mimeType,
+        thumbnailUrl: uploadResult.thumbnailUrl || picked.thumbnail || null,
+        extension:
+          uploadResult.fileExtension ||
+          picked.extension ||
+          picked.filename?.split(".").pop()?.toLowerCase() ||
+          null,
+      });
+
+      setShowMediaPicker(false);
+    } catch (error) {
+      console.error(`❌ Error uploading ${label}:`, error);
+      Alert.alert(
+        "Upload Error",
+        error.message || `Failed to upload ${label}. Please try again.`
+      );
+    } finally {
+      setUploadingMedia(false);
+    }
+  }, []);
+
+  const handleImageUpload = useCallback(async () => {
+    await selectAndUploadMedia(() => multimediaService.pickImage(), "photo");
+  }, [selectAndUploadMedia]);
+
+  const handleVideoUpload = useCallback(async () => {
+    await selectAndUploadMedia(() => multimediaService.pickVideo(), "video");
+  }, [selectAndUploadMedia]);
+
+  const handleAudioUpload = useCallback(async () => {
+    await selectAndUploadMedia(() => multimediaService.pickAudio(), "audio");
+  }, [selectAndUploadMedia]);
+
+  const handleDocumentUpload = useCallback(async () => {
+    await selectAndUploadMedia(() => multimediaService.pickDocument(), "file");
+  }, [selectAndUploadMedia]);
+
+  const clearSelectedMedia = useCallback(() => {
+    setSelectedMedia(null);
+  }, []);
+
   // Send message
   const sendMessage = useCallback(async () => {
-    if (!newMessage.trim() || sending) {
+    if ((!newMessage.trim() && !selectedMedia) || sending) {
       console.log("⚠️ Cannot send:", {
         hasMessage: !!newMessage.trim(),
+        hasMedia: !!selectedMedia,
         sending,
       });
       return;
@@ -321,6 +418,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }
 
     const messageContent = newMessage.trim();
+    const mediaData = selectedMedia;
     console.log("📤 Sending message:", {
       content: messageContent,
       chatType,
@@ -329,9 +427,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
       userId: user.id,
       isConnected,
       threadId,
+      hasMedia: !!mediaData,
     });
 
     setNewMessage("");
+    setSelectedMedia(null);
     setSending(true);
 
     try {
@@ -355,14 +455,27 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("💾 Inserting message to database...");
+        const messageInsertData = {
+          thread_id: currentThreadId,
+          sender_id: user.id,
+          content:
+            messageContent ||
+            (mediaData ? `${mediaData.type?.toUpperCase()} message` : ""),
+          message_type: mediaData ? mediaData.type : "text",
+        };
+
+        if (mediaData) {
+          messageInsertData.media_url = mediaData.url;
+          messageInsertData.media_filename = mediaData.filename;
+          messageInsertData.media_size = mediaData.size;
+          messageInsertData.media_mime_type = mediaData.mimeType;
+          messageInsertData.thumbnail_url = mediaData.thumbnailUrl;
+          messageInsertData.file_extension = mediaData.extension;
+        }
+
         const { data, error } = await supabase
           .from("messages")
-          .insert({
-            thread_id: currentThreadId,
-            sender_id: user.id,
-            content: messageContent,
-            message_type: "text",
-          })
+          .insert(messageInsertData)
           .select("*")
           .single();
 
@@ -379,6 +492,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
             `Failed to send message: ${error.message || "Unknown error"}`
           );
           setNewMessage(messageContent);
+          setSelectedMedia(mediaData);
           setSending(false);
           return;
         }
@@ -390,14 +504,27 @@ const MessagesScreen = ({ user, navigation, route }) => {
           loadMessages();
         }, 300);
       } else if (chatType === "group" && communityId) {
+        const groupMessageInsertData = {
+          community_id: communityId,
+          author_id: user.id,
+          content:
+            messageContent ||
+            (mediaData ? `${mediaData.type?.toUpperCase()} message` : ""),
+          message_type: mediaData ? mediaData.type : "text",
+        };
+
+        if (mediaData) {
+          groupMessageInsertData.media_url = mediaData.url;
+          groupMessageInsertData.media_filename = mediaData.filename;
+          groupMessageInsertData.media_size = mediaData.size;
+          groupMessageInsertData.media_mime_type = mediaData.mimeType;
+          groupMessageInsertData.thumbnail_url = mediaData.thumbnailUrl;
+          groupMessageInsertData.file_extension = mediaData.extension;
+        }
+
         const { data, error } = await supabase
           .from("community_posts")
-          .insert({
-            community_id: communityId,
-            author_id: user.id,
-            content: messageContent,
-            message_type: "text",
-          })
+          .insert(groupMessageInsertData)
           .select("*")
           .single();
 
@@ -414,6 +541,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
             `Failed to send message: ${error.message || "Unknown error"}`
           );
           setNewMessage(messageContent);
+          setSelectedMedia(mediaData);
           setSending(false);
           return;
         }
@@ -433,6 +561,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         `Failed to send message: ${error.message || "Unknown error"}`
       );
       setNewMessage(messageContent);
+      setSelectedMedia(mediaData);
     } finally {
       setSending(false);
     }
@@ -445,6 +574,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     user?.id,
     isConnected,
     threadId,
+    selectedMedia,
     loadMessages,
   ]);
 
@@ -588,16 +718,94 @@ const MessagesScreen = ({ user, navigation, route }) => {
                     message.isOwn ? styles.ownBubble : styles.otherBubble,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.messageText,
-                      message.isOwn
-                        ? styles.ownMessageText
-                        : styles.otherMessageText,
-                    ]}
-                  >
-                    {message.content}
-                  </Text>
+                  {message.messageType !== "text" && message.mediaUrl ? (
+                    <View style={styles.mediaContent}>
+                      {message.messageType === "image" && (
+                        <Image
+                          source={{ uri: message.mediaUrl }}
+                          style={styles.messageImage}
+                          resizeMode="cover"
+                        />
+                      )}
+                      {message.messageType === "video" && (
+                        <View style={styles.messageVideo}>
+                          <Image
+                            source={{
+                              uri: message.thumbnailUrl || message.mediaUrl,
+                            }}
+                            style={styles.messageVideoThumbnail}
+                            resizeMode="cover"
+                          />
+                          <View style={styles.videoPlayOverlay}>
+                            <Ionicons
+                              name="play"
+                              size={32}
+                              color="hsl(0, 0%, 100%)"
+                            />
+                          </View>
+                        </View>
+                      )}
+                      {message.messageType === "audio" && (
+                        <View style={styles.messageFile}>
+                          <Ionicons
+                            name="musical-notes"
+                            size={24}
+                            color="hsl(75, 100%, 60%)"
+                          />
+                          <View style={styles.fileInfo}>
+                            <Text style={styles.fileName}>
+                              {message.mediaFilename || "Audio"}
+                            </Text>
+                            <Text style={styles.fileSize}>
+                              {message.mediaSize
+                                ? multimediaService.formatFileSize(
+                                    message.mediaSize
+                                  )
+                                : message.mediaMimeType || ""}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+                      {message.messageType !== "image" &&
+                        message.messageType !== "video" &&
+                        message.messageType !== "audio" &&
+                        message.mediaUrl && (
+                          <View style={styles.messageFile}>
+                            <Ionicons
+                              name={multimediaService.getFileIcon(
+                                message.fileExtension
+                              )}
+                              size={24}
+                              color="hsl(75, 100%, 60%)"
+                            />
+                            <View style={styles.fileInfo}>
+                              <Text style={styles.fileName}>
+                                {message.mediaFilename || "Attachment"}
+                              </Text>
+                              <Text style={styles.fileSize}>
+                                {message.mediaSize
+                                  ? multimediaService.formatFileSize(
+                                      message.mediaSize
+                                    )
+                                  : message.mediaMimeType || ""}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
+                    </View>
+                  ) : null}
+                  {!!message.content && (
+                    <Text
+                      style={[
+                        styles.messageText,
+                        message.isOwn
+                          ? styles.ownMessageText
+                          : styles.otherMessageText,
+                      ]}
+                    >
+                      {message.content}
+                    </Text>
+                  )}
                   <Text
                     style={[
                       styles.messageTime,
@@ -613,6 +821,128 @@ const MessagesScreen = ({ user, navigation, route }) => {
             ))
           )}
         </ScrollView>
+
+        {selectedMedia && (
+          <View style={styles.mediaPreviewContainer}>
+            <View style={styles.mediaPreview}>
+              {selectedMedia.type === "image" && (
+                <Image
+                  source={{ uri: selectedMedia.url }}
+                  style={styles.mediaPreviewImage}
+                  resizeMode="cover"
+                />
+              )}
+              {selectedMedia.type === "video" && (
+                <View style={styles.mediaPreviewVideo}>
+                  <Ionicons
+                    name="videocam"
+                    size={24}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.mediaPreviewText}>Video</Text>
+                </View>
+              )}
+              {(selectedMedia.type === "file" ||
+                selectedMedia.type === "audio") && (
+                <View style={styles.mediaPreviewFile}>
+                  <Ionicons
+                    name={
+                      selectedMedia.type === "audio"
+                        ? "musical-notes"
+                        : multimediaService.getFileIcon(selectedMedia.extension)
+                    }
+                    size={24}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <View>
+                    <Text style={styles.mediaPreviewText}>
+                      {selectedMedia.filename || "Attachment"}
+                    </Text>
+                    {selectedMedia.size ? (
+                      <Text style={styles.mediaPreviewMeta}>
+                        {multimediaService.formatFileSize(selectedMedia.size)}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              )}
+            </View>
+            <TouchableOpacity
+              onPress={clearSelectedMedia}
+              style={styles.removeMediaButton}
+            >
+              <Ionicons name="close" size={20} color="hsl(0, 0%, 100%)" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {showMediaPicker && (
+          <View style={styles.mediaPickerOverlay}>
+            <View style={styles.mediaPickerContainer}>
+              <Text style={styles.mediaPickerTitle}>Choose Media Type</Text>
+              <View style={styles.mediaPickerButtons}>
+                <TouchableOpacity
+                  style={styles.mediaPickerButton}
+                  onPress={handleImageUpload}
+                  disabled={uploadingMedia}
+                >
+                  <Ionicons name="image" size={24} color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.mediaPickerButtonText}>Photo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.mediaPickerButton}
+                  onPress={handleVideoUpload}
+                  disabled={uploadingMedia}
+                >
+                  <Ionicons
+                    name="videocam"
+                    size={24}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.mediaPickerButtonText}>Video</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.mediaPickerButton}
+                  onPress={handleAudioUpload}
+                  disabled={uploadingMedia}
+                >
+                  <Ionicons
+                    name="musical-notes"
+                    size={24}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.mediaPickerButtonText}>Audio</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.mediaPickerButton}
+                  onPress={handleDocumentUpload}
+                  disabled={uploadingMedia}
+                >
+                  <Ionicons
+                    name="document"
+                    size={24}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.mediaPickerButtonText}>File</Text>
+                </TouchableOpacity>
+              </View>
+              {uploadingMedia && (
+                <ActivityIndicator
+                  style={styles.mediaPickerSpinner}
+                  size="small"
+                  color="hsl(75, 100%, 60%)"
+                />
+              )}
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowMediaPicker(false)}
+                disabled={uploadingMedia}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Input */}
         {chatType === "individual" && !isConnected ? (
@@ -638,6 +968,17 @@ const MessagesScreen = ({ user, navigation, route }) => {
         ) : (
           <View style={styles.inputContainer}>
             <View style={styles.inputWrapper}>
+              <TouchableOpacity
+                style={styles.attachButton}
+                onPress={() => setShowMediaPicker(true)}
+                disabled={uploadingMedia}
+              >
+                {uploadingMedia ? (
+                  <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+                ) : (
+                  <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
+                )}
+              </TouchableOpacity>
               <TextInput
                 style={styles.messageInput}
                 placeholder="Type a message..."
@@ -651,10 +992,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
               <TouchableOpacity
                 style={[
                   styles.sendButton,
-                  (!newMessage.trim() || sending) && styles.sendButtonDisabled,
+                  ((!newMessage.trim() && !selectedMedia) || sending) &&
+                    styles.sendButtonDisabled,
                 ]}
                 onPress={sendMessage}
-                disabled={!newMessage.trim() || sending}
+                disabled={(!newMessage.trim() && !selectedMedia) || sending}
               >
                 {sending ? (
                   <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
@@ -914,6 +1256,201 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "TS Block Bold",
     fontWeight: "600",
+  },
+  attachButton: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  mediaPreviewContainer: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopWidth: 1,
+    borderTopColor: "hsl(0, 0%, 20%)",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  mediaPreview: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  mediaPreviewImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  mediaPreviewVideo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 15%)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  mediaPreviewFile: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 15%)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginRight: 12,
+    maxWidth: 220,
+  },
+  mediaPreviewText: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    marginLeft: 8,
+  },
+  mediaPreviewMeta: {
+    color: "hsl(0, 0%, 60%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    marginLeft: 8,
+  },
+  removeMediaButton: {
+    backgroundColor: "hsl(0, 0%, 30%)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  mediaPickerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  mediaPickerContainer: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    padding: 24,
+    marginHorizontal: 32,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+    width: "80%",
+    maxWidth: 360,
+  },
+  mediaPickerTitle: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 18,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  mediaPickerButtons: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 24,
+  },
+  mediaPickerButton: {
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 25%)",
+    minWidth: 90,
+  },
+  mediaPickerButtonText: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    marginTop: 8,
+    textAlign: "center",
+  },
+  mediaPickerSpinner: {
+    marginBottom: 16,
+  },
+  cancelButton: {
+    backgroundColor: "hsl(0, 0%, 20%)",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+  },
+  mediaContent: {
+    marginBottom: 8,
+  },
+  messageImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  messageVideo: {
+    position: "relative",
+    width: 200,
+    height: 150,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 4,
+  },
+  messageVideoThumbnail: {
+    width: "100%",
+    height: "100%",
+  },
+  videoPlayOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  messageFile: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 15%)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 4,
+    maxWidth: 250,
+  },
+  fileInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  fileName: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+  },
+  fileSize: {
+    color: "hsl(0, 0%, 60%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    marginTop: 2,
   },
 });
 
