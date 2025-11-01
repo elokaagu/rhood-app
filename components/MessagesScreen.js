@@ -11,7 +11,7 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
-  Keyboard,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase, db } from "../lib/supabase";
@@ -28,7 +28,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [sending, setSending] = useState(false);
   const [otherUser, setOtherUser] = useState(null);
   const [communityData, setCommunityData] = useState(null);
+  const [memberCount, setMemberCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState(null);
   const [threadId, setThreadId] = useState(null);
 
   // Refs
@@ -55,7 +57,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         // Load messages for this thread
         console.log("🔍 Querying messages for thread:", currentThreadId);
         console.log("🔍 Current user ID:", user.id);
-        
+
         // First, try a simple query without joins to test RLS
         const { data: simpleData, error: simpleError } = await supabase
           .from("messages")
@@ -109,10 +111,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           id: msg.id,
           content: msg.content || "",
           senderId: msg.sender_id,
-          senderName:
-            msg.sender?.dj_name ||
-            msg.sender?.full_name ||
-            "Unknown",
+          senderName: msg.sender?.dj_name || msg.sender?.full_name || "Unknown",
           senderImage: msg.sender?.profile_image_url,
           timestamp: msg.created_at,
           isOwn: msg.sender_id === user.id,
@@ -134,6 +133,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
           (conn) => conn.connected_user_id === djId
         );
         setIsConnected(connection?.connection_status === "accepted");
+        setConnectionStatus(connection?.connection_status || null);
+        setMemberCount(0);
       } else if (chatType === "group" && communityId) {
         // Load group chat messages
         const groupMessages = await db.getGroupMessages(communityId);
@@ -141,10 +142,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           id: msg.id,
           content: msg.content || "",
           senderId: msg.author_id,
-          senderName:
-            msg.author?.dj_name ||
-            msg.author?.full_name ||
-            "Unknown",
+          senderName: msg.author?.dj_name || msg.author?.full_name || "Unknown",
           senderImage: msg.author?.profile_image_url,
           timestamp: msg.created_at,
           isOwn: msg.author_id === user.id,
@@ -163,6 +161,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
         if (community) {
           setCommunityData(community);
         }
+
+        try {
+          const count = await db.getCommunityMemberCount(communityId);
+          setMemberCount(count || 0);
+        } catch (countError) {
+          console.error("Error fetching community member count:", countError);
+          setMemberCount(0);
+        }
+        setConnectionStatus(null);
       }
     } catch (error) {
       console.error("❌ Error in loadMessages:", error);
@@ -204,9 +211,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
               content: payload.new.content || "",
               senderId: payload.new.sender_id,
               senderName:
-                senderProfile?.dj_name ||
-                senderProfile?.full_name ||
-                "Unknown",
+                senderProfile?.dj_name || senderProfile?.full_name || "Unknown",
               senderImage: senderProfile?.profile_image_url,
               timestamp: payload.new.created_at,
               isOwn: payload.new.sender_id === user.id,
@@ -253,9 +258,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
               content: payload.new.content || "",
               senderId: payload.new.author_id,
               senderName:
-                senderProfile?.dj_name ||
-                senderProfile?.full_name ||
-                "Unknown",
+                senderProfile?.dj_name || senderProfile?.full_name || "Unknown",
               senderImage: senderProfile?.profile_image_url,
               timestamp: payload.new.created_at,
               isOwn: payload.new.author_id === user.id,
@@ -304,7 +307,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
   // Send message
   const sendMessage = useCallback(async () => {
     if (!newMessage.trim() || sending) {
-      console.log("⚠️ Cannot send:", { hasMessage: !!newMessage.trim(), sending });
+      console.log("⚠️ Cannot send:", {
+        hasMessage: !!newMessage.trim(),
+        sending,
+      });
       return;
     }
 
@@ -315,14 +321,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }
 
     const messageContent = newMessage.trim();
-    console.log("📤 Sending message:", { 
-      content: messageContent, 
-      chatType, 
-      djId, 
+    console.log("📤 Sending message:", {
+      content: messageContent,
+      chatType,
+      djId,
       communityId,
       userId: user.id,
       isConnected,
-      threadId 
+      threadId,
     });
 
     setNewMessage("");
@@ -332,10 +338,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
       if (chatType === "individual" && djId) {
         // Get thread ID (should already be set, but ensure it exists)
         let currentThreadId = threadId;
-        
+
         if (!currentThreadId) {
           console.log("🔍 Thread ID not set, fetching...");
-          currentThreadId = await db.findOrCreateIndividualMessageThread(user.id, djId);
+          currentThreadId = await db.findOrCreateIndividualMessageThread(
+            user.id,
+            djId
+          );
           setThreadId(currentThreadId);
         }
 
@@ -366,7 +375,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
             details: error.details,
           });
           Alert.alert(
-            "Error", 
+            "Error",
             `Failed to send message: ${error.message || "Unknown error"}`
           );
           setNewMessage(messageContent);
@@ -375,7 +384,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("✅ Message sent successfully:", data.id);
-        
+
         // Reload messages to ensure UI updates
         setTimeout(() => {
           loadMessages();
@@ -401,7 +410,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
             details: error.details,
           });
           Alert.alert(
-            "Error", 
+            "Error",
             `Failed to send message: ${error.message || "Unknown error"}`
           );
           setNewMessage(messageContent);
@@ -410,7 +419,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("✅ Group message sent:", data.id);
-        
+
         // Reload messages to ensure UI updates
         setTimeout(() => {
           loadMessages();
@@ -420,7 +429,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       console.error("❌ Error in sendMessage:", error);
       console.error("❌ Error stack:", error.stack);
       Alert.alert(
-        "Error", 
+        "Error",
         `Failed to send message: ${error.message || "Unknown error"}`
       );
       setNewMessage(messageContent);
@@ -446,10 +455,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
     const diff = now - date;
 
     if (diff < 60000) return "now";
-    if (diff < 3600000)
-      return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000)
-      return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
     return date.toLocaleDateString();
   };
 
@@ -491,16 +498,23 @@ const MessagesScreen = ({ user, navigation, route }) => {
           {chatType === "individual" && otherUser && (
             <View style={styles.headerInfo}>
               <ProgressiveImage
-                source={{ uri: otherUser.profile_image_url }}
+                source={
+                  otherUser.profile_image_url
+                    ? { uri: otherUser.profile_image_url }
+                    : require("../assets/rhood_logo.webp")
+                }
                 style={styles.headerAvatar}
                 placeholderStyle={styles.headerAvatarPlaceholder}
               />
               <View style={styles.headerText}>
                 <Text style={styles.headerName}>
-                  {otherUser.dj_name || otherUser.full_name || "Unknown"}
+                  {otherUser.dj_name || otherUser.full_name || "Unknown User"}
                 </Text>
                 <Text style={styles.headerLocation}>
-                  {otherUser.city || otherUser.location || "Location not set"}
+                  {otherUser.location ||
+                    otherUser.city ||
+                    otherUser.country ||
+                    "Unknown Location"}
                 </Text>
               </View>
             </View>
@@ -508,9 +522,20 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
           {chatType === "group" && communityData && (
             <View style={styles.headerInfo}>
+              <ProgressiveImage
+                source={
+                  communityData.image_url
+                    ? { uri: communityData.image_url }
+                    : require("../assets/rhood_logo.webp")
+                }
+                style={styles.headerAvatar}
+                placeholderStyle={styles.headerAvatarPlaceholder}
+              />
               <View style={styles.headerText}>
                 <Text style={styles.headerName}>{communityData.name}</Text>
-                <Text style={styles.headerLocation}>Group Chat</Text>
+                <Text style={styles.headerLocation}>
+                  {memberCount} member{memberCount !== 1 ? "s" : ""}
+                </Text>
               </View>
             </View>
           )}
@@ -524,16 +549,17 @@ const MessagesScreen = ({ user, navigation, route }) => {
           onContentSizeChange={() => {
             scrollViewRef.current?.scrollToEnd({ animated: true });
           }}
+          showsVerticalScrollIndicator={false}
         >
           {messages.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons
-                name="chatbubbles-outline"
-                size={64}
-                color="hsl(0, 0%, 30%)"
+            <View style={styles.emptyContainer}>
+              <Image
+                source={require("../assets/rhood_logo.webp")}
+                style={styles.emptyIcon}
+                resizeMode="contain"
               />
-              <Text style={styles.emptyStateText}>NO MESSAGES YET</Text>
-              <Text style={styles.emptyStateSubtext}>
+              <Text style={styles.emptyTitle}>No messages yet</Text>
+              <Text style={styles.emptySubtitle}>
                 Start the conversation by sending a message!
               </Text>
             </View>
@@ -543,31 +569,31 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 key={message.id}
                 style={[
                   styles.messageContainer,
-                  message.isOwn && styles.messageContainerOwn,
+                  message.isOwn ? styles.ownMessage : styles.otherMessage,
                 ]}
               >
                 {!message.isOwn && (
-                  <ProgressiveImage
-                    source={{ uri: message.senderImage }}
-                    style={styles.messageAvatar}
-                    placeholderStyle={styles.messageAvatarPlaceholder}
-                  />
+                  <View style={styles.messageHeader}>
+                    <ProgressiveImage
+                      source={{ uri: message.senderImage }}
+                      style={styles.messageAvatar}
+                      placeholderStyle={styles.messageAvatarPlaceholder}
+                    />
+                    <Text style={styles.senderName}>{message.senderName}</Text>
+                  </View>
                 )}
                 <View
                   style={[
                     styles.messageBubble,
-                    message.isOwn && styles.messageBubbleOwn,
+                    message.isOwn ? styles.ownBubble : styles.otherBubble,
                   ]}
                 >
-                  {!message.isOwn && (
-                    <Text style={styles.messageSenderName}>
-                      {message.senderName}
-                    </Text>
-                  )}
                   <Text
                     style={[
                       styles.messageText,
-                      message.isOwn && styles.messageTextOwn,
+                      message.isOwn
+                        ? styles.ownMessageText
+                        : styles.otherMessageText,
                     ]}
                   >
                     {message.content}
@@ -575,7 +601,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   <Text
                     style={[
                       styles.messageTime,
-                      message.isOwn && styles.messageTimeOwn,
+                      message.isOwn
+                        ? styles.ownMessageTime
+                        : styles.otherMessageTime,
                     ]}
                   >
                     {formatTime(message.timestamp)}
@@ -591,8 +619,20 @@ const MessagesScreen = ({ user, navigation, route }) => {
           <View style={styles.inputContainer}>
             <View style={styles.connectionRequiredContainer}>
               <Text style={styles.connectionRequiredText}>
-                Connect to start messaging
+                {connectionStatus === "pending"
+                  ? "Connection request pending..."
+                  : "Connect to start messaging"}
               </Text>
+              <TouchableOpacity
+                style={styles.connectButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Text style={styles.connectButtonText}>
+                  {connectionStatus === "pending"
+                    ? "View Status"
+                    : "Send Request"}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         ) : (
@@ -633,20 +673,31 @@ const MessagesScreen = ({ user, navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: "hsl(0, 0%, 0%)",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 0%)",
+  },
+  loadingText: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 16,
+    marginTop: 16,
+    fontFamily: "Helvetica Neue",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "hsl(0, 0%, 12%)",
+    paddingVertical: 16,
+    backgroundColor: "hsl(0, 0%, 8%)",
     borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 20%)",
+    borderBottomColor: "hsl(75, 100%, 60%)",
   },
   backButton: {
-    marginRight: 12,
-    padding: 4,
+    marginRight: 16,
   },
   headerInfo: {
     flexDirection: "row",
@@ -654,156 +705,216 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     marginRight: 12,
   },
   headerAvatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "hsl(0, 0%, 20%)",
   },
   headerText: {
     flex: 1,
   },
   headerName: {
-    fontSize: 16,
-    fontWeight: "600",
     color: "hsl(75, 100%, 60%)",
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: "TS Block Bold",
+    marginBottom: 2,
+    letterSpacing: 0.5,
   },
   headerLocation: {
-    fontSize: 12,
     color: "hsl(0, 0%, 60%)",
-    marginTop: 2,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    color: "hsl(0, 0%, 60%)",
-    marginTop: 16,
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
   },
   messagesContainer: {
     flex: 1,
   },
   messagesContent: {
     padding: 16,
+    paddingBottom: 20,
   },
-  emptyState: {
+  emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 64,
+    paddingHorizontal: 32,
   },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: "600",
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    marginBottom: 24,
+    opacity: 0.8,
+  },
+  emptyTitle: {
     color: "hsl(75, 100%, 60%)",
-    marginTop: 16,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 50%)",
-    marginTop: 8,
+    fontSize: 24,
+    fontWeight: "700",
+    fontFamily: "TS Block Bold",
+    marginBottom: 12,
     textAlign: "center",
+    letterSpacing: 0.5,
+  },
+  emptySubtitle: {
+    color: "hsl(0, 0%, 60%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    textAlign: "center",
+    lineHeight: 22,
+    maxWidth: 280,
   },
   messageContainer: {
-    flexDirection: "row",
     marginBottom: 16,
+  },
+  ownMessage: {
     alignItems: "flex-end",
   },
-  messageContainerOwn: {
-    flexDirection: "row-reverse",
+  otherMessage: {
+    alignItems: "flex-start",
+  },
+  messageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
   },
   messageAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginHorizontal: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 8,
   },
   messageAvatarPlaceholder: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: "hsl(0, 0%, 20%)",
   },
-  messageBubble: {
-    maxWidth: "70%",
-    backgroundColor: "hsl(0, 0%, 15%)",
-    borderRadius: 16,
-    padding: 12,
-  },
-  messageBubbleOwn: {
-    backgroundColor: "hsl(75, 100%, 60%)",
-  },
-  messageSenderName: {
+  senderName: {
+    color: "hsl(75, 100%, 60%)",
     fontSize: 12,
     fontWeight: "600",
-    color: "hsl(75, 100%, 60%)",
-    marginBottom: 4,
+    fontFamily: "TS Block Bold",
+    letterSpacing: 0.3,
   },
-  messageText: {
-    fontSize: 15,
-    color: "hsl(0, 0%, 90%)",
-    lineHeight: 20,
-  },
-  messageTextOwn: {
-    color: "hsl(0, 0%, 0%)",
-  },
-  messageTime: {
-    fontSize: 10,
-    color: "hsl(0, 0%, 50%)",
-    marginTop: 4,
-  },
-  messageTimeOwn: {
-    color: "hsl(0, 0%, 20%)",
-  },
-  inputContainer: {
-    backgroundColor: "hsl(0, 0%, 12%)",
-    borderTopWidth: 1,
-    borderTopColor: "hsl(0, 0%, 20%)",
+  messageBubble: {
+    maxWidth: "80%",
     paddingHorizontal: 16,
     paddingVertical: 12,
+    borderRadius: 20,
   },
-  connectionRequiredContainer: {
-    padding: 16,
-    alignItems: "center",
+  ownBubble: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderBottomRightRadius: 4,
   },
-  connectionRequiredText: {
+  otherBubble: {
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderBottomLeftRadius: 4,
+  },
+  messageText: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+  },
+  ownMessageText: {
+    color: "hsl(0, 0%, 0%)",
+  },
+  otherMessageText: {
+    color: "hsl(0, 0%, 100%)",
+  },
+  messageTime: {
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: "Helvetica Neue",
+  },
+  ownMessageTime: {
+    color: "hsl(0, 0%, 0%)",
+    opacity: 0.7,
+  },
+  otherMessageTime: {
     color: "hsl(0, 0%, 60%)",
-    fontSize: 14,
+  },
+  inputContainer: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopWidth: 2,
+    borderTopColor: "hsl(75, 100%, 60%)",
   },
   inputWrapper: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   messageInput: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 15%)",
-    borderRadius: 24,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    color: "hsl(0, 0%, 90%)",
-    fontSize: 15,
+    paddingVertical: 12,
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
     maxHeight: 100,
-    marginRight: 8,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
   },
   sendButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "hsl(75, 100%, 60%)",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sendButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: "hsl(0, 0%, 30%)",
+    shadowColor: "hsl(0, 0%, 0%)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  connectionRequiredContainer: {
+    padding: 20,
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 8%)",
+  },
+  connectionRequiredText: {
+    color: "hsl(0, 0%, 60%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  connectButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  connectButtonText: {
+    color: "hsl(0, 0%, 0%)",
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    fontWeight: "600",
   },
 });
 
 export default MessagesScreen;
-
