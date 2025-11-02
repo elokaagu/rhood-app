@@ -395,6 +395,20 @@ export default function App() {
   // Global audio instance reference for cleanup
   const globalAudioRef = useRef(null);
 
+  // Refs to store latest functions/state for background service callbacks
+  // This ensures callbacks always access the latest versions, not stale closures
+  const globalAudioStateRef = useRef(globalAudioState);
+  const playNextTrackRef = useRef(null);
+  const playPreviousTrackRef = useRef(null);
+  const pauseGlobalAudioRef = useRef(null);
+  const resumeGlobalAudioRef = useRef(null);
+  const seekGlobalAudioRef = useRef(null);
+
+  // Keep refs in sync with current functions/state
+  useEffect(() => {
+    globalAudioStateRef.current = globalAudioState;
+  }, [globalAudioState]);
+
   // All opportunities data comes from database
 
   // Helper function to show custom modal
@@ -799,71 +813,128 @@ export default function App() {
       if (setRemoteCallbacks) {
         setRemoteCallbacks({
           onPlayPause: async () => {
-            // Use the exact same logic as in-app buttons
-            if (
-              Platform.OS === "ios" &&
-              trackPlayer &&
-              globalAudioState.currentTrack
-            ) {
-              try {
-                const TrackPlayerModule = require("react-native-track-player");
-                const TrackPlayerInstance =
-                  TrackPlayerModule.default || TrackPlayerModule;
-                const TrackPlayerState = TrackPlayerModule.State;
+            try {
+              console.log("🎵 REMOTE CALLBACK: onPlayPause called");
+              // Use ref to get latest state (not stale closure)
+              const currentState = globalAudioStateRef.current;
+              // Use the exact same logic as in-app buttons
+              if (
+                Platform.OS === "ios" &&
+                trackPlayer &&
+                currentState.currentTrack
+              ) {
+                try {
+                  const TrackPlayerModule = require("react-native-track-player");
+                  const TrackPlayerInstance =
+                    TrackPlayerModule.default || TrackPlayerModule;
+                  const TrackPlayerState = TrackPlayerModule.State;
 
-                const currentState = await TrackPlayerInstance.getState();
-                const isCurrentlyPlaying =
-                  currentState === TrackPlayerState.Playing;
+                  const currentState = await TrackPlayerInstance.getState();
+                  const isCurrentlyPlaying =
+                    currentState === TrackPlayerState.Playing;
 
-                if (isCurrentlyPlaying) {
-                  await TrackPlayerInstance.pause();
-                  setGlobalAudioState((prev) => ({
-                    ...prev,
-                    isPlaying: false,
-                  }));
-                } else {
-                  await TrackPlayerInstance.play();
-                  setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
-                }
+                  console.log("🎵 Remote play/pause state:", {
+                    currentState,
+                    isCurrentlyPlaying,
+                  });
 
-                // Re-verify after a moment (same as in-app buttons)
-                setTimeout(async () => {
-                  try {
-                    const verifiedState = await TrackPlayerInstance.getState();
-                    const verifiedPlaying =
-                      verifiedState === TrackPlayerState.Playing;
+                  if (isCurrentlyPlaying) {
+                    await TrackPlayerInstance.pause();
                     setGlobalAudioState((prev) => ({
                       ...prev,
-                      isPlaying: verifiedPlaying,
+                      isPlaying: false,
                     }));
-                  } catch (err) {
-                    // Ignore verification errors
+                  } else {
+                    await TrackPlayerInstance.play();
+                    setGlobalAudioState((prev) => ({
+                      ...prev,
+                      isPlaying: true,
+                    }));
                   }
-                }, 300);
-              } catch (error) {
-                // Fallback to global functions if direct control fails
-                if (globalAudioState?.isPlaying) {
-                  await pauseGlobalAudio();
+
+                  // Re-verify after a moment (same as in-app buttons)
+                  setTimeout(async () => {
+                    try {
+                      const verifiedState =
+                        await TrackPlayerInstance.getState();
+                      const verifiedPlaying =
+                        verifiedState === TrackPlayerState.Playing;
+                      setGlobalAudioState((prev) => ({
+                        ...prev,
+                        isPlaying: verifiedPlaying,
+                      }));
+                    } catch (err) {
+                      // Ignore verification errors
+                    }
+                  }, 300);
+                } catch (error) {
+                  console.error(
+                    "❌ Remote play/pause direct control error:",
+                    error
+                  );
+                  // Fallback to global functions if direct control fails
+                  // Use refs to get latest functions
+                  if (currentState?.isPlaying) {
+                    if (pauseGlobalAudioRef.current) {
+                      await pauseGlobalAudioRef.current();
+                    } else {
+                      await pauseGlobalAudio();
+                    }
+                  } else {
+                    if (resumeGlobalAudioRef.current) {
+                      await resumeGlobalAudioRef.current();
+                    } else {
+                      await resumeGlobalAudio();
+                    }
+                  }
+                }
+              } else {
+                // Android: Use global functions via refs
+                if (currentState?.isPlaying) {
+                  if (pauseGlobalAudioRef.current) {
+                    await pauseGlobalAudioRef.current();
+                  } else {
+                    await pauseGlobalAudio();
+                  }
                 } else {
-                  await resumeGlobalAudio();
+                  if (resumeGlobalAudioRef.current) {
+                    await resumeGlobalAudioRef.current();
+                  } else {
+                    await resumeGlobalAudio();
+                  }
                 }
               }
-            } else {
-              // Android: Use global functions
-              if (globalAudioState?.isPlaying) {
-                await pauseGlobalAudio();
-              } else {
-                await resumeGlobalAudio();
-              }
+            } catch (error) {
+              console.error("❌ Remote play/pause callback error:", error);
             }
           },
           onNext: async () => {
-            // Use the exact same function as in-app buttons (includes haptics)
-            await skipForward();
+            try {
+              console.log("🎵 REMOTE CALLBACK: onNext called");
+              // Use ref to get latest function (not stale closure)
+              if (playNextTrackRef.current) {
+                await playNextTrackRef.current();
+              } else {
+                // Fallback to skipForward if ref not set yet
+                await skipForward();
+              }
+            } catch (error) {
+              console.error("❌ Remote Next error:", error);
+            }
           },
           onPrevious: async () => {
-            // Use the exact same function as in-app buttons (includes haptics)
-            await skipBackward();
+            try {
+              console.log("🎵 REMOTE CALLBACK: onPrevious called");
+              // Use ref to get latest function (not stale closure)
+              if (playPreviousTrackRef.current) {
+                await playPreviousTrackRef.current();
+              } else {
+                // Fallback to skipBackward if ref not set yet
+                await skipBackward();
+              }
+            } catch (error) {
+              console.error("❌ Remote Previous error:", error);
+            }
           },
           onSeek: async (position) => {
             try {
@@ -956,6 +1027,9 @@ export default function App() {
             // Track changes are handled by playNextTrack/playPreviousTrack
           },
         });
+        console.log("✅ Remote callbacks registered successfully");
+      } else {
+        console.warn("⚠️ setRemoteCallbacks function not available");
       }
     } catch (error) {
       console.log("❌ Error setting up global audio:", error);
@@ -1529,6 +1603,8 @@ export default function App() {
   const pauseGlobalAudio = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // Store in ref for background service access
+      pauseGlobalAudioRef.current = pauseGlobalAudio;
 
       // iOS: Use ONLY track-player - control it directly
       if (Platform.OS === "ios") {
@@ -1871,24 +1947,32 @@ export default function App() {
   // Skip forward functionality - now navigates to next track
   const skipForward = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      try {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch (hapticError) {
+        // Ignore haptic errors (may not work in background service)
+      }
       await playNextTrack();
       console.log(`⏩ Skipped to next track`);
     } catch (error) {
       console.error("❌ Error skipping forward:", error);
-      Alert.alert("Error", "Failed to skip to next track");
+      // Don't show Alert in background service context - just log
     }
   };
 
   // Skip backward functionality - now navigates to previous track
   const skipBackward = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      try {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch (hapticError) {
+        // Ignore haptic errors (may not work in background service)
+      }
       await playPreviousTrack();
       console.log(`⏪ Skipped to previous track`);
     } catch (error) {
       console.error("❌ Error skipping backward:", error);
-      Alert.alert("Error", "Failed to skip to previous track");
+      // Don't show Alert in background service context - just log
     }
   };
 
@@ -2315,14 +2399,15 @@ export default function App() {
   };
 
   const getNextTrack = () => {
-    const { queue, currentQueueIndex, repeatMode, isShuffled } =
-      globalAudioState;
+    // Use ref to get latest state (not stale closure)
+    const currentState = globalAudioStateRef.current;
+    const { queue, currentQueueIndex, repeatMode, isShuffled } = currentState;
 
     if (queue.length === 0) return null;
 
     // Handle repeat one mode
-    if (repeatMode === "one" && globalAudioState.currentTrack) {
-      return globalAudioState.currentTrack;
+    if (repeatMode === "one" && currentState.currentTrack) {
+      return currentState.currentTrack;
     }
 
     let nextIndex;
@@ -2349,13 +2434,15 @@ export default function App() {
   };
 
   const getPreviousTrack = () => {
-    const { queue, currentQueueIndex, repeatMode } = globalAudioState;
+    // Use ref to get latest state (not stale closure)
+    const currentState = globalAudioStateRef.current;
+    const { queue, currentQueueIndex, repeatMode } = currentState;
 
     if (queue.length === 0) return null;
 
     // Handle repeat one mode
-    if (repeatMode === "one" && globalAudioState.currentTrack) {
-      return globalAudioState.currentTrack;
+    if (repeatMode === "one" && currentState.currentTrack) {
+      return currentState.currentTrack;
     }
 
     let prevIndex;
@@ -2383,6 +2470,8 @@ export default function App() {
   };
 
   const playNextTrack = async () => {
+    // Use ref to get latest state, not closure
+    const currentState = globalAudioStateRef.current;
     const nextTrack = getNextTrack();
     if (nextTrack) {
       setGlobalAudioState((prev) => ({
@@ -2395,7 +2484,14 @@ export default function App() {
     }
   };
 
+  // Store in ref for background service access
+  useEffect(() => {
+    playNextTrackRef.current = playNextTrack;
+  }, [playNextTrack]);
+
   const playPreviousTrack = async () => {
+    // Use ref to get latest state, not closure
+    const currentState = globalAudioStateRef.current;
     const prevTrack = getPreviousTrack();
     if (prevTrack) {
       setGlobalAudioState((prev) => ({
@@ -2403,10 +2499,15 @@ export default function App() {
         currentQueueIndex: prev.currentQueueIndex - 1,
       }));
       await playGlobalAudio(prevTrack);
-    } else if (globalAudioState.currentTrack) {
+    } else if (currentState.currentTrack) {
       await seekGlobalAudio(-999999);
     }
   };
+
+  // Store in ref for background service access
+  useEffect(() => {
+    playPreviousTrackRef.current = playPreviousTrack;
+  }, [playPreviousTrack]);
 
   // Share functionality
   const shareTrack = async () => {

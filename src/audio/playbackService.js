@@ -44,34 +44,80 @@ module.exports = async function playbackService() {
   // Remote control event handlers - handle lock screen, Control Center, AirPods, etc.
 
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    if (remoteCallbacks.onPlayPause) {
-      await remoteCallbacks.onPlayPause();
-    } else {
-      await TrackPlayer.play();
+    console.log("🎵 REMOTE: Play button pressed");
+    console.log("📞 Callbacks available:", {
+      onPlayPause: !!remoteCallbacks.onPlayPause,
+      onNext: !!remoteCallbacks.onNext,
+      onPrevious: !!remoteCallbacks.onPrevious,
+    });
+    try {
+      if (remoteCallbacks.onPlayPause) {
+        console.log("📞 Calling remoteCallbacks.onPlayPause()");
+        await remoteCallbacks.onPlayPause();
+      } else {
+        console.log("⚠️ No callback, using TrackPlayer.play()");
+        await TrackPlayer.play();
+      }
+    } catch (error) {
+      console.error("❌ Remote Play error:", error);
+      console.error("❌ Error stack:", error.stack);
     }
   });
 
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    if (remoteCallbacks.onPlayPause) {
-      await remoteCallbacks.onPlayPause();
-    } else {
-      await TrackPlayer.pause();
+    console.log("🎵 REMOTE: Pause button pressed");
+    try {
+      if (remoteCallbacks.onPlayPause) {
+        console.log("📞 Calling remoteCallbacks.onPlayPause()");
+        await remoteCallbacks.onPlayPause();
+      } else {
+        console.log("⚠️ No callback, using TrackPlayer.pause()");
+        await TrackPlayer.pause();
+      }
+    } catch (error) {
+      console.error("❌ Remote Pause error:", error);
     }
   });
 
   TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-    if (remoteCallbacks.onNext) {
-      await remoteCallbacks.onNext();
-    } else {
-      await TrackPlayer.skipToNext();
+    console.log("🎵 REMOTE: Next button pressed");
+    console.log("📞 Callbacks available:", {
+      onPlayPause: !!remoteCallbacks.onPlayPause,
+      onNext: !!remoteCallbacks.onNext,
+      onPrevious: !!remoteCallbacks.onPrevious,
+    });
+    try {
+      if (remoteCallbacks.onNext) {
+        console.log("📞 Calling remoteCallbacks.onNext()");
+        await remoteCallbacks.onNext();
+      } else {
+        console.log("⚠️ No callback, using TrackPlayer.skipToNext()");
+        await TrackPlayer.skipToNext();
+      }
+    } catch (error) {
+      console.error("❌ Remote Next error:", error);
+      console.error("❌ Error stack:", error.stack);
     }
   });
 
   TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-    if (remoteCallbacks.onPrevious) {
-      await remoteCallbacks.onPrevious();
-    } else {
-      await TrackPlayer.skipToPrevious();
+    console.log("🎵 REMOTE: Previous button pressed");
+    console.log("📞 Callbacks available:", {
+      onPlayPause: !!remoteCallbacks.onPlayPause,
+      onNext: !!remoteCallbacks.onNext,
+      onPrevious: !!remoteCallbacks.onPrevious,
+    });
+    try {
+      if (remoteCallbacks.onPrevious) {
+        console.log("📞 Calling remoteCallbacks.onPrevious()");
+        await remoteCallbacks.onPrevious();
+      } else {
+        console.log("⚠️ No callback, using TrackPlayer.skipToPrevious()");
+        await TrackPlayer.skipToPrevious();
+      }
+    } catch (error) {
+      console.error("❌ Remote Previous error:", error);
+      console.error("❌ Error stack:", error.stack);
     }
   });
 
@@ -198,5 +244,13 @@ module.exports = async function playbackService() {
     playbackState: true,
     playbackTrackChanged: true,
     playbackProgressUpdated: true,
+  });
+
+  // Log current callback status
+  console.log("📞 Remote callbacks status:", {
+    onPlayPause: !!remoteCallbacks.onPlayPause,
+    onNext: !!remoteCallbacks.onNext,
+    onPrevious: !!remoteCallbacks.onPrevious,
+    onSeek: !!remoteCallbacks.onSeek,
   });
 };
