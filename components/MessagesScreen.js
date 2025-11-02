@@ -13,11 +13,15 @@ import {
   Animated,
   Image,
   Modal,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase, db } from "../lib/supabase";
 import { multimediaService } from "../lib/multimediaService";
 import ProgressiveImage from "./ProgressiveImage";
+import { Audio, Video } from "expo-av";
+import * as FileSystem from "expo-file-system";
+import * as WebBrowser from "expo-web-browser";
 
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
@@ -38,11 +42,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [fullscreenImage, setFullscreenImage] = useState(null);
+  const [fullscreenVideo, setFullscreenVideo] = useState(null);
+  const [playingAudioId, setPlayingAudioId] = useState(null);
+  const [audioProgress, setAudioProgress] = useState({});
+  const [audioDurations, setAudioDurations] = useState({});
 
   // Refs
   const scrollViewRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const channelRef = useRef(null);
+  const audioSoundsRef = useRef({});
 
   // Load messages
   const loadMessages = useCallback(async () => {
@@ -445,6 +454,277 @@ const MessagesScreen = ({ user, navigation, route }) => {
     setSelectedMedia(null);
   }, []);
 
+  // Format time helper for audio duration
+  const formatDuration = useCallback((millis) => {
+    if (!millis || isNaN(millis)) return "0:00";
+    const totalSeconds = Math.floor(millis / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }, []);
+
+  // Handle audio message playback
+  const toggleAudioPlayback = useCallback(
+    async (messageId, audioUrl) => {
+      try {
+        console.log("🎵 Toggling audio playback:", { messageId, audioUrl });
+
+        if (!audioUrl) {
+          Alert.alert("Error", "Audio URL is missing");
+          return;
+        }
+
+        if (playingAudioId === messageId) {
+          // Pause current audio
+          const sound = audioSoundsRef.current[messageId];
+          if (sound) {
+            await sound.pauseAsync();
+            setPlayingAudioId(null);
+            console.log("⏸️ Audio paused");
+          }
+        } else {
+          // Stop any currently playing audio
+          if (playingAudioId) {
+            const currentSound = audioSoundsRef.current[playingAudioId];
+            if (currentSound) {
+              await currentSound.stopAsync();
+              await currentSound.unloadAsync();
+              delete audioSoundsRef.current[playingAudioId];
+            }
+          }
+
+          // Configure audio mode for playback
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: false,
+            staysActiveInBackground: true,
+            playsInSilentModeIOS: true,
+          });
+
+          // Load and play new audio
+          console.log("🔄 Loading audio from:", audioUrl);
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: audioUrl },
+            { shouldPlay: true }
+          );
+
+          audioSoundsRef.current[messageId] = sound;
+          setPlayingAudioId(messageId);
+          console.log("▶️ Audio started playing");
+
+          // Get duration
+          const status = await sound.getStatusAsync();
+          if (status.isLoaded && status.durationMillis) {
+            console.log("📊 Audio duration:", status.durationMillis);
+            setAudioDurations((prev) => ({
+              ...prev,
+              [messageId]: status.durationMillis,
+            }));
+          }
+
+          // Track progress
+          sound.setOnPlaybackStatusUpdate((status) => {
+            if (status.isLoaded) {
+              setAudioProgress((prev) => ({
+                ...prev,
+                [messageId]: status.positionMillis || 0,
+              }));
+
+              if (status.didJustFinish) {
+                console.log("✅ Audio finished");
+                setPlayingAudioId((prev) => (prev === messageId ? null : prev));
+                sound.unloadAsync();
+                delete audioSoundsRef.current[messageId];
+                setAudioProgress((prev) => ({
+                  ...prev,
+                  [messageId]: 0,
+                }));
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error("❌ Error playing audio:", error);
+        console.error("❌ Error details:", {
+          message: error.message,
+          code: error.code,
+          audioUrl: audioUrl,
+        });
+        Alert.alert(
+          "Error",
+          `Failed to play audio: ${error.message || "Unknown error"}`
+        );
+      }
+    },
+    [playingAudioId]
+  );
+
+  // Handle video playback
+  const handleVideoPlay = useCallback((videoUrl) => {
+    setFullscreenVideo(videoUrl);
+  }, []);
+
+  // Download file to device
+  const downloadFile = useCallback(async (fileUrl, filename) => {
+    try {
+      console.log("💾 Downloading file:", { fileUrl, filename });
+
+      if (!FileSystem) {
+        Alert.alert(
+          "Error",
+          "File system not available. Please use a development build for file downloads."
+        );
+        return;
+      }
+
+      // Create downloads directory if it doesn't exist
+      const downloadsDir = `${FileSystem.documentDirectory}Downloads/`;
+      const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(downloadsDir, {
+          intermediates: true,
+        });
+        console.log("📁 Created Downloads directory");
+      }
+
+      // Generate file path
+      const sanitizedFilename = filename
+        ? filename.replace(/[^a-zA-Z0-9.-]/g, "_")
+        : `file_${Date.now()}`;
+      const filePath = `${downloadsDir}${sanitizedFilename}`;
+
+      // Download the file
+      console.log("⬇️ Downloading to:", filePath);
+      const downloadResumable = FileSystem.createDownloadResumable(
+        fileUrl,
+        filePath
+      );
+
+      const result = await downloadResumable.downloadAsync();
+
+      if (result && result.uri) {
+        console.log("✅ File downloaded to:", result.uri);
+        Alert.alert(
+          "Download Complete",
+          `File saved to Downloads folder.\n\n${sanitizedFilename}`,
+          [
+            {
+              text: "Open",
+              onPress: async () => {
+                try {
+                  await Linking.openURL(`file://${result.uri}`);
+                } catch (openError) {
+                  console.error("Error opening downloaded file:", openError);
+                  Alert.alert(
+                    "Download Complete",
+                    "File has been downloaded. You can find it in your Downloads folder."
+                  );
+                }
+              },
+            },
+            { text: "OK" },
+          ]
+        );
+      } else {
+        throw new Error("Download failed - no file URI returned");
+      }
+    } catch (error) {
+      console.error("❌ Error downloading file:", error);
+      Alert.alert(
+        "Download Error",
+        `Failed to download file: ${
+          error.message || "Unknown error"
+        }\n\nYou can try opening it in your browser instead.`,
+        [
+          {
+            text: "Open in Browser",
+            onPress: async () => {
+              try {
+                await WebBrowser.openBrowserAsync(fileUrl);
+              } catch (browserError) {
+                console.error("Error opening in browser:", browserError);
+              }
+            },
+          },
+          { text: "OK" },
+        ]
+      );
+    }
+  }, []);
+
+  // Handle file/document opening and downloading
+  const handleFileOpen = useCallback(
+    async (fileUrl, filename, mimeType) => {
+      try {
+        console.log("📄 Opening file:", { fileUrl, filename, mimeType });
+
+        if (!fileUrl) {
+          Alert.alert("Error", "File URL is missing");
+          return;
+        }
+
+        // Show options: Open or Download
+        Alert.alert(
+          filename || "File",
+          "Choose an action",
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+            {
+              text: "Open",
+              onPress: async () => {
+                try {
+                  // Try to open with default app
+                  const canOpen = await Linking.canOpenURL(fileUrl);
+                  if (canOpen) {
+                    await Linking.openURL(fileUrl);
+                  } else {
+                    // Fallback to browser
+                    await WebBrowser.openBrowserAsync(fileUrl);
+                  }
+                } catch (openError) {
+                  console.error("Error opening file:", openError);
+                  Alert.alert(
+                    "Error",
+                    "Could not open file. Trying download instead..."
+                  );
+                  // Fall through to download
+                  await downloadFile(fileUrl, filename);
+                }
+              },
+            },
+            {
+              text: "Download",
+              onPress: () => downloadFile(fileUrl, filename),
+            },
+          ],
+          { cancelable: true }
+        );
+      } catch (error) {
+        console.error("❌ Error handling file:", error);
+        Alert.alert(
+          "Error",
+          `Failed to handle file: ${error.message || "Unknown error"}`
+        );
+      }
+    },
+    [downloadFile]
+  );
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(audioSoundsRef.current).forEach(async (sound) => {
+        try {
+          await sound.unloadAsync();
+        } catch (error) {
+          console.error("Error cleaning up audio:", error);
+        }
+      });
+    };
+  }, []);
+
   // Send message
   const sendMessage = useCallback(async () => {
     if ((!newMessage.trim() && !selectedMedia) || sending) {
@@ -774,41 +1054,118 @@ const MessagesScreen = ({ user, navigation, route }) => {
                         </TouchableOpacity>
                       )}
                       {message.messageType === "video" && (
-                        <View style={styles.messageVideo}>
-                          <Image
-                            source={{
-                              uri: message.thumbnailUrl || message.mediaUrl,
-                            }}
-                            style={styles.messageVideoThumbnail}
-                            resizeMode="cover"
-                          />
-                          <View style={styles.videoPlayOverlay}>
-                            <Ionicons
-                              name="play"
-                              size={32}
-                              color="hsl(0, 0%, 100%)"
-                            />
+                        <TouchableOpacity
+                          onPress={() => handleVideoPlay(message.mediaUrl)}
+                          activeOpacity={0.9}
+                        >
+                          <View style={styles.messageVideo}>
+                            {message.thumbnailUrl ? (
+                              <Image
+                                source={{ uri: message.thumbnailUrl }}
+                                style={styles.messageVideoThumbnail}
+                                resizeMode="cover"
+                              />
+                            ) : (
+                              <View style={styles.videoPlaceholder}>
+                                <Ionicons
+                                  name="play-circle"
+                                  size={64}
+                                  color="hsl(75, 100%, 60%)"
+                                />
+                                {message.mediaFilename && (
+                                  <Text style={styles.videoPlaceholderText}>
+                                    {message.mediaFilename}
+                                  </Text>
+                                )}
+                              </View>
+                            )}
+                            <View style={styles.videoPlayOverlay}>
+                              <View style={styles.videoPlayButton}>
+                                <Ionicons
+                                  name="play"
+                                  size={32}
+                                  color="hsl(0, 0%, 100%)"
+                                />
+                              </View>
+                            </View>
                           </View>
-                        </View>
+                        </TouchableOpacity>
                       )}
                       {message.messageType === "audio" && (
-                        <View style={styles.messageFile}>
-                          <Ionicons
-                            name="musical-notes"
-                            size={24}
-                            color="hsl(75, 100%, 60%)"
-                          />
-                          <View style={styles.fileInfo}>
-                            <Text style={styles.fileName}>
-                              {message.mediaFilename || "Audio"}
-                            </Text>
-                            <Text style={styles.fileSize}>
-                              {message.mediaSize
-                                ? multimediaService.formatFileSize(
-                                    message.mediaSize
-                                  )
-                                : message.mediaMimeType || ""}
-                            </Text>
+                        <View
+                          style={[
+                            styles.messageAudio,
+                            message.isOwn && styles.ownMessageAudio,
+                          ]}
+                        >
+                          <TouchableOpacity
+                            style={[
+                              styles.audioPlayButton,
+                              message.isOwn && styles.ownAudioPlayButton,
+                            ]}
+                            onPress={() =>
+                              toggleAudioPlayback(message.id, message.mediaUrl)
+                            }
+                          >
+                            <Ionicons
+                              name={
+                                playingAudioId === message.id ? "pause" : "play"
+                              }
+                              size={20}
+                              color={
+                                message.isOwn
+                                  ? "hsl(0, 0%, 0%)"
+                                  : "hsl(0, 0%, 0%)"
+                              }
+                            />
+                          </TouchableOpacity>
+                          <View style={styles.audioContent}>
+                            <View
+                              style={[
+                                styles.audioProgressBar,
+                                message.isOwn && styles.ownAudioProgressBar,
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.audioProgressFill,
+                                  message.isOwn && styles.ownAudioProgressFill,
+                                  {
+                                    width: `${
+                                      audioDurations[message.id] &&
+                                      audioProgress[message.id]
+                                        ? Math.min(
+                                            100,
+                                            (audioProgress[message.id] /
+                                              audioDurations[message.id]) *
+                                              100
+                                          )
+                                        : 0
+                                    }%`,
+                                  },
+                                ]}
+                              />
+                            </View>
+                            <View style={styles.audioInfoRow}>
+                              <Text
+                                style={[
+                                  styles.audioDuration,
+                                  message.isOwn
+                                    ? styles.ownAudioDuration
+                                    : styles.otherAudioDuration,
+                                ]}
+                              >
+                                {playingAudioId === message.id
+                                  ? formatDuration(
+                                      audioProgress[message.id] || 0
+                                    )
+                                  : "0:00"}{" "}
+                                /{" "}
+                                {formatDuration(
+                                  audioDurations[message.id] || 0
+                                )}
+                              </Text>
+                            </View>
                           </View>
                         </View>
                       )}
@@ -816,19 +1173,53 @@ const MessagesScreen = ({ user, navigation, route }) => {
                         message.messageType !== "video" &&
                         message.messageType !== "audio" &&
                         message.mediaUrl && (
-                          <View style={styles.messageFile}>
-                            <Ionicons
-                              name={multimediaService.getFileIcon(
-                                message.fileExtension
-                              )}
-                              size={24}
-                              color="hsl(75, 100%, 60%)"
-                            />
+                          <TouchableOpacity
+                            style={[
+                              styles.messageFile,
+                              message.isOwn && styles.ownMessageFile,
+                            ]}
+                            onPress={() =>
+                              handleFileOpen(
+                                message.mediaUrl,
+                                message.mediaFilename,
+                                message.mediaMimeType
+                              )
+                            }
+                            activeOpacity={0.7}
+                          >
+                            <View
+                              style={[
+                                styles.fileIconContainer,
+                                message.isOwn && styles.ownFileIconContainer,
+                              ]}
+                            >
+                              <Ionicons
+                                name={multimediaService.getFileIcon(
+                                  message.fileExtension
+                                )}
+                                size={28}
+                                color={
+                                  message.isOwn
+                                    ? "hsl(0, 0%, 0%)"
+                                    : "hsl(75, 100%, 60%)"
+                                }
+                              />
+                            </View>
                             <View style={styles.fileInfo}>
-                              <Text style={styles.fileName}>
+                              <Text
+                                style={[
+                                  styles.fileName,
+                                  message.isOwn && styles.ownFileName,
+                                ]}
+                              >
                                 {message.mediaFilename || "Attachment"}
                               </Text>
-                              <Text style={styles.fileSize}>
+                              <Text
+                                style={[
+                                  styles.fileSize,
+                                  message.isOwn && styles.ownFileSize,
+                                ]}
+                              >
                                 {message.mediaSize
                                   ? multimediaService.formatFileSize(
                                       message.mediaSize
@@ -836,7 +1227,17 @@ const MessagesScreen = ({ user, navigation, route }) => {
                                   : message.mediaMimeType || ""}
                               </Text>
                             </View>
-                          </View>
+                            <Ionicons
+                              name="download-outline"
+                              size={20}
+                              color={
+                                message.isOwn
+                                  ? "hsl(0, 0%, 0%)"
+                                  : "hsl(75, 100%, 60%)"
+                              }
+                              style={styles.downloadIcon}
+                            />
+                          </TouchableOpacity>
                         )}
                     </View>
                   ) : null}
@@ -1016,6 +1417,38 @@ const MessagesScreen = ({ user, navigation, route }) => {
               />
             )}
           </TouchableOpacity>
+        </Modal>
+
+        {/* Fullscreen Video Player Modal */}
+        <Modal
+          visible={!!fullscreenVideo}
+          transparent={false}
+          animationType="fade"
+          onRequestClose={() => setFullscreenVideo(null)}
+        >
+          <View style={styles.fullscreenVideoContainer}>
+            <TouchableOpacity
+              style={styles.fullscreenVideoCloseButton}
+              onPress={() => setFullscreenVideo(null)}
+            >
+              <Ionicons name="close" size={32} color="hsl(0, 0%, 100%)" />
+            </TouchableOpacity>
+            {fullscreenVideo && (
+              <Video
+                source={{ uri: fullscreenVideo }}
+                style={styles.fullscreenVideo}
+                useNativeControls={true}
+                resizeMode={Video.RESIZE_MODE_CONTAIN}
+                shouldPlay={true}
+                isLooping={false}
+                onError={(error) => {
+                  console.error("Video playback error:", error);
+                  Alert.alert("Error", "Failed to play video");
+                  setFullscreenVideo(null);
+                }}
+              />
+            )}
+          </View>
         </Modal>
 
         {/* Input */}
@@ -1485,10 +1918,27 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 4,
+    backgroundColor: "hsl(0, 0%, 15%)",
   },
   messageVideoThumbnail: {
     width: "100%",
     height: "100%",
+  },
+  videoPlaceholder: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 15%)",
+    borderRadius: 12,
+  },
+  videoPlaceholderText: {
+    color: "hsl(75, 100%, 60%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    marginTop: 8,
+    paddingHorizontal: 8,
+    textAlign: "center",
   },
   videoPlayOverlay: {
     position: "absolute",
@@ -1500,31 +1950,127 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  videoPlayButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  messageAudio: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 15%)",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 4,
+    minWidth: 200,
+    maxWidth: 280,
+  },
+  ownMessageAudio: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  audioPlayButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  ownAudioPlayButton: {
+    backgroundColor: "hsl(0, 0%, 100%)",
+  },
+  audioContent: {
+    flex: 1,
+  },
+  audioProgressBar: {
+    height: 3,
+    backgroundColor: "hsl(0, 0%, 25%)",
+    borderRadius: 2,
+    marginBottom: 6,
+    overflow: "hidden",
+  },
+  ownAudioProgressBar: {
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+  },
+  audioProgressFill: {
+    height: "100%",
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 2,
+  },
+  ownAudioProgressFill: {
+    backgroundColor: "hsl(0, 0%, 0%)",
+  },
+  audioInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  audioDuration: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+  },
+  ownAudioDuration: {
+    color: "hsl(0, 0%, 0%)",
+  },
+  otherAudioDuration: {
+    color: "hsl(0, 0%, 70%)",
+  },
   messageFile: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "hsl(0, 0%, 15%)",
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 12,
     marginBottom: 4,
-    maxWidth: 250,
+    maxWidth: 280,
+    minWidth: 200,
+  },
+  ownMessageFile: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  fileIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 20%)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  ownFileIconContainer: {
+    backgroundColor: "hsl(0, 0%, 100%)",
   },
   fileInfo: {
-    marginLeft: 12,
     flex: 1,
+    marginRight: 8,
   },
   fileName: {
     color: "hsl(0, 0%, 100%)",
     fontSize: 14,
     fontFamily: "Helvetica Neue",
     fontWeight: "500",
+    marginBottom: 2,
+  },
+  ownFileName: {
+    color: "hsl(0, 0%, 0%)",
   },
   fileSize: {
     color: "hsl(0, 0%, 60%)",
     fontSize: 12,
     fontFamily: "Helvetica Neue",
-    marginTop: 2,
+  },
+  ownFileSize: {
+    color: "hsl(0, 0%, 40%)",
+  },
+  downloadIcon: {
+    marginLeft: 4,
   },
   fullscreenImageContainer: {
     flex: 1,
@@ -1542,6 +2088,28 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 10,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullscreenVideoContainer: {
+    flex: 1,
+    backgroundColor: "hsl(0, 0%, 0%)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullscreenVideo: {
+    width: "100%",
+    height: "100%",
+  },
+  fullscreenVideoCloseButton: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 50 : 20,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     borderRadius: 20,
     width: 40,
     height: 40,

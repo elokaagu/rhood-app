@@ -1115,12 +1115,15 @@ export default function App() {
       });
 
       // Show lock screen notification for all platforms
+      // Get initial status to ensure we have duration
+      const initialStatus = await sound.getStatusAsync();
       await lockScreenControls.showLockScreenNotification({
         id: track.id,
         title: track.title || "R/HOOD Mix",
         artist: track.artist || "Unknown Artist",
         image: track.image || null,
         genre: track.genre || "Electronic",
+        durationMillis: initialStatus.durationMillis || 0,
       });
 
       console.log("🎉 Global audio started successfully:", track.title);
