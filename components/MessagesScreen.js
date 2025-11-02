@@ -61,7 +61,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         // Load messages for this thread
         console.log("🔍 Querying messages for thread:", currentThreadId);
         console.log("🔍 Current user ID:", user.id);
-        
+
         // First, try a simple query without joins to test RLS
         const { data: simpleData, error: simpleError } = await supabase
           .from("messages")
@@ -371,39 +371,72 @@ const MessagesScreen = ({ user, navigation, route }) => {
       setShowMediaPicker(false);
     } catch (error) {
       console.error(`❌ Error uploading ${label}:`, error);
-      const errorMessage =
-        error.message || `Failed to upload ${label}. Please try again.`;
-      
       Alert.alert(
         "Upload Error",
-        errorMessage,
-        [
-          {
-            text: "OK",
-            style: "default",
-          },
-        ]
+        error.message || `Failed to upload ${label}. Please try again.`
       );
     } finally {
       setUploadingMedia(false);
-      setShowMediaPicker(false);
     }
   }, []);
 
   const handleImageUpload = useCallback(async () => {
-    await selectAndUploadMedia(() => multimediaService.pickImage(), "photo");
+    try {
+      await selectAndUploadMedia(() => multimediaService.pickImage(), "photo");
+    } catch (error) {
+      console.error("❌ Error in handleImageUpload:", error);
+      Alert.alert(
+        "Image Upload Error",
+        error.message || "Failed to pick image. Please try again."
+      );
+      setUploadingMedia(false);
+      setShowMediaPicker(false);
+    }
   }, [selectAndUploadMedia]);
 
   const handleVideoUpload = useCallback(async () => {
-    await selectAndUploadMedia(() => multimediaService.pickVideo(), "video");
+    try {
+      await selectAndUploadMedia(() => multimediaService.pickVideo(), "video");
+    } catch (error) {
+      console.error("❌ Error in handleVideoUpload:", error);
+      Alert.alert(
+        "Video Upload Error",
+        error.message || "Failed to pick video. Please try again."
+      );
+      setUploadingMedia(false);
+      setShowMediaPicker(false);
+    }
   }, [selectAndUploadMedia]);
 
   const handleAudioUpload = useCallback(async () => {
-    await selectAndUploadMedia(() => multimediaService.pickAudio(), "audio");
+    try {
+      await selectAndUploadMedia(() => multimediaService.pickAudio(), "audio");
+    } catch (error) {
+      console.error("❌ Error in handleAudioUpload:", error);
+      Alert.alert(
+        "Audio Upload Error",
+        error.message || "Failed to pick audio. Please try again."
+      );
+      setUploadingMedia(false);
+      setShowMediaPicker(false);
+    }
   }, [selectAndUploadMedia]);
 
   const handleDocumentUpload = useCallback(async () => {
-    await selectAndUploadMedia(() => multimediaService.pickDocument(), "file");
+    try {
+      await selectAndUploadMedia(
+        () => multimediaService.pickDocument(),
+        "file"
+      );
+    } catch (error) {
+      console.error("❌ Error in handleDocumentUpload:", error);
+      Alert.alert(
+        "File Upload Error",
+        error.message || "Failed to pick file. Please try again."
+      );
+      setUploadingMedia(false);
+      setShowMediaPicker(false);
+    }
   }, [selectAndUploadMedia]);
 
   const clearSelectedMedia = useCallback(() => {
@@ -429,10 +462,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
     const messageContent = newMessage.trim();
     const mediaData = selectedMedia;
-    console.log("📤 Sending message:", { 
-      content: messageContent, 
-      chatType, 
-      djId, 
+    console.log("📤 Sending message:", {
+      content: messageContent,
+      chatType,
+      djId,
       communityId,
       userId: user.id,
       isConnected,
@@ -448,7 +481,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       if (chatType === "individual" && djId) {
         // Get thread ID (should already be set, but ensure it exists)
         let currentThreadId = threadId;
-        
+
         if (!currentThreadId) {
           console.log("🔍 Thread ID not set, fetching...");
           currentThreadId = await db.findOrCreateIndividualMessageThread(
@@ -466,8 +499,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         console.log("💾 Inserting message to database...");
         const messageInsertData = {
-            thread_id: currentThreadId,
-            sender_id: user.id,
+          thread_id: currentThreadId,
+          sender_id: user.id,
           content:
             messageContent ||
             (mediaData ? `${mediaData.type?.toUpperCase()} message` : ""),
@@ -498,7 +531,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
             details: error.details,
           });
           Alert.alert(
-            "Error", 
+            "Error",
             `Failed to send message: ${error.message || "Unknown error"}`
           );
           setNewMessage(messageContent);
@@ -508,15 +541,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("✅ Message sent successfully:", data.id);
-        
+
         // Reload messages to ensure UI updates
         setTimeout(() => {
           loadMessages();
         }, 300);
       } else if (chatType === "group" && communityId) {
         const groupMessageInsertData = {
-            community_id: communityId,
-            author_id: user.id,
+          community_id: communityId,
+          author_id: user.id,
           content:
             messageContent ||
             (mediaData ? `${mediaData.type?.toUpperCase()} message` : ""),
@@ -547,7 +580,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
             details: error.details,
           });
           Alert.alert(
-            "Error", 
+            "Error",
             `Failed to send message: ${error.message || "Unknown error"}`
           );
           setNewMessage(messageContent);
@@ -557,7 +590,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         console.log("✅ Group message sent:", data.id);
-        
+
         // Reload messages to ensure UI updates
         setTimeout(() => {
           loadMessages();
@@ -567,7 +600,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       console.error("❌ Error in sendMessage:", error);
       console.error("❌ Error stack:", error.stack);
       Alert.alert(
-        "Error", 
+        "Error",
         `Failed to send message: ${error.message || "Unknown error"}`
       );
       setNewMessage(messageContent);
@@ -714,11 +747,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
               >
                 {!message.isOwn && (
                   <View style={styles.messageHeader}>
-                  <ProgressiveImage
-                    source={{ uri: message.senderImage }}
-                    style={styles.messageAvatar}
-                    placeholderStyle={styles.messageAvatarPlaceholder}
-                  />
+                    <ProgressiveImage
+                      source={{ uri: message.senderImage }}
+                      style={styles.messageAvatar}
+                      placeholderStyle={styles.messageAvatarPlaceholder}
+                    />
                     <Text style={styles.senderName}>{message.senderName}</Text>
                   </View>
                 )}
@@ -765,7 +798,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                           <View style={styles.fileInfo}>
                             <Text style={styles.fileName}>
                               {message.mediaFilename || "Audio"}
-                    </Text>
+                            </Text>
                             <Text style={styles.fileSize}>
                               {message.mediaSize
                                 ? multimediaService.formatFileSize(
@@ -805,16 +838,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
                     </View>
                   ) : null}
                   {!!message.content && (
-                  <Text
-                    style={[
-                      styles.messageText,
+                    <Text
+                      style={[
+                        styles.messageText,
                         message.isOwn
                           ? styles.ownMessageText
                           : styles.otherMessageText,
-                    ]}
-                  >
-                    {message.content}
-                  </Text>
+                      ]}
+                    >
+                      {message.content}
+                    </Text>
                   )}
                   <Text
                     style={[
