@@ -4065,22 +4065,9 @@ export default function App() {
                   style={styles.audioTrackTitle}
                   containerWidth={200}
                 />
-                <TouchableOpacity
-                  onPress={() => {
-                    if (globalAudioState.currentTrack.user_id) {
-                      setCurrentScreen("user-profile");
-                      setScreenParams({
-                        userId: globalAudioState.currentTrack.user_id,
-                      });
-                    }
-                  }}
-                  activeOpacity={0.7}
-                  style={styles.artistNameTouchable}
-                >
-                  <Text style={styles.audioTrackArtist} numberOfLines={1}>
-                    {globalAudioState.currentTrack.artist}
-                  </Text>
-                </TouchableOpacity>
+                <Text style={styles.audioTrackArtist} numberOfLines={1}>
+                  {globalAudioState.currentTrack.artist}
+                </Text>
               </View>
 
               {/* Timer - Compact format */}
@@ -5871,12 +5858,6 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Light gray for artist
     fontWeight: "400",
-  },
-  artistNameTouchable: {
-    paddingVertical: 2,
-    paddingHorizontal: 0, // Remove horizontal padding for alignment
-    borderRadius: 4,
-    marginTop: 2,
   },
   audioControls: {
     flexDirection: "row",
