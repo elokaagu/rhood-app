@@ -38,10 +38,24 @@ export async function setupPlayer() {
   try {
     console.log("🎵 Initializing react-native-track-player...");
 
-    // Setup the player
+    // CRITICAL: setupPlayer() must be called first
+    // This initializes the native player and triggers the playback service to start
+    // The service function will register remote control event listeners
     await TrackPlayer.setupPlayer();
+    console.log("✅ TrackPlayer.setupPlayer() completed");
+
+    // CRITICAL: Wait for the playback service to finish registering listeners
+    // The service function runs asynchronously when TrackPlayer.setupPlayer() is called
+    // iOS requires listeners to be registered BEFORE updateOptions() sets capabilities
+    // This ensures the service is ready to receive remote control events
+    console.log("⏳ Waiting for playback service to register listeners...");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    console.log("✅ Service listeners should now be registered");
 
     // Configure capabilities for iOS lock screen and Control Center
+    // CRITICAL: These must be set AFTER the service has registered listeners
+    // and BEFORE any audio plays for remote controls to work
+    console.log("⚙️ Configuring TrackPlayer capabilities...");
     await TrackPlayer.updateOptions({
       capabilities: [
         Capability.Play,
@@ -58,14 +72,19 @@ export async function setupPlayer() {
         Capability.Pause,
         Capability.SkipToNext,
       ],
-      // iOS specific options
+      // iOS specific options - CRITICAL for remote control events
       iosCategory: "playback",
+      // The library handles category options internally when iosCategory is set
       // Android specific options
       android: {
         // Keep existing Android notification behavior
         alwaysShowNotification: Platform.OS === "android",
       },
     });
+
+    console.log(
+      "✅ Track player capabilities configured for remote control events"
+    );
 
     // Configure progress update interval (default is 1 second)
     // This controls how often we get progress updates for the lock screen
@@ -132,8 +151,12 @@ export async function playTrack(track) {
   try {
     console.log("🎵 Playing track:", track.title);
 
-    // Ensure player is initialized
+    // Ensure player is initialized (this sets up capabilities)
     await setupPlayer();
+
+    // CRITICAL: Small delay to ensure service is fully registered
+    // iOS requires the service to be active before playback starts
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Clear existing queue
     await TrackPlayer.reset();
@@ -141,8 +164,23 @@ export async function playTrack(track) {
     // Add the track
     await addTrack(track);
 
+    // Verify service is active before playing
+    const state = await TrackPlayer.getState();
+    console.log("📱 TrackPlayer state before play:", state);
+
     // Start playing
     await TrackPlayer.play();
+
+    // Verify playback started
+    const playState = await TrackPlayer.getState();
+    const State = require("react-native-track-player").State;
+    console.log(
+      "📱 TrackPlayer state after play:",
+      playState,
+      "Expected:",
+      State.Playing
+    );
+    console.log("📱 Is playing:", playState === State.Playing);
 
     console.log("✅ Track playing");
   } catch (error) {

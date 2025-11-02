@@ -32,8 +32,16 @@ export function setRemoteCallbacks(callbacks) {
 }
 
 export function setQueueCallbacks(callbacks) {
+  console.log("📞 setQueueCallbacks called with:", {
+    hasGetNextTrack: !!callbacks?.getNextTrack,
+    hasGetPreviousTrack: !!callbacks?.getPreviousTrack,
+  });
   getPlayNextTrack = callbacks.getNextTrack;
   getPlayPreviousTrack = callbacks.getPreviousTrack;
+  console.log("✅ Queue callbacks set:", {
+    getPlayNextTrack: typeof getPlayNextTrack,
+    getPlayPreviousTrack: typeof getPlayPreviousTrack,
+  });
 }
 
 module.exports = async function playbackService() {
@@ -47,89 +55,157 @@ module.exports = async function playbackService() {
 
   console.log("🎵 Playback service initializing...");
 
+  // CRITICAL: Ensure service is registered and ready before audio plays
+  // This is called when TrackPlayer.setupPlayer() is invoked
+  // IMPORTANT: This function is called by TrackPlayer when it initializes
+  // The listeners registered here will handle remote control events
+  console.log("✅ Background playback service started");
+
+  // Verify TrackPlayer instance is available
+  if (!TrackPlayer || typeof TrackPlayer.addEventListener !== "function") {
+    console.error(
+      "❌ TrackPlayer instance not available or addEventListener missing"
+    );
+    return;
+  }
+
   // CRITICAL: Register ALL listeners INSIDE the service function
   // This is where track-player expects them to be registered
+  // IMPORTANT: These listeners MUST be registered BEFORE updateOptions() is called
+  // iOS needs to see registered listeners when capabilities are set
+  // This ensures iOS knows the app is ready to receive remote control events
 
-  // Remote control event handlers - NEW APPROACH: Direct TrackPlayer control
+  // Remote control event handlers - Direct TrackPlayer control
   // Play/Pause: Direct TrackPlayer calls (simple and reliable)
   // Next/Previous: Use App.js callbacks via getter functions (no stale closures)
 
+  console.log("📱 Registering remote control event listeners for iOS...");
+
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
+    console.log("🎵🔵 REMOTE PLAY BUTTON PRESSED");
     try {
       const state = await TrackPlayer.getState();
+      console.log("🎵 Current state before play:", state, State.Playing);
       if (state !== State.Playing) {
         await TrackPlayer.play();
+        console.log("✅ Remote: Play command executed");
+      } else {
+        console.log("ℹ️ Already playing, no action needed");
       }
     } catch (error) {
       console.error("❌ Remote Play error:", error);
+      console.error("❌ Error stack:", error.stack);
     }
   });
 
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
+    console.log("🎵⏸️ REMOTE PAUSE BUTTON PRESSED");
     try {
       const state = await TrackPlayer.getState();
+      console.log("🎵 Current state before pause:", state, State.Playing);
       if (state === State.Playing) {
         await TrackPlayer.pause();
+        console.log("✅ Remote: Pause command executed");
+      } else {
+        console.log("ℹ️ Not playing, no action needed");
       }
     } catch (error) {
       console.error("❌ Remote Pause error:", error);
+      console.error("❌ Error stack:", error.stack);
     }
   });
 
   TrackPlayer.addEventListener(Event.RemoteNext, async () => {
+    console.log("🎵⏭️ REMOTE NEXT BUTTON PRESSED");
     try {
       // Use callback getter if available (accesses latest App.js function)
       if (getPlayNextTrack) {
+        console.log("📞 Using App.js callback for next track");
         const playNext = getPlayNextTrack();
-        if (playNext) {
+        if (playNext && typeof playNext === "function") {
           await playNext();
+          console.log("✅ Next track callback executed");
           return;
+        } else {
+          console.warn(
+            "⚠️ getPlayNextTrack returned non-function:",
+            typeof playNext
+          );
         }
+      } else {
+        console.warn("⚠️ getPlayNextTrack callback not set");
       }
       // Fallback: Try TrackPlayer's built-in queue navigation
+      console.log("📞 Falling back to TrackPlayer.skipToNext()");
       try {
         await TrackPlayer.skipToNext();
+        console.log("✅ TrackPlayer.skipToNext() executed");
       } catch (skipError) {
         // No next track in queue - that's okay
-        console.log("ℹ️ No next track in queue");
+        console.log("ℹ️ No next track in queue:", skipError.message);
       }
     } catch (error) {
       console.error("❌ Remote Next error:", error);
+      console.error("❌ Error stack:", error.stack);
     }
   });
 
   TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
+    console.log("🎵⏮️ REMOTE PREVIOUS BUTTON PRESSED");
     try {
       // Use callback getter if available (accesses latest App.js function)
       if (getPlayPreviousTrack) {
+        console.log("📞 Using App.js callback for previous track");
         const playPrev = getPlayPreviousTrack();
-        if (playPrev) {
+        if (playPrev && typeof playPrev === "function") {
           await playPrev();
+          console.log("✅ Previous track callback executed");
           return;
+        } else {
+          console.warn(
+            "⚠️ getPlayPreviousTrack returned non-function:",
+            typeof playPrev
+          );
         }
+      } else {
+        console.warn("⚠️ getPlayPreviousTrack callback not set");
       }
       // Fallback: Try TrackPlayer's built-in queue navigation
+      console.log("📞 Falling back to TrackPlayer.skipToPrevious()");
       try {
         await TrackPlayer.skipToPrevious();
+        console.log("✅ TrackPlayer.skipToPrevious() executed");
       } catch (skipError) {
         // No previous track in queue - that's okay
-        console.log("ℹ️ No previous track in queue");
+        console.log("ℹ️ No previous track in queue:", skipError.message);
       }
     } catch (error) {
       console.error("❌ Remote Previous error:", error);
+      console.error("❌ Error stack:", error.stack);
     }
   });
 
   TrackPlayer.addEventListener(Event.RemoteSeek, async (event) => {
     console.log("🎵 Remote: Seek", event.position);
     try {
+      // Directly seek using TrackPlayer
       await TrackPlayer.seekTo(event.position);
+
+      // Optionally notify UI about seek (if callback is set)
+      // Note: The UI should update automatically from progress events
       if (remoteCallbacks.onSeek) {
-        await remoteCallbacks.onSeek(event.position);
+        try {
+          await remoteCallbacks.onSeek(event.position);
+        } catch (callbackError) {
+          // Don't fail if callback errors - seeking still succeeded
+          console.warn("⚠️ onSeek callback error:", callbackError);
+        }
       }
+
       console.log("✅ Remote: Seek command handled");
     } catch (error) {
       console.error("❌ Remote: Seek command failed:", error);
+      console.error("❌ Error stack:", error.stack);
     }
   });
 
@@ -243,5 +319,9 @@ module.exports = async function playbackService() {
     playbackState: true,
     playbackTrackChanged: true,
     playbackProgressUpdated: true,
+  });
+  console.log("📞 Queue callback status:", {
+    getPlayNextTrack: typeof getPlayNextTrack,
+    getPlayPreviousTrack: typeof getPlayPreviousTrack,
   });
 };

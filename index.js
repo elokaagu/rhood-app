@@ -13,14 +13,19 @@ import { registerRootComponent } from "expo";
 import App from "./App";
 
 // Register the playback service for background audio and remote controls
+// CRITICAL: This MUST be called at app startup, BEFORE any audio plays
 // Only register if react-native-track-player is available (requires native build)
 try {
   const TrackPlayer = require("react-native-track-player");
   if (TrackPlayer && TrackPlayer.registerPlaybackService) {
+    // Register the service - this makes iOS recognize the app for remote control events
     TrackPlayer.registerPlaybackService(() =>
       require("./src/audio/playbackService")
     );
-    console.log("✅ Track player playback service registered");
+    console.log("✅ Track player playback service registered at app startup");
+    console.log("📱 iOS will now send remote control events to this service");
+  } else {
+    console.warn("⚠️ TrackPlayer.registerPlaybackService not available");
   }
 } catch (error) {
   console.warn("⚠️ Track player not available:", error.message);

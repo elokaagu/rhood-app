@@ -1040,10 +1040,15 @@ export default function App() {
           throw new Error("Audio URL is missing");
         }
 
-        // Ensure player is initialized
+        // CRITICAL: Ensure player is set up BEFORE playing
+        // setupPlayer() waits for the service to register listeners,
+        // then sets capabilities, ensuring proper order for iOS remote controls
         await trackPlayer.setupPlayer();
 
-        // Play track with metadata for native iOS controls
+        console.log(
+          "📱 Starting playback via TrackPlayer - iOS remote controls should now work"
+        );
+
         await trackPlayer.playTrack({
           id: track.id || `track-${Date.now()}`,
           url: audioUrl,
@@ -2345,11 +2350,36 @@ export default function App() {
   // This ensures getters always return the latest function versions
   useEffect(() => {
     if (setQueueCallbacks && playNextTrack && playPreviousTrack) {
+      console.log("📞 Setting up queue callbacks:", {
+        hasSetQueueCallbacks: !!setQueueCallbacks,
+        hasPlayNextTrack: !!playNextTrack,
+        hasPlayPreviousTrack: !!playPreviousTrack,
+        playNextTrackType: typeof playNextTrack,
+        playPreviousTrackType: typeof playPreviousTrack,
+      });
       setQueueCallbacks({
-        getNextTrack: () => playNextTrack,
-        getPreviousTrack: () => playPreviousTrack,
+        getNextTrack: () => {
+          console.log(
+            "📞 getNextTrack getter called, returning:",
+            typeof playNextTrack
+          );
+          return playNextTrack;
+        },
+        getPreviousTrack: () => {
+          console.log(
+            "📞 getPreviousTrack getter called, returning:",
+            typeof playPreviousTrack
+          );
+          return playPreviousTrack;
+        },
       });
       console.log("✅ Queue navigation callbacks registered");
+    } else {
+      console.warn("⚠️ Cannot set queue callbacks:", {
+        hasSetQueueCallbacks: !!setQueueCallbacks,
+        hasPlayNextTrack: !!playNextTrack,
+        hasPlayPreviousTrack: !!playPreviousTrack,
+      });
     }
   }, [playNextTrack, playPreviousTrack]);
 
