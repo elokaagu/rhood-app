@@ -808,177 +808,19 @@ export default function App() {
         );
       }
 
-      // Set up remote control callbacks for track-player
-      // These callbacks handle lock screen, Control Center, AirPods, etc.
+      // Remote control callbacks - REMOVED: buttons not working, disabled for now
+      // Keep basic state/progress updates but remove button handlers
       if (setRemoteCallbacks) {
         setRemoteCallbacks({
-          onPlayPause: async () => {
-            try {
-              console.log("🎵 REMOTE CALLBACK: onPlayPause called");
-              // Use ref to get latest state (not stale closure)
-              const currentState = globalAudioStateRef.current;
-              // Use the exact same logic as in-app buttons
-              if (
-                Platform.OS === "ios" &&
-                trackPlayer &&
-                currentState.currentTrack
-              ) {
-                try {
-                  const TrackPlayerModule = require("react-native-track-player");
-                  const TrackPlayerInstance =
-                    TrackPlayerModule.default || TrackPlayerModule;
-                  const TrackPlayerState = TrackPlayerModule.State;
-
-                  const currentState = await TrackPlayerInstance.getState();
-                  const isCurrentlyPlaying =
-                    currentState === TrackPlayerState.Playing;
-
-                  console.log("🎵 Remote play/pause state:", {
-                    currentState,
-                    isCurrentlyPlaying,
-                  });
-
-                  if (isCurrentlyPlaying) {
-                    await TrackPlayerInstance.pause();
-                    setGlobalAudioState((prev) => ({
-                      ...prev,
-                      isPlaying: false,
-                    }));
-                  } else {
-                    await TrackPlayerInstance.play();
-                    setGlobalAudioState((prev) => ({
-                      ...prev,
-                      isPlaying: true,
-                    }));
-                  }
-
-                  // Re-verify after a moment (same as in-app buttons)
-                  setTimeout(async () => {
-                    try {
-                      const verifiedState =
-                        await TrackPlayerInstance.getState();
-                      const verifiedPlaying =
-                        verifiedState === TrackPlayerState.Playing;
-                      setGlobalAudioState((prev) => ({
-                        ...prev,
-                        isPlaying: verifiedPlaying,
-                      }));
-                    } catch (err) {
-                      // Ignore verification errors
-                    }
-                  }, 300);
-                } catch (error) {
-                  console.error(
-                    "❌ Remote play/pause direct control error:",
-                    error
-                  );
-                  // Fallback to global functions if direct control fails
-                  // Use refs to get latest functions
-                  if (currentState?.isPlaying) {
-                    if (pauseGlobalAudioRef.current) {
-                      await pauseGlobalAudioRef.current();
-                    } else {
-                      await pauseGlobalAudio();
-                    }
-                  } else {
-                    if (resumeGlobalAudioRef.current) {
-                      await resumeGlobalAudioRef.current();
-                    } else {
-                      await resumeGlobalAudio();
-                    }
-                  }
-                }
-              } else {
-                // Android: Use global functions via refs
-                if (currentState?.isPlaying) {
-                  if (pauseGlobalAudioRef.current) {
-                    await pauseGlobalAudioRef.current();
-                  } else {
-                    await pauseGlobalAudio();
-                  }
-                } else {
-                  if (resumeGlobalAudioRef.current) {
-                    await resumeGlobalAudioRef.current();
-                  } else {
-                    await resumeGlobalAudio();
-                  }
-                }
-              }
-            } catch (error) {
-              console.error("❌ Remote play/pause callback error:", error);
-            }
-          },
-          onNext: async () => {
-            try {
-              console.log("🎵 REMOTE CALLBACK: onNext called");
-              // Use ref to get latest function (not stale closure)
-              if (playNextTrackRef.current) {
-                await playNextTrackRef.current();
-              } else {
-                // Fallback to skipForward if ref not set yet
-                await skipForward();
-              }
-            } catch (error) {
-              console.error("❌ Remote Next error:", error);
-            }
-          },
-          onPrevious: async () => {
-            try {
-              console.log("🎵 REMOTE CALLBACK: onPrevious called");
-              // Use ref to get latest function (not stale closure)
-              if (playPreviousTrackRef.current) {
-                await playPreviousTrackRef.current();
-              } else {
-                // Fallback to skipBackward if ref not set yet
-                await skipBackward();
-              }
-            } catch (error) {
-              console.error("❌ Remote Previous error:", error);
-            }
-          },
-          onSeek: async (position) => {
-            try {
-              // position is in seconds from track-player
-              const positionMillis = position * 1000;
-              if (trackPlayer && Platform.OS === "ios") {
-                // iOS: Seek directly via track-player
-                const TrackPlayerModule = require("react-native-track-player");
-                const TrackPlayerInstance =
-                  TrackPlayerModule.default || TrackPlayerModule;
-
-                await TrackPlayerInstance.seekTo(position);
-
-                // Update state immediately
-                setGlobalAudioState((prev) => ({
-                  ...prev,
-                  positionMillis,
-                  progress:
-                    prev.durationMillis > 0
-                      ? positionMillis / prev.durationMillis
-                      : 0,
-                }));
-
-                console.log("✅ Remote: Seeked to", position, "seconds");
-              } else {
-                // Android: Use wrapper function
-                await seekGlobalAudio(
-                  positionMillis - (globalAudioState.positionMillis || 0)
-                );
-              }
-            } catch (error) {
-              console.error("❌ Remote seek callback error:", error);
-            }
-          },
           onStateChange: async (stateData) => {
             try {
-              // Update UI state immediately when playback state changes from ANY source
-              // This ensures both in-app UI and lock screen stay in sync
+              // Update UI state immediately when playback state changes
               setGlobalAudioState((prev) => {
                 if (!prev.currentTrack) return prev;
 
                 const newState = {
                   ...prev,
-                  isPlaying: stateData.isPlaying, // Critical: update immediately
+                  isPlaying: stateData.isPlaying,
                   positionMillis: stateData.position * 1000,
                   durationMillis: stateData.duration * 1000,
                   progress:
@@ -986,16 +828,6 @@ export default function App() {
                       ? stateData.position / stateData.duration
                       : 0,
                 };
-
-                console.log("🔄 State updated from track-player event:", {
-                  isPlaying: newState.isPlaying,
-                  position: newState.positionMillis,
-                  duration: newState.durationMillis,
-                });
-
-                // iOS: track-player automatically updates lock screen via MPNowPlayingInfoCenter
-                // The state change in track-player is what drives the lock screen controls
-                // No manual update needed - track-player handles it automatically
 
                 return newState;
               });
@@ -1023,13 +855,7 @@ export default function App() {
               // Silently ignore progress update errors
             }
           },
-          onTrackChanged: async (track) => {
-            // Track changes are handled by playNextTrack/playPreviousTrack
-          },
         });
-        console.log("✅ Remote callbacks registered successfully");
-      } else {
-        console.warn("⚠️ setRemoteCallbacks function not available");
       }
     } catch (error) {
       console.log("❌ Error setting up global audio:", error);
