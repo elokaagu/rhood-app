@@ -96,6 +96,15 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
           return;
         }
 
+        // Additional check: Warn if file is close to common bucket limits
+        // (Some buckets might be configured with lower limits)
+        if (file.size > 100 * 1024 * 1024) {
+          // Over 100MB
+          console.log(
+            `⚠️ Large file detected: ${fileSizeMB}MB - ensure bucket allows files this size`
+          );
+        }
+
         console.log("✅ File size within limits");
 
         // Check audio duration - removed duration limit to allow mixes of all lengths
@@ -346,13 +355,19 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         // Provide user-friendly error messages
         if (
           uploadError.message.includes("exceeded maximum size") ||
-          uploadError.message.includes("too large")
+          uploadError.message.includes("too large") ||
+          uploadError.message.includes("file size limit") ||
+          uploadError.message.includes("Object exceeded maximum size")
         ) {
+          const fileSizeMB = (selectedFile.size / 1024 / 1024).toFixed(2);
           throw new Error(
-            `File too large: ${(selectedFile.size / 1024 / 1024).toFixed(
-              2
-            )}MB. ` +
-              `Maximum allowed size is 5GB on Pro tier. Please check your file size or contact support.`
+            `File too large: ${fileSizeMB}MB.\n\n` +
+              `The storage bucket may have a lower limit configured.\n\n` +
+              `To fix this:\n` +
+              `1. Go to Supabase Dashboard > Storage > mixes bucket\n` +
+              `2. Click Settings and update "File size limit" to 5120 MB (5GB)\n` +
+              `3. Try uploading again\n\n` +
+              `Or check: database/check-and-fix-mixes-bucket-limit.sql`
           );
         } else if (uploadError.message.includes("quota")) {
           throw new Error(

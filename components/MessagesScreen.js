@@ -20,7 +20,7 @@ import { supabase, db } from "../lib/supabase";
 import { multimediaService } from "../lib/multimediaService";
 import ProgressiveImage from "./ProgressiveImage";
 import { Audio, Video } from "expo-av";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as WebBrowser from "expo-web-browser";
 
 const MessagesScreen = ({ user, navigation, route }) => {
@@ -421,7 +421,61 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   const handleAudioUpload = useCallback(async () => {
     try {
-      await selectAndUploadMedia(() => multimediaService.pickAudio(), "audio");
+      setShowMediaPicker(false);
+
+      // First, pick the audio file
+      const pickedAudio = await multimediaService.pickAudio();
+      if (!pickedAudio) {
+        return;
+      }
+
+      // Prompt user for audio label/name
+      Alert.prompt(
+        "Audio Label",
+        "Enter a name for this audio file:",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => {
+              setUploadingMedia(false);
+            },
+          },
+          {
+            text: "OK",
+            onPress: async (audioLabel) => {
+              try {
+                setUploadingMedia(true);
+
+                // Use user-provided label or fall back to original filename
+                const filename = audioLabel?.trim() || pickedAudio.filename;
+                const audioWithLabel = {
+                  ...pickedAudio,
+                  filename: filename.endsWith(`.${pickedAudio.extension}`)
+                    ? filename
+                    : `${filename}.${pickedAudio.extension || "mp3"}`,
+                };
+
+                // Upload with the labeled filename
+                await selectAndUploadMedia(
+                  () => Promise.resolve(audioWithLabel),
+                  "audio"
+                );
+              } catch (error) {
+                console.error("❌ Error uploading audio:", error);
+                Alert.alert(
+                  "Audio Upload Error",
+                  error.message || "Failed to upload audio. Please try again."
+                );
+                setUploadingMedia(false);
+              }
+            },
+          },
+        ],
+        "plain-text",
+        pickedAudio.filename.replace(/\.[^/.]+$/, ""), // Default to filename without extension
+        "default"
+      );
     } catch (error) {
       console.error("❌ Error in handleAudioUpload:", error);
       Alert.alert(
@@ -578,12 +632,25 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
       // Create downloads directory if it doesn't exist
       const downloadsDir = `${FileSystem.documentDirectory}Downloads/`;
-      const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(downloadsDir, {
-          intermediates: true,
-        });
-        console.log("📁 Created Downloads directory");
+      try {
+        const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
+        if (!dirInfo.exists) {
+          await FileSystem.makeDirectoryAsync(downloadsDir, {
+            intermediates: true,
+          });
+          console.log("📁 Created Downloads directory");
+        }
+      } catch (dirError) {
+        // Directory check failed, try to create it
+        try {
+          await FileSystem.makeDirectoryAsync(downloadsDir, {
+            intermediates: true,
+          });
+          console.log("📁 Created Downloads directory (after check failed)");
+        } catch (createError) {
+          console.warn("⚠️ Could not create Downloads directory:", createError);
+          // Continue anyway - download might still work
+        }
       }
 
       // Generate file path
@@ -1147,24 +1214,42 @@ const MessagesScreen = ({ user, navigation, route }) => {
                               />
                             </View>
                             <View style={styles.audioInfoRow}>
-                              <Text
-                                style={[
-                                  styles.audioDuration,
-                                  message.isOwn
-                                    ? styles.ownAudioDuration
-                                    : styles.otherAudioDuration,
-                                ]}
-                              >
-                                {playingAudioId === message.id
-                                  ? formatDuration(
-                                      audioProgress[message.id] || 0
-                                    )
-                                  : "0:00"}{" "}
-                                /{" "}
-                                {formatDuration(
-                                  audioDurations[message.id] || 0
+                              <View style={styles.audioLabelContainer}>
+                                {message.mediaFilename && (
+                                  <Text
+                                    style={[
+                                      styles.audioLabel,
+                                      message.isOwn
+                                        ? styles.ownAudioLabel
+                                        : styles.otherAudioLabel,
+                                    ]}
+                                    numberOfLines={1}
+                                  >
+                                    {message.mediaFilename.replace(
+                                      /\.[^/.]+$/,
+                                      ""
+                                    )}
+                                  </Text>
                                 )}
-                              </Text>
+                                <Text
+                                  style={[
+                                    styles.audioDuration,
+                                    message.isOwn
+                                      ? styles.ownAudioDuration
+                                      : styles.otherAudioDuration,
+                                  ]}
+                                >
+                                  {playingAudioId === message.id
+                                    ? formatDuration(
+                                        audioProgress[message.id] || 0
+                                      )
+                                    : "0:00"}{" "}
+                                  /{" "}
+                                  {formatDuration(
+                                    audioDurations[message.id] || 0
+                                  )}
+                                </Text>
+                              </View>
                             </View>
                           </View>
                         </View>
@@ -2009,14 +2094,31 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    width: "100%",
   },
-  audioDuration: {
-    fontSize: 12,
+  audioLabelContainer: {
+    flex: 1,
+    marginRight: 8,
+  },
+  audioLabel: {
+    fontSize: 13,
     fontFamily: "Helvetica Neue",
     fontWeight: "500",
+    marginBottom: 2,
+  },
+  ownAudioLabel: {
+    color: "hsl(0, 0%, 0%)",
+  },
+  otherAudioLabel: {
+    color: "hsl(75, 100%, 60%)",
+  },
+  audioDuration: {
+    fontSize: 11,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "400",
   },
   ownAudioDuration: {
-    color: "hsl(0, 0%, 0%)",
+    color: "hsl(0, 0%, 40%)",
   },
   otherAudioDuration: {
     color: "hsl(0, 0%, 70%)",
