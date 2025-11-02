@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase, db } from "../lib/supabase";
@@ -36,6 +37,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
+  const [fullscreenImage, setFullscreenImage] = useState(null);
 
   // Refs
   const scrollViewRef = useRef(null);
@@ -501,9 +503,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         const messageInsertData = {
           thread_id: currentThreadId,
           sender_id: user.id,
-          content:
-            messageContent ||
-            (mediaData ? `${mediaData.type?.toUpperCase()} message` : ""),
+          content: messageContent || "",
           message_type: mediaData ? mediaData.type : "text",
         };
 
@@ -550,9 +550,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         const groupMessageInsertData = {
           community_id: communityId,
           author_id: user.id,
-          content:
-            messageContent ||
-            (mediaData ? `${mediaData.type?.toUpperCase()} message` : ""),
+          content: messageContent || "",
           message_type: mediaData ? mediaData.type : "text",
         };
 
@@ -764,11 +762,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   {message.messageType !== "text" && message.mediaUrl ? (
                     <View style={styles.mediaContent}>
                       {message.messageType === "image" && (
-                        <Image
-                          source={{ uri: message.mediaUrl }}
-                          style={styles.messageImage}
-                          resizeMode="cover"
-                        />
+                        <TouchableOpacity
+                          onPress={() => setFullscreenImage(message.mediaUrl)}
+                          activeOpacity={0.9}
+                        >
+                          <Image
+                            source={{ uri: message.mediaUrl }}
+                            style={styles.messageImage}
+                            resizeMode="cover"
+                          />
+                        </TouchableOpacity>
                       )}
                       {message.messageType === "video" && (
                         <View style={styles.messageVideo}>
@@ -837,7 +840,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                         )}
                     </View>
                   ) : null}
-                  {!!message.content && (
+                  {!!message.content && message.content.trim() && (
                     <Text
                       style={[
                         styles.messageText,
@@ -986,6 +989,34 @@ const MessagesScreen = ({ user, navigation, route }) => {
             </View>
           </View>
         )}
+
+        {/* Fullscreen Image Modal */}
+        <Modal
+          visible={!!fullscreenImage}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setFullscreenImage(null)}
+        >
+          <TouchableOpacity
+            style={styles.fullscreenImageContainer}
+            activeOpacity={1}
+            onPress={() => setFullscreenImage(null)}
+          >
+            <TouchableOpacity
+              style={styles.fullscreenImageCloseButton}
+              onPress={() => setFullscreenImage(null)}
+            >
+              <Ionicons name="close" size={32} color="hsl(0, 0%, 100%)" />
+            </TouchableOpacity>
+            {fullscreenImage && (
+              <Image
+                source={{ uri: fullscreenImage }}
+                style={styles.fullscreenImage}
+                resizeMode="contain"
+              />
+            )}
+          </TouchableOpacity>
+        </Modal>
 
         {/* Input */}
         {chatType === "individual" && !isConnected ? (
@@ -1494,6 +1525,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Helvetica Neue",
     marginTop: 2,
+  },
+  fullscreenImageContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullscreenImage: {
+    width: "100%",
+    height: "100%",
+  },
+  fullscreenImageCloseButton: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 50 : 20,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
