@@ -795,12 +795,17 @@ export default function App() {
       }
 
       // Set up remote control callbacks for track-player
+      // These callbacks handle lock screen, Control Center, AirPods, etc.
       if (setRemoteCallbacks) {
         setRemoteCallbacks({
           onPlayPause: async () => {
-            try {
-              // iOS: Control track-player directly - don't use wrapper functions
-              if (Platform.OS === "ios" && trackPlayer) {
+            // Use the exact same logic as in-app buttons
+            if (
+              Platform.OS === "ios" &&
+              trackPlayer &&
+              globalAudioState.currentTrack
+            ) {
+              try {
                 const TrackPlayerModule = require("react-native-track-player");
                 const TrackPlayerInstance =
                   TrackPlayerModule.default || TrackPlayerModule;
@@ -810,50 +815,55 @@ export default function App() {
                 const isCurrentlyPlaying =
                   currentState === TrackPlayerState.Playing;
 
-                console.log(
-                  "🎵 Remote play/pause - current state:",
-                  currentState,
-                  "isPlaying:",
-                  isCurrentlyPlaying
-                );
-
                 if (isCurrentlyPlaying) {
                   await TrackPlayerInstance.pause();
                   setGlobalAudioState((prev) => ({
                     ...prev,
                     isPlaying: false,
                   }));
-                  console.log("✅ Remote: Paused directly");
                 } else {
                   await TrackPlayerInstance.play();
                   setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
-                  console.log("✅ Remote: Resumed directly");
                 }
-              } else {
-                // Android: Use wrapper functions
+
+                // Re-verify after a moment (same as in-app buttons)
+                setTimeout(async () => {
+                  try {
+                    const verifiedState = await TrackPlayerInstance.getState();
+                    const verifiedPlaying =
+                      verifiedState === TrackPlayerState.Playing;
+                    setGlobalAudioState((prev) => ({
+                      ...prev,
+                      isPlaying: verifiedPlaying,
+                    }));
+                  } catch (err) {
+                    // Ignore verification errors
+                  }
+                }, 300);
+              } catch (error) {
+                // Fallback to global functions if direct control fails
                 if (globalAudioState?.isPlaying) {
                   await pauseGlobalAudio();
                 } else {
                   await resumeGlobalAudio();
                 }
               }
-            } catch (error) {
-              console.error("❌ Remote play/pause callback error:", error);
+            } else {
+              // Android: Use global functions
+              if (globalAudioState?.isPlaying) {
+                await pauseGlobalAudio();
+              } else {
+                await resumeGlobalAudio();
+              }
             }
           },
           onNext: async () => {
-            try {
-              await playNextTrack();
-            } catch (error) {
-              console.error("❌ Remote next callback error:", error);
-            }
+            // Use the exact same function as in-app buttons (includes haptics)
+            await skipForward();
           },
           onPrevious: async () => {
-            try {
-              await playPreviousTrack();
-            } catch (error) {
-              console.error("❌ Remote previous callback error:", error);
-            }
+            // Use the exact same function as in-app buttons (includes haptics)
+            await skipBackward();
           },
           onSeek: async (position) => {
             try {
@@ -943,13 +953,7 @@ export default function App() {
             }
           },
           onTrackChanged: async (track) => {
-            try {
-              // Handle track changes from lock screen
-              console.log("🎵 Track changed from lock screen:", track?.title);
-              // You could update the current track here if needed
-            } catch (error) {
-              console.warn("⚠️ Error handling track change:", error);
-            }
+            // Track changes are handled by playNextTrack/playPreviousTrack
           },
         });
       }
@@ -2380,41 +2384,27 @@ export default function App() {
 
   const playNextTrack = async () => {
     const nextTrack = getNextTrack();
-
     if (nextTrack) {
-      console.log(`⏭️ Playing next track: "${nextTrack.title}"`);
-
-      // Update queue index
       setGlobalAudioState((prev) => ({
         ...prev,
         currentQueueIndex: prev.currentQueueIndex + 1,
       }));
-
-      // Play the next track
       await playGlobalAudio(nextTrack);
     } else {
-      console.log("🎵 No more tracks in queue");
-      // Stop playback when queue is empty
       await stopGlobalAudio();
     }
   };
 
   const playPreviousTrack = async () => {
     const prevTrack = getPreviousTrack();
-
     if (prevTrack) {
-      console.log(`⏮️ Playing previous track: "${prevTrack.title}"`);
-
-      // Update queue index
       setGlobalAudioState((prev) => ({
         ...prev,
         currentQueueIndex: prev.currentQueueIndex - 1,
       }));
-
-      // Play the previous track
       await playGlobalAudio(prevTrack);
-    } else {
-      console.log("🎵 No previous tracks in queue");
+    } else if (globalAudioState.currentTrack) {
+      await seekGlobalAudio(-999999);
     }
   };
 

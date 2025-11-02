@@ -41,60 +41,37 @@ module.exports = async function playbackService() {
   // CRITICAL: Register ALL listeners INSIDE the service function
   // This is where track-player expects them to be registered
 
-  // Remote control event handlers - these MUST be registered in the service
+  // Remote control event handlers - handle lock screen, Control Center, AirPods, etc.
+
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    console.log("🎵 Remote: Play");
-    try {
-      if (remoteCallbacks.onPlayPause) {
-        await remoteCallbacks.onPlayPause();
-      } else {
-        await TrackPlayer.play();
-      }
-      console.log("✅ Remote: Play command handled");
-    } catch (error) {
-      console.error("❌ Remote: Play command failed:", error);
+    if (remoteCallbacks.onPlayPause) {
+      await remoteCallbacks.onPlayPause();
+    } else {
+      await TrackPlayer.play();
     }
   });
 
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    console.log("🎵 Remote: Pause");
-    try {
-      if (remoteCallbacks.onPlayPause) {
-        await remoteCallbacks.onPlayPause();
-      } else {
-        await TrackPlayer.pause();
-      }
-      console.log("✅ Remote: Pause command handled");
-    } catch (error) {
-      console.error("❌ Remote: Pause command failed:", error);
+    if (remoteCallbacks.onPlayPause) {
+      await remoteCallbacks.onPlayPause();
+    } else {
+      await TrackPlayer.pause();
     }
   });
 
   TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-    console.log("🎵 Remote: Next");
-    try {
-      if (remoteCallbacks.onNext) {
-        await remoteCallbacks.onNext();
-      } else {
-        await TrackPlayer.skipToNext();
-      }
-      console.log("✅ Remote: Next command handled");
-    } catch (error) {
-      console.error("❌ Remote: Next command failed:", error);
+    if (remoteCallbacks.onNext) {
+      await remoteCallbacks.onNext();
+    } else {
+      await TrackPlayer.skipToNext();
     }
   });
 
   TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-    console.log("🎵 Remote: Previous");
-    try {
-      if (remoteCallbacks.onPrevious) {
-        await remoteCallbacks.onPrevious();
-      } else {
-        await TrackPlayer.skipToPrevious();
-      }
-      console.log("✅ Remote: Previous command handled");
-    } catch (error) {
-      console.error("❌ Remote: Previous command failed:", error);
+    if (remoteCallbacks.onPrevious) {
+      await remoteCallbacks.onPrevious();
+    } else {
+      await TrackPlayer.skipToPrevious();
     }
   });
 
