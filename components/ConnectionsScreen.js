@@ -167,6 +167,27 @@ export default function ConnectionsScreen({
       const connectionsMap = {};
       if (connectionsData && connectionsData.length > 0) {
         connectionsData.forEach((conn) => {
+          // Log connection data for debugging
+          console.log("🔍 Connection data:", {
+            id: conn.connected_user_id,
+            name: conn.connected_user_name,
+            image: conn.connected_user_image,
+            hasImage: !!conn.connected_user_image,
+          });
+
+          // Ensure profileImage is a valid URL string or null
+          let profileImage = conn.connected_user_image || null;
+          if (
+            profileImage &&
+            typeof profileImage === "string" &&
+            profileImage.trim()
+          ) {
+            // Ensure it's a valid URL
+            profileImage = profileImage.trim();
+          } else {
+            profileImage = null;
+          }
+
           connectionsMap[conn.connected_user_id] = {
             id: conn.connected_user_id,
             name: conn.connected_user_name,
@@ -181,7 +202,7 @@ export default function ConnectionsScreen({
               conn.connected_user_location ||
               "Location not set",
             genres: conn.connected_user_genres || [],
-            profileImage: conn.connected_user_image || null,
+            profileImage: profileImage,
             rating: conn.connected_user_rating || 0,
             gigsCompleted: conn.connected_user_gigs || 0,
             lastActive: "Recently",
@@ -550,7 +571,22 @@ export default function ConnectionsScreen({
         const isConnected =
           connectionInfo && connectionInfo.status === "accepted";
 
-        return {
+        // Ensure profileImage is properly formatted
+        let profileImage = user.profile_image_url || null;
+        if (profileImage && typeof profileImage === "string") {
+          profileImage = profileImage.trim();
+          if (
+            profileImage === "" ||
+            profileImage === "null" ||
+            profileImage === "undefined"
+          ) {
+            profileImage = null;
+          }
+        } else {
+          profileImage = null;
+        }
+
+        const formattedUser = {
           id: user.id,
           name: user.dj_name || user.full_name || "Unknown DJ",
           username: user.username
@@ -560,7 +596,7 @@ export default function ConnectionsScreen({
                 .replace(/\s+/g, "")}`,
           location: user.city || user.location || "Location not set",
           genres: user.genres || [],
-          profileImage: user.profile_image_url || null,
+          profileImage: profileImage,
           gigsCompleted: user.gigs_completed || 0,
           lastActive: "Recently",
           status: "online",
@@ -570,6 +606,16 @@ export default function ConnectionsScreen({
           connectionStatus: connectionInfo?.status || null,
           connectionId: connectionInfo ? user.id : null,
         };
+
+        // Log for debugging
+        if (profileImage) {
+          console.log(
+            `🖼️ Discover user ${formattedUser.name} has profileImage:`,
+            profileImage
+          );
+        }
+
+        return formattedUser;
       });
 
       setDiscoverUsers(formattedDiscoverUsers);
@@ -974,8 +1020,10 @@ export default function ConnectionsScreen({
                         <View style={styles.avatarContainer}>
                           <ProgressiveImage
                             source={
-                              connection.profileImage
-                                ? { uri: connection.profileImage }
+                              connection.profileImage &&
+                              typeof connection.profileImage === "string" &&
+                              connection.profileImage.trim()
+                                ? { uri: connection.profileImage.trim() }
                                 : null
                             }
                             style={styles.profileImage}
@@ -1051,8 +1099,9 @@ export default function ConnectionsScreen({
                           <ProgressiveImage
                             source={
                               user.profileImage &&
-                              typeof user.profileImage === "string"
-                                ? { uri: user.profileImage }
+                              typeof user.profileImage === "string" &&
+                              user.profileImage.trim()
+                                ? { uri: user.profileImage.trim() }
                                 : null
                             }
                             style={styles.discoverProfileImage}

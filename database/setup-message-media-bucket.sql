@@ -11,7 +11,35 @@ CREATE POLICY "Allow authenticated uploads to message-media"
 ON storage.objects
 FOR INSERT
 TO authenticated
-WITH CHECK (bucket_id = 'message-media');
+WITH CHECK (bucket_id = 'message-media');kn
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- Policy: Allow authenticated users to view files
 CREATE POLICY "Allow authenticated downloads from message-media"
