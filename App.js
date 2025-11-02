@@ -72,6 +72,7 @@ import AboutScreen from "./components/AboutScreen";
 import TermsOfServiceScreen from "./components/TermsOfServiceScreen";
 import PrivacyPolicyScreen from "./components/PrivacyPolicyScreen";
 import HelpCenterScreen from "./components/HelpCenterScreen";
+import LockScreenTest from "./components/LockScreenTest";
 // Push notifications - gracefully handle Expo Go limitations
 import {
   registerForPushNotifications,
@@ -3043,6 +3044,18 @@ export default function App() {
 
       case "help":
         return <HelpCenterScreen onBack={() => setCurrentScreen("settings")} />;
+
+      case "lock-screen-test":
+        return (
+          <LockScreenTest
+            onBack={() => setCurrentScreen("settings")}
+            globalAudioState={globalAudioState}
+            onPlayAudio={playGlobalAudio}
+            onPauseAudio={pauseGlobalAudio}
+            onResumeAudio={resumeGlobalAudio}
+            onStopAudio={stopGlobalAudio}
+          />
+        );
 
       case "listen":
         return (

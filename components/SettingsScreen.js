@@ -62,23 +62,23 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
   // Simple toggle handler - immediate state update with background save
   const handleToggle = async (key, value) => {
     console.log(`🔘 Toggle ${key} to ${value}`);
-    
+
     // Update state immediately for instant feedback
-    setSettings(prev => ({ ...prev, [key]: value }));
-    
+    setSettings((prev) => ({ ...prev, [key]: value }));
+
     // Save to database in background (don't wait for it)
-    if (user?.id && (key === 'showEmail' || key === 'showPhone')) {
+    if (user?.id && (key === "showEmail" || key === "showPhone")) {
       const updateData = {
-        [key === 'showEmail' ? 'show_email' : 'show_phone']: value,
+        [key === "showEmail" ? "show_email" : "show_phone"]: value,
       };
-      
+
       // Fire and forget - don't block the UI
       db.updateUserProfile(user.id, updateData)
         .then(() => console.log(`✅ Saved ${key} = ${value}`))
-        .catch(error => {
+        .catch((error) => {
           console.error(`❌ Failed to save ${key}:`, error);
           // Revert on error
-          setSettings(prev => ({ ...prev, [key]: !value }));
+          setSettings((prev) => ({ ...prev, [key]: !value }));
           if (__DEV__) {
             Alert.alert("Error", `Failed to save ${key}`);
           }
@@ -190,6 +190,14 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           icon: "help",
           type: "navigate",
           action: () => onNavigate && onNavigate("help"),
+        },
+        {
+          id: "lockScreenTest",
+          title: "Test Lock Screen Controls",
+          subtitle: "Test audio controls on lock screen",
+          icon: "phone-portrait",
+          type: "navigate",
+          action: () => onNavigate && onNavigate("lock-screen-test"),
         },
         {
           id: "contact",

@@ -1,12 +1,27 @@
 // components/LockScreenTest.js
 // Test component for lock screen media controls
 
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  Platform,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import lockScreenControls from "../lib/lockScreenControls";
 
-const LockScreenTest = () => {
+const LockScreenTest = ({
+  onBack,
+  globalAudioState,
+  onPlayAudio,
+  onPauseAudio,
+  onResumeAudio,
+  onStopAudio,
+}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration] = useState(180000); // 3 minutes
@@ -16,18 +31,62 @@ const LockScreenTest = () => {
     title: "Test Track - Lock Screen Demo",
     artist: "R/HOOD Test Artist",
     image: "https://via.placeholder.com/300x300/00ff00/000000?text=R/HOOD",
-    audioUrl: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav",
+    genre: "Electronic",
+    durationMillis: duration,
   };
+
+  // Set up callbacks for lock screen control buttons
+  useEffect(() => {
+    const handleNext = () => {
+      const newPosition = Math.max(0, Math.min(duration, position + 30000));
+      setPosition(newPosition);
+      lockScreenControls.setPlaybackState(isPlaying, newPosition, duration);
+    };
+
+    const handlePrevious = () => {
+      const newPosition = Math.max(0, Math.min(duration, position - 30000));
+      setPosition(newPosition);
+      lockScreenControls.setPlaybackState(isPlaying, newPosition, duration);
+    };
+
+    lockScreenControls.setCallbacks({
+      onPlayPause: async () => {
+        if (globalAudioState?.isPlaying) {
+          await onPauseAudio?.();
+          setIsPlaying(false);
+        } else {
+          await onResumeAudio?.();
+          setIsPlaying(true);
+        }
+      },
+      onNext: handleNext,
+      onPrevious: handlePrevious,
+    });
+  }, [
+    globalAudioState?.isPlaying,
+    position,
+    duration,
+    isPlaying,
+    onPauseAudio,
+    onResumeAudio,
+  ]);
 
   const handleShowNotification = async () => {
     try {
-      await lockScreenControls.showLockScreenNotification(testTrack);
+      await lockScreenControls.showLockScreenNotification({
+        ...testTrack,
+        durationMillis: duration,
+      });
+      await lockScreenControls.setPlaybackState(isPlaying, position, duration);
       Alert.alert(
         "Success",
-        "Lock screen notification shown! Check your lock screen."
+        "Lock screen notification shown!\n\nNext steps:\n1. Lock your device\n2. Check the lock screen\n3. You should see media controls"
       );
     } catch (error) {
-      Alert.alert("Error", "Failed to show lock screen notification");
+      Alert.alert(
+        "Error",
+        `Failed to show lock screen notification: ${error.message}`
+      );
       console.error("Error:", error);
     }
   };
@@ -60,8 +119,20 @@ const LockScreenTest = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Lock Screen Controls Test</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.containerContent}
+    >
+      {/* Header with back button */}
+      <View style={styles.header}>
+        {onBack && (
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
+          </TouchableOpacity>
+        )}
+        <Text style={styles.title}>Lock Screen Controls Test</Text>
+        {onBack && <View style={styles.backButton} />}
+      </View>
 
       <View style={styles.trackInfo}>
         <Text style={styles.trackTitle}>{testTrack.title}</Text>
@@ -117,16 +188,42 @@ const LockScreenTest = () => {
       </View>
 
       <View style={styles.instructions}>
-        <Text style={styles.instructionTitle}>Instructions:</Text>
+        <Text style={styles.instructionTitle}>Testing Instructions:</Text>
         <Text style={styles.instructionText}>
-          1. Tap "Show Lock Screen" to display the notification{"\n"}
+          <Text style={styles.bold}>
+            For iOS (TestFlight/Development Build):
+          </Text>
+          {"\n"}
+          1. Tap "Show Lock Screen" to initialize controls{"\n"}
+          2. Tap "Play" to set playing state{"\n"}
+          3. Lock your device (press side/top button){"\n"}
+          4. You should see native Now Playing controls{"\n"}
+          5. Test play/pause from lock screen{"\n"}
+          {"\n"}
+          <Text style={styles.bold}>For Android:</Text>
+          {"\n"}
+          1. Tap "Show Lock Screen" to show notification{"\n"}
           2. Lock your device{"\n"}
-          3. You should see R/HOOD controls on the lock screen{"\n"}
-          4. Test play/pause and seek controls{"\n"}
-          5. Tap "Hide Notification" to remove it
+          3. You should see MediaStyle notification{"\n"}
+          4. Test controls from notification{"\n"}
+          {"\n"}
+          <Text style={styles.bold}>Note:</Text>
+          {"\n"}
+          Lock screen controls may not work in Expo Go due to native module
+          limitations. Use TestFlight or a development build for full
+          functionality.
         </Text>
       </View>
-    </View>
+
+      <View style={styles.platformInfo}>
+        <Text style={styles.platformInfoText}>
+          Platform: {Platform.OS === "ios" ? "iOS" : "Android"}
+        </Text>
+        <Text style={styles.platformInfoText}>
+          Status: {globalAudioState?.isPlaying ? "Playing" : "Paused"}
+        </Text>
+      </View>
+    </ScrollView>
   );
 };
 
@@ -134,16 +231,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "hsl(0, 0%, 8%)",
+  },
+  containerContent: {
     padding: 20,
+    paddingTop: 60,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 30,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
     justifyContent: "center",
+    alignItems: "center",
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
     color: "hsl(75, 100%, 60%)",
     textAlign: "center",
-    marginBottom: 30,
-    fontFamily: "TS Block Bold",
+    flex: 1,
+    fontFamily: "TS-Block-Bold",
   },
   trackInfo: {
     backgroundColor: "hsl(0, 0%, 12%)",
@@ -216,6 +327,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
     lineHeight: 20,
+  },
+  bold: {
+    fontWeight: "bold",
+    color: "hsl(75, 100%, 60%)",
+  },
+  platformInfo: {
+    marginTop: 20,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    padding: 15,
+    borderRadius: 8,
+  },
+  platformInfoText: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 50%)",
+    marginBottom: 5,
   },
 });
 
