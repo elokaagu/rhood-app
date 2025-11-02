@@ -77,7 +77,8 @@
           "color": "#ffffff",
           "iosDisplayInForeground": true
         }
-      ]
+      ],
+      "./plugins/with-now-playing-info"
     ],
     "scheme": "rhoodapp",
     "owner": "elokaagu",
