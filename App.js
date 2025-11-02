@@ -37,10 +37,12 @@ console.log("✅ Audio module imported from expo-av");
 // Conditionally import track-player (only works in native builds)
 let trackPlayer = null;
 let setRemoteCallbacks = null;
+let setQueueCallbacks = null;
 try {
   trackPlayer = require("./src/audio/player");
-  setRemoteCallbacks =
-    require("./src/audio/playbackService").setRemoteCallbacks;
+  const playbackService = require("./src/audio/playbackService");
+  setRemoteCallbacks = playbackService.setRemoteCallbacks;
+  setQueueCallbacks = playbackService.setQueueCallbacks;
   console.log("✅ Track player module loaded");
 } catch (error) {
   console.warn("⚠️ Track player not available:", error.message);
@@ -808,8 +810,9 @@ export default function App() {
         );
       }
 
-      // Remote control callbacks - REMOVED: buttons not working, disabled for now
-      // Keep basic state/progress updates but remove button handlers
+      // Remote control callbacks - NEW APPROACH: Direct TrackPlayer control + getters
+      // Play/pause handled directly by TrackPlayer in playbackService
+      // Next/previous use getter functions to access latest App.js functions
       if (setRemoteCallbacks) {
         setRemoteCallbacks({
           onStateChange: async (stateData) => {
@@ -857,6 +860,9 @@ export default function App() {
           },
         });
       }
+
+      // Queue navigation callbacks are set up separately after functions are defined
+      // See useEffect below that sets up setQueueCallbacks
     } catch (error) {
       console.log("❌ Error setting up global audio:", error);
     }
@@ -2334,6 +2340,18 @@ export default function App() {
   useEffect(() => {
     playPreviousTrackRef.current = playPreviousTrack;
   }, [playPreviousTrack]);
+
+  // Set up queue navigation callbacks after functions are defined
+  // This ensures getters always return the latest function versions
+  useEffect(() => {
+    if (setQueueCallbacks && playNextTrack && playPreviousTrack) {
+      setQueueCallbacks({
+        getNextTrack: () => playNextTrack,
+        getPreviousTrack: () => playPreviousTrack,
+      });
+      console.log("✅ Queue navigation callbacks registered");
+    }
+  }, [playNextTrack, playPreviousTrack]);
 
   // Share functionality
   const shareTrack = async () => {
