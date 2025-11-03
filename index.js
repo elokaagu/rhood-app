@@ -12,23 +12,47 @@ if (typeof global !== "undefined") {
 import { registerRootComponent } from "expo";
 import App from "./App";
 
-// Register the playback service for background audio and remote controls
-// CRITICAL: This MUST be called at app startup, BEFORE any audio plays
-// Only register if react-native-track-player is available (requires native build)
+// ============================================================================
+// CRITICAL: Register playback service for iOS remote controls
+// ============================================================================
+// This registration MUST happen at app startup, BEFORE React mounts,
+// and BEFORE any audio plays. iOS needs to know about this service
+// to route remote control events (lock screen, Control Center, AirPods).
+// ============================================================================
 try {
   const TrackPlayer = require("react-native-track-player");
+
   if (TrackPlayer && TrackPlayer.registerPlaybackService) {
-    // Register the service - this makes iOS recognize the app for remote control events
+    console.log(
+      "✅✅✅ [STARTUP] Registering playback service for iOS remote controls..."
+    );
+
+    // Register the service - this tells iOS where to send remote control events
+    // The service function will be called when TrackPlayer.setupPlayer() is invoked
     TrackPlayer.registerPlaybackService(() =>
       require("./src/audio/playbackService")
     );
-    console.log("✅ Track player playback service registered at app startup");
-    console.log("📱 iOS will now send remote control events to this service");
+
+    console.log("✅✅✅ [STARTUP] Playback service registered successfully");
+    console.log(
+      "✅✅✅ [STARTUP] iOS will route remote control events to: src/audio/playbackService.js"
+    );
+    console.log(
+      "✅✅✅ [STARTUP] When audio plays, check device logs for '[SERVICE]' and '[REMOTE]' messages"
+    );
   } else {
-    console.warn("⚠️ TrackPlayer.registerPlaybackService not available");
+    console.warn(
+      "⚠️ [STARTUP] TrackPlayer.registerPlaybackService not available"
+    );
+    console.warn(
+      "⚠️ [STARTUP] This might mean react-native-track-player isn't properly installed"
+    );
   }
 } catch (error) {
-  console.warn("⚠️ Track player not available:", error.message);
+  console.warn("⚠️ [STARTUP] Track player not available:", error.message);
+  console.warn(
+    "⚠️ [STARTUP] This is expected in Expo Go - rebuild with EAS for native controls"
+  );
   // Continue without track-player - app will use expo-av fallback
 }
 

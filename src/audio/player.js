@@ -36,56 +36,83 @@ export async function setupPlayer() {
   }
 
   try {
-    console.log("🎵 Initializing react-native-track-player...");
+    console.log("🎵🎵🎵 [PLAYER] Initializing react-native-track-player...");
 
     // Step 1: Setup the player (this triggers the playback service to start)
+    // The service function (from playbackService.js) will be called automatically
+    // and will register all remote control event listeners
+    console.log("🎵 [PLAYER] Step 1: Calling TrackPlayer.setupPlayer()...");
     await TrackPlayer.setupPlayer();
-    console.log("✅ TrackPlayer.setupPlayer() completed");
+    console.log("✅✅✅ [PLAYER] TrackPlayer.setupPlayer() completed");
+    console.log(
+      "✅✅✅ [PLAYER] Service function should have been called - check for [SERVICE] logs"
+    );
 
     // Step 2: Configure capabilities IMMEDIATELY after setupPlayer
-    // The service function runs synchronously when setupPlayer() is called,
-    // so listeners are already registered by the time we reach updateOptions
-    console.log("⚙️ Configuring TrackPlayer capabilities...");
+    // CRITICAL: Capabilities tell iOS which buttons to show and enable
+    // Without these, iOS might show the UI but buttons won't work
+    console.log(
+      "🎵 [PLAYER] Step 2: Configuring capabilities for iOS remote controls..."
+    );
+    const capabilities = [
+      Capability.Play,
+      Capability.Pause,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
+      Capability.SeekTo,
+      Capability.JumpForward,
+      Capability.JumpBackward,
+      Capability.Stop,
+    ];
+    const compactCapabilities = [
+      Capability.Play,
+      Capability.Pause,
+      Capability.SkipToNext,
+    ];
+
+    console.log("🎵 [PLAYER] Full capabilities count:", capabilities.length);
+    console.log(
+      "🎵 [PLAYER] Compact capabilities count:",
+      compactCapabilities.length
+    );
+    console.log(
+      "🎵 [PLAYER] Capabilities include: Play, Pause, SkipToNext, SkipToPrevious, SeekTo, JumpForward, JumpBackward, Stop"
+    );
+
     await TrackPlayer.updateOptions({
-      capabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-        Capability.SeekTo,
-        Capability.JumpForward,
-        Capability.JumpBackward,
-        Capability.Stop,
-      ],
-      compactCapabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.SkipToNext,
-      ],
+      capabilities,
+      compactCapabilities,
       // iOS specific options - CRITICAL for remote control events
-      iosCategory: "playback",
-      // The library handles category options internally when iosCategory is set
+      iosCategory: "playback", // Enables background audio and remote controls
       // Android specific options
       android: {
-        // Keep existing Android notification behavior
         alwaysShowNotification: Platform.OS === "android",
       },
     });
 
     console.log(
-      "✅ Track player capabilities configured for remote control events"
+      "✅✅✅ [PLAYER] Capabilities configured - iOS buttons should now be enabled"
+    );
+    console.log(
+      "✅✅✅ [PLAYER] Lock screen and Control Center will show: Play, Pause, Next, Previous, Seek"
     );
 
     // Configure progress update interval (default is 1 second)
-    // This controls how often we get progress updates for the lock screen
+    // This controls how often the lock screen progress bar updates
     await TrackPlayer.updateOptions({
       progressUpdateEventInterval: 1, // 1 second
     });
 
     isInitialized = true;
-    console.log("✅ Track player initialized with capabilities");
+    console.log(
+      "✅✅✅ [PLAYER] Track player fully initialized and ready for remote controls"
+    );
   } catch (error) {
-    console.error("❌ Failed to initialize track player:", error);
+    console.error("❌❌❌ [PLAYER] Failed to initialize track player:", error);
+    console.error("❌❌❌ [PLAYER] Error details:", {
+      message: error.message,
+      stack: error.stack,
+    });
     throw error;
   }
 }

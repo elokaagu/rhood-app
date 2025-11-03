@@ -1,24 +1,8 @@
 // src/audio/playbackService.js
 // Background playback service for react-native-track-player
 // Handles remote commands from lock screen, Control Center, AirPods, etc.
-// SIMPLIFIED: Direct TrackPlayer calls only - no complex callbacks
-
-// Conditionally import track-player to avoid crashes if native module isn't available
-let TrackPlayer = null;
-let Event = null;
-let State = null;
-
-try {
-  const trackPlayerModule = require("react-native-track-player");
-  TrackPlayer = trackPlayerModule.default || trackPlayerModule;
-  Event = trackPlayerModule.Event;
-  State = trackPlayerModule.State;
-} catch (error) {
-  console.warn(
-    "⚠️ react-native-track-player not available in playback service:",
-    error.message
-  );
-}
+// CRITICAL: This service MUST be registered at app startup in index.js
+// iOS sends remote control events directly to this service function
 
 // Store App.js functions for queue navigation
 let playNextTrack = null;
@@ -33,143 +17,221 @@ export function setQueueNavigationCallbacks(callbacks) {
   });
 }
 
-// The playback service function - called by TrackPlayer when it initializes
+// The playback service function - called by TrackPlayer when setupPlayer() is called
+// CRITICAL: This function runs in a background context, not in the React Native JS thread
+// All event listeners must be registered here for iOS to route remote control events
 module.exports = async function playbackService() {
-  // Early return if track-player isn't available
-  if (!TrackPlayer || !Event || !State) {
-    console.warn("⚠️ Playback service: TrackPlayer not available");
+  // Import TrackPlayer INSIDE the service function to ensure we get the correct instance
+  // This is the global TrackPlayer instance that iOS will use
+  let TrackPlayer, Event, State;
+
+  try {
+    const trackPlayerModule = require("react-native-track-player");
+    TrackPlayer = trackPlayerModule.default || trackPlayerModule;
+    Event = trackPlayerModule.Event;
+    State = trackPlayerModule.State;
+
+    console.log("🎵 [SERVICE] Playback service function called by TrackPlayer");
+    console.log("🎵 [SERVICE] TrackPlayer instance:", !!TrackPlayer);
+    console.log("🎵 [SERVICE] Event module:", !!Event);
+    console.log("🎵 [SERVICE] State module:", !!State);
+  } catch (error) {
+    console.error(
+      "❌ [SERVICE] Failed to import react-native-track-player:",
+      error
+    );
+    return; // Service cannot function without TrackPlayer
+  }
+
+  // Verify TrackPlayer has addEventListener method
+  if (!TrackPlayer || typeof TrackPlayer.addEventListener !== "function") {
+    console.error("❌ [SERVICE] TrackPlayer.addEventListener is not available");
     return;
   }
 
-  console.log("🎵 Playback service starting...");
+  console.log(
+    "✅ [SERVICE] TrackPlayer is ready - registering remote control handlers"
+  );
 
-  // Register all remote control event listeners
-  // These must be registered INSIDE the service function
+  // ============================================================================
+  // CRITICAL: Register all remote control event listeners here
+  // iOS sends remote control events (from lock screen, Control Center, AirPods)
+  // directly to these handlers. If these aren't registered, buttons won't work.
+  // ============================================================================
 
-  // Play button pressed
+  // REMOTE PLAY - Lock screen/Control Center play button
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    console.log("🔵 REMOTE: Play");
+    console.log(
+      "🔵🔵🔵 [REMOTE] PLAY button pressed on lock screen/Control Center"
+    );
     try {
-      await TrackPlayer.play();
-      console.log("✅ Remote Play executed");
+      const state = await TrackPlayer.getState();
+      console.log("🔵 [REMOTE] Current player state before play:", state);
+
+      if (state !== State.Playing) {
+        await TrackPlayer.play();
+        console.log("✅✅✅ [REMOTE] Play executed successfully");
+      } else {
+        console.log("ℹ️ [REMOTE] Already playing, no action needed");
+      }
     } catch (error) {
-      console.error("❌ Remote Play error:", error.message);
+      console.error("❌❌❌ [REMOTE] Play error:", error.message, error);
     }
   });
 
-  // Pause button pressed
+  // REMOTE PAUSE - Lock screen/Control Center pause button
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    console.log("⏸️ REMOTE: Pause");
+    console.log(
+      "⏸️⏸️⏸️ [REMOTE] PAUSE button pressed on lock screen/Control Center"
+    );
     try {
-      await TrackPlayer.pause();
-      console.log("✅ Remote Pause executed");
+      const state = await TrackPlayer.getState();
+      console.log("⏸️ [REMOTE] Current player state before pause:", state);
+
+      if (state === State.Playing) {
+        await TrackPlayer.pause();
+        console.log("✅✅✅ [REMOTE] Pause executed successfully");
+      } else {
+        console.log("ℹ️ [REMOTE] Already paused, no action needed");
+      }
     } catch (error) {
-      console.error("❌ Remote Pause error:", error.message);
+      console.error("❌❌❌ [REMOTE] Pause error:", error.message, error);
     }
   });
 
-  // Next button pressed
+  // REMOTE NEXT - Lock screen/Control Center next button
   TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-    console.log("⏭️ REMOTE: Next");
+    console.log(
+      "⏭️⏭️⏭️ [REMOTE] NEXT button pressed on lock screen/Control Center"
+    );
     try {
-      // Try App.js callback first (if available)
+      // Try App.js callback first (handles custom queue logic)
       if (playNextTrack && typeof playNextTrack === "function") {
+        console.log("⏭️ [REMOTE] Using App.js playNextTrack callback");
         await playNextTrack();
-        console.log("✅ Remote Next: Used App.js callback");
+        console.log("✅✅✅ [REMOTE] Next executed via App.js callback");
         return;
       }
 
-      // Fallback to TrackPlayer's queue
+      // Fallback to TrackPlayer's internal queue
+      console.log("⏭️ [REMOTE] Using TrackPlayer.skipToNext()");
       await TrackPlayer.skipToNext();
-      console.log("✅ Remote Next: Used TrackPlayer queue");
+      console.log("✅✅✅ [REMOTE] Next executed via TrackPlayer queue");
     } catch (error) {
-      // No next track - that's okay
-      console.log("ℹ️ Remote Next: No next track available");
+      // No next track is fine - just log it
+      console.log("ℹ️ [REMOTE] Next track not available:", error.message);
     }
   });
 
-  // Previous button pressed
+  // REMOTE PREVIOUS - Lock screen/Control Center previous button
   TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-    console.log("⏮️ REMOTE: Previous");
+    console.log(
+      "⏮️⏮️⏮️ [REMOTE] PREVIOUS button pressed on lock screen/Control Center"
+    );
     try {
-      // Try App.js callback first (if available)
+      // Try App.js callback first (handles custom queue logic)
       if (playPreviousTrack && typeof playPreviousTrack === "function") {
+        console.log("⏮️ [REMOTE] Using App.js playPreviousTrack callback");
         await playPreviousTrack();
-        console.log("✅ Remote Previous: Used App.js callback");
+        console.log("✅✅✅ [REMOTE] Previous executed via App.js callback");
         return;
       }
 
-      // Fallback to TrackPlayer's queue
+      // Fallback to TrackPlayer's internal queue
+      console.log("⏮️ [REMOTE] Using TrackPlayer.skipToPrevious()");
       await TrackPlayer.skipToPrevious();
-      console.log("✅ Remote Previous: Used TrackPlayer queue");
+      console.log("✅✅✅ [REMOTE] Previous executed via TrackPlayer queue");
     } catch (error) {
-      // No previous track - that's okay
-      console.log("ℹ️ Remote Previous: No previous track available");
+      // No previous track is fine - just log it
+      console.log("ℹ️ [REMOTE] Previous track not available:", error.message);
     }
   });
 
-  // Seek command
+  // REMOTE SEEK - Scrubbing on lock screen progress bar
   TrackPlayer.addEventListener(Event.RemoteSeek, async (event) => {
-    console.log("🎯 REMOTE: Seek to", event.position);
+    console.log("🎯🎯🎯 [REMOTE] SEEK to position:", event.position, "seconds");
     try {
       await TrackPlayer.seekTo(event.position);
-      console.log("✅ Remote Seek executed");
+      console.log("✅✅✅ [REMOTE] Seek executed successfully");
     } catch (error) {
-      console.error("❌ Remote Seek error:", error.message);
+      console.error("❌❌❌ [REMOTE] Seek error:", error.message, error);
     }
   });
 
-  // Jump forward
+  // REMOTE JUMP FORWARD - AirPods double-tap forward
   TrackPlayer.addEventListener(Event.RemoteJumpForward, async (event) => {
-    console.log("⏩ REMOTE: Jump Forward", event.interval);
+    console.log("⏩⏩⏩ [REMOTE] JUMP FORWARD by", event.interval, "seconds");
     try {
       const position = await TrackPlayer.getPosition();
-      await TrackPlayer.seekTo(position + event.interval);
-      console.log("✅ Remote Jump Forward executed");
+      const newPosition = position + event.interval;
+      await TrackPlayer.seekTo(newPosition);
+      console.log(
+        "✅✅✅ [REMOTE] Jump forward executed:",
+        newPosition,
+        "seconds"
+      );
     } catch (error) {
-      console.error("❌ Remote Jump Forward error:", error.message);
+      console.error(
+        "❌❌❌ [REMOTE] Jump forward error:",
+        error.message,
+        error
+      );
     }
   });
 
-  // Jump backward
+  // REMOTE JUMP BACKWARD - AirPods double-tap backward
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (event) => {
-    console.log("⏪ REMOTE: Jump Backward", event.interval);
+    console.log("⏪⏪⏪ [REMOTE] JUMP BACKWARD by", event.interval, "seconds");
     try {
       const position = await TrackPlayer.getPosition();
-      await TrackPlayer.seekTo(Math.max(0, position - event.interval));
-      console.log("✅ Remote Jump Backward executed");
+      const newPosition = Math.max(0, position - event.interval);
+      await TrackPlayer.seekTo(newPosition);
+      console.log(
+        "✅✅✅ [REMOTE] Jump backward executed:",
+        newPosition,
+        "seconds"
+      );
     } catch (error) {
-      console.error("❌ Remote Jump Backward error:", error.message);
+      console.error(
+        "❌❌❌ [REMOTE] Jump backward error:",
+        error.message,
+        error
+      );
     }
   });
 
-  // Stop command
+  // REMOTE STOP - Stop playback
   TrackPlayer.addEventListener(Event.RemoteStop, async () => {
-    console.log("⏹️ REMOTE: Stop");
+    console.log("⏹️⏹️⏹️ [REMOTE] STOP button pressed");
     try {
       await TrackPlayer.stop();
-      console.log("✅ Remote Stop executed");
+      console.log("✅✅✅ [REMOTE] Stop executed successfully");
     } catch (error) {
-      console.error("❌ Remote Stop error:", error.message);
+      console.error("❌❌❌ [REMOTE] Stop error:", error.message, error);
     }
   });
 
-  // Playback state change - for UI sync
+  // Playback state changes (for debugging/monitoring)
   TrackPlayer.addEventListener(Event.PlaybackState, async (data) => {
     const stateName =
       Object.keys(State).find((key) => State[key] === data.state) || data.state;
-    console.log("📊 Playback State:", stateName);
+    console.log("📊 [SERVICE] Playback State changed:", stateName);
   });
 
-  // Track changed
+  // Track changed (for debugging/monitoring)
   TrackPlayer.addEventListener(Event.PlaybackTrackChanged, async (data) => {
-    console.log("🎵 Track Changed:", data.track?.title || "Unknown");
+    console.log("🎵 [SERVICE] Track Changed:", data.track?.title || "Unknown");
   });
 
-  // Progress updated - registered to prevent warnings
+  // Progress updates (registered to prevent warnings, but we don't need to handle it here)
   TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, async () => {
-    // Silent - progress is handled elsewhere
+    // Silent - progress is handled in App.js for UI updates
   });
 
-  console.log("✅ Playback service initialized - remote controls ready");
+  console.log(
+    "✅✅✅ [SERVICE] ALL remote control handlers registered successfully"
+  );
+  console.log(
+    "✅✅✅ [SERVICE] iOS lock screen and Control Center buttons should now work"
+  );
 };
