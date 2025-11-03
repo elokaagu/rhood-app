@@ -36,13 +36,11 @@ console.log("✅ Audio module imported from expo-av");
 
 // Conditionally import track-player (only works in native builds)
 let trackPlayer = null;
-let setRemoteCallbacks = null;
-let setQueueCallbacks = null;
+let setQueueNavigationCallbacks = null;
 try {
   trackPlayer = require("./src/audio/player");
   const playbackService = require("./src/audio/playbackService");
-  setRemoteCallbacks = playbackService.setRemoteCallbacks;
-  setQueueCallbacks = playbackService.setQueueCallbacks;
+  setQueueNavigationCallbacks = playbackService.setQueueNavigationCallbacks;
   console.log("✅ Track player module loaded");
 } catch (error) {
   console.warn("⚠️ Track player not available:", error.message);
@@ -810,59 +808,8 @@ export default function App() {
         );
       }
 
-      // Remote control callbacks - NEW APPROACH: Direct TrackPlayer control + getters
-      // Play/pause handled directly by TrackPlayer in playbackService
-      // Next/previous use getter functions to access latest App.js functions
-      if (setRemoteCallbacks) {
-        setRemoteCallbacks({
-          onStateChange: async (stateData) => {
-            try {
-              // Update UI state immediately when playback state changes
-              setGlobalAudioState((prev) => {
-                if (!prev.currentTrack) return prev;
-
-                const newState = {
-                  ...prev,
-                  isPlaying: stateData.isPlaying,
-                  positionMillis: stateData.position * 1000,
-                  durationMillis: stateData.duration * 1000,
-                  progress:
-                    stateData.duration > 0
-                      ? stateData.position / stateData.duration
-                      : 0,
-                };
-
-                return newState;
-              });
-            } catch (error) {
-              console.warn("⚠️ Error updating state from track-player:", error);
-            }
-          },
-          onProgressUpdate: async (progressData) => {
-            try {
-              // Update progress frequently from track-player events
-              setGlobalAudioState((prev) => {
-                if (!prev.currentTrack) return prev;
-
-                return {
-                  ...prev,
-                  positionMillis: progressData.position * 1000,
-                  durationMillis: progressData.duration * 1000,
-                  progress:
-                    progressData.duration > 0
-                      ? progressData.position / progressData.duration
-                      : 0,
-                };
-              });
-            } catch (error) {
-              // Silently ignore progress update errors
-            }
-          },
-        });
-      }
-
-      // Queue navigation callbacks are set up separately after functions are defined
-      // See useEffect below that sets up setQueueCallbacks
+      // Queue navigation callbacks will be set up after functions are defined
+      // See useEffect below that sets up setQueueNavigationCallbacks
     } catch (error) {
       console.log("❌ Error setting up global audio:", error);
     }
@@ -2347,39 +2294,13 @@ export default function App() {
   }, [playPreviousTrack]);
 
   // Set up queue navigation callbacks after functions are defined
-  // This ensures getters always return the latest function versions
   useEffect(() => {
-    if (setQueueCallbacks && playNextTrack && playPreviousTrack) {
-      console.log("📞 Setting up queue callbacks:", {
-        hasSetQueueCallbacks: !!setQueueCallbacks,
-        hasPlayNextTrack: !!playNextTrack,
-        hasPlayPreviousTrack: !!playPreviousTrack,
-        playNextTrackType: typeof playNextTrack,
-        playPreviousTrackType: typeof playPreviousTrack,
-      });
-      setQueueCallbacks({
-        getNextTrack: () => {
-          console.log(
-            "📞 getNextTrack getter called, returning:",
-            typeof playNextTrack
-          );
-          return playNextTrack;
-        },
-        getPreviousTrack: () => {
-          console.log(
-            "📞 getPreviousTrack getter called, returning:",
-            typeof playPreviousTrack
-          );
-          return playPreviousTrack;
-        },
+    if (setQueueNavigationCallbacks && playNextTrack && playPreviousTrack) {
+      setQueueNavigationCallbacks({
+        playNextTrack,
+        playPreviousTrack,
       });
       console.log("✅ Queue navigation callbacks registered");
-    } else {
-      console.warn("⚠️ Cannot set queue callbacks:", {
-        hasSetQueueCallbacks: !!setQueueCallbacks,
-        hasPlayNextTrack: !!playNextTrack,
-        hasPlayPreviousTrack: !!playPreviousTrack,
-      });
     }
   }, [playNextTrack, playPreviousTrack]);
 

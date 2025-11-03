@@ -38,23 +38,13 @@ export async function setupPlayer() {
   try {
     console.log("🎵 Initializing react-native-track-player...");
 
-    // CRITICAL: setupPlayer() must be called first
-    // This initializes the native player and triggers the playback service to start
-    // The service function will register remote control event listeners
+    // Step 1: Setup the player (this triggers the playback service to start)
     await TrackPlayer.setupPlayer();
     console.log("✅ TrackPlayer.setupPlayer() completed");
 
-    // CRITICAL: Wait for the playback service to finish registering listeners
-    // The service function runs asynchronously when TrackPlayer.setupPlayer() is called
-    // iOS requires listeners to be registered BEFORE updateOptions() sets capabilities
-    // This ensures the service is ready to receive remote control events
-    console.log("⏳ Waiting for playback service to register listeners...");
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    console.log("✅ Service listeners should now be registered");
-
-    // Configure capabilities for iOS lock screen and Control Center
-    // CRITICAL: These must be set AFTER the service has registered listeners
-    // and BEFORE any audio plays for remote controls to work
+    // Step 2: Configure capabilities IMMEDIATELY after setupPlayer
+    // The service function runs synchronously when setupPlayer() is called,
+    // so listeners are already registered by the time we reach updateOptions
     console.log("⚙️ Configuring TrackPlayer capabilities...");
     await TrackPlayer.updateOptions({
       capabilities: [
@@ -154,34 +144,12 @@ export async function playTrack(track) {
     // Ensure player is initialized (this sets up capabilities)
     await setupPlayer();
 
-    // CRITICAL: Small delay to ensure service is fully registered
-    // iOS requires the service to be active before playback starts
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Clear existing queue
+    // Clear existing queue and add track
     await TrackPlayer.reset();
-
-    // Add the track
     await addTrack(track);
-
-    // Verify service is active before playing
-    const state = await TrackPlayer.getState();
-    console.log("📱 TrackPlayer state before play:", state);
 
     // Start playing
     await TrackPlayer.play();
-
-    // Verify playback started
-    const playState = await TrackPlayer.getState();
-    const State = require("react-native-track-player").State;
-    console.log(
-      "📱 TrackPlayer state after play:",
-      playState,
-      "Expected:",
-      State.Playing
-    );
-    console.log("📱 Is playing:", playState === State.Playing);
-
     console.log("✅ Track playing");
   } catch (error) {
     console.error("❌ Failed to play track:", error);
