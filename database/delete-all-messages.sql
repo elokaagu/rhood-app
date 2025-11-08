@@ -6,6 +6,7 @@
 SELECT '=== CURRENT MESSAGE COUNT ===' as status;
 SELECT COUNT(*) as total_messages FROM messages;
 SELECT COUNT(*) as total_group_messages FROM community_posts;
+SELECT COUNT(*) as total_legacy_group_messages FROM group_messages;
 
 -- Step 2: Show message distribution by thread
 SELECT '=== MESSAGE DISTRIBUTION ===' as status;
@@ -22,6 +23,8 @@ LIMIT 20;
 SELECT '=== DELETING ALL MESSAGES ===' as status;
 
 DELETE FROM messages;
+DELETE FROM community_posts;
+DELETE FROM group_messages;
 
 -- Step 4: Optionally delete message threads (uncomment if you want)
 -- DELETE FROM message_threads WHERE type = 'individual';
@@ -29,6 +32,8 @@ DELETE FROM messages;
 -- Step 5: Verify deletion
 SELECT '=== VERIFICATION ===' as status;
 SELECT COUNT(*) as remaining_messages FROM messages;
+SELECT COUNT(*) as remaining_group_messages FROM community_posts;
+SELECT COUNT(*) as remaining_legacy_group_messages FROM group_messages;
 
 -- Success message
 SELECT '✅ All messages have been deleted!' as status;

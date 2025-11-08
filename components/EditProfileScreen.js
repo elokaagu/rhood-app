@@ -31,6 +31,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     soundcloud: "",
     city: "",
     bio: "",
+    status_message: "",
     genres: [],
     profile_image_url: null,
   });
@@ -101,6 +102,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           soundcloud: userProfile.soundcloud || "",
           city: userProfile.city || "",
           bio: userProfile.bio || "",
+          status_message: userProfile.status_message || "",
           genres: userProfile.genres || [],
           profile_image_url: userProfile.profile_image_url || null,
         });
@@ -157,6 +159,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
     if (profile.genres.length === 0) {
       newErrors.genres = "Please select at least one genre";
+    }
+
+    if (profile.status_message && profile.status_message.length > 80) {
+      newErrors.status_message = "Status must be 80 characters or fewer";
     }
 
     if (profile.instagram && !isValidUrl(profile.instagram)) {
@@ -230,12 +236,25 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         } specializing in ${profile.genres.join(", ")}`;
       }
 
+      if (profile.status_message && profile.status_message.trim()) {
+        updatedProfile.status_message = profile.status_message.trim();
+      } else {
+        updatedProfile.status_message = null;
+      }
+
       if (profile.profile_image_url) {
         updatedProfile.profile_image_url = profile.profile_image_url;
       }
 
       console.log("📝 Updating profile with:", updatedProfile);
       await db.updateUserProfile(user.id, updatedProfile);
+
+      setProfile((prev) => ({
+        ...prev,
+        status_message: profile.status_message
+          ? profile.status_message.trim()
+          : "",
+      }));
 
       // Show success modal
       setShowSuccessModal(true);
@@ -706,6 +725,32 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               )}
             </View>
 
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Status / Tagline</Text>
+            <TextInput
+              style={[
+                styles.input,
+                errors.status_message && styles.inputError,
+              ]}
+              value={profile.status_message}
+              onChangeText={(text) =>
+                setProfile((prev) => ({ ...prev, status_message: text }))
+              }
+              placeholder="Add a short vibe or status (e.g. 'Spinning soulful house tonight')"
+              placeholderTextColor="hsl(0, 0%, 50%)"
+              maxLength={80}
+            />
+            <View style={styles.statusHelperRow}>
+              <Text style={styles.statusCharCount}>
+                {profile.status_message.length}/80
+              </Text>
+              <Text style={styles.statusHint}>Shown in lists & discovery</Text>
+            </View>
+            {errors.status_message && (
+              <Text style={styles.errorText}>{errors.status_message}</Text>
+            )}
+          </View>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Bio</Text>
               <TextInput
@@ -1045,6 +1090,23 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     textAlign: "right",
     marginTop: 4,
+  },
+  statusHelperRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 12,
+  },
+  statusHint: {
+    color: "hsl(0, 0%, 45%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+  },
+  statusCharCount: {
+    color: "hsl(0, 0%, 50%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
   },
   genreSelector: {
     backgroundColor: "hsl(0, 0%, 10%)",

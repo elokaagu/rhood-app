@@ -36,6 +36,7 @@ try {
 export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
+  const [selectedFileDuration, setSelectedFileDuration] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showDevBuildModal, setShowDevBuildModal] = useState(false);
@@ -89,6 +90,17 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
       if (result.type === "success" || !result.canceled) {
         const file = result.assets ? result.assets[0] : result;
+        const fileExt =
+          file.name?.split(".").pop()?.toLowerCase().trim() || "";
+        const fileUri = file.uri || file.fileCopyUri;
+
+        if (!fileUri) {
+          Alert.alert(
+            "File Unavailable",
+            "We couldn't access this audio file. Please try selecting it again."
+          );
+          return;
+        }
 
         // Check file size against Supabase Pro limits
         const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
@@ -116,38 +128,65 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
         console.log("✅ File size within limits");
 
-        // Check audio duration - removed duration limit to allow mixes of all lengths
+        const maxDurationMillis = 10 * 60 * 1000; // 10 minutes
+        let detectedDurationMillis = null;
+
+        // Check audio duration before accepting
         try {
           if (!Audio || !Audio.Sound || !Audio.Sound.createAsync) {
-            // In Expo Go, we'll skip the duration check and allow upload
-            setSelectedFile(file);
-            return;
-          }
-
-          const { sound } = await Audio.Sound.createAsync(
-            { uri: file.uri },
-            { shouldPlay: false }
-          );
-
-          const status = await sound.getStatusAsync();
-          await sound.unloadAsync();
-
-          if (status.isLoaded && status.durationMillis) {
-            const durationMinutes = status.durationMillis / 1000 / 60;
-
-            console.log(
-              `🎵 Audio duration: ${durationMinutes.toFixed(2)} minutes`
+            Alert.alert(
+              "Length Check Unavailable",
+              "We couldn't verify this mix's length in the current environment. Please ensure it is no longer than 10 minutes before uploading."
+            );
+          } else {
+            const { sound } = await Audio.Sound.createAsync(
+              { uri: fileUri },
+              { shouldPlay: false }
             );
 
-            // Duration limit removed - allow mixes of all lengths
-            console.log("✅ Mix duration accepted - no length restrictions");
+            const status = await sound.getStatusAsync();
+            await sound.unloadAsync();
+
+            if (status.isLoaded && status.durationMillis) {
+              detectedDurationMillis = status.durationMillis;
+              const durationMinutes = detectedDurationMillis / 1000 / 60;
+
+              console.log(
+                `🎵 Audio duration: ${durationMinutes.toFixed(2)} minutes`
+              );
+
+              if (detectedDurationMillis > maxDurationMillis) {
+                Alert.alert(
+                  "Mix Too Long",
+                  "Please upload a mix that is 10 minutes or shorter."
+                );
+                return;
+              }
+            } else {
+              Alert.alert(
+                "Unable to Verify Length",
+                "We couldn't read the length of this mix. Please double-check that it is 10 minutes or shorter before uploading."
+              );
+            }
           }
         } catch (durationError) {
           console.warn("⚠️ Could not check duration:", durationError.message);
-          // Continue anyway - don't block upload if duration check fails
+          Alert.alert(
+            "Unable to Verify Length",
+            "We couldn't read the length of this mix. Please double-check that it is 10 minutes or shorter before uploading."
+          );
         }
 
         setSelectedFile(file);
+        setSelectedFileDuration(detectedDurationMillis);
+
+        if (fileExt && fileExt !== "mp3") {
+          Alert.alert(
+            "MP3 Recommended",
+            "MP3 files upload faster and are more reliable for playback. Consider exporting your mix as an MP3 before uploading.",
+            [{ text: "OK" }]
+          );
+        }
 
         // Auto-fill title from filename if empty
         if (!mixData.title && file.name) {
@@ -294,6 +333,38 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         Alert.alert(
           "Invalid Format",
           `Please select a valid audio file (${validFormats.join(", ")})`
+        );
+        setUploading(false);
+        return;
+      }
+
+      const maxDurationMillis = 10 * 60 * 1000; // 10 minutes
+      let effectiveDurationMillis = selectedFileDuration;
+
+      if (
+        (!effectiveDurationMillis || effectiveDurationMillis === 0) &&
+        Audio?.Sound?.createAsync
+      ) {
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: selectedFile.uri || selectedFile.fileCopyUri },
+            { shouldPlay: false }
+          );
+          const status = await sound.getStatusAsync();
+          await sound.unloadAsync();
+          if (status.isLoaded && status.durationMillis) {
+            effectiveDurationMillis = status.durationMillis;
+            setSelectedFileDuration(status.durationMillis);
+          }
+        } catch (durationError) {
+          console.warn("⚠️ Unable to confirm mix duration:", durationError);
+        }
+      }
+
+      if (effectiveDurationMillis && effectiveDurationMillis > maxDurationMillis) {
+        Alert.alert(
+          "Mix Too Long",
+          "This mix is longer than 10 minutes. Please upload a shorter mix."
         );
         setUploading(false);
         return;
@@ -598,6 +669,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
     } finally {
       setUploading(false);
       setUploadProgress(0);
+      setSelectedFileDuration(null);
     }
   };
 
@@ -608,6 +680,14 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
+
+const formatDuration = (millis) => {
+  if (!millis) return "0:00";
+  const totalSeconds = Math.floor(millis / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
 
   return (
     <View style={styles.container}>
@@ -648,11 +728,21 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
                 <Text style={styles.fileSize}>
                   {formatFileSize(selectedFile.size)}
                 </Text>
+                {selectedFileDuration ? (
+                  <Text style={styles.fileSize}>
+                    Duration: {formatDuration(selectedFileDuration)}
+                  </Text>
+                ) : null}
               </View>
             ) : (
-              <Text style={styles.filePickerText}>
-                Tap to select audio file
-              </Text>
+              <View style={styles.filePickerGuidelines}>
+                <Text style={styles.filePickerText}>
+                  Tap to select your mix (MP3, max 10 minutes)
+                </Text>
+                <Text style={styles.filePickerSubtext}>
+                  MP3 uploads finish faster and are more reliable than WAV.
+                </Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -967,6 +1057,16 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 60%)",
     fontSize: 16,
     marginTop: 12,
+  },
+  filePickerGuidelines: {
+    alignItems: "center",
+    marginTop: 12,
+  },
+  filePickerSubtext: {
+    color: "hsl(0, 0%, 45%)",
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: "center",
   },
   fileInfo: {
     marginTop: 12,

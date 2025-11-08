@@ -188,6 +188,7 @@ export default function ProfileScreen({
           gigsCompleted: userProfile.gigs_completed || 0,
           credits: userProfile.credits || 0,
           bio: userProfile.bio || "",
+          statusMessage: userProfile.status_message || "",
           location: userProfile.city || "Location not set",
           genres: userProfile.genres || [],
           profileImage: userProfile.profile_image_url
@@ -445,6 +446,9 @@ export default function ProfileScreen({
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{profile.name}</Text>
             <Text style={styles.profileUsername}>{profile.username}</Text>
+            {profile.statusMessage ? (
+              <Text style={styles.profileStatus}>{profile.statusMessage}</Text>
+            ) : null}
 
             <View style={styles.ratingContainer}>
               <Ionicons name="star" size={16} color="hsl(45, 100%, 60%)" />
@@ -841,6 +845,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "hsl(0, 0%, 70%)",
     marginBottom: 8,
+  },
+  profileStatus: {
+    fontSize: 14,
+    color: "hsl(75, 100%, 70%)",
+    marginBottom: 12,
   },
   ratingContainer: {
     flexDirection: "row",

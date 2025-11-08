@@ -263,6 +263,11 @@ const DJMix = ({
                 {mix.artist}
               </Text>
             </TouchableOpacity>
+            {mix.artistStatus ? (
+              <Text style={styles.trackArtistStatus} numberOfLines={1}>
+                {mix.artistStatus}
+              </Text>
+            ) : null}
 
             {/* Additional Mix Info */}
             <View style={styles.mixDetails}>
@@ -485,6 +490,12 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 85%)", // Changed from green to light gray
     marginBottom: 2,
+  },
+  trackArtistStatus: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 70%)",
+    marginBottom: 4,
   },
   trackDescription: {
     fontSize: 12,

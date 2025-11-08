@@ -149,3 +149,5 @@ and create a Supabase Edge Function to actually send the emails.' as result;
 
 
 
+
+

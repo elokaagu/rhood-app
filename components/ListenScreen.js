@@ -153,6 +153,7 @@ export default function ListenScreen({
                 bio: profile.bio,
                 profile_image_url: profile.profile_image_url,
                 username: profile.username,
+              status_message: profile.status_message,
               };
             }
           }
@@ -175,6 +176,7 @@ export default function ListenScreen({
             audioUrl: mix.file_url,
             plays: mix.plays || mix.play_count || 0,
             user: userProfile, // Include full user profile data
+          artistStatus: userProfile?.status_message || null,
           };
 
           // Debug logging for uploaded mixes

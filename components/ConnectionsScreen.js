@@ -210,6 +210,7 @@ export default function ConnectionsScreen({
             status: "online",
             isVerified: conn.connected_user_verified || false,
             connectionStatus: conn.connection_status,
+          statusMessage: conn.connected_user_status_message || "",
           };
         });
       }
@@ -238,6 +239,7 @@ export default function ConnectionsScreen({
               status: "online",
               isVerified: participant.isVerified || false,
               connectionStatus: null, // No connection status
+          statusMessage: participant.statusMessage || "",
             };
           }
         });
@@ -602,6 +604,7 @@ export default function ConnectionsScreen({
           status: "online",
           isVerified: user.is_verified || false,
           bio: user.bio || "DJ and music producer",
+          statusMessage: user.status_message || "",
           isConnected: isConnected,
           connectionStatus: connectionInfo?.status || null,
           connectionId: connectionInfo ? user.id : null,
@@ -654,6 +657,7 @@ export default function ConnectionsScreen({
           connection.full_name?.toLowerCase().includes(query) ||
           connection.dj_name?.toLowerCase().includes(query) ||
           connection.city?.toLowerCase().includes(query) ||
+          connection.statusMessage?.toLowerCase().includes(query) ||
           connection.genres?.some((genre) =>
             genre.toLowerCase().includes(query)
           )
@@ -1047,6 +1051,14 @@ export default function ConnectionsScreen({
                               {connection.lastActive || "Recently"}
                             </Text>
                           </View>
+                          {connection.statusMessage ? (
+                            <Text
+                              style={styles.connectionStatusMessage}
+                              numberOfLines={1}
+                            >
+                              {connection.statusMessage}
+                            </Text>
+                          ) : null}
                           <View style={styles.messagePreview}>
                             <Text style={styles.messageText} numberOfLines={1}>
                               {getLastMessageSender(connection)}
@@ -1123,6 +1135,14 @@ export default function ConnectionsScreen({
                           <Text style={styles.discoverUsername}>
                             {user.username}
                           </Text>
+                          {user.statusMessage ? (
+                            <Text
+                              style={styles.discoverStatus}
+                              numberOfLines={1}
+                            >
+                              {user.statusMessage}
+                            </Text>
+                          ) : null}
                           <Text style={styles.discoverLocation}>
                             {user.location}
                           </Text>
@@ -1669,6 +1689,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
+  connectionStatusMessage: {
+    fontSize: 13,
+    color: "hsl(75, 100%, 70%)",
+    fontFamily: "Arial",
+    marginBottom: 4,
+  },
   messageName: {
     fontSize: 16,
     fontWeight: "600",
@@ -1804,6 +1830,12 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     color: "hsl(75, 100%, 60%)",
     marginBottom: 2,
+  },
+  discoverStatus: {
+    fontSize: 13,
+    fontFamily: "Arial",
+    color: "hsl(75, 100%, 70%)",
+    marginBottom: 6,
   },
   discoverLocation: {
     fontSize: 14,

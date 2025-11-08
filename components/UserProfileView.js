@@ -454,6 +454,9 @@ export default function UserProfileView({
                 profile.dj_name?.toLowerCase().replace(/\s+/g, "") ||
                 "user"}
             </Text>
+            {profile.status_message ? (
+              <Text style={styles.profileStatus}>{profile.status_message}</Text>
+            ) : null}
 
             <View style={styles.profileLocation}>
               <Ionicons
@@ -813,6 +816,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Arial",
     color: "hsl(75, 100%, 60%)",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  profileStatus: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    color: "hsl(75, 100%, 70%)",
     marginBottom: 12,
     textAlign: "center",
   },

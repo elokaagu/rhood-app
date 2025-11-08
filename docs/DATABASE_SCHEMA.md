@@ -29,6 +29,7 @@ CREATE TABLE user_profiles (
   first_name VARCHAR(100),
   last_name VARCHAR(100),
   bio TEXT,
+  status_message TEXT,
   location VARCHAR(255),
   city VARCHAR(100),
   country VARCHAR(100),
@@ -47,6 +48,7 @@ CREATE TABLE user_profiles (
 **Key Fields**:
 - `id`: Primary key, linked to Supabase Auth
 - `dj_name`: Professional DJ name
+- `status_message`: Optional short status/tagline shown in lists
 - `genres`: Array of music genres
 - `primary_mix_id`: Reference to user's featured mix
 - `profile_image_url`: Profile photo URL
@@ -169,6 +171,9 @@ CREATE TABLE community_posts (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
+
+- **Canonical source for community chat messages**. The legacy `group_messages`
+  table should remain empty and is retained only for historical migrations.
 
 ---
 
