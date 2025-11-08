@@ -39,6 +39,15 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showDevBuildModal, setShowDevBuildModal] = useState(false);
+  const slugify = (value) => {
+    if (!value) return "untitled-mix";
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "untitled-mix";
+  };
   const [mixData, setMixData] = useState({
     title: "",
     description: "",
@@ -291,8 +300,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       }
 
       // Create unique filename with random string to prevent conflicts
-      const randomStr = Math.random().toString(36).substring(7);
-      const fileName = `${user.id}/${Date.now()}_${randomStr}.${fileExt}`;
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(6);
+      const mixSlug = slugify(mixData.title || selectedFile.name);
+      const fileName = `${user.id}/audio/${timestamp}_${mixSlug}_${randomStr}.${fileExt}`;
 
       setUploadProgress(10);
 
@@ -384,10 +395,20 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       let artworkUrl = null;
       if (selectedArtwork) {
         try {
-          const artworkExt = selectedArtwork.name.split(".").pop() || "jpg";
-          const artworkFileName = `${
-            user.id
-          }/artwork_${Date.now()}.${artworkExt}`;
+          const artworkSourceName =
+            selectedArtwork.name ||
+            selectedArtwork.fileName ||
+            selectedArtwork.uri ||
+            "artwork";
+          const rawArtworkExt = artworkSourceName.includes(".")
+            ? artworkSourceName.split(".").pop()
+            : "jpg";
+          const safeArtworkExt =
+            rawArtworkExt
+              ?.toLowerCase()
+              .replace(/[^a-z0-9]/g, "") || "jpg";
+          const mixSlug = slugify(mixData.title || selectedFile.name);
+          const artworkFileName = `${user.id}/artwork/${timestamp}_${mixSlug}_${randomStr}.${safeArtworkExt}`;
 
           console.log("🖼️ Uploading artwork:", selectedArtwork.name);
 
