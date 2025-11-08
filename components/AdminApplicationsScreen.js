@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import ProgressiveImage from "./ProgressiveImage";
+import { sendApplicationStatusNotification } from "../lib/notificationService";
 
 export default function AdminApplicationsScreen({ user, onNavigate }) {
   const [applications, setApplications] = useState([]);
@@ -63,6 +64,11 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
     try {
       setUpdating(applicationId);
 
+      // Get application details before updating (to get applicant email)
+      const application = applications.find(
+        (app) => app.application_id === applicationId
+      );
+
       const { error } = await supabase.rpc("update_application_status", {
         application_id: applicationId,
         new_status: newStatus,
@@ -74,6 +80,34 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
         return;
       }
 
+      // Send notifications (push, in-app, and email) to the applicant
+      // Note: In-app notification is also created by database trigger, but we send it here for consistency
+      if (application && application.applicant_email && application.applicant_name) {
+        try {
+          // Get user_id from the application
+          const { data: appData, error: appError } = await supabase
+            .from("applications")
+            .select("user_id")
+            .eq("id", applicationId)
+            .single();
+
+          if (appData && appData.user_id) {
+            await sendApplicationStatusNotification(
+              appData.user_id,
+              application.opportunity_title,
+              newStatus,
+              applicationId,
+              application.applicant_email,
+              application.applicant_name
+            );
+          }
+        } catch (notificationError) {
+          console.error("Error sending notifications:", notificationError);
+          // Don't fail the whole operation if notifications fail
+          // The in-app notification will still be sent via the database trigger
+        }
+      }
+
       // Refresh applications list
       await loadApplications();
 
@@ -81,7 +115,7 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
         "Success",
         `Application ${
           newStatus === "approved" ? "approved" : "rejected"
-        } successfully. The applicant will be notified.`
+        } successfully. The applicant will be notified via email and in-app notification.`
       );
     } catch (error) {
       console.error("Error updating application status:", error);

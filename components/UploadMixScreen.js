@@ -516,6 +516,23 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         throw dbError;
       }
 
+      // Keep Studio and mobile clients in sync by updating shared image_url column
+      if (artworkUrl && mixRecord?.id) {
+        const { error: imageSyncError } = await supabase
+          .from("mixes")
+          .update({ image_url: artworkUrl })
+          .eq("id", mixRecord.id);
+
+        if (imageSyncError) {
+          console.error(
+            "❌ Failed to sync artwork to image_url column:",
+            imageSyncError
+          );
+        } else {
+          console.log("✅ Synced artwork URL to image_url column");
+        }
+      }
+
       setUploadProgress(100);
 
       // Set as primary mix if requested

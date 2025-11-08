@@ -29,9 +29,27 @@ try {
 
     // Register the service - this tells iOS where to send remote control events
     // The service function will be called when TrackPlayer.setupPlayer() is invoked
-    TrackPlayer.registerPlaybackService(() =>
-      require("./src/audio/playbackService")
-    );
+    //
+    // IMPORTANT: registerPlaybackService expects a function that returns the service function
+    // Since playbackService.js uses module.exports = async function playbackService(),
+    // require() will return the service function directly
+    TrackPlayer.registerPlaybackService(() => {
+      const service = require("./src/audio/playbackService");
+
+      // Verify we got the service function (not just the module object)
+      if (typeof service === "function") {
+        console.log(
+          "✅✅✅ [STARTUP] Service function correctly loaded (type: function)"
+        );
+        return service;
+      } else {
+        // If it's the module object, try to get the default export or the exported function
+        console.warn(
+          "⚠️ [STARTUP] Service require returned object, checking for default export..."
+        );
+        return service.default || service;
+      }
+    });
 
     console.log("✅✅✅ [STARTUP] Playback service registered successfully");
     console.log(
