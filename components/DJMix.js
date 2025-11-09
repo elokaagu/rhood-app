@@ -15,6 +15,47 @@ import { Ionicons } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 
+const formatSecondsToLabel = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "0:00";
+  }
+  const totalSeconds = Math.round(seconds);
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+};
+
+const parseDurationValue = (value) => {
+  if (value == null) return null;
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const parts = trimmed.split(":").map((part) => part.trim());
+    if (parts.length >= 2 && parts.length <= 3) {
+      const numbers = parts.map((part) => Number(part));
+      if (numbers.every((num) => Number.isFinite(num))) {
+        if (numbers.length === 3) {
+          const [hours, minutes, seconds] = numbers;
+          return hours * 3600 + minutes * 60 + seconds;
+        }
+        const [minutes, seconds] = numbers;
+        return minutes * 60 + seconds;
+      }
+    }
+
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return numeric;
+    }
+  }
+
+  return null;
+};
+
 const DJMix = ({
   mix,
   isPlaying,
@@ -149,6 +190,42 @@ const DJMix = ({
     [isOwnMix, swipeAnim]
   );
 
+  const displayDuration = useMemo(() => {
+    if (
+      typeof mix.durationFormatted === "string" &&
+      mix.durationFormatted.trim()
+    ) {
+      return mix.durationFormatted.trim();
+    }
+
+    if (typeof mix.durationLabel === "string" && mix.durationLabel.trim()) {
+      return mix.durationLabel.trim();
+    }
+
+    const durationSources = [
+      mix.durationSeconds,
+      mix.duration_seconds,
+      mix.duration,
+      mix.duration_formatted,
+    ];
+
+    for (const source of durationSources) {
+      const parsed = parseDurationValue(source);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return formatSecondsToLabel(parsed);
+      }
+    }
+
+    return "0:00";
+  }, [
+    mix.durationFormatted,
+    mix.durationLabel,
+    mix.durationSeconds,
+    mix.duration_seconds,
+    mix.duration,
+    mix.duration_formatted,
+  ]);
+
   const handleDelete = () => {
     Alert.alert(
       "Delete Mix",
@@ -271,7 +348,7 @@ const DJMix = ({
 
             {/* Additional Mix Info */}
             <View style={styles.mixDetails}>
-              <Text style={styles.mixDetailText}>5:00</Text>
+            <Text style={styles.mixDetailText}>{displayDuration}</Text>
               <Text style={styles.mixDetailSeparator}>•</Text>
               <Text style={styles.mixDetailText}>
                 {mix.genre || "Electronic"}

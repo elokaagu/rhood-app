@@ -627,7 +627,11 @@ export default function ConnectionsScreen({
             connectionInfo?.connection_uuid ||
             null,
           threadId: connectionInfo?.thread_id || null,
-          connectionId: connectionInfo ? user.id : null,
+          connectionId:
+            connectionInfo?.connection_id ||
+            connectionInfo?.connectionId ||
+            connectionInfo?.connection_uuid ||
+            null,
         };
 
         // Log for debugging
@@ -674,10 +678,16 @@ export default function ConnectionsScreen({
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (connection) =>
-          connection.full_name?.toLowerCase().includes(query) ||
-          connection.dj_name?.toLowerCase().includes(query) ||
-          connection.city?.toLowerCase().includes(query) ||
-          connection.statusMessage?.toLowerCase().includes(query) ||
+          [
+            connection.name,
+            connection.dj_name,
+            connection.full_name,
+            connection.username,
+            connection.location,
+            connection.statusMessage,
+          ]
+            .filter(Boolean)
+            .some((field) => field.toLowerCase().includes(query)) ||
           connection.genres?.some((genre) =>
             genre.toLowerCase().includes(query)
           )
@@ -686,6 +696,25 @@ export default function ConnectionsScreen({
 
     return filtered;
   }, [connections, searchQuery]);
+
+  const filteredDiscoverUsers = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return discoverUsers;
+    }
+    const query = searchQuery.toLowerCase();
+    return discoverUsers.filter(
+      (user) =>
+        [
+          user.name,
+          user.username,
+          user.location,
+          user.statusMessage,
+        ]
+          .filter(Boolean)
+          .some((field) => field.toLowerCase().includes(query)) ||
+        user.genres?.some((genre) => genre.toLowerCase().includes(query))
+    );
+  }, [discoverUsers, searchQuery]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -1071,6 +1100,12 @@ export default function ConnectionsScreen({
                               {connection.lastActive || "Recently"}
                             </Text>
                           </View>
+                          <Text
+                            style={styles.messageLocation}
+                            numberOfLines={1}
+                          >
+                            {connection.location || "Location not set"}
+                          </Text>
                           {connection.statusMessage ? (
                             <Text
                               style={styles.connectionStatusMessage}
@@ -1121,7 +1156,7 @@ export default function ConnectionsScreen({
               <SkeletonList count={4} />
             ) : (
               <Animated.View style={{ opacity: discoverFadeAnim }}>
-                {discoverUsers.map((user, index) => (
+                {filteredDiscoverUsers.map((user, index) => (
                   <AnimatedListItem key={user.id} index={index} delay={80}>
                     <View style={styles.discoverCard}>
                       {/* Top Row: Profile Image + Name Info + Rating */}
@@ -1155,6 +1190,9 @@ export default function ConnectionsScreen({
                           <Text style={styles.discoverUsername}>
                             {user.username}
                           </Text>
+                          <Text style={styles.discoverLocation}>
+                            {user.location}
+                          </Text>
                           {user.statusMessage ? (
                             <Text
                               style={styles.discoverStatus}
@@ -1163,9 +1201,6 @@ export default function ConnectionsScreen({
                               {user.statusMessage}
                             </Text>
                           ) : null}
-                          <Text style={styles.discoverLocation}>
-                            {user.location}
-                          </Text>
                         </View>
 
                         {/* Activity */}
@@ -1211,9 +1246,9 @@ export default function ConnectionsScreen({
                           </Text>
                         </TouchableOpacity>
                         {user.isConnected ? (
-                          <TouchableOpacity
-                            style={[
-                              styles.discoverConnectButton,
+                        <TouchableOpacity
+                          style={[
+                            styles.discoverConnectButton,
                               styles.discoverMessageButton,
                             ]}
                             onPress={() =>
@@ -1237,40 +1272,40 @@ export default function ConnectionsScreen({
                           <TouchableOpacity
                             style={[
                               styles.discoverConnectButton,
-                              user.connectionStatus === "pending" &&
-                                styles.discoverPendingButton,
-                            ]}
-                            onPress={() => handleConnect(user)}
-                            disabled={
-                              discoverLoading ||
-                              user.connectionStatus === "pending"
+                            user.connectionStatus === "pending" &&
+                              styles.discoverPendingButton,
+                          ]}
+                          onPress={() => handleConnect(user)}
+                          disabled={
+                            discoverLoading ||
+                            user.connectionStatus === "pending"
+                          }
+                        >
+                          <Ionicons
+                            name={
+                                user.connectionStatus === "pending"
+                                ? "time"
+                                : "add"
                             }
+                            size={16}
+                            color={
+                                user.connectionStatus === "pending"
+                                ? "hsl(0, 0%, 60%)"
+                                : "hsl(0, 0%, 0%)"
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.discoverConnectText,
+                              user.connectionStatus === "pending" &&
+                                styles.discoverPendingText,
+                            ]}
                           >
-                            <Ionicons
-                              name={
-                                user.connectionStatus === "pending"
-                                  ? "time"
-                                  : "add"
-                              }
-                              size={16}
-                              color={
-                                user.connectionStatus === "pending"
-                                  ? "hsl(0, 0%, 60%)"
-                                  : "hsl(0, 0%, 0%)"
-                              }
-                            />
-                            <Text
-                              style={[
-                                styles.discoverConnectText,
-                                user.connectionStatus === "pending" &&
-                                  styles.discoverPendingText,
-                              ]}
-                            >
                               {user.connectionStatus === "pending"
-                                ? "Pending"
-                                : "Connect"}
-                            </Text>
-                          </TouchableOpacity>
+                              ? "Pending"
+                              : "Connect"}
+                          </Text>
+                        </TouchableOpacity>
                         )}
                       </View>
                     </View>
@@ -1724,6 +1759,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 4,
+  },
+  messageLocation: {
+    fontSize: 13,
+    color: "hsl(0, 0%, 65%)",
+    fontFamily: "Arial",
+    marginBottom: 2,
   },
   connectionStatusMessage: {
     fontSize: 13,

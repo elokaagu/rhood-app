@@ -319,11 +319,6 @@ export default function App() {
   const [audioPlayerOpacity] = useState(new Animated.Value(0));
   const [audioPlayerTranslateY] = useState(new Animated.Value(50));
 
-  // Audio player swipe state
-  const [audioPlayerSwipeTranslateY] = useState(new Animated.Value(0));
-  const [audioPlayerSwipeOpacity] = useState(new Animated.Value(1));
-  const [isAudioPlayerSwiping, setIsAudioPlayerSwiping] = useState(false);
-
   // Audio player animation effects
   useEffect(() => {
     if (globalAudioState.currentTrack) {
@@ -1609,116 +1604,6 @@ export default function App() {
       currentQueueIndex: -1,
     });
   };
-
-  // Audio Player PanResponder for swipe gestures
-  const audioPlayerPanResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, gestureState) => {
-      // More responsive - respond to smaller movements
-      return Math.abs(gestureState.dy) > 5 || Math.abs(gestureState.dx) > 30;
-    },
-    onPanResponderGrant: () => {
-      setIsAudioPlayerSwiping(true);
-      audioPlayerSwipeTranslateY.setOffset(audioPlayerSwipeTranslateY._value);
-      audioPlayerSwipeTranslateY.setValue(0);
-    },
-    onPanResponderMove: (_, gestureState) => {
-      const { dy, dx } = gestureState;
-
-      // Handle vertical swipes (up/down)
-      if (Math.abs(dy) > Math.abs(dx)) {
-        audioPlayerSwipeTranslateY.setValue(dy);
-
-        // Fade out when swiping down
-        if (dy > 0) {
-          const opacity = Math.max(0.3, 1 - dy / 150);
-          audioPlayerSwipeOpacity.setValue(opacity);
-        }
-      }
-    },
-    onPanResponderRelease: (_, gestureState) => {
-      setIsAudioPlayerSwiping(false);
-      audioPlayerSwipeTranslateY.flattenOffset();
-
-      const { dy, dx, vy, vx } = gestureState;
-
-      // Handle vertical swipes
-      if (Math.abs(dy) > Math.abs(dx)) {
-        const swipeThreshold = PERFORMANCE_THRESHOLDS.SWIPE_THRESHOLD;
-        const velocityThreshold = PERFORMANCE_THRESHOLDS.VELOCITY_THRESHOLD;
-
-        if (dy > swipeThreshold || vy > velocityThreshold) {
-          // Swipe down - dismiss player
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          Animated.parallel([
-            Animated.timing(audioPlayerSwipeTranslateY, {
-              toValue: 200,
-              duration: ANIMATION_DURATION.NORMAL,
-              useNativeDriver: true,
-            }),
-            Animated.timing(audioPlayerSwipeOpacity, {
-              toValue: 0,
-              duration: ANIMATION_DURATION.NORMAL,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
-            stopGlobalAudio();
-            audioPlayerSwipeTranslateY.setValue(0);
-            audioPlayerSwipeOpacity.setValue(1);
-          });
-        } else if (dy < -swipeThreshold || vy < -velocityThreshold) {
-          // Swipe up - open full screen player
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setShowFullScreenPlayer(true);
-          // Reset position
-          Animated.parallel([
-            Animated.spring(audioPlayerSwipeTranslateY, {
-              toValue: 0,
-              useNativeDriver: true,
-              ...SPRING_CONFIG,
-            }),
-            Animated.timing(audioPlayerSwipeOpacity, {
-              toValue: 1,
-              duration: ANIMATION_DURATION.FAST,
-              useNativeDriver: true,
-            }),
-          ]).start();
-        } else {
-          // Snap back to original position
-          Animated.parallel([
-            Animated.spring(audioPlayerSwipeTranslateY, {
-              toValue: 0,
-              useNativeDriver: true,
-              ...SPRING_CONFIG,
-            }),
-            Animated.timing(audioPlayerSwipeOpacity, {
-              toValue: 1,
-              duration: ANIMATION_DURATION.FAST,
-              useNativeDriver: true,
-            }),
-          ]).start();
-        }
-      } else {
-        // Handle horizontal swipes for track navigation
-        const swipeThreshold = 80; // Lower threshold for easier swiping
-        const velocityThreshold = 0.6; // Lower velocity threshold
-
-        if (dx > swipeThreshold || vx > velocityThreshold) {
-          // Swipe right - previous track (if implemented)
-          console.log("Swipe right - previous track");
-        } else if (dx < -swipeThreshold || vx < -velocityThreshold) {
-          // Swipe left - next track (if implemented)
-          console.log("Swipe left - next track");
-        }
-
-        // Reset position for horizontal swipes
-        Animated.spring(audioPlayerSwipeTranslateY, {
-          toValue: 0,
-          useNativeDriver: true,
-        }).start();
-      }
-    },
-  });
 
   // Shuffle functionality
   const toggleShuffle = () => {
@@ -3926,21 +3811,14 @@ export default function App() {
             style={[
               styles.globalAudioPlayer,
               {
-                opacity: Animated.multiply(
-                  audioPlayerOpacity,
-                  audioPlayerSwipeOpacity
-                ),
+                opacity: audioPlayerOpacity,
                 transform: [
                   {
-                    translateY: Animated.add(
-                      audioPlayerTranslateY,
-                      audioPlayerSwipeTranslateY
-                    ),
+                    translateY: audioPlayerTranslateY,
                   },
                 ],
               },
             ]}
-            {...audioPlayerPanResponder.panHandlers}
           >
             <TouchableOpacity
               onPress={() => setShowFullScreenPlayer(true)}

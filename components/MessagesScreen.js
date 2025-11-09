@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase, db } from "../lib/supabase";
 import { multimediaService } from "../lib/multimediaService";
 import ProgressiveImage from "./ProgressiveImage";
@@ -26,6 +27,24 @@ import * as WebBrowser from "expo-web-browser";
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
   const { djId, communityId, chatType = "individual" } = params || {};
+
+  const insets = useSafeAreaInsets();
+
+  const keyboardVerticalOffset = useMemo(() => {
+    if (Platform.OS !== "ios") return 0;
+    const HEADER_HEIGHT_ESTIMATE = 72;
+    return insets.top + HEADER_HEIGHT_ESTIMATE;
+  }, [insets.top]);
+
+  const bottomInputPadding = useMemo(() => {
+    const BASE_PADDING = 12;
+    return BASE_PADDING + Math.max(insets.bottom, 10);
+  }, [insets.bottom]);
+
+  const scrollBottomPadding = useMemo(
+    () => bottomInputPadding + 64,
+    [bottomInputPadding]
+  );
 
   // State
   const [messages, setMessages] = useState([]);
@@ -1001,7 +1020,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      keyboardVerticalOffset={keyboardVerticalOffset}
     >
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         {/* Header */}
@@ -1063,7 +1082,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
         <ScrollView
           ref={scrollViewRef}
           style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
+          contentContainerStyle={[
+            styles.messagesContent,
+            { paddingBottom: scrollBottomPadding },
+          ]}
           onContentSizeChange={() => {
             scrollViewRef.current?.scrollToEnd({ animated: true });
           }}
@@ -1538,7 +1560,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         {/* Input */}
         {chatType === "individual" && !isConnected ? (
-          <View style={styles.inputContainer}>
+          <View
+            style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}
+          >
             <View style={styles.connectionRequiredContainer}>
               <Text style={styles.connectionRequiredText}>
                 {connectionStatus === "pending"
@@ -1558,7 +1582,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
             </View>
           </View>
         ) : (
-          <View style={styles.inputContainer}>
+          <View
+            style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}
+          >
             <View style={styles.inputWrapper}>
               <TouchableOpacity
                 style={styles.attachButton}

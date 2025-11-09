@@ -42,6 +42,95 @@ const getAudioOptimization = (audioUrl) => {
   };
 };
 
+const parseDurationString = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const colonParts = trimmed.split(":").map((part) => part.trim());
+  if (colonParts.length >= 2 && colonParts.length <= 3) {
+    const numbers = colonParts.map((part) => Number(part));
+    if (numbers.every((part) => Number.isFinite(part))) {
+      if (numbers.length === 3) {
+        const [hours, minutes, seconds] = numbers;
+        return hours * 3600 + minutes * 60 + seconds;
+      }
+      const [minutes, seconds] = numbers;
+      return minutes * 60 + seconds;
+    }
+  }
+
+  const asNumber = Number(trimmed);
+  return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : null;
+};
+
+const extractDurationSeconds = (mix) => {
+  if (!mix || typeof mix !== "object") return null;
+
+  const metadataSources = [
+    mix.duration,
+    mix.duration_seconds,
+    mix.durationSeconds,
+    mix.duration_secs,
+    mix.metadata?.duration,
+    mix.metadata?.duration_seconds,
+    mix.audio_metadata?.duration,
+    mix.audio_metadata?.duration_seconds,
+    mix.audioMetadata?.duration,
+    mix.audioMetadata?.duration_seconds,
+  ];
+
+  for (const source of metadataSources) {
+    if (source == null) continue;
+    if (typeof source === "number" && Number.isFinite(source) && source > 0) {
+      return Math.round(source);
+    }
+    const parsed = parseDurationString(String(source));
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.round(parsed);
+    }
+  }
+
+  const millisecondSources = [
+    mix.duration_millis,
+    mix.durationMillis,
+    mix.duration_ms,
+    mix.metadata?.duration_millis,
+    mix.metadata?.durationMillis,
+    mix.audio_metadata?.duration_millis,
+    mix.audio_metadata?.durationMillis,
+    mix.audioMetadata?.duration_millis,
+    mix.audioMetadata?.durationMillis,
+  ];
+
+  for (const source of millisecondSources) {
+    if (source == null) continue;
+    const numeric = Number(source);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return Math.round(numeric / 1000);
+    }
+  }
+
+  if (typeof mix.duration_formatted === "string") {
+    const parsed = parseDurationString(mix.duration_formatted);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.round(parsed);
+    }
+  }
+
+  return null;
+};
+
+const formatDurationLabel = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "0:00";
+  }
+  const totalSeconds = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+};
+
 /*
 PERFORMANCE OPTIMIZATION STRATEGIES FOR LARGE AUDIO FILES:
 
@@ -124,7 +213,7 @@ export default function ListenScreen({
       // For each mix, fetch the user profile separately
       const transformedMixes = await Promise.all(
         data.map(async (mix) => {
-          let artistName = "Unknown Artist";
+          let latestArtistName = null;
           let userProfile = null;
 
           // Try to fetch user profile for artist name and bio
@@ -138,7 +227,7 @@ export default function ListenScreen({
               .single();
 
             if (profile) {
-              artistName =
+              latestArtistName =
                 profile.dj_name ||
                 `${profile.first_name || ""} ${
                   profile.last_name || ""
@@ -158,17 +247,30 @@ export default function ListenScreen({
             }
           }
 
+          const fallbackArtist =
+            mix.artist &&
+            typeof mix.artist === "string" &&
+            mix.artist.trim().length > 0
+              ? mix.artist.trim()
+              : "Unknown Artist";
+          const resolvedArtist = latestArtistName || fallbackArtist;
+
+        const durationSeconds = extractDurationSeconds(mix);
+        const durationLabel = formatDurationLabel(durationSeconds);
+
           const transformedMix = {
             id: mix.id,
             user_id: mix.user_id, // IMPORTANT: Include for ownership check
             title: mix.title,
-            artist: mix.artist || artistName,
-            genre: mix.genre || "Electronic",
-            duration: mix.duration
-              ? `${Math.floor(mix.duration / 60)}:${(mix.duration % 60)
-                  .toString()
-                  .padStart(2, "0")}`
-              : "5:00",
+          artist: resolvedArtist,
+          genre: mix.genre || "Electronic",
+          durationSeconds,
+          durationFormatted: durationLabel,
+          durationLabel,
+          duration: durationSeconds,
+          durationMillis: durationSeconds
+            ? durationSeconds * 1000
+            : null,
             description: mix.description || "No description available",
             image:
               mix.artwork_url ||
