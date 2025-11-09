@@ -58,6 +58,8 @@ export default function ConnectionsScreen({
   const [latestGroupMessage, setLatestGroupMessage] = useState(null);
   const [unreadGroupCount, setUnreadGroupCount] = useState(0);
   const [cancellingConnectionId, setCancellingConnectionId] = useState(null);
+  const [acceptingUserId, setAcceptingUserId] = useState(null);
+  const [decliningUserId, setDecliningUserId] = useState(null);
   const prevConnectionStatusesRef = useRef(new Map());
 
   const handleCloseConnectionModal = useCallback(() => {
@@ -239,6 +241,19 @@ export default function ConnectionsScreen({
             conn.state ||
             null;
           const normalizedStatus = normalizeConnectionStatus(rawStatus);
+          const connectionId =
+            conn.connection_id ||
+            conn.id ||
+            conn.connectionId ||
+            conn.connection_uuid ||
+            null;
+          const initiatedBy =
+            conn.initiated_by ||
+            conn.requested_by ||
+            conn.requester_id ||
+            conn.sent_by ||
+            null;
+          const threadId = conn.thread_id || null;
 
           const previousStatus = prevConnectionStatusesRef.current.get(
             conn.connected_user_id
@@ -254,13 +269,8 @@ export default function ConnectionsScreen({
             newlyAcceptedConnections.push({
               userId: conn.connected_user_id,
               name: conn.connected_user_name || "this DJ",
-              connectionId:
-                conn.connection_id ||
-                conn.id ||
-                conn.connectionId ||
-                conn.connection_uuid ||
-                null,
-              threadId: conn.thread_id || null,
+              connectionId: connectionId,
+              threadId: threadId,
             });
           }
 
@@ -288,7 +298,20 @@ export default function ConnectionsScreen({
             connectionStatus: normalizedStatus,
             connectionStatusRaw: rawStatus,
             isConnected: isAcceptedConnectionStatus(normalizedStatus),
-          statusMessage: conn.connected_user_status_message || "",
+            statusMessage: conn.connected_user_status_message || "",
+            connectionId,
+            threadId,
+            connectionInitiatedBy: initiatedBy,
+            isIncomingPending:
+              normalizeConnectionStatus(rawStatus) === "pending" &&
+              initiatedBy &&
+              currentUser.id &&
+              initiatedBy !== currentUser.id,
+            isOutgoingPending:
+              normalizeConnectionStatus(rawStatus) === "pending" &&
+              initiatedBy &&
+              currentUser.id &&
+              initiatedBy === currentUser.id,
           };
         });
 
@@ -323,7 +346,12 @@ export default function ConnectionsScreen({
               status: "online",
               isVerified: participant.isVerified || false,
               connectionStatus: null, // No connection status
-          statusMessage: participant.statusMessage || "",
+              statusMessage: participant.statusMessage || "",
+              connectionId: null,
+              threadId: participant.threadId || null,
+              connectionInitiatedBy: null,
+              isIncomingPending: false,
+              isOutgoingPending: false,
             };
           }
         });
@@ -840,6 +868,96 @@ export default function ConnectionsScreen({
     );
   };
 
+  const handleAcceptPendingConnection = async (connection) => {
+    if (!connection) return;
+
+    const displayName =
+      connection?.name ||
+      connection?.dj_name ||
+      connection?.full_name ||
+      `${connection?.first_name || ""} ${connection?.last_name || ""}`.trim() ||
+      "this DJ";
+
+    try {
+      const connectionId =
+        connection.connectionId ||
+        connection.connection_id ||
+        (await resolveConnectionId(connection));
+
+      if (!connectionId) {
+        Alert.alert(
+          "Error",
+          "We couldn't find this connection request. Please try again."
+        );
+        return;
+      }
+
+      setAcceptingUserId(connection.id);
+      await db.acceptConnection(connectionId);
+
+      await loadUserAndConnections({ showLoader: false });
+      await loadDiscoverDJs();
+    } catch (error) {
+      console.error("Error accepting connection request:", error);
+      Alert.alert(
+        "Error",
+        `Failed to accept connection request: ${error.message || "Unknown error"}`
+      );
+    } finally {
+      setAcceptingUserId(null);
+    }
+  };
+
+  const handleDeclinePendingConnection = async (connection) => {
+    if (!connection) return;
+
+    const displayName =
+      connection?.name ||
+      connection?.dj_name ||
+      connection?.full_name ||
+      `${connection?.first_name || ""} ${connection?.last_name || ""}`.trim() ||
+      "this DJ";
+
+    try {
+      const connectionId =
+        connection.connectionId ||
+        connection.connection_id ||
+        (await resolveConnectionId(connection));
+
+      if (!connectionId) {
+        Alert.alert(
+          "Error",
+          "We couldn't find this connection request to decline. Please try again."
+        );
+        return;
+      }
+
+      setDecliningUserId(connection.id);
+      await db.declineConnection(connectionId);
+
+      await loadUserAndConnections({ showLoader: false });
+      await loadDiscoverDJs();
+
+      setConnectionMessage(
+        `Connection request from ${displayName} has been declined.`
+      );
+      setConnectionModalType("info");
+      setConnectionModalPrimaryText("OK");
+      setConnectionModalPrimaryAction(null);
+      setShowConnectionModal(true);
+    } catch (error) {
+      console.error("Error declining connection request:", error);
+      Alert.alert(
+        "Error",
+        `Failed to decline connection request: ${
+          error.message || "Unknown error"
+        }`
+      );
+    } finally {
+      setDecliningUserId(null);
+    }
+  };
+
   const loadDiscoverDJs = async () => {
     try {
       setDiscoverLoading(true);
@@ -1174,6 +1292,16 @@ export default function ConnectionsScreen({
     });
   }, [filteredConnections, lastMessages]);
 
+  const incomingConnectionRequests = useMemo(() => {
+    if (!user?.id) return [];
+    return filteredConnections.filter(
+      (connection) =>
+        isPendingConnectionStatus(connection.connectionStatus) &&
+        connection.connectionInitiatedBy &&
+        connection.connectionInitiatedBy !== user.id
+    );
+  }, [filteredConnections, user?.id]);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -1377,6 +1505,146 @@ export default function ConnectionsScreen({
                     )}
                   </View>
                 </TouchableOpacity>
+
+                {/* Incoming Connection Requests */}
+                {incomingConnectionRequests.length > 0 && (
+                  <View style={styles.pendingRequestsSection}>
+                    <View style={styles.pendingRequestsHeader}>
+                      <Ionicons
+                        name="person-add"
+                        size={18}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                      <Text style={styles.pendingRequestsTitle}>
+                        Connection Requests
+                      </Text>
+                    </View>
+                    {incomingConnectionRequests.map((request) => {
+                      const isAccepting =
+                        acceptingUserId && request.id === acceptingUserId;
+                      const isDeclining =
+                        decliningUserId && request.id === decliningUserId;
+                      const isProcessing = isAccepting || isDeclining;
+
+                      return (
+                        <View
+                          key={request.id}
+                          style={styles.pendingRequestCard}
+                        >
+                          <View style={styles.pendingRequestInfo}>
+                            <ProgressiveImage
+                              source={
+                                request.profileImage &&
+                                typeof request.profileImage === "string" &&
+                                request.profileImage.trim()
+                                  ? { uri: request.profileImage.trim() }
+                                  : null
+                              }
+                              style={styles.pendingRequestAvatar}
+                              placeholder={
+                                <ProfileImagePlaceholder
+                                  size={48}
+                                  style={styles.pendingRequestAvatar}
+                                />
+                              }
+                            />
+                            <View style={styles.pendingRequestDetails}>
+                              <Text
+                                style={styles.pendingRequestName}
+                                numberOfLines={1}
+                              >
+                                {getUserName(request)}
+                              </Text>
+                              {request.statusMessage ? (
+                                <Text
+                                  style={styles.pendingRequestStatus}
+                                  numberOfLines={1}
+                                >
+                                  {request.statusMessage}
+                                </Text>
+                              ) : null}
+                              {request.username ? (
+                                <Text
+                                  style={styles.pendingRequestSubtitle}
+                                  numberOfLines={1}
+                                >
+                                  {request.username}
+                                </Text>
+                              ) : null}
+                            </View>
+                          </View>
+                          <View style={styles.pendingRequestActions}>
+                            <TouchableOpacity
+                              style={[
+                                styles.pendingActionButton,
+                                styles.pendingAcceptButton,
+                                isProcessing && styles.pendingActionDisabled,
+                              ]}
+                              onPress={() =>
+                                handleAcceptPendingConnection(request)
+                              }
+                              disabled={isProcessing}
+                              activeOpacity={0.8}
+                            >
+                              {isAccepting ? (
+                                <ActivityIndicator
+                                  size="small"
+                                  color="hsl(0, 0%, 0%)"
+                                />
+                              ) : (
+                                <>
+                                  <Ionicons
+                                    name="checkmark"
+                                    size={16}
+                                    color="hsl(0, 0%, 0%)"
+                                  />
+                                  <Text style={styles.pendingActionText}>
+                                    Accept
+                                  </Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[
+                                styles.pendingActionButton,
+                                styles.pendingDeclineButton,
+                                isProcessing && styles.pendingActionDisabled,
+                              ]}
+                              onPress={() =>
+                                handleDeclinePendingConnection(request)
+                              }
+                              disabled={isProcessing}
+                              activeOpacity={0.8}
+                            >
+                              {isDeclining ? (
+                                <ActivityIndicator
+                                  size="small"
+                                  color="hsl(0, 0%, 70%)"
+                                />
+                              ) : (
+                                <>
+                                  <Ionicons
+                                    name="close"
+                                    size={16}
+                                    color="hsl(0, 0%, 70%)"
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.pendingActionText,
+                                      styles.pendingDeclineText,
+                                    ]}
+                                  >
+                                    Decline
+                                  </Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
 
                 {/* Individual Messages */}
                 {connectionsWithMessages.map((connection, index) => (
@@ -2147,6 +2415,97 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "hsl(0, 0%, 60%)",
     fontFamily: "Arial",
+  },
+  pendingRequestsSection: {
+    marginTop: 16,
+    marginBottom: 12,
+    backgroundColor: "hsl(0, 0%, 6%)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%, 0.12)",
+    padding: 16,
+    gap: 16,
+  },
+  pendingRequestsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  pendingRequestsTitle: {
+    fontSize: 16,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(0, 0%, 100%)",
+    letterSpacing: 0.5,
+  },
+  pendingRequestCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%, 0.08)",
+    padding: 12,
+    gap: 12,
+  },
+  pendingRequestInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  pendingRequestAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  pendingRequestDetails: {
+    flex: 1,
+    gap: 4,
+  },
+  pendingRequestName: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "700",
+    color: "hsl(0, 0%, 100%)",
+  },
+  pendingRequestStatus: {
+    fontSize: 13,
+    color: "hsl(0, 0%, 70%)",
+  },
+  pendingRequestSubtitle: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 55%)",
+  },
+  pendingRequestActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  pendingActionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  pendingAcceptButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  pendingDeclineButton: {
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 30%)",
+  },
+  pendingActionDisabled: {
+    opacity: 0.6,
+  },
+  pendingActionText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+  },
+  pendingDeclineText: {
+    color: "hsl(0, 0%, 70%)",
   },
   unreadCounter: {
     backgroundColor: "hsl(75, 100%, 60%)",
