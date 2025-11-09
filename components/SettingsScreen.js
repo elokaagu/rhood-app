@@ -168,14 +168,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           type: "toggle",
           value: settings.messageNotifications,
         },
-        {
-          id: "communityUpdates",
-          title: "Community Updates",
-          subtitle: "Updates from communities",
-          icon: "people",
-          type: "toggle",
-          value: settings.communityUpdates,
-        },
       ],
     },
     {

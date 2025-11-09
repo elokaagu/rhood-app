@@ -179,29 +179,37 @@ export default function NotificationsScreen({
       if (error) throw error;
 
       // Transform database notifications to match UI format
-      const transformedNotifications = data.map((notification) => ({
-        id: notification.id,
-        type: notification.type,
-        title: notification.title,
-        description: notification.message,
-        timestamp: formatRelativeTime(notification.created_at),
-        isRead: notification.is_read,
-        priority: getPriorityFromType(notification.type),
-        actionRequired:
-          !notification.is_read && shouldRequireAction(notification.type),
-        relatedId: notification.related_id,
-        connectionId:
-          notification.related_id ||
-          notification.data?.connection_id ||
-          notification.metadata?.connection_id ||
-          null,
-        senderImage:
-          notification.sender_image ||
-          notification.data?.sender_image ||
-          notification.metadata?.sender_image ||
-          null,
-        rawData: notification.data || notification.metadata || {},
-      }));
+      const transformedNotifications = data.map((notification) => {
+        const rawTitle = notification.title || "";
+        const displayTitle =
+          notification.type === "connection"
+            ? rawTitle.replace(/^\s*New\s+/i, "").trim() || "Connection Request"
+            : rawTitle;
+
+        return {
+          id: notification.id,
+          type: notification.type,
+          title: displayTitle,
+          description: notification.message,
+          timestamp: formatRelativeTime(notification.created_at),
+          isRead: notification.is_read,
+          priority: getPriorityFromType(notification.type),
+          actionRequired:
+            !notification.is_read && shouldRequireAction(notification.type),
+          relatedId: notification.related_id,
+          connectionId:
+            notification.related_id ||
+            notification.data?.connection_id ||
+            notification.metadata?.connection_id ||
+            null,
+          senderImage:
+            notification.sender_image ||
+            notification.data?.sender_image ||
+            notification.metadata?.sender_image ||
+            null,
+          rawData: notification.data || notification.metadata || {},
+        };
+      });
 
       setNotifications(transformedNotifications);
     } catch (error) {
@@ -349,7 +357,11 @@ export default function NotificationsScreen({
 
       // Extract user info from notification for the modal
       const userInfo = {
-        name: notification.title.replace(" wants to connect with you", ""),
+        name:
+          notification.description?.replace(
+            " wants to connect with you",
+            ""
+          )?.trim() || "This DJ",
         id: notification.rawData?.sender_id || notification.relatedId,
       };
 
@@ -415,6 +427,60 @@ export default function NotificationsScreen({
       );
     } finally {
       clearNotificationActionProcessing(notification.id);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      if (!currentUser) return;
+
+      setLoading(true);
+
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", currentUser.id);
+
+      if (error) throw error;
+
+      setNotifications((prev) =>
+        prev.map((notification) => ({ ...notification, isRead: true }))
+      );
+
+      if (onNotificationRead) {
+        onNotificationRead();
+      }
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      Alert.alert("Error", "Failed to mark all notifications as read");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    try {
+      if (!currentUser) return;
+
+      setLoading(true);
+
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("user_id", currentUser.id);
+
+      if (error) throw error;
+
+      setNotifications([]);
+
+      if (onNotificationRead) {
+        onNotificationRead();
+      }
+    } catch (error) {
+      console.error("Error clearing notifications:", error);
+      Alert.alert("Error", "Failed to clear notifications");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -489,6 +555,33 @@ export default function NotificationsScreen({
               ? `${unreadCount} unread notifications`
               : "All caught up!"}
           </Text>
+
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={markAllAsRead}
+              disabled={loading || notifications.length === 0}
+            >
+              <Ionicons
+                name="checkmark-done"
+                size={16}
+                color="hsl(75, 100%, 60%)"
+              />
+              <Text style={styles.headerActionText}>Mark All Read</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={clearAllNotifications}
+              disabled={loading || notifications.length === 0}
+            >
+              <Ionicons
+                name="trash-outline"
+                size={16}
+                color="hsl(0, 0%, 70%)"
+              />
+              <Text style={styles.headerActionText}>Clear All</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Notifications List */}
@@ -791,6 +884,28 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)",
     marginBottom: 16,
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 8,
+  },
+  headerActionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 25%)",
+  },
+  headerActionText: {
+    fontSize: 12,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 85%)",
   },
   noResultsContainer: {
     alignItems: "center",

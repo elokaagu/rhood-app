@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
@@ -14,6 +15,8 @@ import {
   Image,
   Modal,
   Linking,
+  Share,
+  ActionSheetIOS,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +26,42 @@ import ProgressiveImage from "./ProgressiveImage";
 import { Audio, Video } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import * as WebBrowser from "expo-web-browser";
+
+const URL_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
+
+const stripTrailingPunctuation = (url = "") =>
+  url.replace(/[),.;!?]+$/g, "");
+
+const extractUrls = (text = "") => {
+  if (!text) return [];
+  const matches = text.match(URL_REGEX);
+  if (!matches) return [];
+  return matches
+    .map((match) => stripTrailingPunctuation(match.trim()))
+    .filter(Boolean);
+};
+
+const resolveRelativeUrl = (maybeRelative = "", baseUrl = "") => {
+  try {
+    if (!maybeRelative) return "";
+    const trimmed = maybeRelative.trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith("//")) {
+      return `https:${trimmed}`;
+    }
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return trimmed;
+    }
+    if (baseUrl) {
+      const base = new URL(baseUrl);
+      return new URL(trimmed, base).toString();
+    }
+    return trimmed;
+  } catch (error) {
+    console.warn("resolveRelativeUrl error", { maybeRelative, baseUrl, error });
+    return trimmed || "";
+  }
+};
 
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
@@ -65,12 +104,446 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [playingAudioId, setPlayingAudioId] = useState(null);
   const [audioProgress, setAudioProgress] = useState({});
   const [audioDurations, setAudioDurations] = useState({});
+  const [messageLinkPreviews, setMessageLinkPreviews] = useState({});
 
   // Refs
   const scrollViewRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const channelRef = useRef(null);
   const audioSoundsRef = useRef({});
+  const linkPreviewCacheRef = useRef({});
+
+  const fetchLinkPreview = useCallback(async (rawUrl) => {
+    if (!rawUrl) return null;
+
+    let targetUrl = rawUrl.trim();
+    if (!targetUrl) return null;
+    if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
+      targetUrl = `https://${targetUrl}`;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch(targetUrl, {
+        method: "GET",
+        headers: {
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+          "User-Agent":
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.warn("Link preview request failed", {
+          url: targetUrl,
+          status: response.status,
+        });
+        return null;
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      let hostname = targetUrl;
+      try {
+        hostname = new URL(targetUrl).hostname.replace(/^www\./i, "");
+      } catch (error) {
+        console.warn("Unable to parse URL hostname", { targetUrl, error });
+      }
+
+      if (contentType.startsWith("image/")) {
+        return {
+          url: targetUrl,
+          title: hostname || targetUrl,
+          description: "",
+          image: targetUrl,
+          siteName: hostname || targetUrl,
+        };
+      }
+
+      const html = await response.text();
+      const truncatedHtml = html.slice(0, 120000);
+
+      const getMetaContent = (property) => {
+        if (!property) return "";
+        const propertyRegex = new RegExp(
+          `<meta[^>]+property=["']${property}["'][^>]*content=["']([^"']+)["'][^>]*>`,
+          "i"
+        );
+        const nameRegex = new RegExp(
+          `<meta[^>]+name=["']${property}["'][^>]*content=["']([^"']+)["'][^>]*>`,
+          "i"
+        );
+        const propertyMatch = truncatedHtml.match(propertyRegex);
+        if (propertyMatch && propertyMatch[1]) return propertyMatch[1];
+        const nameMatch = truncatedHtml.match(nameRegex);
+        if (nameMatch && nameMatch[1]) return nameMatch[1];
+        return "";
+      };
+
+      const getTitleTag = () => {
+        const titleMatch = truncatedHtml.match(
+          /<title[^>]*>([^<]*)<\/title>/i
+        );
+        if (titleMatch && titleMatch[1]) return titleMatch[1];
+        return "";
+      };
+
+      const title =
+        getMetaContent("og:title") ||
+        getMetaContent("twitter:title") ||
+        getTitleTag() ||
+        hostname ||
+        targetUrl;
+
+      const description =
+        getMetaContent("og:description") ||
+        getMetaContent("twitter:description") ||
+        getMetaContent("description") ||
+        "";
+
+      const siteName =
+        getMetaContent("og:site_name") ||
+        getMetaContent("twitter:site") ||
+        hostname ||
+        "";
+
+      let imageUrl =
+        getMetaContent("og:image:secure_url") ||
+        getMetaContent("og:image:url") ||
+        getMetaContent("og:image") ||
+        getMetaContent("twitter:image") ||
+        getMetaContent("twitter:image:src") ||
+        "";
+
+      imageUrl = resolveRelativeUrl(imageUrl, targetUrl);
+
+      return {
+        url: targetUrl,
+        title: title.trim(),
+        description: description.trim(),
+        image: imageUrl,
+        siteName: siteName.trim() || hostname || targetUrl,
+      };
+    } catch (error) {
+      console.warn("Link preview fetch error", { url: rawUrl, error });
+      return null;
+    }
+  }, []);
+
+  const handleUrlPress = useCallback(async (rawUrl) => {
+    if (!rawUrl) return;
+
+    const sanitizedUrl =
+      rawUrl.startsWith("http://") || rawUrl.startsWith("https://")
+        ? rawUrl
+        : `https://${rawUrl}`;
+
+    try {
+      const supported = await Linking.canOpenURL(sanitizedUrl);
+      if (supported) {
+        await Linking.openURL(sanitizedUrl);
+      } else {
+        Alert.alert("Cannot Open Link", sanitizedUrl);
+      }
+    } catch (error) {
+      console.error("Error opening link:", error);
+      Alert.alert("Link Error", "Unable to open this link right now.");
+    }
+  }, []);
+
+  const renderMessageText = useCallback(
+    (message) => {
+      if (!message?.content?.trim()) return null;
+
+      const text = message.content;
+      const segments = [];
+      let lastIndex = 0;
+
+      text.replace(URL_REGEX, (match, offset) => {
+        if (offset > lastIndex) {
+          segments.push({
+            type: "text",
+            value: text.slice(lastIndex, offset),
+          });
+        }
+
+        const normalized = stripTrailingPunctuation(match);
+        segments.push({
+          type: "link",
+          value: normalized,
+        });
+        if (normalized.length < match.length) {
+          segments.push({
+            type: "text",
+            value: match.substring(normalized.length),
+          });
+        }
+
+        lastIndex = offset + match.length;
+        return match;
+      });
+
+      if (lastIndex < text.length) {
+        segments.push({
+          type: "text",
+          value: text.slice(lastIndex),
+        });
+      }
+
+      if (!segments.length) {
+        segments.push({ type: "text", value: text });
+      }
+
+      return (
+        <Text
+          style={[
+            styles.messageText,
+            message.isOwn ? styles.ownMessageText : styles.otherMessageText,
+          ]}
+          selectable
+        >
+          {segments.map((segment, index) =>
+            segment.type === "link" ? (
+              <Text
+                key={`${message.id}-link-${index}`}
+                style={[
+                  styles.messageLink,
+                  message.isOwn ? styles.ownMessageLink : styles.otherMessageLink,
+                ]}
+                onPress={() => handleUrlPress(segment.value)}
+              >
+                {segment.value}
+              </Text>
+            ) : (
+              <Text key={`${message.id}-text-${index}`}>{segment.value}</Text>
+            )
+          )}
+        </Text>
+      );
+    },
+    [handleUrlPress]
+  );
+
+  const renderLinkPreviews = useCallback(
+    (message) => {
+      const previews = messageLinkPreviews[message.id];
+      if (!previews || !previews.length) return null;
+
+      return previews.map((preview) => {
+        const isOwn = message.isOwn;
+
+        return (
+        <TouchableOpacity
+          key={`${message.id}-${preview.url}`}
+          style={[
+            styles.linkPreviewCard,
+            message.isOwn
+              ? styles.ownLinkPreviewCard
+              : styles.otherLinkPreviewCard,
+          ]}
+          activeOpacity={0.85}
+          onPress={() => handleUrlPress(preview.url)}
+        >
+          {preview.image ? (
+            <Image
+              source={{ uri: preview.image }}
+              style={styles.linkPreviewImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.linkPreviewPlaceholder}>
+              <Ionicons
+                name="link-outline"
+                size={24}
+                color="hsl(0, 0%, 65%)"
+              />
+            </View>
+          )}
+          <View style={styles.linkPreviewContent}>
+            {preview.siteName ? (
+                <Text
+                  style={[
+                    styles.linkPreviewSite,
+                    isOwn
+                      ? styles.ownLinkPreviewSite
+                      : styles.otherLinkPreviewSite,
+                  ]}
+                  numberOfLines={1}
+                >
+                {preview.siteName}
+              </Text>
+            ) : null}
+              <Text
+                style={[
+                  styles.linkPreviewTitle,
+                  isOwn
+                    ? styles.ownLinkPreviewTitle
+                    : styles.otherLinkPreviewTitle,
+                ]}
+                numberOfLines={2}
+              >
+              {preview.title || preview.url}
+            </Text>
+            {preview.description ? (
+                <Text
+                  style={[
+                    styles.linkPreviewDescription,
+                    isOwn
+                      ? styles.ownLinkPreviewDescription
+                      : styles.otherLinkPreviewDescription,
+                  ]}
+                  numberOfLines={2}
+                >
+                {preview.description}
+              </Text>
+            ) : null}
+              <Text
+                style={[
+                  styles.linkPreviewUrl,
+                  isOwn
+                    ? styles.ownLinkPreviewUrl
+                    : styles.otherLinkPreviewUrl,
+                ]}
+                numberOfLines={1}
+              >
+              {preview.url.replace(/^https?:\/\//, "")}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        );
+      });
+    },
+    [handleUrlPress, messageLinkPreviews]
+  );
+
+  const handleForwardMessage = useCallback(async (message) => {
+    try {
+      const parts = [];
+      if (message?.content) {
+        parts.push(message.content);
+      }
+      if (message?.mediaUrl) {
+        parts.push(message.mediaUrl);
+      }
+
+      if (!parts.length) {
+        Alert.alert(
+          "Nothing to forward",
+          "This message doesn't contain any shareable content yet."
+        );
+        return;
+      }
+
+      await Share.share({ message: parts.join("\n\n") });
+    } catch (error) {
+      console.error("Error forwarding message:", error);
+      Alert.alert("Error", "Unable to forward this message right now.");
+    }
+  }, []);
+
+  const handleDeleteMessage = useCallback(
+    async (message) => {
+      if (!message?.id) return;
+
+      try {
+        const targetTable =
+          message.recordType === "group" ? "community_posts" : "messages";
+
+        const { error } = await supabase
+          .from(targetTable)
+          .delete()
+          .eq("id", message.id);
+
+        if (error) {
+          throw error;
+        }
+
+        setMessages((prev) => prev.filter((m) => m.id !== message.id));
+        setMessageLinkPreviews((prev) => {
+          if (!prev[message.id]) return prev;
+          const updated = { ...prev };
+          delete updated[message.id];
+          return updated;
+        });
+      } catch (error) {
+        console.error("Error deleting message:", error);
+        Alert.alert("Error", "Failed to delete this message. Please try again.");
+      }
+    },
+    [supabase]
+  );
+
+  const handleMessageLongPress = useCallback(
+    (message) => {
+      if (!message) return;
+
+      const promptDelete = () => {
+        Alert.alert(
+          "Delete message?",
+          "This will remove the message for everyone.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Delete",
+              style: "destructive",
+              onPress: () => handleDeleteMessage(message),
+            },
+          ]
+        );
+      };
+
+      if (Platform.OS === "ios") {
+        const options = message.isOwn
+          ? ["Cancel", "Forward", "Delete"]
+          : ["Cancel", "Forward"];
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            options,
+            cancelButtonIndex: 0,
+            destructiveButtonIndex: message.isOwn ? 2 : undefined,
+          },
+          (buttonIndex) => {
+            if (buttonIndex === 0) return;
+            if (buttonIndex === 1) {
+              handleForwardMessage(message);
+              return;
+            }
+            if (buttonIndex === 2 && message.isOwn) {
+              promptDelete();
+            }
+          }
+        );
+      } else {
+        const buttons = [
+          {
+            text: "Forward",
+            onPress: () => handleForwardMessage(message),
+          },
+        ];
+
+        if (message.isOwn) {
+          buttons.push({
+            text: "Delete",
+            style: "destructive",
+            onPress: promptDelete,
+          });
+        }
+
+        buttons.push({ text: "Cancel", style: "cancel" });
+
+        Alert.alert("Message options", undefined, buttons, {
+          cancelable: true,
+        });
+      }
+    },
+    [handleForwardMessage, handleDeleteMessage]
+  );
 
   // Load messages
   const loadMessages = useCallback(async () => {
@@ -156,6 +629,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
           mediaMimeType: msg.media_mime_type,
           thumbnailUrl: msg.thumbnail_url,
           fileExtension: msg.file_extension,
+          urls: extractUrls(msg.content || ""),
+          recordType: "direct",
+          threadId: msg.thread_id,
         }));
 
         console.log("📨 Loaded messages:", transformedMessages.length);
@@ -193,6 +669,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
           mediaMimeType: msg.media_mime_type,
           thumbnailUrl: msg.thumbnail_url,
           fileExtension: msg.file_extension,
+          urls: extractUrls(msg.content || ""),
+          recordType: "group",
+          communityId: communityId,
         }));
 
         setMessages(transformedMessages);
@@ -268,6 +747,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
               mediaMimeType: payload.new.media_mime_type,
               thumbnailUrl: payload.new.thumbnail_url,
               fileExtension: payload.new.file_extension,
+              urls: extractUrls(payload.new.content || ""),
+              recordType: "direct",
+              threadId: payload.new.thread_id,
             };
 
             setMessages((prev) => {
@@ -321,6 +803,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
               mediaMimeType: payload.new.media_mime_type,
               thumbnailUrl: payload.new.thumbnail_url,
               fileExtension: payload.new.file_extension,
+              urls: extractUrls(payload.new.content || ""),
+              recordType: "group",
+              communityId: payload.new.community_id,
             };
 
             setMessages((prev) => {
@@ -353,6 +838,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
     loadMessages();
   }, [loadMessages]);
 
+  useEffect(() => {
+    setMessageLinkPreviews({});
+    linkPreviewCacheRef.current = {};
+  }, [djId, communityId, chatType]);
+
   // Fade in animation
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -361,6 +851,62 @@ const MessagesScreen = ({ user, navigation, route }) => {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  useEffect(() => {
+    if (!messages.length) return;
+
+    messages.forEach((message) => {
+      if (!message?.urls?.length) return;
+
+      message.urls.forEach((rawUrl) => {
+        const normalizedUrl = stripTrailingPunctuation(rawUrl);
+        if (!normalizedUrl) return;
+
+        const cacheKey = `${message.id}|${normalizedUrl}`;
+        if (linkPreviewCacheRef.current[cacheKey]) {
+          return;
+        }
+
+        linkPreviewCacheRef.current[cacheKey] = "pending";
+
+        fetchLinkPreview(normalizedUrl)
+          .then((preview) => {
+            if (!preview) {
+              linkPreviewCacheRef.current[cacheKey] = null;
+              return;
+            }
+
+            const previewData = {
+              url: normalizedUrl,
+              title: preview.title || normalizedUrl,
+              description: preview.description || "",
+              image: preview.image || "",
+              siteName: preview.siteName || "",
+            };
+
+            linkPreviewCacheRef.current[cacheKey] = previewData;
+
+            setMessageLinkPreviews((prev) => {
+              const current = prev[message.id] || [];
+              if (current.some((item) => item.url === previewData.url)) {
+                return prev;
+              }
+              return {
+                ...prev,
+                [message.id]: [...current, previewData],
+              };
+            });
+          })
+          .catch((error) => {
+            console.warn("Link preview lookup failed", {
+              url: normalizedUrl,
+              error,
+            });
+            linkPreviewCacheRef.current[cacheKey] = null;
+          });
+      });
+    });
+  }, [messages, fetchLinkPreview]);
 
   const selectAndUploadMedia = useCallback(async (pickerFn, label) => {
     try {
@@ -1122,11 +1668,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
                     <Text style={styles.senderName}>{message.senderName}</Text>
                   </View>
                 )}
-                <View
+                <Pressable
                   style={[
                     styles.messageBubble,
                     message.isOwn ? styles.ownBubble : styles.otherBubble,
                   ]}
+                  onLongPress={() => handleMessageLongPress(message)}
+                  delayLongPress={250}
                 >
                   {message.messageType !== "text" && message.mediaUrl ? (
                     <View style={styles.mediaContent}>
@@ -1348,18 +1896,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
                         )}
                     </View>
                   ) : null}
-                  {!!message.content && message.content.trim() && (
-                    <Text
-                      style={[
-                        styles.messageText,
-                        message.isOwn
-                          ? styles.ownMessageText
-                          : styles.otherMessageText,
-                      ]}
-                    >
-                      {message.content}
-                    </Text>
-                  )}
+                  {renderMessageText(message)}
+                  {renderLinkPreviews(message)}
                   <Text
                     style={[
                       styles.messageTime,
@@ -1370,7 +1908,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   >
                     {formatTime(message.timestamp)}
                   </Text>
-                </View>
+                </Pressable>
               </View>
             ))
           )}
@@ -1787,6 +2325,93 @@ const styles = StyleSheet.create({
   },
   otherMessageText: {
     color: "hsl(0, 0%, 100%)",
+  },
+  messageLink: {
+    textDecorationLine: "underline",
+  },
+  ownMessageLink: {
+    color: "hsl(0, 0%, 0%)",
+  },
+  otherMessageLink: {
+    color: "hsl(75, 100%, 60%)",
+  },
+  linkPreviewCard: {
+    marginTop: 12,
+    borderRadius: 16,
+    overflow: "hidden",
+    flexDirection: "row",
+    alignItems: "stretch",
+    minHeight: 96,
+    borderWidth: 1,
+  },
+  ownLinkPreviewCard: {
+    backgroundColor: "rgba(0, 0, 0, 0.08)",
+    borderColor: "rgba(0, 0, 0, 0.15)",
+  },
+  otherLinkPreviewCard: {
+    backgroundColor: "hsl(0, 0%, 18%)",
+    borderColor: "hsl(75, 100%, 30%)",
+  },
+  linkPreviewImage: {
+    width: 88,
+    height: "100%",
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  linkPreviewPlaceholder: {
+    width: 88,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  linkPreviewContent: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  linkPreviewSite: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    marginBottom: 2,
+  },
+  ownLinkPreviewSite: {
+    color: "hsl(0, 0%, 25%)",
+  },
+  otherLinkPreviewSite: {
+    color: "hsl(75, 85%, 70%)",
+  },
+  linkPreviewTitle: {
+    fontSize: 14,
+    fontFamily: "TS Block Bold",
+    letterSpacing: 0.3,
+  },
+  ownLinkPreviewTitle: {
+    color: "hsl(0, 0%, 5%)",
+  },
+  otherLinkPreviewTitle: {
+    color: "hsl(0, 0%, 100%)",
+  },
+  linkPreviewDescription: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  ownLinkPreviewDescription: {
+    color: "hsl(0, 0%, 25%)",
+  },
+  otherLinkPreviewDescription: {
+    color: "hsl(0, 0%, 80%)",
+  },
+  linkPreviewUrl: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    marginTop: 8,
+  },
+  ownLinkPreviewUrl: {
+    color: "hsl(0, 0%, 35%)",
+  },
+  otherLinkPreviewUrl: {
+    color: "hsl(75, 85%, 70%)",
   },
   messageTime: {
     fontSize: 12,

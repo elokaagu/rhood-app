@@ -10,6 +10,7 @@ import {
   Animated,
   RefreshControl,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -42,7 +43,9 @@ export default function ConnectionsScreen({
   const [discoverUsers, setDiscoverUsers] = useState([]);
   const [connectionsFadeAnim] = useState(new Animated.Value(0));
   const [discoverFadeAnim] = useState(new Animated.Value(0));
+  const [hasLoadedConnections, setHasLoadedConnections] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState("");
+  const [connectionModalType, setConnectionModalType] = useState("success");
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [isRhoodMember, setIsRhoodMember] = useState(false);
   const [rhoodMemberCount, setRhoodMemberCount] = useState(0);
@@ -50,6 +53,25 @@ export default function ConnectionsScreen({
   const [rhoodGroupData, setRhoodGroupData] = useState(null);
   const [latestGroupMessage, setLatestGroupMessage] = useState(null);
   const [unreadGroupCount, setUnreadGroupCount] = useState(0);
+  const [cancellingConnectionId, setCancellingConnectionId] = useState(null);
+
+  const normalizeConnectionStatus = (status) => {
+    if (status === undefined || status === null) return null;
+    const normalized = status.toString().trim().toLowerCase();
+    return normalized.length > 0 ? normalized : null;
+  };
+
+  const isAcceptedConnectionStatus = (status) => {
+    const normalized = normalizeConnectionStatus(status);
+    return (
+      normalized === "accepted" ||
+      normalized === "approved" ||
+      normalized === "connected"
+    );
+  };
+
+  const isPendingConnectionStatus = (status) =>
+    normalizeConnectionStatus(status) === "pending";
 
   // Update user state when prop changes
   useEffect(() => {
@@ -62,7 +84,7 @@ export default function ConnectionsScreen({
   // Load user and discover data on mount
   useEffect(() => {
     const initializeData = async () => {
-      await loadUserAndConnections();
+      await loadUserAndConnections({ showLoader: true });
       // Load discover data after connections are loaded
       await loadDiscoverDJs();
       // Check R/HOOD membership
@@ -84,9 +106,11 @@ export default function ConnectionsScreen({
     }
   }, [activeTab, user]);
 
-  const loadUserAndConnections = async () => {
+  const loadUserAndConnections = async ({ showLoader = false } = {}) => {
     try {
+      if (showLoader || !hasLoadedConnections) {
       setLoading(true);
+      }
 
       // Use prop user first, then try to fetch if not available
       let currentUser = propUser;
@@ -188,6 +212,14 @@ export default function ConnectionsScreen({
             profileImage = null;
           }
 
+          const rawStatus =
+            conn.connection_status ||
+            conn.status ||
+            conn.connectionStatus ||
+            conn.state ||
+            null;
+          const normalizedStatus = normalizeConnectionStatus(rawStatus);
+
           connectionsMap[conn.connected_user_id] = {
             id: conn.connected_user_id,
             name: conn.connected_user_name,
@@ -209,7 +241,9 @@ export default function ConnectionsScreen({
             mutualConnections: 0,
             status: "online",
             isVerified: conn.connected_user_verified || false,
-            connectionStatus: conn.connection_status,
+            connectionStatus: normalizedStatus,
+            connectionStatusRaw: rawStatus,
+            isConnected: isAcceptedConnectionStatus(normalizedStatus),
           statusMessage: conn.connected_user_status_message || "",
           };
         });
@@ -267,6 +301,9 @@ export default function ConnectionsScreen({
       setConnections([]);
     } finally {
       setLoading(false);
+      if (!hasLoadedConnections) {
+        setHasLoadedConnections(true);
+      }
       // Always fade in connections after loading completes (even if empty)
       Animated.timing(connectionsFadeAnim, {
         toValue: 1,
@@ -448,7 +485,11 @@ export default function ConnectionsScreen({
       payload.connectionId = connection.connectionId;
     }
 
-    onNavigate && onNavigate("messages", payload);
+    onNavigate &&
+      onNavigate("messages", {
+        ...payload,
+        returnToConnectionsTab: "connections",
+      });
   };
 
   const handleBrowseCommunity = () => {
@@ -508,27 +549,164 @@ export default function ConnectionsScreen({
         setConnectionMessage(
           `Connection request sent to ${displayName}. They'll be notified and can accept your request.`
         );
+        setConnectionModalType("success");
         setShowConnectionModal(true);
 
         // Update the user's connection status in the local state
         setDiscoverUsers((prev) =>
           prev.map((user) =>
             user.id === connection.id
-              ? { ...user, isConnected: true, connectionStatus: "pending" }
+              ? {
+                  ...user,
+                  isConnected: false,
+                  connectionStatus: "pending",
+                  connectionStatusRaw: "pending",
+                  connectionId:
+                    connectionResult?.id ||
+                    connectionResult?.connection_id ||
+                    user.connectionId ||
+                    null,
+                }
               : user
           )
         );
+        await loadUserAndConnections({ showLoader: false });
       } else {
         setConnectionMessage(`You're already connected to ${displayName}`);
+        setConnectionModalType("info");
         setShowConnectionModal(true);
       }
     } catch (error) {
       console.error("Error sending connection request:", error);
       setConnectionMessage("Failed to send connection request");
+      setConnectionModalType("error");
       setShowConnectionModal(true);
     } finally {
       setDiscoverLoading(false);
     }
+  };
+
+  const resolveConnectionId = async (target) => {
+    if (target?.connectionId) return target.connectionId;
+    if (!user?.id || !target?.id) return null;
+
+    try {
+      const connectionRecord = await db.getConnectionStatus(user.id, target.id);
+      if (connectionRecord) {
+        return (
+          connectionRecord.id ||
+          connectionRecord.connection_id ||
+          connectionRecord.connectionId ||
+          null
+        );
+      }
+    } catch (error) {
+      console.warn("resolveConnectionId failed:", error);
+    }
+
+    return null;
+  };
+
+  const performCancelPendingConnection = async (connection, connectionId, displayName) => {
+    try {
+      setCancellingConnectionId(connectionId);
+      await db.cancelConnectionRequest(connectionId);
+
+      setDiscoverUsers((prev) =>
+        prev.map((userItem) =>
+          userItem.id === connection.id
+            ? {
+                ...userItem,
+                isConnected: false,
+                connectionStatus: null,
+                connectionStatusRaw: null,
+                connectionId: null,
+              }
+            : userItem
+        )
+      );
+
+      setConnections((prev) =>
+        prev.map((item) =>
+          item.id === connection.id
+            ? {
+                ...item,
+                connectionStatus: null,
+                connectionStatusRaw: null,
+                connectionId: null,
+              }
+            : item
+        )
+      );
+
+      await loadUserAndConnections({ showLoader: false });
+
+      setConnectionMessage(
+        `Connection request to ${displayName} has been cancelled.`
+      );
+      setConnectionModalType("info");
+      setShowConnectionModal(true);
+    } catch (error) {
+      console.error("Error cancelling connection request:", error);
+      Alert.alert(
+        "Error",
+        `Failed to cancel connection request: ${error.message || "Unknown error"}`
+      );
+    } finally {
+      setCancellingConnectionId(null);
+    }
+  };
+
+  const handleCancelPendingConnection = (connection) => {
+    if (!connection) return;
+
+    const displayName =
+      connection?.dj_name ||
+      connection?.full_name ||
+      `${connection?.first_name || ""} ${
+        connection?.last_name || ""
+      }`.trim() ||
+      "this DJ";
+
+    Alert.alert(
+      "Cancel Connection Request?",
+      `Do you want to cancel your pending connection request to ${displayName}?`,
+      [
+        {
+          text: "Keep Pending",
+          style: "cancel",
+        },
+        {
+          text: "Cancel Request",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const connectionId = await resolveConnectionId(connection);
+              if (!connectionId) {
+                Alert.alert(
+                  "Error",
+                  "We couldn't find the pending request to cancel. Please try again."
+                );
+                return;
+              }
+              await performCancelPendingConnection(
+                connection,
+                connectionId,
+                displayName
+              );
+            } catch (error) {
+              console.error("Error resolving connection for cancellation:", error);
+              Alert.alert(
+                "Error",
+                `Failed to cancel connection request: ${
+                  error.message || "Unknown error"
+                }`
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const loadDiscoverDJs = async () => {
@@ -565,8 +743,16 @@ export default function ConnectionsScreen({
       existingConnections.forEach((conn) => {
         console.log("🔍 Connection data:", conn);
         const userId = conn.connected_user_id;
+        const rawStatus =
+          conn.connection_status ||
+          conn.status ||
+          conn.connectionStatus ||
+          conn.state ||
+          null;
+        const normalizedStatus = normalizeConnectionStatus(rawStatus);
         connectionStatusMap.set(userId, {
-          status: conn.connection_status,
+          status: normalizedStatus,
+          statusRaw: rawStatus,
           initiated_by: conn.initiated_by,
           created_at: conn.created_at,
           accepted_at: conn.accepted_at,
@@ -584,8 +770,10 @@ export default function ConnectionsScreen({
       // Transform to match UI format with connection status
       const formattedDiscoverUsers = recommendedUsers.map((user) => {
         const connectionInfo = connectionStatusMap.get(user.id);
-        const isConnected =
-          connectionInfo && connectionInfo.status === "accepted";
+        const normalizedStatus = connectionInfo?.status
+          ? normalizeConnectionStatus(connectionInfo.status)
+          : null;
+        const isConnected = isAcceptedConnectionStatus(normalizedStatus);
 
         // Ensure profileImage is properly formatted
         let profileImage = user.profile_image_url || null;
@@ -620,7 +808,9 @@ export default function ConnectionsScreen({
           bio: user.bio || "DJ and music producer",
           statusMessage: user.status_message || "",
           isConnected: isConnected,
-          connectionStatus: connectionInfo?.status || null,
+          connectionStatus: normalizedStatus,
+          connectionStatusRaw:
+            connectionInfo?.statusRaw || connectionInfo?.status || null,
           connectionId:
             connectionInfo?.connection_id ||
             connectionInfo?.connectionId ||
@@ -1100,12 +1290,7 @@ export default function ConnectionsScreen({
                               {connection.lastActive || "Recently"}
                             </Text>
                           </View>
-                          <Text
-                            style={styles.messageLocation}
-                            numberOfLines={1}
-                          >
-                            {connection.location || "Location not set"}
-                          </Text>
+                          {/* Location removed per design */}
                           {connection.statusMessage ? (
                             <Text
                               style={styles.connectionStatusMessage}
@@ -1268,45 +1453,64 @@ export default function ConnectionsScreen({
                               Message
                             </Text>
                           </TouchableOpacity>
-                        ) : (
-                          <TouchableOpacity
-                            style={[
-                              styles.discoverConnectButton,
-                            user.connectionStatus === "pending" &&
-                              styles.discoverPendingButton,
-                          ]}
-                          onPress={() => handleConnect(user)}
+                        ) : (() => {
+                            const normalizedStatus = normalizeConnectionStatus(
+                              user.connectionStatus
+                            );
+                            const isPending = normalizedStatus === "pending";
+                            const isCancelling =
+                              isPending &&
+                              user.connectionId &&
+                              user.connectionId === cancellingConnectionId;
+
+                            return (
+                              <TouchableOpacity
+                                style={[
+                                  styles.discoverConnectButton,
+                                  isPending && styles.discoverPendingButton,
+                                ]}
+                                onPress={() =>
+                                  isPending
+                                    ? handleCancelPendingConnection(user)
+                                    : handleConnect(user)
+                                }
                           disabled={
                             discoverLoading ||
-                            user.connectionStatus === "pending"
-                          }
-                        >
+                                  (isPending && isCancelling) ||
+                                  (isPending && !user.connectionId)
+                                }
+                              >
+                                {isPending && isCancelling ? (
+                                  <ActivityIndicator
+                                    size="small"
+                                    color="hsl(75, 100%, 60%)"
+                                  />
+                                ) : (
                           <Ionicons
-                            name={
-                                user.connectionStatus === "pending"
-                                ? "time"
-                                : "add"
-                            }
+                                    name={isPending ? "close" : "add"}
                             size={16}
                             color={
-                                user.connectionStatus === "pending"
-                                ? "hsl(0, 0%, 60%)"
+                                      isPending
+                                        ? "hsl(75, 100%, 60%)"
                                 : "hsl(0, 0%, 0%)"
                             }
                           />
+                                )}
                           <Text
                             style={[
                               styles.discoverConnectText,
-                              user.connectionStatus === "pending" &&
-                                styles.discoverPendingText,
-                            ]}
-                          >
-                              {user.connectionStatus === "pending"
-                              ? "Pending"
+                                    isPending && styles.discoverPendingText,
+                                  ]}
+                                >
+                                  {isPending
+                                    ? isCancelling
+                                      ? "Cancelling..."
+                                      : "Cancel Request"
                               : "Connect"}
                           </Text>
                         </TouchableOpacity>
-                        )}
+                            );
+                          })()}
                       </View>
                     </View>
                   </AnimatedListItem>
@@ -1349,7 +1553,7 @@ export default function ConnectionsScreen({
         onClose={() => setShowConnectionModal(false)}
         title="Connection Status"
         message={connectionMessage}
-        type="success"
+        type={connectionModalType}
         primaryButtonText="OK"
         showCloseButton={false}
       />
@@ -1760,12 +1964,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
-  messageLocation: {
-    fontSize: 13,
-    color: "hsl(0, 0%, 65%)",
-    fontFamily: "Arial",
-    marginBottom: 2,
-  },
   connectionStatusMessage: {
     fontSize: 13,
     color: "hsl(75, 100%, 70%)",
@@ -2136,8 +2334,9 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   discoverPendingButton: {
-    backgroundColor: "hsl(0, 0%, 20%)",
-    opacity: 0.6,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
   },
   discoverConnectText: {
     fontSize: 14,
@@ -2149,6 +2348,6 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
   },
   discoverPendingText: {
-    color: "hsl(0, 0%, 60%)",
+    color: "hsl(75, 100%, 60%)",
   },
 });

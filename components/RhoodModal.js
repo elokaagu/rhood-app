@@ -25,6 +25,7 @@ const RhoodModal = ({
   onClose,
   title,
   message,
+  eventDetails = null,
   primaryButtonText = "OK",
   secondaryButtonText,
   onPrimaryPress,
@@ -64,6 +65,74 @@ const RhoodModal = ({
   const { icon, color, bgColor } = getIconAndColor();
 
   // Parse event details for enhanced display
+  const renderStructuredEventDetails = (details) => {
+    if (!details) return null;
+
+    const detailItems = [
+      { type: "date", label: "Date", value: details.date },
+      { type: "time", label: "Time", value: details.time },
+      {
+        type: "compensation",
+        label: "Compensation",
+        value: details.compensation,
+      },
+      { type: "location", label: "Location", value: details.location },
+    ].filter(
+      (item) =>
+        item.value !== null &&
+        item.value !== undefined &&
+        `${item.value}`.trim().length > 0
+    );
+
+    return (
+      <View>
+        {detailItems.length > 0 && (
+          <View style={styles.eventDetailsGrid}>
+            {detailItems.map((detail, index) => (
+              <View
+                key={`${detail.type}-${index}`}
+                style={styles.eventDetailItem}
+              >
+                <View style={styles.eventDetailIcon}>
+                  <Ionicons
+                    name={getEventDetailIcon(detail.type)}
+                    size={20}
+                    color={COLORS.primary}
+                  />
+                </View>
+                <View style={styles.eventDetailContent}>
+                  <Text style={styles.eventDetailLabel}>{detail.label}</Text>
+                  <Text style={styles.eventDetailValue}>{detail.value}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {details.description ? (
+          <View style={styles.descriptionContainer}>
+            <Text style={styles.descriptionText}>{details.description}</Text>
+          </View>
+        ) : null}
+
+        {details.applicationsRemainingText ? (
+          <View style={styles.applicationsContainer}>
+            <View style={styles.applicationsIcon}>
+              <Ionicons
+                name="checkmark-circle"
+                size={20}
+                color={COLORS.primary}
+              />
+            </View>
+            <Text style={styles.applicationsText}>
+              {details.applicationsRemainingText}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  };
+
   const parseEventDetails = (message) => {
     const lines = message.split("\n");
     const eventDetails = [];
@@ -170,6 +239,23 @@ const RhoodModal = ({
     }
   };
 
+  const shouldRenderStructuredDetails =
+    type === "info" && eventDetails && Object.keys(eventDetails).length > 0;
+
+  const shouldRenderParsedDetails =
+    !shouldRenderStructuredDetails &&
+    type === "info" &&
+    typeof message === "string" &&
+    message.includes("Date:");
+
+  const supplementalMessage =
+    message &&
+    message.trim().length > 0 &&
+    (!eventDetails?.description ||
+      message.trim() !== eventDetails.description?.trim())
+      ? message
+      : "";
+
   return (
     <Modal
       visible={visible}
@@ -216,13 +302,25 @@ const RhoodModal = ({
             <Text style={styles.title}>{title}</Text>
 
             {/* Enhanced Message Parsing for Event Details */}
-            {type === "info" && message.includes("Date:") ? (
+            {shouldRenderStructuredDetails ? (
+              <View style={styles.eventDetailsContainer}>
+                {renderStructuredEventDetails(eventDetails)}
+              </View>
+            ) : shouldRenderParsedDetails ? (
               <View style={styles.eventDetailsContainer}>
                 {parseEventDetails(message)}
               </View>
             ) : (
-              <Text style={styles.message}>{message}</Text>
+              <>
+                {message ? <Text style={styles.message}>{message}</Text> : null}
+              </>
             )}
+
+            {shouldRenderStructuredDetails && supplementalMessage ? (
+              <Text style={[styles.message, { marginTop: SPACING.md }]}>
+                {supplementalMessage}
+              </Text>
+            ) : null}
           </View>
 
           {/* Buttons */}

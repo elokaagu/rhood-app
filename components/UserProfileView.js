@@ -38,6 +38,9 @@ export default function UserProfileView({
   const [connectionMessage, setConnectionMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
+  const [connectionId, setConnectionId] = useState(null);
+  const [connectionModalType, setConnectionModalType] = useState("success");
+  const [isCancellingConnection, setIsCancellingConnection] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   // Audio playback state
@@ -81,6 +84,36 @@ export default function UserProfileView({
     return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const normalizeConnectionStatus = (status) => {
+    if (status === undefined || status === null) return null;
+    const normalized = status.toString().trim().toLowerCase();
+    return normalized.length > 0 ? normalized : null;
+  };
+
+  const isAcceptedConnectionStatus = (status) => {
+    const normalized = normalizeConnectionStatus(status);
+    return (
+      normalized === "accepted" ||
+      normalized === "approved" ||
+      normalized === "connected"
+    );
+  };
+
+  const isPendingConnectionStatus = (status) =>
+    normalizeConnectionStatus(status) === "pending";
+
+  const pendingConnection = isPendingConnectionStatus(connectionStatus);
+  const connectionModalTitle = (() => {
+    switch (connectionModalType) {
+      case "error":
+        return "Something Went Wrong";
+      case "info":
+        return "Connection Update";
+      default:
+        return "Connection Sent!";
+    }
+  })();
+
   useEffect(() => {
     loadUserProfile();
     checkConnectionStatus();
@@ -114,18 +147,34 @@ export default function UserProfileView({
       });
 
       if (connection) {
-        setConnectionStatus(connection.connection_status);
-        setIsConnected(connection.connection_status === "accepted");
+        const normalizedStatus = normalizeConnectionStatus(
+          connection.connection_status ||
+            connection.status ||
+            connection.connectionStatus ||
+            connection.state
+        );
+
+        setConnectionStatus(normalizedStatus);
+        setIsConnected(isAcceptedConnectionStatus(normalizedStatus));
+        setConnectionId(
+          connection.connection_id ||
+            connection.id ||
+            connection.connectionId ||
+            connection.connection_uuid ||
+            null
+        );
+
         console.log(
           "🔍 Connection status for user",
           userId,
           ":",
-          connection.connection_status,
+          normalizedStatus,
           "Is connected:",
-          connection.connection_status === "accepted"
+          isAcceptedConnectionStatus(normalizedStatus)
         );
       } else {
         setConnectionStatus(null);
+        setConnectionId(null);
         setIsConnected(false);
         console.log("🔍 No connection found for user", userId);
       }
@@ -215,6 +264,12 @@ export default function UserProfileView({
     }
   };
 
+  const getDisplayName = () =>
+    profile?.dj_name ||
+    profile?.full_name ||
+    `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() ||
+    "this user";
+
   const handleConnect = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -232,6 +287,7 @@ export default function UserProfileView({
 
       if (!currentUser) {
         setConnectionMessage("Please log in to connect with users");
+        setConnectionModalType("info");
         setShowConnectionModal(true);
         return;
       }
@@ -240,11 +296,7 @@ export default function UserProfileView({
       const connection = await db.createConnection(userId);
 
       // Get the display name with better fallbacks
-      const displayName =
-        profile?.dj_name ||
-        profile?.full_name ||
-        `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() ||
-        "this user";
+      const displayName = getDisplayName();
 
       // Check if this was a new connection or existing one
       const isNewConnection = connection.status === "pending" && connection.id;
@@ -253,16 +305,88 @@ export default function UserProfileView({
         setConnectionMessage(
           `Connection request sent to ${displayName}. They'll be notified and can accept your request.`
         );
-        setIsConnected(true); // Update local state
+        setConnectionModalType("success");
+        setConnectionStatus("pending");
+        setConnectionId(
+          connection.id ||
+            connection.connection_id ||
+            connection.connectionId ||
+            null
+        );
+        setIsConnected(false);
       } else {
         setConnectionMessage(`You're already connected to ${displayName}`);
+        setConnectionModalType("info");
       }
       setShowConnectionModal(true);
+      await checkConnectionStatus();
     } catch (error) {
       console.error("Error sending connection request:", error);
       setConnectionMessage("Failed to send connection request");
+      setConnectionModalType("error");
       setShowConnectionModal(true);
     }
+  };
+
+  const cancelConnectionRequest = async (displayName) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setIsCancellingConnection(true);
+      if (!connectionId) {
+        throw new Error("No pending request found to cancel");
+      }
+
+      await db.cancelConnectionRequest(connectionId);
+      setConnectionStatus(null);
+      setConnectionId(null);
+      setIsConnected(false);
+
+      setConnectionMessage(
+        `Connection request to ${displayName} has been cancelled.`
+      );
+      setConnectionModalType("info");
+      setShowConnectionModal(true);
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      await checkConnectionStatus();
+    } catch (error) {
+      console.error("Error cancelling connection request:", error);
+      Alert.alert(
+        "Error",
+        `Failed to cancel connection request: ${error.message || "Unknown error"}`
+      );
+    } finally {
+      setIsCancellingConnection(false);
+    }
+  };
+
+  const handleCancelConnectionRequest = () => {
+    if (!connectionId) {
+      Alert.alert(
+        "No Pending Request",
+        "We couldn't find a pending connection request to cancel."
+      );
+      return;
+    }
+
+    const displayName = getDisplayName();
+
+    Alert.alert(
+      "Cancel Connection Request?",
+      `Do you want to cancel your pending connection request to ${displayName}?`,
+      [
+        {
+          text: "Keep Pending",
+          style: "cancel",
+        },
+        {
+          text: "Cancel Request",
+          style: "destructive",
+          onPress: () => cancelConnectionRequest(displayName),
+        },
+      ]
+    );
   };
 
   const handleMessage = () => {
@@ -698,39 +822,57 @@ export default function UserProfileView({
               style={[
                 styles.connectButton,
                 isConnected && styles.connectedButton,
-                connectionStatus === "pending" && styles.pendingButton,
+                pendingConnection && styles.pendingButton,
               ]}
-              onPress={handleConnect}
-              disabled={isConnected || connectionStatus === "pending"}
+              onPress={
+                isConnected
+                  ? undefined
+                  : pendingConnection
+                  ? handleCancelConnectionRequest
+                  : handleConnect
+              }
+              disabled={
+                isConnected || (pendingConnection && isCancellingConnection)
+              }
             >
-              <Ionicons
-                name={
-                  isConnected
-                    ? "checkmark"
-                    : connectionStatus === "pending"
-                    ? "time"
-                    : "person-add-outline"
-                }
-                size={20}
-                color={
-                  isConnected
-                    ? "hsl(0, 0%, 100%)"
-                    : connectionStatus === "pending"
-                    ? "hsl(0, 0%, 60%)"
-                    : "hsl(0, 0%, 0%)"
-                }
-              />
+              {pendingConnection && isCancellingConnection ? (
+                <ActivityIndicator
+                  size="small"
+                  color="hsl(75, 100%, 60%)"
+                  style={{ marginRight: 8 }}
+                />
+              ) : (
+                <Ionicons
+                  name={
+                    isConnected
+                      ? "checkmark"
+                      : pendingConnection
+                      ? "close"
+                      : "person-add-outline"
+                  }
+                  size={20}
+                  color={
+                    isConnected
+                      ? "hsl(0, 0%, 100%)"
+                      : pendingConnection
+                      ? "hsl(75, 100%, 60%)"
+                      : "hsl(0, 0%, 0%)"
+                  }
+                />
+              )}
               <Text
                 style={[
                   styles.connectButtonText,
                   isConnected && styles.connectedButtonText,
-                  connectionStatus === "pending" && styles.pendingButtonText,
+                  pendingConnection && styles.pendingButtonText,
                 ]}
               >
                 {isConnected
                   ? "Connected"
-                  : connectionStatus === "pending"
-                  ? "Pending"
+                  : pendingConnection
+                  ? isCancellingConnection
+                    ? "Cancelling..."
+                    : "Cancel Request"
                   : "Connect"}
               </Text>
             </TouchableOpacity>
@@ -764,8 +906,8 @@ export default function UserProfileView({
       {/* Connection Modal */}
       {showConnectionModal && (
         <RhoodModal
-          type="success"
-          title="Connection Sent!"
+          type={connectionModalType}
+          title={connectionModalTitle}
           message={connectionMessage}
           primaryButtonText="OK"
           onPrimaryPress={() => setShowConnectionModal(false)}
@@ -1017,8 +1159,9 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   pendingButton: {
-    backgroundColor: "hsl(0, 0%, 20%)",
-    opacity: 0.6,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
   },
   connectButtonText: {
     fontSize: 16,
@@ -1030,7 +1173,7 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
   },
   pendingButtonText: {
-    color: "hsl(0, 0%, 60%)",
+    color: "hsl(75, 100%, 60%)",
   },
   bottomGradient: {
     position: "absolute",

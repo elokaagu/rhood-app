@@ -399,20 +399,6 @@ const DJMix = ({
               <Text style={styles.optionTextGreen}>Add to Queue</Text>
             </TouchableOpacity>
 
-            {/* Download for Offline */}
-            <TouchableOpacity
-              style={styles.optionItem}
-              onPress={() => {
-                setShowOptionsMenu(false);
-                // Handle download for offline
-                console.log("Download mix for offline:", mix.title);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="download" size={20} color="hsl(0, 0%, 100%)" />
-              <Text style={styles.optionText}>Download for Offline</Text>
-            </TouchableOpacity>
-
             {/* Delete - Only show for own mixes */}
             {isOwnMix && (
               <TouchableOpacity

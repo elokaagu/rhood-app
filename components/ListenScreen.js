@@ -131,6 +131,16 @@ const formatDurationLabel = (seconds) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
+const normalizeSearchValue = (value) => {
+  if (value === null || value === undefined) return "";
+  return value
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+};
+
 /*
 PERFORMANCE OPTIMIZATION STRATEGIES FOR LARGE AUDIO FILES:
 
@@ -175,8 +185,6 @@ export default function ListenScreen({
   const [mixes, setMixes] = useState([]);
   const [playingMixId, setPlayingMixId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchSuggestions, setSearchSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -184,6 +192,8 @@ export default function ListenScreen({
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreData, setHasMoreData] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [showAllRecommendations, setShowAllRecommendations] = useState(false);
+  const [expandedGenres, setExpandedGenres] = useState({});
 
   // Fetch mixes from Supabase
   const fetchMixes = async () => {
@@ -263,7 +273,7 @@ export default function ListenScreen({
             user_id: mix.user_id, // IMPORTANT: Include for ownership check
             title: mix.title,
           artist: resolvedArtist,
-          genre: mix.genre || "Electronic",
+            genre: mix.genre || "Electronic",
           durationSeconds,
           durationFormatted: durationLabel,
           durationLabel,
@@ -279,7 +289,24 @@ export default function ListenScreen({
             plays: mix.plays || mix.play_count || 0,
             user: userProfile, // Include full user profile data
           artistStatus: userProfile?.status_message || null,
+            created_at: mix.created_at || null,
           };
+
+          const searchableParts = [
+            transformedMix.title,
+            transformedMix.artist,
+            transformedMix.genre,
+            transformedMix.description,
+            userProfile?.username,
+            userProfile?.dj_name,
+            userProfile?.first_name,
+            userProfile?.last_name,
+            userProfile?.status_message,
+          ]
+            .filter(Boolean)
+            .map((part) => normalizeSearchValue(part));
+
+          transformedMix.searchIndex = searchableParts.join(" ");
 
           // Debug logging for uploaded mixes
           console.log(`🎵 Mix ${transformedMix.id} (${transformedMix.title}):`);
@@ -313,60 +340,41 @@ export default function ListenScreen({
   }, []);
 
   // Get unique genres for filter
+  const genreCountsMap = mixes.reduce((acc, mix) => {
+    const genreKey =
+      typeof mix.genre === "string" && mix.genre.trim().length > 0
+        ? mix.genre
+        : "Other";
+    if (!acc.has(genreKey)) {
+      acc.set(genreKey, {
+        count: 0,
+        normalized: normalizeSearchValue(genreKey) || "other",
+      });
+    }
+    acc.get(genreKey).count += 1;
+    return acc;
+  }, new Map());
+
   const genres = [
     "All",
     "Recently Added",
-    ...new Set(mixes.map((mix) => mix.genre)),
+    ...Array.from(genreCountsMap.keys()),
   ];
 
   // Generate search suggestions
-  const generateSearchSuggestions = (query) => {
-    if (query.length < 2) return [];
-
-    const suggestions = new Set();
-
-    // Add mix titles
-    mixes.forEach((mix) => {
-      if (mix.title.toLowerCase().includes(query.toLowerCase())) {
-        suggestions.add(mix.title);
-      }
-    });
-
-    // Add artist names
-    mixes.forEach((mix) => {
-      if (mix.artist.toLowerCase().includes(query.toLowerCase())) {
-        suggestions.add(mix.artist);
-      }
-    });
-
-    // Add genres
-    genres.forEach((genre) => {
-      if (genre.toLowerCase().includes(query.toLowerCase())) {
-        suggestions.add(genre);
-      }
-    });
-
-    return Array.from(suggestions).slice(0, 5);
-  };
-
-  // Update search suggestions when query changes
-  useEffect(() => {
-    if (searchQuery.length >= 2) {
-      const suggestions = generateSearchSuggestions(searchQuery);
-      setSearchSuggestions(suggestions);
-      setShowSuggestions(suggestions.length > 0);
-    } else {
-      setSearchSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, [searchQuery, mixes]);
 
   // Filter mixes
   const filteredMixes = mixes.filter((mix) => {
+    const normalizedQuery = normalizeSearchValue(searchQuery);
+    const queryTokens = normalizedQuery
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+
     const matchesSearch =
-      mix.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      mix.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      mix.description.toLowerCase().includes(searchQuery.toLowerCase());
+      queryTokens.length === 0 ||
+      (mix.searchIndex &&
+        queryTokens.every((token) => mix.searchIndex.includes(token)));
 
     let matchesFilter = true;
 
@@ -536,11 +544,6 @@ export default function ListenScreen({
     setSelectedGenre(genre);
   };
 
-  const handleSuggestionSelect = (suggestion) => {
-    setSearchQuery(suggestion);
-    setShowSuggestions(false);
-  };
-
   const handleAddToQueue = (mix) => {
     if (onAddToQueue) {
       onAddToQueue(mix);
@@ -577,21 +580,11 @@ export default function ListenScreen({
             onChangeText={setSearchQuery}
             autoCapitalize="none"
             autoCorrect={false}
-            onFocus={() => {
-              if (searchSuggestions.length > 0) {
-                setShowSuggestions(true);
-              }
-            }}
-            onBlur={() => {
-              // Delay hiding suggestions to allow tapping
-              setTimeout(() => setShowSuggestions(false), 150);
-            }}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity
               onPress={() => {
                 setSearchQuery("");
-                setShowSuggestions(false);
               }}
               style={styles.clearButton}
             >
@@ -599,22 +592,6 @@ export default function ListenScreen({
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Search Suggestions */}
-        {showSuggestions && searchSuggestions.length > 0 && (
-          <View style={styles.suggestionsContainer}>
-            {searchSuggestions.map((suggestion, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.suggestionItem}
-                onPress={() => handleSuggestionSelect(suggestion)}
-              >
-                <Ionicons name="search" size={16} color="hsl(0, 0%, 60%)" />
-                <Text style={styles.suggestionText}>{suggestion}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
       </View>
 
       {/* Genre Filter Chips */}
@@ -631,7 +608,21 @@ export default function ListenScreen({
               styles.genreChip,
               selectedGenre === genre && styles.genreChipActive,
             ]}
-            onPress={() => handleGenreFilter(genre)}
+            onPress={() => {
+              handleGenreFilter(genre);
+              if (
+                genre !== "All" &&
+                genre !== "Recently Added" &&
+                genreCountsMap.has(genre)
+              ) {
+                const normalized =
+                  genreCountsMap.get(genre)?.normalized || normalizeSearchValue(genre);
+                setExpandedGenres((prev) => ({
+                  ...prev,
+                  [normalized]: true,
+                }));
+              }
+            }}
             activeOpacity={0.7}
           >
             <Text
@@ -649,28 +640,62 @@ export default function ListenScreen({
   );
 
   // Footer component for FlatList
-  const renderFooter = () => (
-    <>
-      {/* Smart Recommendations */}
+  const renderRecommendations = () => {
+    const recommendedMixes = showAllRecommendations ? mixes : mixes.slice(0, 5);
+    return (
       <View style={styles.recommendationsSection}>
         <View style={styles.recommendationsHeader}>
           <Text style={styles.recommendationsTitle}>More Like This</Text>
-          <TouchableOpacity style={styles.viewAllButton} activeOpacity={0.7}>
-            <Text style={styles.viewAllText}>View All</Text>
+          {mixes.length > 5 && (
+            <TouchableOpacity
+              style={styles.viewAllButton}
+              activeOpacity={0.7}
+              onPress={() => setShowAllRecommendations((prev) => !prev)}
+            >
+              <Text style={styles.viewAllText}>
+                {showAllRecommendations ? "Show Less" : "View All"}
+              </Text>
             <Ionicons
-              name="chevron-forward"
+                name={showAllRecommendations ? "chevron-up" : "chevron-forward"}
               size={16}
               color="hsl(75, 100%, 60%)"
             />
           </TouchableOpacity>
+          )}
         </View>
+        {showAllRecommendations ? (
+          <View style={styles.recommendationsGrid}>
+            {recommendedMixes.map((mix) => (
+              <TouchableOpacity
+                key={`rec-grid-${mix.id}`}
+                style={styles.recommendationGridCard}
+                onPress={() => handleMixPress(mix)}
+                activeOpacity={0.8}
+              >
+                <Image
+                  source={{ uri: mix.image }}
+                  style={styles.recommendationGridImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.recommendationGridText}>
+                  <Text style={styles.recommendationTitle} numberOfLines={1}>
+                    {mix.title}
+                  </Text>
+                  <Text style={styles.recommendationArtist} numberOfLines={1}>
+                    {mix.artist}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.recommendationsScroll}
           contentContainerStyle={styles.recommendationsContent}
         >
-          {mixes.slice(0, 5).map((mix, index) => (
+            {recommendedMixes.map((mix) => (
             <TouchableOpacity
               key={`rec-${mix.id}`}
               style={styles.recommendationCard}
@@ -690,9 +715,8 @@ export default function ListenScreen({
               </Text>
             </TouchableOpacity>
           ))}
-
           {/* Partial next card indicator */}
-          {mixes.length > 5 && (
+            {mixes.length > 5 && !showAllRecommendations && (
             <View style={styles.partialCardIndicator}>
               <View style={styles.partialCard}>
                 <Ionicons
@@ -705,6 +729,97 @@ export default function ListenScreen({
             </View>
           )}
         </ScrollView>
+        )}
+      </View>
+    );
+  };
+
+  const renderFooter = () => (
+    <>
+      {/* Smart Recommendations */}
+      {renderRecommendations()}
+
+      {/* Genre Rows */}
+      <View style={styles.genreRowsSection}>
+        {Array.from(
+          mixes.reduce((acc, mix) => {
+            const genreKey =
+              typeof mix.genre === "string" && mix.genre.trim().length > 0
+                ? mix.genre
+                : "Other";
+        const normalizedGenre = normalizeSearchValue(genreKey) || "other";
+        if (!acc.has(normalizedGenre)) {
+          acc.set(normalizedGenre, {
+            displayName: genreKey,
+            mixes: [],
+          });
+        }
+        acc.get(normalizedGenre).mixes.push(mix);
+            return acc;
+          }, new Map())
+    ).map(([normalizedGenre, genreData]) => {
+      const { displayName, mixes: genreMixes } = genreData;
+      const isExpanded = !!expandedGenres[normalizedGenre];
+      const visibleMixes = isExpanded ? genreMixes : genreMixes.slice(0, 10);
+
+          return (
+            <View key={`genre-row-${normalizedGenre}`} style={styles.genreRow}>
+              <View style={styles.genreRowHeader}>
+            <Text style={styles.genreRowTitle}>{displayName}</Text>
+                {genreMixes.length > 10 && (
+                  <TouchableOpacity
+                    style={styles.genreRowToggle}
+                    onPress={() =>
+                      setExpandedGenres((prev) => ({
+                        ...prev,
+                        [normalizedGenre]: !prev[normalizedGenre],
+                      }))
+                    }
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.genreRowToggleText}>
+                      {isExpanded ? "Show Less" : "View All"}
+                    </Text>
+                    <Ionicons
+                      name={isExpanded ? "chevron-up" : "chevron-forward"}
+                      size={14}
+                      color="hsl(75, 100%, 60%)"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.genreRowContent}
+              >
+                {visibleMixes.map((mix) => (
+                  <TouchableOpacity
+                    key={`genre-row-mix-${mix.id}`}
+                    style={styles.genreRowCard}
+                    onPress={() => handleMixPress(mix)}
+                    activeOpacity={0.8}
+                  >
+                    <Image
+                      source={{ uri: mix.image }}
+                      style={styles.genreRowImage}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.genreRowText}>
+                      <Text style={styles.genreRowMixTitle} numberOfLines={1}>
+                        {mix.title}
+                      </Text>
+                      <Text style={styles.genreRowMixArtist} numberOfLines={1}>
+                        {mix.artist}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          );
+        })}
       </View>
 
       {/* Upload CTA */}
@@ -729,6 +844,18 @@ export default function ListenScreen({
     </>
   );
 
+  const renderListFooter = () => (
+    <>
+      {renderFooter()}
+      {loadingMore && (
+        <View style={styles.loadingMoreContainer}>
+          <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+          <Text style={styles.loadingMoreText}>Loading more mixes...</Text>
+        </View>
+      )}
+    </>
+  );
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -750,22 +877,10 @@ export default function ListenScreen({
           </AnimatedListItem>
         )}
         ListHeaderComponent={renderHeader}
-        ListFooterComponent={renderFooter}
+        ListFooterComponent={renderListFooter}
         onEndReached={loadMoreMixes}
         onEndReachedThreshold={0.5}
-        ListFooterComponent={() => (
-          <>
-            {renderFooter()}
-            {loadingMore && (
-              <View style={styles.loadingMoreContainer}>
-                <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
-                <Text style={styles.loadingMoreText}>
-                  Loading more mixes...
-                </Text>
-              </View>
-            )}
-          </>
-        )}
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={() => {
           if (loading) {
             return (
@@ -843,7 +958,7 @@ export default function ListenScreen({
             />
             <Text style={styles.modalTitle}>Upload Your Mix</Text>
             <Text style={styles.modalDescription}>
-              Share your 5-minute DJ mix with the R/HOOD community!
+              Share your DJ mix (under 10 minutes) with the R/HOOD community!
             </Text>
 
             <View style={styles.modalButtons}>
@@ -1209,15 +1324,15 @@ const styles = StyleSheet.create({
   viewAllButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "rgba(75, 255, 150, 0.12)",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%)",
+    borderColor: "hsl(75, 100%, 60%, 0.4)",
   },
   viewAllText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: "Helvetica Neue",
     fontWeight: "600",
     color: "hsl(75, 100%, 60%)",
@@ -1225,6 +1340,29 @@ const styles = StyleSheet.create({
   },
   recommendationsContent: {
     paddingRight: 20,
+    gap: 16,
+  },
+  recommendationsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+    marginTop: 16,
+  },
+  recommendationGridCard: {
+    width: "48%",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%, 0.1)",
+  },
+  recommendationGridImage: {
+    width: "100%",
+    height: 140,
+  },
+  recommendationGridText: {
+    padding: 16,
+    gap: 6,
   },
   partialCardIndicator: {
     width: 60,
@@ -1247,5 +1385,74 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "hsl(75, 100%, 60%)",
     marginTop: 2,
+  },
+  genreRowsSection: {
+    marginTop: 28,
+    gap: 28,
+  },
+  genreRow: {
+    backgroundColor: "hsl(0, 0%, 6%)",
+    borderRadius: 18,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%, 0.08)",
+  },
+  genreRowHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  genreRowTitle: {
+    fontSize: 18,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    letterSpacing: 0.5,
+  },
+  genreRowToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "rgba(75, 255, 150, 0.12)",
+  },
+  genreRowToggleText: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
+  },
+  genreRowContent: {
+    gap: 16,
+  },
+  genreRowCard: {
+    width: 180,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%, 0.08)",
+    overflow: "hidden",
+  },
+  genreRowImage: {
+    width: "100%",
+    height: 120,
+  },
+  genreRowText: {
+    padding: 14,
+    gap: 4,
+  },
+  genreRowMixTitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+  },
+  genreRowMixArtist: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
   },
 });

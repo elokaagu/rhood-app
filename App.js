@@ -380,6 +380,7 @@ export default function App() {
     type: "info",
     title: "",
     message: "",
+    eventDetails: null,
     primaryButtonText: "OK",
     secondaryButtonText: null,
     onPrimaryPress: null,
@@ -412,6 +413,7 @@ export default function App() {
       type: config.type || "info",
       title: config.title || "",
       message: config.message || "",
+      eventDetails: config.eventDetails || null,
       primaryButtonText: config.primaryButtonText || "OK",
       secondaryButtonText: config.secondaryButtonText || null,
       onPrimaryPress: config.onPrimaryPress || null,
@@ -2347,7 +2349,14 @@ export default function App() {
     showCustomModal({
       type: "info",
       title: opportunity.title,
-      message: `Venue: ${opportunity.venue}\nLocation: ${opportunity.location}\nDate: ${opportunity.date}\nTime: ${opportunity.time}\n\n${opportunity.description}\n\nCompensation: ${opportunity.compensation}`,
+      message: opportunity.description || "",
+      eventDetails: {
+        date: opportunity.date,
+        time: opportunity.time,
+        compensation: opportunity.compensation,
+        location: opportunity.location,
+        description: opportunity.description,
+      },
       primaryButtonText: "Apply",
       secondaryButtonText: "Close",
       onPrimaryPress: () => {
@@ -2392,17 +2401,21 @@ export default function App() {
     const currentOpportunity = opportunities[currentOpportunityIndex];
     setSelectedOpportunity(currentOpportunity);
 
+    const applicationsRemainingCount =
+      dailyApplicationStats?.remaining_applications || 0;
     // Show detailed modal with opportunity info and apply button
     showCustomModal({
       type: "info",
       title: currentOpportunity.title,
-      message: `Date: ${currentOpportunity.date}\nTime: ${
-        currentOpportunity.time
-      }\nCompensation: ${currentOpportunity.compensation}\nLocation: ${
-        currentOpportunity.location
-      }\n\n${currentOpportunity.description}\n\nYou have ${
-        dailyApplicationStats?.remaining_applications || 0
-      } applications remaining today.`,
+      message: currentOpportunity.description || "",
+      eventDetails: {
+        date: currentOpportunity.date,
+        time: currentOpportunity.time,
+        compensation: currentOpportunity.compensation,
+        location: currentOpportunity.location,
+        description: currentOpportunity.description,
+        applicationsRemainingText: `You have ${applicationsRemainingCount} applications remaining today.`,
+      },
       primaryButtonText: "Apply Now",
       secondaryButtonText: "Cancel",
       showCloseButton: false,
@@ -2596,6 +2609,202 @@ export default function App() {
   };
 
   // Fetch opportunities from Supabase
+  const formatOpportunityDate = (dateValue) => {
+    if (!dateValue) return "TBD";
+    try {
+      const parsedDate = new Date(dateValue);
+      if (Number.isNaN(parsedDate.getTime())) {
+        return "TBD";
+      }
+      return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(parsedDate);
+    } catch (error) {
+      console.warn("Unable to format opportunity date:", error);
+      return "TBD";
+    }
+  };
+
+  const formatOpportunityTime = (startValue, endValue = null) => {
+    const sanitize = (value) => {
+      if (!value && value !== 0) return null;
+
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed || /^tbd$/i.test(trimmed)) return null;
+
+        // Handle ranges encoded within a single string (e.g. "18:00-22:00")
+        const rangeMatch = trimmed.split(/\s*(?:-|–|to)\s*/i);
+        if (rangeMatch.length === 2 && !endValue) {
+          return {
+            start: sanitize(rangeMatch[0]),
+            end: sanitize(rangeMatch[1]),
+            range: true,
+          };
+        }
+
+        // Ensure we only deal with HH:mm[:ss]
+        const colonParts = trimmed.split(":");
+        if (colonParts.length >= 2) {
+          const hours = parseInt(colonParts[0], 10);
+          const minutes = parseInt(colonParts[1], 10);
+
+          if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+            const normalizedHours = ((hours + 11) % 12) + 1;
+            const period = hours >= 12 ? "PM" : "AM";
+            const paddedMinutes = minutes.toString().padStart(2, "0");
+            return `${normalizedHours}:${paddedMinutes} ${period}`;
+          }
+        }
+
+        // Fallback to trimmed string
+        return trimmed;
+      }
+
+      if (value instanceof Date) {
+        return new Intl.DateTimeFormat("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }).format(value);
+      }
+
+      if (typeof value === "number") {
+        // Treat as minutes past midnight
+        const hours = Math.floor(value / 60);
+        const minutes = value % 60;
+        const normalizedHours = ((hours + 11) % 12) + 1;
+        const period = hours >= 12 ? "PM" : "AM";
+        const paddedMinutes = minutes.toString().padStart(2, "0");
+        return `${normalizedHours}:${paddedMinutes} ${period}`;
+      }
+
+      return `${value}`;
+    };
+
+    const startResult = sanitize(startValue);
+
+    // Handle ranges embedded in sanitize response
+    if (startResult && typeof startResult === "object" && startResult.range) {
+      const { start, end } = startResult;
+      if (start && end) return `${start} – ${end}`;
+      return start || end || "TBD";
+    }
+
+    const endResult = sanitize(endValue);
+
+    if (!startResult && !endResult) return "TBD";
+    if (startResult && endResult) {
+      if (startResult === endResult) return startResult;
+      return `${startResult} – ${endResult}`;
+    }
+    return startResult || endResult || "TBD";
+  };
+
+  const formatCurrency = (value, currencyCode) => {
+    if (value === null || value === undefined) return "TBD";
+
+    const hasWholeValue = Number.isInteger(value);
+
+    try {
+      return new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: currencyCode,
+        minimumFractionDigits: hasWholeValue ? 0 : 2,
+        maximumFractionDigits: hasWholeValue ? 0 : 2,
+      }).format(value);
+    } catch (error) {
+      console.warn("Unable to format opportunity compensation:", error);
+      return `${currencyCode} ${value}`;
+    }
+  };
+
+  const parseCompensationValue = (rawValue) => {
+    if (rawValue === null || rawValue === undefined) return null;
+
+    if (typeof rawValue === "number") {
+      return Number.isFinite(rawValue) ? rawValue : null;
+    }
+
+    if (typeof rawValue === "string") {
+      const trimmed = rawValue.trim();
+      if (!trimmed) return null;
+
+      // Handle range within a single string
+      const rangeParts = trimmed.split(/\s*(?:-|–|to)\s*/i);
+      if (rangeParts.length === 2) {
+        const min = parseCompensationValue(rangeParts[0]);
+        const max = parseCompensationValue(rangeParts[1]);
+        if (min !== null && max !== null) {
+          return { min, max };
+        }
+      }
+
+      const sanitized = trimmed.replace(/[^0-9.-]+/g, "");
+      const numeric = parseFloat(sanitized);
+      return Number.isFinite(numeric) ? numeric : null;
+    }
+
+    return null;
+  };
+
+  const formatOpportunityCompensation = (
+    amount,
+    currency,
+    maxAmount = null
+  ) => {
+    const currencyCode = (currency || "GBP").toUpperCase();
+    const parsedAmount = parseCompensationValue(amount);
+    let parsedMaxAmount = parseCompensationValue(maxAmount);
+
+    if (parsedAmount && typeof parsedAmount === "object") {
+      const min = parsedAmount.min ?? null;
+      const max = parsedAmount.max ?? null;
+      if (min !== null && max !== null) {
+        return `${formatCurrency(min, currencyCode)} – ${formatCurrency(
+          max,
+          currencyCode
+        )}`;
+      }
+      return min !== null
+        ? formatCurrency(min, currencyCode)
+        : max !== null
+        ? formatCurrency(max, currencyCode)
+        : "TBD";
+    }
+
+    if (
+      parsedMaxAmount &&
+      typeof parsedMaxAmount === "object" &&
+      parsedMaxAmount.min !== undefined
+    ) {
+      parsedMaxAmount = parsedMaxAmount.max ?? parsedMaxAmount.min;
+    }
+
+    if (parsedAmount === null && parsedMaxAmount === null) {
+      return "TBD";
+    }
+
+    if (
+      parsedAmount !== null &&
+      parsedMaxAmount !== null &&
+      parsedAmount !== parsedMaxAmount
+    ) {
+      const min = Math.min(parsedAmount, parsedMaxAmount);
+      const max = Math.max(parsedAmount, parsedMaxAmount);
+      return `${formatCurrency(min, currencyCode)} – ${formatCurrency(
+        max,
+        currencyCode
+      )}`;
+    }
+
+    const valueToFormat =
+      parsedAmount !== null ? parsedAmount : parsedMaxAmount;
+    return formatCurrency(valueToFormat, currencyCode);
+  };
+
   const fetchOpportunities = async () => {
     try {
       setIsLoadingOpportunities(true);
@@ -2625,37 +2834,66 @@ export default function App() {
 
       // Transform database data to match our component expectations
       const transformedOpportunities = opportunitiesData.map((opp) => {
+        const formattedDate = formatOpportunityDate(opp.event_date);
+        let startTimeRaw =
+          opp.event_time ?? opp.start_time ?? opp.event_start_time ?? null;
+        let endTimeRaw =
+          opp.event_end_time ?? opp.event_time_end ?? opp.end_time ?? null;
+
+        if (!endTimeRaw && typeof startTimeRaw === "string") {
+          const timeRangeParts = startTimeRaw
+            .split(/\s*(?:-|–|to)\s*/i)
+            .map((part) => part.trim())
+            .filter(Boolean);
+
+          if (timeRangeParts.length === 2) {
+            startTimeRaw = timeRangeParts[0] || startTimeRaw;
+            endTimeRaw = timeRangeParts[1] || endTimeRaw;
+          }
+        }
+
+        const formattedTime = formatOpportunityTime(
+          startTimeRaw,
+          endTimeRaw
+        );
+        const formattedCompensation = formatOpportunityCompensation(
+          opp.payment,
+          opp.payment_currency,
+          opp.payment_max ?? opp.max_payment ?? null
+        );
+        const paymentValue =
+          typeof opp.payment === "string"
+            ? parseFloat(opp.payment)
+            : Number(opp.payment);
+        const resolvedLocation =
+          opp.location ||
+          [opp.city, opp.country].filter(Boolean).join(", ") ||
+          "Location not set";
+        const createdAt = opp.created_at ? new Date(opp.created_at) : null;
+        const isNew =
+          createdAt &&
+          createdAt.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
+
         return {
           id: opp.id,
-          venue: opp.organizer_name,
+          venue: opp.venue || "",
           title: opp.title,
-          location: opp.location,
-          date: opp.event_date
-            ? new Date(opp.event_date).toLocaleDateString()
-            : "TBD",
-          time: opp.event_time
-            ? new Date(`1970-01-01T${opp.event_time}`).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "TBD",
-          audienceSize: "TBD", // We don't have audience size in the database schema
+          location: resolvedLocation,
+          date: formattedDate,
+          rawDate: opp.event_date,
+          time: formattedTime,
+          rawTime: startTimeRaw,
+          rawTimeEnd: endTimeRaw,
+          audienceSize: opp.audience_size || "TBD",
           description: opp.description,
           genres: opp.genre ? [opp.genre] : ["Electronic"],
-          compensation: opp.payment
-            ? new Intl.NumberFormat(undefined, {
-                style: "currency",
-                currency: opp.payment_currency || "USD",
-                maximumFractionDigits: 0,
-              }).format(opp.payment)
-            : "TBD",
-          // applicationsLeft will be set based on user's daily application stats
+          compensation: formattedCompensation,
+          paymentValue: Number.isFinite(paymentValue) ? paymentValue : null,
+          paymentCurrency: opp.payment_currency
+            ? opp.payment_currency.toUpperCase()
+            : "GBP",
           applicationsLeft: 0, // Will be updated with user's daily stats
-          status:
-            opp.created_at > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-              ? "new"
-              : "hot", // New if created within last 7 days
-          // Use the actual image_url from database, fallback to a good default
+          status: isNew ? "new" : "hot",
           image:
             opp.image_url ||
             (opp.genre === "Techno"
@@ -3211,7 +3449,16 @@ export default function App() {
         return (
           <MessagesScreen
             user={user}
-            navigation={{ goBack: () => setCurrentScreen("connections") }}
+            navigation={{
+              goBack: () => {
+                setCurrentScreen("connections");
+                setScreenParams((prev) => ({
+                  ...prev,
+                  initialTab:
+                    screenParams?.returnToConnectionsTab || "connections",
+                }));
+              },
+            }}
             route={{ params: screenParams }}
           />
         );
@@ -3971,6 +4218,25 @@ export default function App() {
                     color="hsl(0, 0%, 0%)"
                   />
                 </TouchableOpacity>
+
+                {/* Close / Stop Button */}
+                <TouchableOpacity
+                  style={styles.audioCloseButton}
+                  onPress={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    } catch (hapticError) {
+                      console.warn("Haptics not available:", hapticError);
+                    }
+                    await stopGlobalAudio();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Stop playback"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={22} color="hsl(0, 0%, 60%)" />
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
 
@@ -4472,6 +4738,7 @@ export default function App() {
           type={modalConfig.type}
           title={modalConfig.title}
           message={modalConfig.message}
+          eventDetails={modalConfig.eventDetails}
           primaryButtonText={modalConfig.primaryButtonText}
           secondaryButtonText={modalConfig.secondaryButtonText}
           onPrimaryPress={modalConfig.onPrimaryPress}
@@ -4964,10 +5231,9 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     flexDirection: "row",
-    borderRadius: 25,
+    borderRadius: 18,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    // Enhanced shadow for more lift
     shadowColor: "#000000",
     shadowOffset: {
       width: 0,
@@ -4976,9 +5242,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 20,
     elevation: 15, // Android shadow
-    // Enhanced border for more lift
     borderWidth: 1.5,
     borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(0, 0, 0, 0.92)",
   },
   tab: {
     flex: 1,
@@ -5017,12 +5283,12 @@ const styles = StyleSheet.create({
     top: -6,
     right: -8,
     backgroundColor: "#FF3B30", // iOS red
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    borderRadius: 14,
+    minWidth: 28,
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 6,
+    paddingHorizontal: 10,
     borderWidth: 2,
     borderColor: "#000000", // Black border to stand out
   },
@@ -5035,6 +5301,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "bold",
     textAlign: "center",
+    paddingHorizontal: 2,
   },
   // Empty Opportunities Screen Styles
   emptyOpportunitiesContainer: {
