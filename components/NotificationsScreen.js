@@ -49,6 +49,7 @@ export default function NotificationsScreen({
   const [currentUser, setCurrentUser] = useState(propUser); // Use prop user as initial state
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [acceptedUser, setAcceptedUser] = useState(null);
+  const [actionProcessing, setActionProcessing] = useState({});
 
   // Load current user and notifications on component mount
   useEffect(() => {
@@ -189,6 +190,17 @@ export default function NotificationsScreen({
         actionRequired:
           !notification.is_read && shouldRequireAction(notification.type),
         relatedId: notification.related_id,
+        connectionId:
+          notification.related_id ||
+          notification.data?.connection_id ||
+          notification.metadata?.connection_id ||
+          null,
+        senderImage:
+          notification.sender_image ||
+          notification.data?.sender_image ||
+          notification.metadata?.sender_image ||
+          null,
+        rawData: notification.data || notification.metadata || {},
       }));
 
       setNotifications(transformedNotifications);
@@ -288,12 +300,29 @@ export default function NotificationsScreen({
     }
   };
 
+  const setNotificationActionProcessing = (notificationId, action) => {
+    setActionProcessing((prev) => ({ ...prev, [notificationId]: action }));
+  };
+
+  const clearNotificationActionProcessing = (notificationId) => {
+    setActionProcessing((prev) => {
+      const { [notificationId]: removed, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const getNotificationActionState = (notificationId) =>
+    actionProcessing[notificationId];
+
   const handleAcceptConnection = async (notification) => {
     try {
       console.log("🔗 Accepting connection for notification:", notification);
 
       // Extract connection ID from notification data
-      const connectionId = notification.data?.connection_id;
+      const connectionId =
+        notification.connectionId ||
+        notification.rawData?.connection_id ||
+        notification.relatedId;
 
       if (!connectionId) {
         console.error(
@@ -305,6 +334,8 @@ export default function NotificationsScreen({
       }
 
       console.log("🔗 Accepting connection with ID:", connectionId);
+
+      setNotificationActionProcessing(notification.id, "accept");
 
       // Accept the connection
       const result = await db.acceptConnection(connectionId);
@@ -319,7 +350,7 @@ export default function NotificationsScreen({
       // Extract user info from notification for the modal
       const userInfo = {
         name: notification.title.replace(" wants to connect with you", ""),
-        id: notification.data?.sender_id || notification.relatedId,
+        id: notification.rawData?.sender_id || notification.relatedId,
       };
 
       console.log(
@@ -339,6 +370,51 @@ export default function NotificationsScreen({
         "Error",
         `Failed to accept connection request: ${error.message}`
       );
+    } finally {
+      clearNotificationActionProcessing(notification.id);
+    }
+  };
+
+  const handleDeclineConnection = async (notification) => {
+    try {
+      console.log("🚫 Declining connection for notification:", notification);
+
+      const connectionId =
+        notification.connectionId ||
+        notification.rawData?.connection_id ||
+        notification.relatedId;
+
+      if (!connectionId) {
+        console.error(
+          "❌ Connection ID not found in notification for decline:",
+          notification
+        );
+        Alert.alert("Error", "Connection ID not found");
+        return;
+      }
+
+      setNotificationActionProcessing(notification.id, "decline");
+
+      await db.declineConnection(connectionId);
+      await markNotificationAsRead(notification.id);
+      await handleDismiss(notification.id);
+
+      if (onNotificationRead) {
+        onNotificationRead();
+      }
+
+      Alert.alert(
+        "Connection Declined",
+        "The connection request has been declined."
+      );
+    } catch (error) {
+      console.error("❌ Error declining connection:", error);
+      Alert.alert(
+        "Error",
+        `Failed to decline connection request: ${error.message}`
+      );
+    } finally {
+      clearNotificationActionProcessing(notification.id);
     }
   };
 
@@ -484,52 +560,99 @@ export default function NotificationsScreen({
                         </Text>
                         <View style={styles.notificationActions}>
                           {notification.type === "connection" &&
-                            !notification.isRead && (
+                          !notification.isRead ? (
+                            <View style={styles.connectionActions}>
                               <TouchableOpacity
                                 onPress={(e) => {
                                   e.stopPropagation();
-                                  handleAcceptConnection(notification);
+                                  if (!getNotificationActionState(notification.id)) {
+                                    handleAcceptConnection(notification);
+                                  }
                                 }}
                                 style={[
-                                  styles.actionButton,
-                                  styles.acceptButton,
+                                  styles.connectionButton,
+                                  styles.connectionButtonAccept,
+                                  getNotificationActionState(notification.id) &&
+                                    styles.connectionButtonDisabled,
                                 ]}
+                                disabled={
+                                  !!getNotificationActionState(notification.id)
+                                }
+                              >
+                                {getNotificationActionState(notification.id) ===
+                                "accept" ? (
+                                  <ActivityIndicator
+                                    size="small"
+                                    color="hsl(0, 0%, 0%)"
+                                  />
+                                ) : (
+                                  <Text style={styles.connectionButtonText}>
+                                    Accept
+                                  </Text>
+                                )}
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  if (!getNotificationActionState(notification.id)) {
+                                    handleDeclineConnection(notification);
+                                  }
+                                }}
+                                style={[
+                                  styles.connectionButton,
+                                  styles.connectionButtonDecline,
+                                  getNotificationActionState(notification.id) &&
+                                    styles.connectionButtonDisabled,
+                                ]}
+                                disabled={
+                                  !!getNotificationActionState(notification.id)
+                                }
+                              >
+                                {getNotificationActionState(notification.id) ===
+                                "decline" ? (
+                                  <ActivityIndicator
+                                    size="small"
+                                    color="hsl(0, 0%, 100%)"
+                                  />
+                                ) : (
+                                  <Text style={styles.connectionButtonTextDecline}>
+                                    Decline
+                                  </Text>
+                                )}
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <>
+                              {!notification.isRead && (
+                                <TouchableOpacity
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    handleMarkAsRead(notification.id);
+                                  }}
+                                  style={styles.actionButton}
+                                >
+                                  <Ionicons
+                                    name="checkmark"
+                                    size={16}
+                                    color="hsl(0, 0%, 50%)"
+                                  />
+                                </TouchableOpacity>
+                              )}
+                              <TouchableOpacity
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  handleDismiss(notification.id);
+                                }}
+                                style={styles.actionButton}
                               >
                                 <Ionicons
-                                  name="checkmark"
+                                  name="close"
                                   size={16}
-                                  color="hsl(0, 0%, 0%)"
+                                  color="hsl(0, 0%, 50%)"
                                 />
                               </TouchableOpacity>
-                            )}
-                          {!notification.isRead && (
-                            <TouchableOpacity
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                handleMarkAsRead(notification.id);
-                              }}
-                              style={styles.actionButton}
-                            >
-                              <Ionicons
-                                name="checkmark"
-                                size={16}
-                                color="hsl(0, 0%, 50%)"
-                              />
-                            </TouchableOpacity>
+                            </>
                           )}
-                          <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleDismiss(notification.id);
-                            }}
-                            style={styles.actionButton}
-                          >
-                            <Ionicons
-                              name="close"
-                              size={16}
-                              color="hsl(0, 0%, 50%)"
-                            />
-                          </TouchableOpacity>
                         </View>
                       </View>
 
@@ -751,17 +874,47 @@ const styles = StyleSheet.create({
   },
   notificationActions: {
     flexDirection: "row",
-    gap: 4,
+    gap: 8,
   },
   actionButton: {
     padding: 4,
     borderRadius: 4,
     backgroundColor: "hsl(0, 0%, 15%)",
   },
-  acceptButton: {
+  connectionActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  connectionButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 88,
+  },
+  connectionButtonAccept: {
     backgroundColor: "hsl(75, 100%, 60%)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  },
+  connectionButtonDecline: {
+    backgroundColor: "hsl(0, 0%, 20%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 40%)",
+  },
+  connectionButtonDisabled: {
+    opacity: 0.6,
+  },
+  connectionButtonText: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+  },
+  connectionButtonTextDecline: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
   },
   notificationDescription: {
     fontSize: 14,
