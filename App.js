@@ -2748,11 +2748,22 @@ export default function App() {
           date: opp.event_date
             ? new Date(opp.event_date).toLocaleDateString()
             : "TBD",
-          time: "TBD", // We don't have time in the database schema
+          time: opp.event_time
+            ? new Date(`1970-01-01T${opp.event_time}`).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "TBD",
           audienceSize: "TBD", // We don't have audience size in the database schema
           description: opp.description,
           genres: opp.genre ? [opp.genre] : ["Electronic"],
-          compensation: opp.payment ? `$${opp.payment}` : "TBD",
+          compensation: opp.payment
+            ? new Intl.NumberFormat(undefined, {
+                style: "currency",
+                currency: opp.payment_currency || "USD",
+                maximumFractionDigits: 0,
+              }).format(opp.payment)
+            : "TBD",
           // applicationsLeft will be set based on user's daily application stats
           applicationsLeft: 0, // Will be updated with user's daily stats
           status:

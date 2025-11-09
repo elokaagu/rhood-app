@@ -48,6 +48,39 @@ export default function UserProfileView({
   const audioIdSoundRef = useRef(null);
   const primaryMixSoundRef = useRef(null);
 
+  const parseDurationSeconds = (value) => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) && value >= 0 ? value : 0;
+    }
+    if (typeof value === "string") {
+      if (value.includes(":")) {
+        const [minutes, seconds] = value.split(":");
+        const mins = Number(minutes);
+        const secs = Number(seconds);
+        if (
+          Number.isFinite(mins) &&
+          Number.isFinite(secs) &&
+          mins >= 0 &&
+          secs >= 0
+        ) {
+          return mins * 60 + secs;
+        }
+      }
+      const numeric = Number(value);
+      if (Number.isFinite(numeric) && numeric >= 0) {
+        return numeric;
+      }
+    }
+    return 0;
+  };
+
+  const formatSecondsToLabel = (seconds) => {
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    const secs = safeSeconds % 60;
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
+  };
+
   useEffect(() => {
     loadUserProfile();
     checkConnectionStatus();
@@ -148,7 +181,12 @@ export default function UserProfileView({
             .single();
 
           if (!mixError && mixData) {
-            primaryMix = mixData;
+            const durationSeconds = parseDurationSeconds(mixData.duration);
+            primaryMix = {
+              ...mixData,
+              duration: durationSeconds,
+              duration_label: formatSecondsToLabel(durationSeconds),
+            };
           }
         } catch (mixErr) {
           console.warn("⚠️ Could not load primary mix:", mixErr);
@@ -632,10 +670,10 @@ export default function UserProfileView({
                     {profile.primary_mix.genre}
                   </Text>
                   <Text style={styles.mixDuration}>
-                    {Math.floor(profile.primary_mix.duration / 60)}:
-                    {(profile.primary_mix.duration % 60)
-                      .toString()
-                      .padStart(2, "0")}
+                    {profile.primary_mix.duration_label ||
+                      formatSecondsToLabel(
+                        parseDurationSeconds(profile.primary_mix.duration)
+                      )}
                   </Text>
                 </View>
               </TouchableOpacity>

@@ -269,7 +269,7 @@ export default function SwipeableOpportunityCard({
         >
           <View style={styles.overlayContent}>
             <View style={styles.overlayHeader}>
-              <Text style={styles.venueName}>{opportunity.venue}</Text>
+              <View style={styles.overlayHeaderSpacer} />
               {opportunity.status === "hot" && (
                 <View style={styles.statusBadge}>
                   <Text style={styles.statusBadgeText}>HOT</Text>
@@ -359,11 +359,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
-  venueName: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)",
-    fontWeight: "600",
+  overlayHeaderSpacer: {
     flex: 1,
   },
   statusBadge: {

@@ -25,6 +25,7 @@ const defaultProfile = {
   audioId: {
     title: "Unique Original Mix",
     duration: "5:23",
+    durationSeconds: 323,
     genre: "Electronic",
     waveform: [20, 35, 45, 30, 55, 40, 25, 50, 35, 60, 45, 30, 25, 40, 35, 50],
     audioUrl: require("../assets/audio/unique-original-mix.mp3"),
@@ -47,6 +48,39 @@ export default function ProfileScreen({
   const [playbackDuration, setPlaybackDuration] = useState(0);
   const soundRef = useRef(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
+
+  const parseDurationSeconds = (value) => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) && value >= 0 ? value : 0;
+    }
+    if (typeof value === "string") {
+      if (value.includes(":")) {
+        const [minutes, seconds] = value.split(":");
+        const mins = Number(minutes);
+        const secs = Number(seconds);
+        if (
+          Number.isFinite(mins) &&
+          Number.isFinite(secs) &&
+          mins >= 0 &&
+          secs >= 0
+        ) {
+          return mins * 60 + secs;
+        }
+      }
+      const numeric = Number(value);
+      if (Number.isFinite(numeric) && numeric >= 0) {
+        return numeric;
+      }
+    }
+    return 0;
+  };
+
+  const formatSecondsToLabel = (seconds) => {
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    const secs = safeSeconds % 60;
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
+  };
 
   // Load user profile from database and set up real-time subscription
   useEffect(() => {
@@ -151,25 +185,21 @@ export default function ProfileScreen({
                   .single()
             );
             if (mixData) {
-              // Generate waveform based on genre and duration
+              const durationSeconds = parseDurationSeconds(mixData.duration);
+              // Generate waveform based on safe duration
               const waveform = generateGenreWaveform(
-                mixData.duration || 300,
+                durationSeconds || 300,
                 mixData.genre || "electronic",
                 16
               );
 
               primaryMix = {
                 title: mixData.title,
-                duration: mixData.duration
-                  ? `${Math.floor(mixData.duration / 60)}:${(
-                      mixData.duration % 60
-                    )
-                      .toString()
-                      .padStart(2, "0")}`
-                  : "0:00",
+                duration: formatSecondsToLabel(durationSeconds),
+                durationSeconds,
                 genre: mixData.genre || "Electronic",
                 audioUrl: mixData.file_url,
-                waveform: waveform,
+                waveform,
               };
             }
           } catch (mixError) {
@@ -299,14 +329,17 @@ export default function ProfileScreen({
   };
 
   const formatTime = (milliseconds) => {
+    if (!Number.isFinite(milliseconds) || milliseconds < 0) {
+      return "0:00";
+    }
     const minutes = Math.floor(milliseconds / 60000);
     const seconds = Math.floor((milliseconds % 60000) / 1000);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   const formatDuration = (duration) => {
-    const [minutes, seconds] = duration.split(":");
-    return parseInt(minutes) * 60000 + parseInt(seconds) * 1000;
+    const seconds = parseDurationSeconds(duration);
+    return seconds * 1000;
   };
 
   const renderWaveform = () => {
