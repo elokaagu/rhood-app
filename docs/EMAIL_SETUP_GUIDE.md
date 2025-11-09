@@ -5,6 +5,7 @@ This guide explains how to set up email notifications when applications are appr
 ## Overview
 
 When an application is approved or rejected, the system will:
+
 1. ✅ Send an in-app notification (already working)
 2. ✅ Send a push notification (already working)
 3. ✅ Send an email notification (requires setup)
@@ -18,16 +19,19 @@ This is the recommended approach as it keeps your API keys secure and server-sid
 #### Step 1: Create Edge Function
 
 1. Install Supabase CLI (if not already installed):
+
    ```bash
    npm install -g supabase
    ```
 
 2. Initialize Supabase in your project (if not already done):
+
    ```bash
    supabase init
    ```
 
 3. Create the email Edge Function:
+
    ```bash
    supabase functions new send-email
    ```
@@ -35,22 +39,22 @@ This is the recommended approach as it keeps your API keys secure and server-sid
 4. Create the function code at `supabase/functions/send-email/index.ts`:
 
 ```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'R/HOOD <noreply@rhood.app>'
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "R/HOOD <noreply@rhood.app>";
 
 serve(async (req) => {
   try {
-    const { to, subject, html, text } = await req.json()
+    const { to, subject, html, text } = await req.json();
 
     // Send email via Resend
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         from: FROM_EMAIL,
@@ -58,28 +62,27 @@ serve(async (req) => {
         subject: subject,
         html: html || text,
       }),
-    })
+    });
 
-    const data = await response.json()
+    const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to send email')
+      throw new Error(data.message || "Failed to send email");
     }
 
-    return new Response(
-      JSON.stringify({ success: true, id: data.id }),
-      { headers: { 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({ success: true, id: data.id }), {
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
-      { 
+      {
         status: 500,
-        headers: { 'Content-Type': 'application/json' } 
+        headers: { "Content-Type": "application/json" },
       }
-    )
+    );
   }
-})
+});
 ```
 
 #### Step 2: Set Up Resend Account
@@ -91,6 +94,7 @@ serve(async (req) => {
 #### Step 3: Configure Supabase Secrets
 
 1. Set the Resend API key in Supabase:
+
    ```bash
    supabase secrets set RESEND_API_KEY=your_resend_api_key_here
    supabase secrets set FROM_EMAIL="R/HOOD <noreply@rhood.app>"
@@ -119,6 +123,7 @@ If you prefer not to use Edge Functions, you can modify `lib/emailService.js` to
 ### Option 3: Other Email Services
 
 You can use other email services like:
+
 - **SendGrid**: Similar setup, replace Resend API with SendGrid
 - **Mailgun**: Similar setup, replace Resend API with Mailgun
 - **AWS SES**: More complex but very scalable
@@ -142,6 +147,7 @@ Run the database migration to update the trigger:
 ```
 
 This migration:
+
 - Updates the application status change trigger
 - Adds email sending functionality (placeholder for now)
 - Maintains backward compatibility with existing notifications
@@ -158,6 +164,7 @@ This migration:
 ### Edge Function not found
 
 If you see "Edge Function not found" errors:
+
 1. Make sure you've deployed the function: `supabase functions deploy send-email`
 2. Check the function name matches exactly: `send-email`
 3. Verify you're calling it from the correct Supabase project
@@ -171,6 +178,7 @@ If you see "Edge Function not found" errors:
 ## Current Implementation
 
 The current implementation:
+
 - ✅ Sends emails when applications are approved
 - ✅ Sends emails when applications are rejected
 - ✅ Includes applicant name and opportunity title
@@ -184,16 +192,3 @@ The current implementation:
 3. Configure API keys in Supabase
 4. Test with a real application approval
 5. Monitor email delivery rates
-
-
-
-
-
-
-
-
-
-
-
-
-

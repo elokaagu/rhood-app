@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -47,6 +47,10 @@ export default function ConnectionsScreen({
   const [connectionMessage, setConnectionMessage] = useState("");
   const [connectionModalType, setConnectionModalType] = useState("success");
   const [showConnectionModal, setShowConnectionModal] = useState(false);
+  const [connectionModalPrimaryText, setConnectionModalPrimaryText] =
+    useState("OK");
+  const [connectionModalPrimaryAction, setConnectionModalPrimaryAction] =
+    useState(null);
   const [isRhoodMember, setIsRhoodMember] = useState(false);
   const [rhoodMemberCount, setRhoodMemberCount] = useState(0);
   const [lastMessages, setLastMessages] = useState({});
@@ -54,6 +58,21 @@ export default function ConnectionsScreen({
   const [latestGroupMessage, setLatestGroupMessage] = useState(null);
   const [unreadGroupCount, setUnreadGroupCount] = useState(0);
   const [cancellingConnectionId, setCancellingConnectionId] = useState(null);
+  const prevConnectionStatusesRef = useRef(new Map());
+
+  const handleCloseConnectionModal = useCallback(() => {
+    setShowConnectionModal(false);
+    setConnectionModalPrimaryAction(null);
+    setConnectionModalPrimaryText("OK");
+  }, []);
+
+  const handleConnectionModalPrimaryPress = useCallback(() => {
+    if (connectionModalPrimaryAction) {
+      connectionModalPrimaryAction();
+    } else {
+      handleCloseConnectionModal();
+    }
+  }, [connectionModalPrimaryAction, handleCloseConnectionModal]);
 
   const normalizeConnectionStatus = (status) => {
     if (status === undefined || status === null) return null;
@@ -189,6 +208,7 @@ export default function ConnectionsScreen({
 
       // Create a map of existing connections
       const connectionsMap = {};
+      const newlyAcceptedConnections = [];
       if (connectionsData && connectionsData.length > 0) {
         connectionsData.forEach((conn) => {
           // Log connection data for debugging
@@ -220,6 +240,30 @@ export default function ConnectionsScreen({
             null;
           const normalizedStatus = normalizeConnectionStatus(rawStatus);
 
+          const previousStatus = prevConnectionStatusesRef.current.get(
+            conn.connected_user_id
+          );
+          prevConnectionStatusesRef.current.set(
+            conn.connected_user_id,
+            normalizedStatus
+          );
+          if (
+            previousStatus === "pending" &&
+            isAcceptedConnectionStatus(normalizedStatus)
+          ) {
+            newlyAcceptedConnections.push({
+              userId: conn.connected_user_id,
+              name: conn.connected_user_name || "this DJ",
+              connectionId:
+                conn.connection_id ||
+                conn.id ||
+                conn.connectionId ||
+                conn.connection_uuid ||
+                null,
+              threadId: conn.thread_id || null,
+            });
+          }
+
           connectionsMap[conn.connected_user_id] = {
             id: conn.connected_user_id,
             name: conn.connected_user_name,
@@ -246,6 +290,12 @@ export default function ConnectionsScreen({
             isConnected: isAcceptedConnectionStatus(normalizedStatus),
           statusMessage: conn.connected_user_status_message || "",
           };
+        });
+
+        prevConnectionStatusesRef.current.forEach((_, userId) => {
+          if (!connectionsMap[userId]) {
+            prevConnectionStatusesRef.current.delete(userId);
+          }
         });
       }
 
@@ -290,6 +340,31 @@ export default function ConnectionsScreen({
 
         // Load last messages for all connections
         await loadLastMessagesForConnections(currentUser.id, allConnections);
+
+        if (newlyAcceptedConnections.length > 0) {
+          const accepted = newlyAcceptedConnections[0];
+          setConnectionMessage(
+            `You are now connected with ${accepted.name}! Click below to chat.`
+          );
+          setConnectionModalType("success");
+          setConnectionModalPrimaryText("Click to Chat");
+          setConnectionModalPrimaryAction(
+            () =>
+              () => {
+                if (onNavigate) {
+                  onNavigate("messages", {
+                    isGroupChat: false,
+                    djId: accepted.userId,
+                    connectionId: accepted.connectionId || null,
+                    threadId: accepted.threadId || null,
+                    returnToConnectionsTab: "connections",
+                  });
+                }
+                handleCloseConnectionModal();
+              }
+          );
+          setShowConnectionModal(true);
+        }
       } else {
         // No connections yet, show empty state
         setConnections([]);
@@ -392,6 +467,40 @@ export default function ConnectionsScreen({
 
     return () => clearInterval(refreshInterval);
   }, [user?.id, connections.length]);
+
+  // Listen for connection status changes to keep UI in sync
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`connections-updates-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "connections",
+        },
+        (payload) => {
+          const involvesUser =
+            payload.new?.user_id_1 === user.id ||
+            payload.new?.user_id_2 === user.id ||
+            payload.old?.user_id_1 === user.id ||
+            payload.old?.user_id_2 === user.id;
+
+          if (involvesUser) {
+            console.log("🔗 Connection change detected:", payload);
+            loadUserAndConnections({ showLoader: false });
+            loadDiscoverDJs();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const checkRhoodMembership = async () => {
     try {
@@ -550,6 +659,8 @@ export default function ConnectionsScreen({
           `Connection request sent to ${displayName}. They'll be notified and can accept your request.`
         );
         setConnectionModalType("success");
+        setConnectionModalPrimaryText("OK");
+        setConnectionModalPrimaryAction(null);
         setShowConnectionModal(true);
 
         // Update the user's connection status in the local state
@@ -574,12 +685,30 @@ export default function ConnectionsScreen({
       } else {
         setConnectionMessage(`You're already connected to ${displayName}`);
         setConnectionModalType("info");
+        setConnectionModalPrimaryText("OK");
+        setConnectionModalPrimaryAction(
+          () =>
+            () => {
+              handleConnectionPress({
+                id: connection.id,
+                connectionId:
+                  connectionResult?.id ||
+                  connectionResult?.connection_id ||
+                  connection.connectionId ||
+                  null,
+                threadId: connection.threadId || null,
+              });
+              handleCloseConnectionModal();
+            }
+        );
         setShowConnectionModal(true);
       }
     } catch (error) {
       console.error("Error sending connection request:", error);
       setConnectionMessage("Failed to send connection request");
       setConnectionModalType("error");
+      setConnectionModalPrimaryText("OK");
+      setConnectionModalPrimaryAction(null);
       setShowConnectionModal(true);
     } finally {
       setDiscoverLoading(false);
@@ -609,7 +738,7 @@ export default function ConnectionsScreen({
 
   const performCancelPendingConnection = async (connection, connectionId, displayName) => {
     try {
-      setCancellingConnectionId(connectionId);
+      setCancellingConnectionId(connectionId || connection.id);
       await db.cancelConnectionRequest(connectionId);
 
       setDiscoverUsers((prev) =>
@@ -645,6 +774,8 @@ export default function ConnectionsScreen({
         `Connection request to ${displayName} has been cancelled.`
       );
       setConnectionModalType("info");
+      setConnectionModalPrimaryText("OK");
+      setConnectionModalPrimaryAction(null);
       setShowConnectionModal(true);
     } catch (error) {
       console.error("Error cancelling connection request:", error);
@@ -1458,10 +1589,10 @@ export default function ConnectionsScreen({
                               user.connectionStatus
                             );
                             const isPending = normalizedStatus === "pending";
+                            const pendingKey =
+                              user.connectionId || user.id;
                             const isCancelling =
-                              isPending &&
-                              user.connectionId &&
-                              user.connectionId === cancellingConnectionId;
+                              isPending && pendingKey === cancellingConnectionId;
 
                             return (
                               <TouchableOpacity
@@ -1476,8 +1607,7 @@ export default function ConnectionsScreen({
                                 }
                           disabled={
                             discoverLoading ||
-                                  (isPending && isCancelling) ||
-                                  (isPending && !user.connectionId)
+                                  (isPending && isCancelling)
                                 }
                               >
                                 {isPending && isCancelling ? (
@@ -1550,11 +1680,12 @@ export default function ConnectionsScreen({
       {/* Connection Status Modal */}
       <RhoodModal
         visible={showConnectionModal}
-        onClose={() => setShowConnectionModal(false)}
+        onClose={handleCloseConnectionModal}
         title="Connection Status"
         message={connectionMessage}
         type={connectionModalType}
-        primaryButtonText="OK"
+        primaryButtonText={connectionModalPrimaryText}
+        onPrimaryPress={handleConnectionModalPrimaryPress}
         showCloseButton={false}
       />
     </View>
