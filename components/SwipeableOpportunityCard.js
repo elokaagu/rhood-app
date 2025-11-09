@@ -270,22 +270,26 @@ export default function SwipeableOpportunityCard({
           <View style={styles.overlayContent}>
             <View style={styles.overlayHeader}>
               <View style={styles.overlayHeaderSpacer} />
-              {opportunity.status === "hot" && (
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusBadgeText}>HOT</Text>
-                </View>
-              )}
-              {opportunity.status === "new" && (
+              <View style={styles.overlayHeaderBadges}>
+                {opportunity.status === "hot" && (
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusBadgeText}>HOT</Text>
+                  </View>
+                )}
+                {opportunity.status === "closing" && (
+                  <View style={[styles.statusBadge, styles.closingBadge]}>
+                    <Text style={styles.statusBadgeText}>CLOSING</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+            {opportunity.status === "new" && (
+              <View style={styles.newBadgeContainer}>
                 <View style={[styles.statusBadge, styles.newBadge]}>
                   <Text style={styles.statusBadgeText}>NEW</Text>
                 </View>
-              )}
-              {opportunity.status === "closing" && (
-                <View style={[styles.statusBadge, styles.closingBadge]}>
-                  <Text style={styles.statusBadgeText}>CLOSING</Text>
-                </View>
-              )}
-            </View>
+              </View>
+            )}
             <Text style={styles.eventTitle}>{opportunity.title}</Text>
             <Text style={styles.applicationsLeft}>
               {dailyApplicationStats &&
@@ -362,6 +366,11 @@ const styles = StyleSheet.create({
   overlayHeaderSpacer: {
     flex: 1,
   },
+  overlayHeaderBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   statusBadge: {
     backgroundColor: "hsl(0, 100%, 50%)",
     borderRadius: 4,
@@ -377,8 +386,12 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 10,
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 100%)",
+    color: "hsl(0, 0%, 0%)",
     fontWeight: "700",
+  },
+  newBadgeContainer: {
+    alignSelf: "flex-start",
+    marginBottom: 8,
   },
   eventTitle: {
     fontSize: 20,

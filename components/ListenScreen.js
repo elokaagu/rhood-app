@@ -1347,6 +1347,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 16,
     marginTop: 16,
+    paddingHorizontal: 20,
   },
   recommendationGridCard: {
     width: "48%",
@@ -1387,16 +1388,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   genreRowsSection: {
-    marginTop: 28,
-    gap: 28,
+    marginTop: 36,
+    gap: 32,
   },
   genreRow: {
     backgroundColor: "hsl(0, 0%, 6%)",
     borderRadius: 18,
-    paddingVertical: 24,
+    paddingVertical: 28,
     paddingHorizontal: 20,
     borderWidth: 1,
     borderColor: "hsl(75, 100%, 60%, 0.08)",
+    marginHorizontal: 20,
   },
   genreRowHeader: {
     flexDirection: "row",
@@ -1426,7 +1428,7 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 60%)",
   },
   genreRowContent: {
-    gap: 16,
+    gap: 20,
   },
   genreRowCard: {
     width: 180,
