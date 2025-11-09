@@ -436,8 +436,19 @@ export default function ConnectionsScreen({
   };
 
   const handleConnectionPress = (connection) => {
-    onNavigate &&
-      onNavigate("messages", { isGroupChat: false, djId: connection.id });
+    const payload = {
+      isGroupChat: false,
+      djId: connection.id,
+    };
+
+    if (connection.threadId) {
+      payload.threadId = connection.threadId;
+    }
+    if (connection.connectionId) {
+      payload.connectionId = connection.connectionId;
+    }
+
+    onNavigate && onNavigate("messages", payload);
   };
 
   const handleBrowseCommunity = () => {
@@ -559,6 +570,9 @@ export default function ConnectionsScreen({
           initiated_by: conn.initiated_by,
           created_at: conn.created_at,
           accepted_at: conn.accepted_at,
+          // Include the connection record id for navigation
+          connection_id: conn.connection_id || conn.id || conn.connectionId || conn.connection_uuid || null,
+          thread_id: conn.thread_id || null,
         });
       });
 
@@ -607,6 +621,12 @@ export default function ConnectionsScreen({
           statusMessage: user.status_message || "",
           isConnected: isConnected,
           connectionStatus: connectionInfo?.status || null,
+          connectionId:
+            connectionInfo?.connection_id ||
+            connectionInfo?.connectionId ||
+            connectionInfo?.connection_uuid ||
+            null,
+          threadId: connectionInfo?.thread_id || null,
           connectionId: connectionInfo ? user.id : null,
         };
 
@@ -1190,52 +1210,68 @@ export default function ConnectionsScreen({
                             View Profile
                           </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[
-                            styles.discoverConnectButton,
-                            user.isConnected && styles.discoverConnectedButton,
-                            user.connectionStatus === "pending" &&
-                              styles.discoverPendingButton,
-                          ]}
-                          onPress={() => handleConnect(user)}
-                          disabled={
-                            discoverLoading ||
-                            user.isConnected ||
-                            user.connectionStatus === "pending"
-                          }
-                        >
-                          <Ionicons
-                            name={
-                              user.isConnected
-                                ? "checkmark"
-                                : user.connectionStatus === "pending"
-                                ? "time"
-                                : "add"
-                            }
-                            size={16}
-                            color={
-                              user.isConnected
-                                ? "hsl(0, 0%, 100%)"
-                                : user.connectionStatus === "pending"
-                                ? "hsl(0, 0%, 60%)"
-                                : "hsl(0, 0%, 0%)"
-                            }
-                          />
-                          <Text
+                        {user.isConnected ? (
+                          <TouchableOpacity
                             style={[
-                              styles.discoverConnectText,
-                              user.isConnected && styles.discoverConnectedText,
-                              user.connectionStatus === "pending" &&
-                                styles.discoverPendingText,
+                              styles.discoverConnectButton,
+                              styles.discoverMessageButton,
                             ]}
+                            onPress={() =>
+                              handleConnectionPress({
+                                id: user.id,
+                                connectionId: user.connectionId,
+                                threadId: user.threadId,
+                              })
+                            }
                           >
-                            {user.isConnected
-                              ? "Connected"
-                              : user.connectionStatus === "pending"
-                              ? "Pending"
-                              : "Connect"}
-                          </Text>
-                        </TouchableOpacity>
+                            <Ionicons
+                              name="chatbubble-outline"
+                              size={16}
+                              color="hsl(0, 0%, 0%)"
+                            />
+                            <Text style={styles.discoverMessageText}>
+                              Message
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={[
+                              styles.discoverConnectButton,
+                              user.connectionStatus === "pending" &&
+                                styles.discoverPendingButton,
+                            ]}
+                            onPress={() => handleConnect(user)}
+                            disabled={
+                              discoverLoading ||
+                              user.connectionStatus === "pending"
+                            }
+                          >
+                            <Ionicons
+                              name={
+                                user.connectionStatus === "pending"
+                                  ? "time"
+                                  : "add"
+                              }
+                              size={16}
+                              color={
+                                user.connectionStatus === "pending"
+                                  ? "hsl(0, 0%, 60%)"
+                                  : "hsl(0, 0%, 0%)"
+                              }
+                            />
+                            <Text
+                              style={[
+                                styles.discoverConnectText,
+                                user.connectionStatus === "pending" &&
+                                  styles.discoverPendingText,
+                              ]}
+                            >
+                              {user.connectionStatus === "pending"
+                                ? "Pending"
+                                : "Connect"}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
                   </AnimatedListItem>

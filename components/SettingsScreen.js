@@ -192,14 +192,6 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
           action: () => onNavigate && onNavigate("help"),
         },
         {
-          id: "lockScreenTest",
-          title: "Test Lock Screen Controls",
-          subtitle: "Test audio controls on lock screen",
-          icon: "phone-portrait",
-          type: "navigate",
-          action: () => onNavigate && onNavigate("lock-screen-test"),
-        },
-        {
           id: "contact",
           title: "Contact Us",
           subtitle: "Send feedback or report issues",
