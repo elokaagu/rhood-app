@@ -1513,18 +1513,18 @@ export default function ConnectionsScreen({
               ]}
               onPress={() => {
                 setActiveTab("connections");
-                // Reset fade animation for connections tab
-                connectionsFadeAnim.setValue(0);
+                // Reset fade animation for connections tab only on first load
+                if (!hasLoadedConnections) {
+                  connectionsFadeAnim.setValue(0);
+                }
                 // Reload connections data when switching to messages tab
                 loadUserAndConnections();
-                // Fade in connections after loading
-                setTimeout(() => {
-                  Animated.timing(connectionsFadeAnim, {
-                    toValue: 1,
-                    duration: 300,
-                    useNativeDriver: true,
-                  }).start();
-                }, 100);
+                // Ensure connections stay visible without flicker
+                Animated.timing(connectionsFadeAnim, {
+                  toValue: 1,
+                  duration: 300,
+                  useNativeDriver: true,
+                }).start();
                 // Reset discover fade animation
                 discoverFadeAnim.setValue(0);
               }}
