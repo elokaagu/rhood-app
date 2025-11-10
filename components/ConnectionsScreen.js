@@ -1506,9 +1506,102 @@ export default function ConnectionsScreen({
                   </View>
                 </TouchableOpacity>
 
-                {/* Incoming Connection Requests */}
+                {/* Individual Messages */}
+                {connectionsWithMessages.map((connection, index) => (
+                  <AnimatedListItem
+                    key={connection.id}
+                    index={index}
+                    delay={80}
+                  >
+                    <TouchableOpacity
+                      style={styles.messageItem}
+                      onPress={() => handleConnectionPress(connection)}
+                    >
+                      <View style={styles.messageContent}>
+                        {/* Profile Avatar */}
+                        <View style={styles.avatarContainer}>
+                          <ProgressiveImage
+                            source={
+                              connection.profileImage &&
+                              typeof connection.profileImage === "string" &&
+                              connection.profileImage.trim()
+                                ? { uri: connection.profileImage.trim() }
+                                : null
+                            }
+                            style={styles.profileImage}
+                            placeholder={
+                              <ProfileImagePlaceholder
+                                size={48}
+                                style={styles.profileImage}
+                              />
+                            }
+                          />
+                          <View style={styles.onlineIndicator} />
+                        </View>
+
+                        {/* Message Info */}
+                        <View style={styles.messageInfo}>
+                          <View style={styles.messageHeader}>
+                            <Text style={styles.messageName} numberOfLines={1}>
+                              {getUserName(connection)}
+                            </Text>
+                            <Text style={styles.messageTime}>
+                              {connection.lastActive || "Recently"}
+                            </Text>
+                          </View>
+                          {/* Location removed per design */}
+                          {connection.statusMessage ? (
+                            <Text
+                              style={styles.connectionStatusMessage}
+                              numberOfLines={1}
+                            >
+                              {connection.statusMessage}
+                            </Text>
+                          ) : null}
+                          <View style={styles.messagePreview}>
+                            <Text style={styles.messageText} numberOfLines={1}>
+                              {getLastMessageSender(connection)}
+                              {getLastMessageContent(connection)}
+                            </Text>
+                            <Text style={styles.messageTime}>
+                              {getLastMessageTime(connection)}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  </AnimatedListItem>
+                ))}
+
+                {/* Empty State - only show if no individual messages */}
+                {connectionsWithMessages.length === 0 && !loading && (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateTitle}>No Messages Yet</Text>
+                    <Text style={styles.emptyStateDescription}>
+                      Start connecting with DJs to begin conversations
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.emptyStateButton}
+                      onPress={() => setActiveTab("discover")}
+                    >
+                      <Text style={styles.emptyStateButtonText}>
+                        Discover DJs
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </Animated.View>
+            )}
+          </View>
+        ) : (
+          /* Discover Tab */
+          <View style={styles.discoverList}>
+            {discoverLoading ? (
+              <SkeletonList count={4} />
+            ) : (
+              <Animated.View style={{ opacity: discoverFadeAnim }}>
                 {incomingConnectionRequests.length > 0 && (
-                  <View style={styles.pendingRequestsSection}>
+                  <View style={[styles.pendingRequestsSection, { marginTop: 0 }]}>
                     <View style={styles.pendingRequestsHeader}>
                       <Ionicons
                         name="person-add"
@@ -1645,101 +1738,6 @@ export default function ConnectionsScreen({
                     })}
                   </View>
                 )}
-
-                {/* Individual Messages */}
-                {connectionsWithMessages.map((connection, index) => (
-                  <AnimatedListItem
-                    key={connection.id}
-                    index={index}
-                    delay={80}
-                  >
-                    <TouchableOpacity
-                      style={styles.messageItem}
-                      onPress={() => handleConnectionPress(connection)}
-                    >
-                      <View style={styles.messageContent}>
-                        {/* Profile Avatar */}
-                        <View style={styles.avatarContainer}>
-                          <ProgressiveImage
-                            source={
-                              connection.profileImage &&
-                              typeof connection.profileImage === "string" &&
-                              connection.profileImage.trim()
-                                ? { uri: connection.profileImage.trim() }
-                                : null
-                            }
-                            style={styles.profileImage}
-                            placeholder={
-                              <ProfileImagePlaceholder
-                                size={48}
-                                style={styles.profileImage}
-                              />
-                            }
-                          />
-                          <View style={styles.onlineIndicator} />
-                        </View>
-
-                        {/* Message Info */}
-                        <View style={styles.messageInfo}>
-                          <View style={styles.messageHeader}>
-                            <Text style={styles.messageName} numberOfLines={1}>
-                              {getUserName(connection)}
-                            </Text>
-                            <Text style={styles.messageTime}>
-                              {connection.lastActive || "Recently"}
-                            </Text>
-                          </View>
-                          {/* Location removed per design */}
-                          {connection.statusMessage ? (
-                            <Text
-                              style={styles.connectionStatusMessage}
-                              numberOfLines={1}
-                            >
-                              {connection.statusMessage}
-                            </Text>
-                          ) : null}
-                          <View style={styles.messagePreview}>
-                            <Text style={styles.messageText} numberOfLines={1}>
-                              {getLastMessageSender(connection)}
-                              {getLastMessageContent(connection)}
-                            </Text>
-                            <Text style={styles.messageTime}>
-                              {getLastMessageTime(connection)}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  </AnimatedListItem>
-                ))}
-
-                {/* Empty State - only show if no individual messages */}
-                {connectionsWithMessages.length === 0 && !loading && (
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyStateTitle}>No Messages Yet</Text>
-                    <Text style={styles.emptyStateDescription}>
-                      Start connecting with DJs to begin conversations
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.emptyStateButton}
-                      onPress={() => setActiveTab("discover")}
-                    >
-                      <Text style={styles.emptyStateButtonText}>
-                        Discover DJs
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </Animated.View>
-            )}
-          </View>
-        ) : (
-          /* Discover Tab */
-          <View style={styles.discoverList}>
-            {discoverLoading ? (
-              <SkeletonList count={4} />
-            ) : (
-              <Animated.View style={{ opacity: discoverFadeAnim }}>
                 {filteredDiscoverUsers.map((user, index) => (
                   <AnimatedListItem key={user.id} index={index} delay={80}>
                     <View style={styles.discoverCard}>

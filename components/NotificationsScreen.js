@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
+import RhoodModal from "./RhoodModal";
 import { supabase, db } from "../lib/supabase";
 
 // Helper function to format relative time
@@ -50,6 +51,9 @@ export default function NotificationsScreen({
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [acceptedUser, setAcceptedUser] = useState(null);
   const [actionProcessing, setActionProcessing] = useState({});
+  const [showConnectionPrompt, setShowConnectionPrompt] = useState(false);
+  const [activeConnectionNotification, setActiveConnectionNotification] =
+    useState(null);
 
   // Load current user and notifications on component mount
   useEffect(() => {
@@ -113,6 +117,22 @@ export default function NotificationsScreen({
 
     return () => clearInterval(interval);
   }, [currentUser]);
+
+  useEffect(() => {
+    if (showAcceptModal && acceptedUser?.id) {
+      const timer = setTimeout(() => {
+        setShowAcceptModal(false);
+        if (onNavigate) {
+          onNavigate("messages", {
+            isGroupChat: false,
+            djId: acceptedUser.id,
+          });
+        }
+      }, 1200);
+
+      return () => clearTimeout(timer);
+    }
+  }, [showAcceptModal, acceptedUser, onNavigate]);
 
   const loadUserAndNotifications = async () => {
     try {
@@ -187,16 +207,16 @@ export default function NotificationsScreen({
             : rawTitle;
 
         return {
-          id: notification.id,
-          type: notification.type,
+        id: notification.id,
+        type: notification.type,
           title: displayTitle,
-          description: notification.message,
-          timestamp: formatRelativeTime(notification.created_at),
-          isRead: notification.is_read,
-          priority: getPriorityFromType(notification.type),
-          actionRequired:
-            !notification.is_read && shouldRequireAction(notification.type),
-          relatedId: notification.related_id,
+        description: notification.message,
+        timestamp: formatRelativeTime(notification.created_at),
+        isRead: notification.is_read,
+        priority: getPriorityFromType(notification.type),
+        actionRequired:
+          !notification.is_read && shouldRequireAction(notification.type),
+        relatedId: notification.related_id,
           connectionId:
             notification.related_id ||
             notification.data?.connection_id ||
@@ -239,24 +259,23 @@ export default function NotificationsScreen({
   };
 
   const handleNotificationPress = async (notification) => {
-    // Mark as read in database if not already read
+    if (notification.type === "connection") {
+      setActiveConnectionNotification(notification);
+      setShowConnectionPrompt(true);
+      return;
+    }
+
     if (!notification.isRead) {
       await markNotificationAsRead(notification.id);
     }
 
-    // Handle navigation based on notification type
     switch (notification.type) {
       case "opportunity":
-        onNavigate("opportunities");
-        break;
       case "application":
         onNavigate("opportunities");
         break;
       case "message":
         onNavigate("messages");
-        break;
-      case "connection":
-        onNavigate("connections");
         break;
       default:
         break;
@@ -430,6 +449,35 @@ export default function NotificationsScreen({
     }
   };
 
+  const closeConnectionPrompt = () => {
+    setShowConnectionPrompt(false);
+    setActiveConnectionNotification(null);
+  };
+
+  const handleConnectionPromptAccept = async () => {
+    if (!activeConnectionNotification) return;
+    const processingState = getNotificationActionState(
+      activeConnectionNotification.id
+    );
+    if (processingState) return;
+
+    await handleAcceptConnection(activeConnectionNotification);
+    setShowConnectionPrompt(false);
+    setActiveConnectionNotification(null);
+  };
+
+  const handleConnectionPromptDecline = async () => {
+    if (!activeConnectionNotification) return;
+    const processingState = getNotificationActionState(
+      activeConnectionNotification.id
+    );
+    if (processingState) return;
+
+    await handleDeclineConnection(activeConnectionNotification);
+    setShowConnectionPrompt(false);
+    setActiveConnectionNotification(null);
+  };
+
   const markAllAsRead = async () => {
     try {
       if (!currentUser) return;
@@ -538,6 +586,9 @@ export default function NotificationsScreen({
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const currentConnectionActionState = activeConnectionNotification
+    ? getNotificationActionState(activeConnectionNotification.id)
+    : null;
 
   return (
     <View style={styles.container}>
@@ -652,100 +703,34 @@ export default function NotificationsScreen({
                           {notification.title}
                         </Text>
                         <View style={styles.notificationActions}>
-                          {notification.type === "connection" &&
-                          !notification.isRead ? (
-                            <View style={styles.connectionActions}>
-                              <TouchableOpacity
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  if (!getNotificationActionState(notification.id)) {
-                                    handleAcceptConnection(notification);
-                                  }
-                                }}
-                                style={[
-                                  styles.connectionButton,
-                                  styles.connectionButtonAccept,
-                                  getNotificationActionState(notification.id) &&
-                                    styles.connectionButtonDisabled,
-                                ]}
-                                disabled={
-                                  !!getNotificationActionState(notification.id)
-                                }
-                              >
-                                {getNotificationActionState(notification.id) ===
-                                "accept" ? (
-                                  <ActivityIndicator
-                                    size="small"
-                                    color="hsl(0, 0%, 0%)"
-                                  />
-                                ) : (
-                                  <Text style={styles.connectionButtonText}>
-                                    Accept
-                                  </Text>
-                                )}
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  if (!getNotificationActionState(notification.id)) {
-                                    handleDeclineConnection(notification);
-                                  }
-                                }}
-                                style={[
-                                  styles.connectionButton,
-                                  styles.connectionButtonDecline,
-                                  getNotificationActionState(notification.id) &&
-                                    styles.connectionButtonDisabled,
-                                ]}
-                                disabled={
-                                  !!getNotificationActionState(notification.id)
-                                }
-                              >
-                                {getNotificationActionState(notification.id) ===
-                                "decline" ? (
-                                  <ActivityIndicator
-                                    size="small"
-                                    color="hsl(0, 0%, 100%)"
-                                  />
-                                ) : (
-                                  <Text style={styles.connectionButtonTextDecline}>
-                                    Decline
-                                  </Text>
-                                )}
-                              </TouchableOpacity>
-                            </View>
-                          ) : (
-                            <>
-                              {!notification.isRead && (
-                                <TouchableOpacity
-                                  onPress={(e) => {
-                                    e.stopPropagation();
-                                    handleMarkAsRead(notification.id);
-                                  }}
-                                  style={styles.actionButton}
-                                >
-                                  <Ionicons
-                                    name="checkmark"
-                                    size={16}
-                                    color="hsl(0, 0%, 50%)"
-                                  />
-                                </TouchableOpacity>
-                              )}
-                              <TouchableOpacity
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  handleDismiss(notification.id);
-                                }}
-                                style={styles.actionButton}
-                              >
-                                <Ionicons
-                                  name="close"
-                                  size={16}
-                                  color="hsl(0, 0%, 50%)"
-                                />
-                              </TouchableOpacity>
-                            </>
+                          {!notification.isRead && (
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleMarkAsRead(notification.id);
+                              }}
+                              style={styles.actionButton}
+                            >
+                              <Ionicons
+                                name="checkmark"
+                                size={16}
+                                color="hsl(0, 0%, 50%)"
+                              />
+                            </TouchableOpacity>
                           )}
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleDismiss(notification.id);
+                            }}
+                            style={styles.actionButton}
+                          >
+                            <Ionicons
+                              name="close"
+                              size={16}
+                              color="hsl(0, 0%, 50%)"
+                            />
+                          </TouchableOpacity>
                         </View>
                       </View>
 
@@ -787,6 +772,27 @@ export default function NotificationsScreen({
         pointerEvents="none"
       />
 
+      <RhoodModal
+        visible={showConnectionPrompt && !!activeConnectionNotification}
+        onClose={closeConnectionPrompt}
+        title={
+          activeConnectionNotification?.title || "Connection Request"
+        }
+        message={
+          activeConnectionNotification?.description ||
+          "This DJ wants to connect with you."
+        }
+        primaryButtonText={
+          currentConnectionActionState === "accept" ? "Accepting..." : "Accept"
+        }
+        secondaryButtonText={
+          currentConnectionActionState === "decline" ? "Rejecting..." : "Reject"
+        }
+        onPrimaryPress={handleConnectionPromptAccept}
+        onSecondaryPress={handleConnectionPromptDecline}
+        type="info"
+      />
+
       {/* Connection Accepted Modal */}
       <Modal
         visible={showAcceptModal}
@@ -809,37 +815,10 @@ export default function NotificationsScreen({
 
             <View style={styles.modalContent}>
               <Text style={styles.modalMessage}>
-                You've successfully connected with{" "}
+                You're now connected with{" "}
                 <Text style={styles.userName}>{acceptedUser?.name}</Text>.
-                They've been notified and you can now start chatting!
+                Opening chat...
               </Text>
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.chatButton]}
-                onPress={() => {
-                  setShowAcceptModal(false);
-                  if (onNavigate && acceptedUser?.id) {
-                    onNavigate("messages", {
-                      isGroupChat: false,
-                      djId: acceptedUser.id,
-                    });
-                  }
-                }}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="chatbubble" size={20} color="hsl(0, 0%, 0%)" />
-                <Text style={styles.chatButtonText}>Start Chatting</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.closeButton]}
-                onPress={() => setShowAcceptModal(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -978,10 +957,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   notificationTitle: {
-    fontSize: 14,
+    fontSize: 12.5,
+    lineHeight: 14,
     fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
     flex: 1,
+    flexShrink: 1,
     marginRight: 8,
   },
   unreadTitle: {

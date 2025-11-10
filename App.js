@@ -3103,11 +3103,18 @@ export default function App() {
   const NotificationBadge = ({ count, style }) => {
     if (count === 0) return null;
 
+    const displayValue = count > 99 ? "99+" : `${count}`;
+    const isSingleDigit = displayValue.length === 1;
+
     return (
-      <View style={[styles.notificationBadge, style]}>
-        <Text style={styles.notificationBadgeText}>
-          {count > 99 ? "99+" : count}
-        </Text>
+      <View
+        style={[
+          styles.notificationBadge,
+          isSingleDigit && styles.notificationBadgeSingleDigit,
+          style,
+        ]}
+      >
+        <Text style={styles.notificationBadgeText}>{displayValue}</Text>
       </View>
     );
   };
@@ -5283,14 +5290,22 @@ const styles = StyleSheet.create({
     top: -6,
     right: -8,
     backgroundColor: "#FF3B30", // iOS red
-    borderRadius: 14,
-    minWidth: 28,
-    height: 28,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 10,
+    minWidth: 22,
+    minHeight: 22,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: "#000000", // Black border to stand out
+  },
+  notificationBadgeSingleDigit: {
+    minWidth: 18,
+    minHeight: 18,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 11,
   },
   tabNotificationBadge: {
     top: -8,
@@ -5298,10 +5313,10 @@ const styles = StyleSheet.create({
   },
   notificationBadgeText: {
     color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "bold",
+    fontSize: 11,
+    fontWeight: "700",
     textAlign: "center",
-    paddingHorizontal: 2,
+    lineHeight: 13,
   },
   // Empty Opportunities Screen Styles
   emptyOpportunitiesContainer: {

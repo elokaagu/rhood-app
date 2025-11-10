@@ -76,18 +76,6 @@ export default function AboutScreen({ onBack }) {
           type: "link",
           url: "https://instagram.com/rhood.io",
         },
-        {
-          title: "Twitter",
-          value: "@rhood.io",
-          type: "link",
-          url: "https://twitter.com/rhood.io",
-        },
-        {
-          title: "Discord",
-          value: "Join our community",
-          type: "link",
-          url: "https://discord.gg/rhood",
-        },
       ],
     },
   ];
