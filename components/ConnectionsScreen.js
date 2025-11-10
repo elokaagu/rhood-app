@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -1656,6 +1657,13 @@ export default function ConnectionsScreen({
                     <TouchableOpacity
                       style={styles.messageItem}
                       onPress={() => handleConnectionPress(connection)}
+                      onLongPress={
+                        connection.isConnected
+                          ? () => handleOpenConnectionOptions(connection)
+                          : undefined
+                      }
+                      delayLongPress={350}
+                      activeOpacity={0.85}
                     >
                       <View style={styles.messageContent}>
                         {/* Profile Avatar */}
@@ -1681,25 +1689,14 @@ export default function ConnectionsScreen({
 
                         {/* Message Info */}
                         <View style={styles.messageInfo}>
-                        <View style={styles.messageHeader}>
-                          <Text style={styles.messageName} numberOfLines={1}>
-                            {getUserName(connection)}
-                          </Text>
+                          <View style={styles.messageHeader}>
+                            <Text style={styles.messageName} numberOfLines={1}>
+                              {getUserName(connection)}
+                            </Text>
                           <View style={styles.messageHeaderMeta}>
                             <Text style={styles.messageTime}>
                               {connection.lastActive || "Recently"}
                             </Text>
-                            <TouchableOpacity
-                              style={styles.messageOptionsButton}
-                              onPress={() => handleOpenConnectionOptions(connection)}
-                              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                            >
-                              <Ionicons
-                                name="ellipsis-horizontal"
-                                size={16}
-                                color="hsl(0, 0%, 60%)"
-                              />
-                            </TouchableOpacity>
                           </View>
                         </View>
                           {/* Location removed per design */}
@@ -1891,9 +1888,24 @@ export default function ConnectionsScreen({
                     })}
                   </View>
                 )}
-                {filteredDiscoverUsers.map((user, index) => (
+                {filteredDiscoverUsers.map((user, index) => {
+                  const normalizedStatus = normalizeConnectionStatus(
+                    user.connectionStatus
+                  );
+                  const isPending = normalizedStatus === "pending";
+                  const pendingKey = user.connectionId || user.id;
+                  const isCancelling =
+                    isPending && pendingKey === cancellingConnectionId;
+                  const pressableProps = user.isConnected
+                    ? {
+                        onLongPress: () => handleOpenConnectionOptions(user),
+                        delayLongPress: 350,
+                      }
+                    : {};
+
+                  return (
                   <AnimatedListItem key={user.id} index={index} delay={80}>
-                    <View style={styles.discoverCard}>
+                      <Pressable style={styles.discoverCard} {...pressableProps}>
                       {/* Top Row: Profile Image + Name Info + Rating */}
                       <View style={styles.discoverTopRow}>
                         {/* Profile Image */}
@@ -1928,14 +1940,14 @@ export default function ConnectionsScreen({
                           <Text style={styles.discoverLocation}>
                             {user.location}
                           </Text>
-                          {user.statusMessage ? (
-                            <Text
-                              style={styles.discoverStatus}
-                              numberOfLines={1}
-                            >
-                              {user.statusMessage}
-                            </Text>
-                          ) : null}
+                            {user.statusMessage ? (
+                              <Text
+                                style={styles.discoverStatus}
+                                numberOfLines={1}
+                              >
+                                {user.statusMessage}
+                              </Text>
+                            ) : null}
                         </View>
 
                         {/* Activity */}
@@ -1980,11 +1992,10 @@ export default function ConnectionsScreen({
                             View Profile
                           </Text>
                         </TouchableOpacity>
-                        {user.isConnected ? (
-                          <>
-                            <TouchableOpacity
-                              style={[
-                                styles.discoverConnectButton,
+                          {user.isConnected ? (
+                        <TouchableOpacity
+                          style={[
+                            styles.discoverConnectButton,
                                 styles.discoverMessageButton,
                               ]}
                               onPress={() =>
@@ -1993,9 +2004,9 @@ export default function ConnectionsScreen({
                                   connectionId: user.connectionId,
                                   threadId: user.threadId,
                                 })
-                              }
-                            >
-                              <Ionicons
+                          }
+                        >
+                          <Ionicons
                                 name="chatbubble-outline"
                                 size={16}
                                 color="hsl(0, 0%, 0%)"
@@ -2004,85 +2015,56 @@ export default function ConnectionsScreen({
                                 Message
                               </Text>
                             </TouchableOpacity>
+                          ) : (
                             <TouchableOpacity
                               style={[
                                 styles.discoverConnectButton,
-                                styles.discoverRemoveButton,
+                                isPending && styles.discoverPendingButton,
                               ]}
-                              onPress={() => handleOpenConnectionOptions(user)}
-                              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                              onPress={() =>
+                                isPending
+                                  ? handleCancelPendingConnection(user)
+                                  : handleConnect(user)
+                              }
+                              disabled={
+                                discoverLoading || (isPending && isCancelling)
+                              }
                             >
-                              <Ionicons
-                                name="trash-outline"
-                                size={16}
-                                color="hsl(0, 0%, 70%)"
-                              />
-                              <Text style={styles.discoverRemoveText}>
-                                Remove
-                              </Text>
-                            </TouchableOpacity>
-                          </>
-                        ) : (() => {
-                            const normalizedStatus = normalizeConnectionStatus(
-                              user.connectionStatus
-                            );
-                            const isPending = normalizedStatus === "pending";
-                            const pendingKey =
-                              user.connectionId || user.id;
-                            const isCancelling =
-                              isPending && pendingKey === cancellingConnectionId;
-
-                            return (
-                              <TouchableOpacity
-                                style={[
-                                  styles.discoverConnectButton,
-                                  isPending && styles.discoverPendingButton,
-                                ]}
-                                onPress={() =>
-                                  isPending
-                                    ? handleCancelPendingConnection(user)
-                                    : handleConnect(user)
-                                }
-                          disabled={
-                            discoverLoading ||
-                                  (isPending && isCancelling)
-                                }
-                              >
-                                {isPending && isCancelling ? (
-                                  <ActivityIndicator
-                                    size="small"
-                                    color="hsl(75, 100%, 60%)"
-                                  />
-                                ) : (
-                          <Ionicons
-                                    name={isPending ? "close" : "add"}
+                              {isPending && isCancelling ? (
+                                <ActivityIndicator
+                                  size="small"
+                                  color="hsl(75, 100%, 60%)"
+                                />
+                              ) : (
+                                <Ionicons
+                                  name={isPending ? "close" : "add"}
                             size={16}
                             color={
-                                      isPending
-                                        ? "hsl(75, 100%, 60%)"
+                                    isPending
+                                      ? "hsl(75, 100%, 60%)"
                                 : "hsl(0, 0%, 0%)"
                             }
                           />
-                                )}
+                              )}
                           <Text
                             style={[
                               styles.discoverConnectText,
-                                    isPending && styles.discoverPendingText,
-                                  ]}
-                                >
-                                  {isPending
-                                    ? isCancelling
-                                      ? "Cancelling..."
-                                      : "Cancel Request"
+                                  isPending && styles.discoverPendingText,
+                                ]}
+                              >
+                                {isPending
+                                  ? isCancelling
+                                    ? "Cancelling..."
+                                    : "Cancel Request"
                               : "Connect"}
                           </Text>
                         </TouchableOpacity>
-                            );
-                          })()}
+                          )}
                       </View>
-                    </View>
+                      </Pressable>
                   </AnimatedListItem>
-                ))}
+                  );
+                })}
               </Animated.View>
             )}
           </View>
@@ -2539,9 +2521,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-  },
-  messageOptionsButton: {
-    padding: 4,
   },
   connectionStatusMessage: {
     fontSize: 13,
@@ -3016,17 +2995,6 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 12%)",
     borderWidth: 1,
     borderColor: "hsl(75, 100%, 60%)",
-  },
-  discoverRemoveButton: {
-    backgroundColor: "hsl(0, 0%, 15%)",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 25%)",
-  },
-  discoverRemoveText: {
-    fontSize: 14,
-    fontFamily: "Arial",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 70%)",
   },
   discoverConnectText: {
     fontSize: 14,
