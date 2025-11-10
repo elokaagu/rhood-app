@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This document explains how Apple Sign-In is implemented in the R/HOOD app using native `expo-apple-authentication` with Supabase's `signInWithIdToken` method.
+This document explains how Apple Sign-In is implemented in the R/HOOD app using a native-first `expo-apple-authentication` flow with an automatic Supabase OAuth fallback, both powered by `signInWithIdToken`.
 
 ---
 
@@ -16,11 +16,11 @@ This document explains how Apple Sign-In is implemented in the R/HOOD app using 
 
 ### Why This Approach?
 
-- ✅ **Native Experience**: Uses iOS native Apple Sign-In UI
-- ✅ **No Browser**: No web browser popup required
-- ✅ **Secure**: Uses nonce-based verification
-- ✅ **Production Ready**: Clean, minimal implementation
-- ✅ **Works in TestFlight**: Requires production builds
+- ✅ **Native Experience First**: Prioritises iOS native Apple Sign-In UI for the best UX
+- ✅ **Automatic Fallback**: Seamlessly falls back to Supabase OAuth when native sign-in is unavailable (simulator, Expo Go)
+- ✅ **Secure**: Uses nonce-based verification handled entirely by Supabase
+- ✅ **Production Ready**: Minimal logging, no debug prompts, no hard-coded secrets
+- ✅ **TestFlight & Development Friendly**: Works in production builds and continues to function during local Expo testing
 
 ---
 
@@ -98,10 +98,10 @@ This prevents man-in-the-middle attacks and ensures the token is fresh.
    - Go to: Supabase Dashboard → Authentication → Providers
    - Find "Apple" and toggle it **ON**
 
-2. **For Native Sign-In**: No additional configuration needed!
+2. **Configuration Requirements**:
 
-   - Services ID, Team ID, Key ID, Secret Key are **not required** for `signInWithIdToken`
-   - These are only needed for web-based OAuth flows
+   - **Native flow** (`signInWithIdToken`): Services ID, Team ID, Key ID, and Secret Key are optional; Supabase validates against the bundle ID
+   - **OAuth fallback** (`signInWithOAuth`): Requires the full Apple Services ID + Auth Key configuration so that Supabase can initiate the hosted web flow
 
 3. **Bundle ID Must Match**:
    - Apple Developer Console: `com.rhoodapp.mobile`
@@ -112,76 +112,194 @@ This prevents man-in-the-middle attacks and ensures the token is fresh.
 
 ## 📱 Implementation Details
 
+### Redirect Helper
+
+```javascript
+WebBrowser.maybeCompleteAuthSession();
+
+const expoGlobal =
+  typeof globalThis !== "undefined" ? globalThis.expo : undefined;
+const isExpoGo =
+  typeof expoGlobal !== "undefined" &&
+  expoGlobal?.Constants?.appOwnership === "expo";
+
+const getRedirectUrl = () => {
+  if (isExpoGo || (typeof __DEV__ !== "undefined" && __DEV__)) {
+    return AuthSession.makeRedirectUri({
+      scheme: "rhoodapp",
+      path: "auth/callback",
+    });
+  }
+
+  return AuthSession.makeRedirectUri({
+    scheme: "rhoodapp",
+    path: "auth/callback",
+    useProxy: false,
+  });
+};
+```
+
 ### Complete Function
 
 ```javascript
 async signInWithApple() {
-  // One-attempt guard to prevent double taps
   if (this._signingInWithApple) {
-    console.log("⚠️ Apple Sign-In already in progress");
+    console.log("⚠️ Apple Sign-In already in progress, ignoring duplicate request");
     return;
   }
 
   this._signingInWithApple = true;
 
-  try {
-    // Check if Apple Sign-In is available
-    const isAvailable = await AppleAuthentication.isAvailableAsync();
-    if (!isAvailable) {
-      throw new Error("Apple Sign-In is not available on this device");
+  const runOAuthFallback = async () => {
+    console.log("🍎 Falling back to Apple web OAuth flow…");
+
+    const redirectUrl = getRedirectUrl();
+
+    const { data: oauthData, error: oauthError } =
+      await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: redirectUrl,
+        },
+      });
+
+    if (oauthError) {
+      console.error("❌ Apple OAuth init failed:", oauthError);
+      throw oauthError;
     }
 
-    console.log("🍎 Starting Apple Sign-In...");
+    const result = await WebBrowser.openAuthSessionAsync(
+      oauthData.url,
+      redirectUrl,
+      {
+        showInRecents: false,
+        preferEphemeralSession: true,
+      }
+    );
 
-    // 1. Generate raw nonce: 32 random bytes → 64-char hex string
+    if (result.type !== "success") {
+      throw new Error("Apple sign-in was cancelled or failed");
+    }
+
+    const url = new URL(result.url);
+    const code = url.searchParams.get("code");
+
+    if (code) {
+      const { data: sessionData, error: exchangeError } =
+        await supabase.auth.exchangeCodeForSession(code);
+
+      if (exchangeError) {
+        console.error(
+          "❌ Error exchanging Apple OAuth code for session:",
+          exchangeError
+        );
+        throw new Error(
+          `Failed to complete Apple sign-in: ${exchangeError.message}`
+        );
+      }
+
+      if (sessionData?.session) {
+        console.log("✅ Apple OAuth code exchange succeeded");
+        return sessionData;
+      }
+    }
+
+    let accessToken = url.searchParams.get("access_token");
+    let refreshToken = url.searchParams.get("refresh_token");
+
+    if (!accessToken && url.hash) {
+      const hashParams = new URLSearchParams(url.hash.substring(1));
+      accessToken = hashParams.get("access_token");
+      refreshToken = hashParams.get("refresh_token");
+    }
+
+    if (accessToken) {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+      if (sessionError) {
+        console.error("❌ Apple session error:", sessionError);
+        throw sessionError;
+      }
+
+      console.log("✅ Apple OAuth tokens accepted");
+      return sessionData;
+    }
+
+    throw new Error("No session information returned from Apple OAuth");
+  };
+
+  try {
+    const nativeAvailable = await AppleAuthentication.isAvailableAsync();
+
+    if (!nativeAvailable) {
+      console.log(
+        "⚠️ Native Apple Sign-In unavailable; attempting OAuth fallback"
+      );
+      return await runOAuthFallback();
+    }
+
+    console.log("🍎 Starting native Apple Sign-In flow…");
+
     const bytes = await Crypto.getRandomBytesAsync(32);
-    const rawNonce = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    const rawNonce = Array.from(bytes, (b) =>
+      b.toString(16).padStart(2, "0")
+    ).join("");
 
-    // 2. Hash the raw nonce: SHA256 → base64url
     const base64Hash = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
       rawNonce,
       { encoding: Crypto.CryptoEncoding.BASE64 }
     );
+
     const hashedNonce = base64Hash
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
       .replace(/=+$/g, "");
 
-    console.log("🔐 Nonce generated:", rawNonce.length, "chars");
-
-    // 3. Request Apple Sign-In with hashed nonce
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
         AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
       ],
-      nonce: hashedNonce, // Send HASHED nonce to Apple
+      nonce: hashedNonce,
     });
 
     if (!credential.identityToken) {
-      throw new Error("No identity token received from Apple");
+      throw new Error("Apple sign-in did not return an identity token");
     }
 
-    console.log("✅ Apple credential received");
-
-    // 4. Send to Supabase with raw nonce
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: "apple",
       token: credential.identityToken,
-      nonce: rawNonce, // Send RAW nonce to Supabase
+      nonce: rawNonce,
     });
 
     if (error) {
-      console.error("❌ Supabase error:", error);
+      console.error("❌ Native Apple Sign-In failed:", error);
       throw error;
     }
 
-    console.log("✅ Apple Sign-In successful:", data.user?.email);
+    console.log("✅ Apple Sign-In successful via native flow");
     return data;
   } catch (error) {
-    console.error("❌ Apple Sign-In error:", error);
-    throw error;
+    if (
+      error?.code === "ERR_CANCELED" ||
+      error?.code === "ERR_APPLE_SIGNIN_CANCELLED"
+    ) {
+      console.log("⚠️ Apple Sign-In cancelled by user");
+      throw new Error("Apple sign-in was cancelled");
+    }
+
+    console.warn(
+      "⚠️ Native Apple Sign-In failed, attempting OAuth fallback...",
+      error
+    );
+
+    return await runOAuthFallback();
   } finally {
     this._signingInWithApple = false;
   }
@@ -190,10 +308,10 @@ async signInWithApple() {
 
 ### Key Features
 
-1. **Double-Tap Prevention**: `_signingInWithApple` flag prevents multiple concurrent sign-in attempts
-2. **Availability Check**: Verifies Apple Sign-In is available on the device
-3. **Clean Error Handling**: Simple try/catch with proper cleanup in `finally`
-4. **Minimal Logging**: Only essential logs for debugging
+1. **Native-First Flow**: Attempts `expo-apple-authentication` before anything else
+2. **Automatic OAuth Fallback**: Transparently switches to Supabase-hosted OAuth when native sign-in isn't available (simulator, Expo Go, Android)
+3. **Duplicate Tap Guard**: `_signingInWithApple` flag prevents concurrent attempts
+4. **Clean Error Handling**: User cancellations bubble up cleanly, unexpected errors log once and reuse fallback
 
 ---
 
@@ -201,18 +319,21 @@ async signInWithApple() {
 
 ### Where It Works
 
-✅ **Works:**
+✅ **Native flow (signInWithIdToken):**
 
-- Physical iOS devices (iOS 13+)
-- TestFlight builds
-- Production builds (EAS/App Store)
+- Physical iOS devices (iOS 13+) via TestFlight or production builds
+- Development client builds that embed the native Apple module
 
-❌ **Doesn't Work:**
+⚠️ **OAuth fallback (signInWithOAuth):**
 
-- iOS Simulator (Apple limitation)
-- Expo Go (requires native build)
+- Expo Go or iOS Simulator when the native module is unavailable
+- Requires Apple provider to be fully configured in Supabase (Services ID, Team ID, Key ID, Secret)
+- Best suited for internal testing—production users should rely on the native flow
+
+❌ **Not supported:**
+
 - Android devices (Apple Sign-In is iOS-only)
-- Development mode (requires production/TestFlight build)
+- Bare development mode without either the native module or a configured OAuth provider
 
 ### Testing Checklist
 
@@ -323,6 +444,17 @@ Supabase automatically validates:
 3. Enable Apple provider
 4. No additional configuration needed for native sign-in
 
+### Issue: OAuth fallback returns "Provider not configured"
+
+**Cause:** Apple Services ID credentials are missing in Supabase, so the hosted OAuth flow cannot start.
+
+**Solution:**
+
+1. In Supabase Dashboard, open the Apple provider settings
+2. Fill in the **Services ID**, **Team ID**, **Key ID**, and upload the **Auth Key (.p8)**
+3. Add the redirect URLs generated by Supabase (e.g. `rhoodapp://auth/callback`) to your Apple developer configuration
+4. Save changes, then retry the fallback flow
+
 ---
 
 ## 🎯 Best Practices
@@ -358,18 +490,24 @@ Supabase automatically validates:
 
 ## 🔄 Version History
 
-### v2.0 (Current) - Clean Implementation
+### v3.0 (Current) - Native First + OAuth Fallback
 
-- Removed all debugging code
-- Production-ready implementation
-- Minimal logging
-- ~70 lines of clean code
+- Native `signInWithIdToken` flow with hashed nonce
+- Automatic Supabase OAuth fallback for simulators/Expo Go
+- Simplified logging, improved error surfacing
+- One place to configure (no more REST hacks)
+
+### v2.0 (Deprecated) - Clean Native Implementation
+
+- Removed debugging code
+- Relied solely on native flow (no fallback)
+- ~70 lines of code
 
 ### v1.0 (Deprecated) - Debug Version
 
-- Extensive debugging
-- JWT validation
-- REST API fallback
+- Extensive debugging helpers and alerts
+- Manual JWT validation
+- Direct REST API fallback with hard-coded anon key
 - ~250 lines of code
 
 ---
@@ -384,5 +522,5 @@ Supabase automatically validates:
 
 ---
 
-_Last Updated: 2025-10-13_
+_Last Updated: 2025-11-10_
 _Implementation: lib/supabase.js - signInWithApple()_

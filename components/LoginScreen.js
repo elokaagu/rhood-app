@@ -334,26 +334,20 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
               <Text style={styles.socialButtonText}>Continue with Google</Text>
             </TouchableOpacity>
 
-            {/* Apple Sign-In - Temporarily Hidden */}
-            {false && Platform.OS === "ios" && (
-              <>
-                <TouchableOpacity
-                  style={[
-                    styles.socialButton,
-                    styles.appleButton,
-                    loading && styles.buttonDisabled,
-                  ]}
-                  onPress={handleAppleSignIn}
-                  disabled={loading}
-                >
-                  <Text
-                    style={[styles.socialButtonText, styles.appleButtonText]}
-                  >
-                    Continue with Apple
-                  </Text>
-                </TouchableOpacity>
-
-              </>
+            {Platform.OS === "ios" && (
+              <TouchableOpacity
+                style={[
+                  styles.socialButton,
+                  styles.appleButton,
+                  loading && styles.buttonDisabled,
+                ]}
+                onPress={handleAppleSignIn}
+                disabled={loading}
+              >
+                <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                  Sign in with Apple
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
 
