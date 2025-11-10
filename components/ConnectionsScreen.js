@@ -51,6 +51,10 @@ export default function ConnectionsScreen({
     useState("OK");
   const [connectionModalPrimaryAction, setConnectionModalPrimaryAction] =
     useState(null);
+  const [connectionModalSecondaryText, setConnectionModalSecondaryText] =
+    useState(null);
+  const [connectionModalSecondaryAction, setConnectionModalSecondaryAction] =
+    useState(null);
   const [isRhoodMember, setIsRhoodMember] = useState(false);
   const [rhoodMemberCount, setRhoodMemberCount] = useState(0);
   const [lastMessages, setLastMessages] = useState({});
@@ -60,12 +64,16 @@ export default function ConnectionsScreen({
   const [cancellingConnectionId, setCancellingConnectionId] = useState(null);
   const [acceptingUserId, setAcceptingUserId] = useState(null);
   const [decliningUserId, setDecliningUserId] = useState(null);
+  const [isDeletingConnectionId, setIsDeletingConnectionId] = useState(null);
   const prevConnectionStatusesRef = useRef(new Map());
 
   const handleCloseConnectionModal = useCallback(() => {
     setShowConnectionModal(false);
     setConnectionModalPrimaryAction(null);
     setConnectionModalPrimaryText("OK");
+    setConnectionModalSecondaryText(null);
+    setConnectionModalSecondaryAction(null);
+    setSelectedConnection(null);
   }, []);
 
   const handleConnectionModalPrimaryPress = useCallback(() => {
@@ -75,6 +83,14 @@ export default function ConnectionsScreen({
       handleCloseConnectionModal();
     }
   }, [connectionModalPrimaryAction, handleCloseConnectionModal]);
+
+  const handleConnectionModalSecondaryPress = useCallback(() => {
+    if (connectionModalSecondaryAction) {
+      connectionModalSecondaryAction();
+    } else {
+      handleCloseConnectionModal();
+    }
+  }, [connectionModalSecondaryAction, handleCloseConnectionModal]);
 
   const normalizeConnectionStatus = (status) => {
     if (status === undefined || status === null) return null;
@@ -764,6 +780,119 @@ export default function ConnectionsScreen({
     return null;
   };
 
+  const handleDeleteConnection = useCallback(
+    async (connection) => {
+      if (!connection) return;
+
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        const deletionKey = connection.connectionId || connection.id;
+        setIsDeletingConnectionId(deletionKey);
+        setConnectionModalPrimaryText("Removing...");
+        setConnectionModalPrimaryAction(() => () => {});
+
+        const resolvedConnectionId =
+          connection.connectionId || (await resolveConnectionId(connection));
+
+        if (!resolvedConnectionId) {
+          setConnectionModalType("error");
+          setConnectionMessage(
+            "We couldn't find this connection. Please refresh and try again."
+          );
+          setConnectionModalPrimaryText("Close");
+          setConnectionModalPrimaryAction(null);
+          setConnectionModalSecondaryText(null);
+          setConnectionModalSecondaryAction(null);
+          return;
+        }
+
+        await db.deleteConnection(resolvedConnectionId);
+
+        setConnections((prev) =>
+          prev.filter((item) => item.id !== connection.id)
+        );
+        setDiscoverUsers((prev) =>
+          prev.map((userItem) =>
+            userItem.id === connection.id
+              ? {
+                  ...userItem,
+                  isConnected: false,
+                  connectionStatus: null,
+                  connectionStatusRaw: null,
+                  connectionId: null,
+                  threadId: null,
+                }
+              : userItem
+          )
+        );
+        setLastMessages((prev) => {
+          const updated = { ...prev };
+          delete updated[connection.id];
+          return updated;
+        });
+        prevConnectionStatusesRef.current.delete(connection.id);
+
+        const displayName = getUserName(connection);
+        setConnectionModalType("success");
+        setConnectionMessage(
+          `${displayName} has been removed from your connections.`
+        );
+        setConnectionModalPrimaryText("OK");
+        setConnectionModalPrimaryAction(null);
+        setConnectionModalSecondaryText(null);
+        setConnectionModalSecondaryAction(null);
+        setSelectedConnection(null);
+      } catch (error) {
+        console.error("Error removing connection:", error);
+        setConnectionModalType("error");
+        setConnectionMessage(
+          "Failed to remove this connection. Please try again."
+        );
+        setConnectionModalPrimaryText("Close");
+        setConnectionModalPrimaryAction(null);
+        setConnectionModalSecondaryText(null);
+        setConnectionModalSecondaryAction(null);
+      } finally {
+        setIsDeletingConnectionId(null);
+      }
+    },
+    [
+      resolveConnectionId,
+      setConnections,
+      setDiscoverUsers,
+      setLastMessages,
+      getUserName,
+    ]
+  );
+
+  const handleOpenConnectionOptions = useCallback(
+    (connection) => {
+      if (!connection) return;
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setSelectedConnection(connection);
+      const displayName = getUserName(connection);
+
+      setConnectionMessage(
+        `Remove ${displayName} from your connections? You can reconnect anytime by sending a new request.`
+      );
+      setConnectionModalType("warning");
+      setConnectionModalPrimaryText("Remove Connection");
+      setConnectionModalPrimaryAction(
+        () =>
+          () => {
+            handleDeleteConnection(connection);
+          }
+      );
+      setConnectionModalSecondaryText("Keep Connection");
+      setConnectionModalSecondaryAction(() => () => {
+        handleCloseConnectionModal();
+      });
+      setShowConnectionModal(true);
+    },
+    [getUserName, handleDeleteConnection, handleCloseConnectionModal]
+  );
+
   const performCancelPendingConnection = async (connection, connectionId, displayName) => {
     try {
       setCancellingConnectionId(connectionId || connection.id);
@@ -1110,7 +1239,18 @@ export default function ConnectionsScreen({
 
   // Filter connections based on search query
   const filteredConnections = useMemo(() => {
-    let filtered = connections;
+    let filtered = connections.filter((connection) => {
+      const normalizedStatus = normalizeConnectionStatus(
+        connection.connectionStatus || connection.connectionStatusRaw
+      );
+
+      if (!normalizedStatus) return true;
+
+      return (
+        isAcceptedConnectionStatus(normalizedStatus) ||
+        isPendingConnectionStatus(normalizedStatus)
+      );
+    });
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -1541,14 +1681,27 @@ export default function ConnectionsScreen({
 
                         {/* Message Info */}
                         <View style={styles.messageInfo}>
-                          <View style={styles.messageHeader}>
-                            <Text style={styles.messageName} numberOfLines={1}>
-                              {getUserName(connection)}
-                            </Text>
+                        <View style={styles.messageHeader}>
+                          <Text style={styles.messageName} numberOfLines={1}>
+                            {getUserName(connection)}
+                          </Text>
+                          <View style={styles.messageHeaderMeta}>
                             <Text style={styles.messageTime}>
                               {connection.lastActive || "Recently"}
                             </Text>
+                            <TouchableOpacity
+                              style={styles.messageOptionsButton}
+                              onPress={() => handleOpenConnectionOptions(connection)}
+                              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                            >
+                              <Ionicons
+                                name="ellipsis-horizontal"
+                                size={16}
+                                color="hsl(0, 0%, 60%)"
+                              />
+                            </TouchableOpacity>
                           </View>
+                        </View>
                           {/* Location removed per design */}
                           {connection.statusMessage ? (
                             <Text
@@ -1828,28 +1981,47 @@ export default function ConnectionsScreen({
                           </Text>
                         </TouchableOpacity>
                         {user.isConnected ? (
-                        <TouchableOpacity
-                          style={[
-                            styles.discoverConnectButton,
-                              styles.discoverMessageButton,
-                            ]}
-                            onPress={() =>
-                              handleConnectionPress({
-                                id: user.id,
-                                connectionId: user.connectionId,
-                                threadId: user.threadId,
-                              })
-                            }
-                          >
-                            <Ionicons
-                              name="chatbubble-outline"
-                              size={16}
-                              color="hsl(0, 0%, 0%)"
-                            />
-                            <Text style={styles.discoverMessageText}>
-                              Message
-                            </Text>
-                          </TouchableOpacity>
+                          <>
+                            <TouchableOpacity
+                              style={[
+                                styles.discoverConnectButton,
+                                styles.discoverMessageButton,
+                              ]}
+                              onPress={() =>
+                                handleConnectionPress({
+                                  id: user.id,
+                                  connectionId: user.connectionId,
+                                  threadId: user.threadId,
+                                })
+                              }
+                            >
+                              <Ionicons
+                                name="chatbubble-outline"
+                                size={16}
+                                color="hsl(0, 0%, 0%)"
+                              />
+                              <Text style={styles.discoverMessageText}>
+                                Message
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[
+                                styles.discoverConnectButton,
+                                styles.discoverRemoveButton,
+                              ]}
+                              onPress={() => handleOpenConnectionOptions(user)}
+                              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                            >
+                              <Ionicons
+                                name="trash-outline"
+                                size={16}
+                                color="hsl(0, 0%, 70%)"
+                              />
+                              <Text style={styles.discoverRemoveText}>
+                                Remove
+                              </Text>
+                            </TouchableOpacity>
+                          </>
                         ) : (() => {
                             const normalizedStatus = normalizeConnectionStatus(
                               user.connectionStatus
@@ -1952,6 +2124,8 @@ export default function ConnectionsScreen({
         type={connectionModalType}
         primaryButtonText={connectionModalPrimaryText}
         onPrimaryPress={handleConnectionModalPrimaryPress}
+        secondaryButtonText={connectionModalSecondaryText}
+        onSecondaryPress={handleConnectionModalSecondaryPress}
         showCloseButton={false}
       />
     </View>
@@ -2360,6 +2534,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 4,
+  },
+  messageHeaderMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  messageOptionsButton: {
+    padding: 4,
   },
   connectionStatusMessage: {
     fontSize: 13,
@@ -2817,6 +2999,15 @@ const styles = StyleSheet.create({
     gap: 6,
     flex: 1,
   },
+  discoverMessageButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  discoverMessageText: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+  },
   discoverConnectedButton: {
     backgroundColor: "hsl(0, 0%, 30%)",
     opacity: 0.8,
@@ -2825,6 +3016,17 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 12%)",
     borderWidth: 1,
     borderColor: "hsl(75, 100%, 60%)",
+  },
+  discoverRemoveButton: {
+    backgroundColor: "hsl(0, 0%, 15%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 25%)",
+  },
+  discoverRemoveText: {
+    fontSize: 14,
+    fontFamily: "Arial",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 70%)",
   },
   discoverConnectText: {
     fontSize: 14,

@@ -49,6 +49,13 @@ export default function ProfileScreen({
   const soundRef = useRef(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
 
+  const audioIdTrackId =
+    profile?.audioId?.id || (profile?.id ? `audio-id-${profile.id}` : null);
+  const isAudioIdPlaying =
+    !!audioIdTrackId &&
+    globalAudioState.currentTrack?.id === audioIdTrackId &&
+    globalAudioState.isPlaying;
+
   const parseDurationSeconds = (value) => {
     if (typeof value === "number") {
       return Number.isFinite(value) && value >= 0 ? value : 0;
@@ -193,13 +200,50 @@ export default function ProfileScreen({
                 16
               );
 
+              const artistName =
+                userProfile.dj_name ||
+                userProfile.full_name ||
+                `${userProfile.first_name || ""} ${
+                  userProfile.last_name || ""
+                }`.trim() ||
+                (typeof mixData.artist === "string" &&
+                mixData.artist.trim().length > 0
+                  ? mixData.artist.trim()
+                  : null) ||
+                "Unknown Artist";
+
               primaryMix = {
-                title: mixData.title,
+                id: mixData.id,
+                user_id: mixData.user_id,
+                title: mixData.title || "Audio ID",
+                artist: artistName,
+                genre: mixData.genre || "Electronic",
                 duration: formatSecondsToLabel(durationSeconds),
                 durationSeconds,
-                genre: mixData.genre || "Electronic",
+                durationMillis: durationSeconds
+                  ? durationSeconds * 1000
+                  : null,
                 audioUrl: mixData.file_url,
+                file_url: mixData.file_url,
+                artwork_url: mixData.artwork_url || null,
+                image:
+                  mixData.artwork_url ||
+                  userProfile.profile_image_url ||
+                  null,
+                description: mixData.description || "",
                 waveform,
+                created_at: mixData.created_at || null,
+                user: {
+                  id: userProfile.id,
+                  dj_name: userProfile.dj_name,
+                  full_name: userProfile.full_name,
+                  first_name: userProfile.first_name,
+                  last_name: userProfile.last_name,
+                  bio: userProfile.bio,
+                  profile_image_url: userProfile.profile_image_url,
+                  username: userProfile.username,
+                  status_message: userProfile.status_message,
+                },
               };
             }
           } catch (mixError) {
@@ -282,9 +326,15 @@ export default function ProfileScreen({
   const handleAudioPlay = async () => {
     try {
       // Check if this audio ID is currently playing
+      const audioIdData = profile?.audioId;
+      const audioIdTrackId =
+        audioIdData?.id || (profile?.id ? `audio-id-${profile.id}` : null);
+      const currentTrackId = globalAudioState.currentTrack?.id || null;
+
       const isCurrentlyPlaying =
-        globalAudioState.currentTrack &&
-        globalAudioState.currentTrack.id === profile.audioId.id;
+        !!audioIdTrackId &&
+        !!currentTrackId &&
+        currentTrackId === audioIdTrackId;
 
       if (isCurrentlyPlaying) {
         // If it's playing, pause it
@@ -295,18 +345,48 @@ export default function ProfileScreen({
         }
       } else {
         // If it's not playing, play it using global audio system
+        const resolvedAudioUrl =
+          audioIdData?.audioUrl ||
+          audioIdData?.file_url ||
+          audioIdData?.audio_url ||
+          null;
+        const resolvedArtist =
+          audioIdData?.artist ||
+          profile?.name ||
+          profile?.username ||
+          "Unknown Artist";
+
         const trackData = {
-          id: profile.audioId.id,
-          title: profile.audioId.title,
-          artist: profile.dj_name || profile.full_name || "Unknown Artist",
-          genre: profile.audioId.genre || "Electronic",
-          audioUrl: profile.audioId.audioUrl,
+          id: audioIdTrackId || `audio-id-${Date.now()}`,
+          title: audioIdData?.title || "Audio ID",
+          artist: resolvedArtist,
+          genre: audioIdData?.genre || "Electronic",
+          audioUrl: resolvedAudioUrl,
           image:
-            profile.audioId.artwork_url || profile.profileImage?.uri || null,
+            audioIdData?.artwork_url ||
+            audioIdData?.image ||
+            profile.profileImage?.uri ||
+            null,
+          durationMillis:
+            audioIdData?.durationMillis ||
+            (audioIdData?.durationSeconds
+              ? audioIdData.durationSeconds * 1000
+              : undefined),
+          durationSeconds: audioIdData?.durationSeconds,
           user_id: user.id, // User ID for navigation
           user_image: profile.profileImage?.uri, // Profile image for About the DJ
-          user_dj_name: profile.dj_name, // DJ name for About the DJ
+          user_dj_name: profile.name, // DJ name for About the DJ
           user_bio: profile.bio, // Bio for About the DJ
+          user_username: profile.username,
+          user_status_message: profile.statusMessage,
+          user: audioIdData?.user || {
+            id: profile.id,
+            dj_name: profile.name,
+            username: profile.username,
+            profile_image_url: profile.profileImage?.uri,
+            bio: profile.bio,
+            status_message: profile.statusMessage,
+          },
         };
 
         console.log("🎵 Playing trackData from ProfileScreen:", {
@@ -543,13 +623,7 @@ export default function ProfileScreen({
                   onPress={handleAudioPlay}
                 >
                   <Ionicons
-                    name={
-                      globalAudioState.currentTrack &&
-                      globalAudioState.currentTrack.id === profile.audioId.id &&
-                      globalAudioState.isPlaying
-                        ? "pause"
-                        : "play"
-                    }
+                    name={isAudioIdPlaying ? "pause" : "play"}
                     size={24}
                     color="hsl(0, 0%, 0%)"
                   />
