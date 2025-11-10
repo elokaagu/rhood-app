@@ -806,7 +806,12 @@ export default function ListenScreen({
                       style={styles.genreRowImage}
                       resizeMode="cover"
                     />
-                    <View style={styles.genreRowText}>
+                    <LinearGradient
+                      colors={["transparent", "rgba(0, 0, 0, 0.35)", "rgba(0, 0, 0, 0.8)"]}
+                      style={styles.genreRowGradient}
+                      pointerEvents="none"
+                    />
+                    <View style={styles.genreRowTextOverlay}>
                       <Text style={styles.genreRowMixTitle} numberOfLines={1}>
                         {mix.title}
                       </Text>
@@ -1408,7 +1413,7 @@ const styles = StyleSheet.create({
   },
   genreRowTitle: {
     fontSize: 18,
-    fontFamily: "TS Block Bold",
+    fontFamily: "TS-Block-Bold",
     color: "hsl(0, 0%, 100%)",
     letterSpacing: 0.5,
   },
@@ -1432,18 +1437,22 @@ const styles = StyleSheet.create({
   },
   genreRowCard: {
     width: 180,
+    height: 220,
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "hsl(75, 100%, 60%, 0.08)",
     overflow: "hidden",
+    justifyContent: "flex-end",
   },
   genreRowImage: {
-    width: "100%",
-    height: 120,
+    ...StyleSheet.absoluteFillObject,
   },
-  genreRowText: {
-    padding: 14,
+  genreRowGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  genreRowTextOverlay: {
+    padding: 16,
     gap: 4,
   },
   genreRowMixTitle: {

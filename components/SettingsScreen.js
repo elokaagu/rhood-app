@@ -21,8 +21,17 @@ import {
   sharedStyles,
 } from "../lib/sharedStyles";
 import { db } from "../lib/supabase";
+import {
+  registerForPushNotifications,
+  unregisterPushNotifications,
+} from "../lib/pushNotifications";
 
-export default function SettingsScreen({ user, onNavigate, onSignOut }) {
+export default function SettingsScreen({
+  user,
+  onNavigate,
+  onSignOut,
+  onNotificationPreferencesChange,
+}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSignOutModal, setShowSignOutModal] = useState(false);
 
@@ -37,26 +46,38 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
     communityUpdates: false,
   });
 
-  // Load privacy settings from database
+  // Load privacy + notification settings from database
   useEffect(() => {
-    const loadPrivacySettings = async () => {
+    let isMounted = true;
+
+    const loadSettings = async () => {
       if (!user?.id) return;
 
       try {
-        const userProfile = await db.getUserProfile(user.id);
-        if (userProfile) {
-          setSettings((prev) => ({
-            ...prev,
-            showEmail: userProfile.show_email ?? true,
-            showPhone: userProfile.show_phone ?? false,
-          }));
-        }
+        const [userProfile, userSettings] = await Promise.all([
+          db.getUserProfile(user.id),
+          db.getUserSettings(user.id),
+        ]);
+
+        if (!isMounted) return;
+
+        setSettings((prev) => ({
+          ...prev,
+          showEmail: userProfile?.show_email ?? true,
+          showPhone: userProfile?.show_phone ?? false,
+          pushNotifications: userSettings?.push_notifications ?? true,
+          messageNotifications: userSettings?.message_notifications ?? true,
+        }));
       } catch (error) {
-        console.error("❌ Error loading privacy settings:", error);
+        console.error("❌ Error loading settings:", error);
       }
     };
 
-    loadPrivacySettings();
+    loadSettings();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
 
   // Simple toggle handler - immediate state update with background save
@@ -66,23 +87,53 @@ export default function SettingsScreen({ user, onNavigate, onSignOut }) {
     // Update state immediately for instant feedback
     setSettings((prev) => ({ ...prev, [key]: value }));
 
-    // Save to database in background (don't wait for it)
-    if (user?.id && (key === "showEmail" || key === "showPhone")) {
-      const updateData = {
-        [key === "showEmail" ? "show_email" : "show_phone"]: value,
-      };
+    const revert = () => {
+      setSettings((prev) => ({ ...prev, [key]: !value }));
+    };
 
-      // Fire and forget - don't block the UI
-      db.updateUserProfile(user.id, updateData)
-        .then(() => console.log(`✅ Saved ${key} = ${value}`))
-        .catch((error) => {
-          console.error(`❌ Failed to save ${key}:`, error);
-          // Revert on error
-          setSettings((prev) => ({ ...prev, [key]: !value }));
-          if (__DEV__) {
-            Alert.alert("Error", `Failed to save ${key}`);
+    try {
+      if (!user?.id) {
+        return;
+      }
+
+      if (key === "showEmail" || key === "showPhone") {
+        const updateData = {
+          [key === "showEmail" ? "show_email" : "show_phone"]: value,
+        };
+        await db.updateUserProfile(user.id, updateData);
+        return;
+      }
+
+      if (key === "pushNotifications" || key === "messageNotifications") {
+        if (key === "pushNotifications") {
+          if (value) {
+            const token = await registerForPushNotifications();
+            if (!token) {
+              throw new Error(
+                "Push notifications require permissions. Check your device settings."
+              );
+            }
+          } else {
+            await unregisterPushNotifications();
           }
-        });
+        }
+
+        const columnName =
+          key === "pushNotifications"
+            ? "push_notifications"
+            : "message_notifications";
+
+        await db.upsertUserSettings(user.id, { [columnName]: value });
+        onNotificationPreferencesChange?.();
+        return;
+      }
+    } catch (error) {
+      console.error(`❌ Failed to save ${key}:`, error);
+      revert();
+      Alert.alert(
+        "Update Failed",
+        "We couldn't save your preference. Please try again."
+      );
     }
   };
 

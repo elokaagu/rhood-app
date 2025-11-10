@@ -54,6 +54,10 @@ export default function NotificationsScreen({
   const [showConnectionPrompt, setShowConnectionPrompt] = useState(false);
   const [activeConnectionNotification, setActiveConnectionNotification] =
     useState(null);
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    pushNotifications: true,
+    messageNotifications: true,
+  });
 
   // Load current user and notifications on component mount
   useEffect(() => {
@@ -189,6 +193,15 @@ export default function NotificationsScreen({
       console.log("✅ User found:", user.id);
       setCurrentUser(user);
 
+      const userSettings = await db.getUserSettings(user.id);
+      const pushEnabled = userSettings?.push_notifications ?? true;
+      const messageEnabled = userSettings?.message_notifications ?? true;
+
+      setNotificationPreferences({
+        pushNotifications: pushEnabled,
+        messageNotifications: messageEnabled,
+      });
+
       // Load notifications from database
       const { data, error } = await supabase
         .from("notifications")
@@ -198,8 +211,22 @@ export default function NotificationsScreen({
 
       if (error) throw error;
 
+      const allowMessageNotifications = messageEnabled;
+
       // Transform database notifications to match UI format
-      const transformedNotifications = data.map((notification) => {
+      const transformedNotifications = (data || [])
+        .filter((notification) => {
+          if (!allowMessageNotifications) {
+            const typeValue = (notification.type || "")
+              .toString()
+              .toLowerCase();
+            if (typeValue.includes("message")) {
+              return false;
+            }
+          }
+          return true;
+        })
+        .map((notification) => {
         const rawTitle = notification.title || "";
         const displayTitle =
           notification.type === "connection"
@@ -229,7 +256,7 @@ export default function NotificationsScreen({
             null,
           rawData: notification.data || notification.metadata || {},
         };
-      });
+        });
 
       setNotifications(transformedNotifications);
     } catch (error) {
@@ -637,6 +664,23 @@ export default function NotificationsScreen({
 
         {/* Notifications List */}
         <View style={styles.notificationsList}>
+          {!notificationPreferences.messageNotifications && (
+            <View style={styles.preferenceBanner}>
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={18}
+                color="hsl(75, 100%, 60%)"
+              />
+              <View style={styles.preferenceBannerContent}>
+                <Text style={styles.preferenceBannerTitle}>
+                  Message notifications are off
+                </Text>
+                <Text style={styles.preferenceBannerSubtitle}>
+                  Re-enable them in Settings if you want alerts for new messages.
+                </Text>
+              </View>
+            </View>
+          )}
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
@@ -908,6 +952,34 @@ const styles = StyleSheet.create({
   },
   notificationsList: {
     padding: 20,
+  },
+  preferenceBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "rgba(75, 255, 150, 0.1)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(75, 255, 150, 0.2)",
+    padding: 16,
+    marginBottom: 16,
+  },
+  preferenceBannerContent: {
+    flex: 1,
+    gap: 4,
+  },
+  preferenceBannerTitle: {
+    fontSize: 14,
+    fontFamily: "TS-Block-Bold",
+    color: "hsl(75, 100%, 60%)",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  preferenceBannerSubtitle: {
+    fontSize: 13,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 70%)",
+    lineHeight: 18,
   },
   notificationCard: {
     backgroundColor: "hsl(0, 0%, 8%)",

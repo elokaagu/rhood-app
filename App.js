@@ -673,11 +673,30 @@ export default function App() {
   // Setup push notifications
   const setupPushNotifications = async () => {
     try {
-      // Register for push notifications
-      const token = await registerForPushNotifications();
-      if (token) {
-        console.log("Push notification token obtained:", token);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.log("Skipping push setup - no authenticated user");
+        return;
       }
+
+      const userSettings = await db.getUserSettings(user.id);
+      if (userSettings?.push_notifications === false) {
+        console.log(
+          "Push notifications disabled in settings. Skipping registration."
+        );
+        return;
+      }
+
+      const token = await registerForPushNotifications();
+      if (!token) {
+        console.log("Unable to obtain push notification token");
+        return;
+      }
+
+      console.log("Push notification token obtained:", token);
 
       // Setup notification listeners
       const cleanup = setupNotificationListeners();
@@ -3019,13 +3038,21 @@ export default function App() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
+      const userSettings = await db.getUserSettings(user.id);
+      const messageNotificationsEnabled =
+        userSettings?.message_notifications ?? true;
+
       const [notificationCount, messageCount] = await Promise.all([
-        db.getUnreadNotificationCount(user.id),
-        db.getUnreadMessageCount(user.id),
+        db.getUnreadNotificationCount(user.id, {
+          excludeTypes: messageNotificationsEnabled ? [] : ["message"],
+        }),
+        messageNotificationsEnabled
+          ? db.getUnreadMessageCount(user.id)
+          : Promise.resolve(0),
       ]);
 
       setUnreadNotificationCount(notificationCount);
-      setUnreadMessageCount(messageCount);
+      setUnreadMessageCount(messageCount || 0);
     } catch (error) {
       console.error("Error loading notification counts:", error);
     }
@@ -3547,6 +3574,7 @@ export default function App() {
               });
               setCurrentScreen("login");
             }}
+            onNotificationPreferencesChange={loadNotificationCounts}
           />
         );
 
