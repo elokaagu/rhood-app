@@ -20,7 +20,7 @@ import DJMix from "./DJMix";
 import AnimatedListItem from "./AnimatedListItem";
 import { SkeletonMix } from "./Skeleton";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
-import { supabase } from "../lib/supabase";
+import { supabase, db } from "../lib/supabase";
 
 // Audio optimization utilities for handling large files
 const getAudioOptimization = (audioUrl) => {
@@ -194,6 +194,9 @@ export default function ListenScreen({
   const [loadingMore, setLoadingMore] = useState(false);
   const [showAllRecommendations, setShowAllRecommendations] = useState(false);
   const [expandedGenres, setExpandedGenres] = useState({});
+  const [likedMixIds, setLikedMixIds] = useState(() => new Set());
+  const [mixLikeCounts, setMixLikeCounts] = useState({});
+  const [likeLoadingMap, setLikeLoadingMap] = useState({});
 
   // Fetch mixes from Supabase
   const fetchMixes = async () => {
@@ -218,6 +221,39 @@ export default function ListenScreen({
         console.log("📭 No mixes found in database");
         setMixes([]);
         return;
+      }
+
+      const mixIds = data
+        .map((mix) => mix.id)
+        .filter((id) => id !== null && id !== undefined);
+      let likeCountsMap = {};
+
+      if (mixIds.length > 0) {
+        try {
+          const { data: likeRows, error: likeError } = await supabase
+            .from("mix_likes")
+            .select("mix_id")
+            .in("mix_id", mixIds);
+
+          if (likeError) {
+            if (likeError.code === "42P01" || likeError.code === "PGRST205") {
+              console.warn("mix_likes table not found. Skipping like counts.");
+            } else {
+              console.error("❌ Error fetching mix like counts:", likeError);
+            }
+          } else if (Array.isArray(likeRows)) {
+            likeCountsMap = likeRows.reduce((acc, row) => {
+              if (!row?.mix_id) return acc;
+              acc[row.mix_id] = (acc[row.mix_id] || 0) + 1;
+              return acc;
+            }, {});
+          }
+        } catch (likeFetchError) {
+          console.error(
+            "❌ Unexpected error fetching like counts:",
+            likeFetchError
+          );
+        }
       }
 
       // For each mix, fetch the user profile separately
@@ -252,7 +288,7 @@ export default function ListenScreen({
                 bio: profile.bio,
                 profile_image_url: profile.profile_image_url,
                 username: profile.username,
-              status_message: profile.status_message,
+                status_message: profile.status_message,
               };
             }
           }
@@ -265,22 +301,28 @@ export default function ListenScreen({
               : "Unknown Artist";
           const resolvedArtist = latestArtistName || fallbackArtist;
 
-        const durationSeconds = extractDurationSeconds(mix);
-        const durationLabel = formatDurationLabel(durationSeconds);
+          const resolvedLikeCount =
+            likeCountsMap[mix.id] ??
+            mix.like_count ??
+            mix.likes_count ??
+            mix.likes ??
+            mix.likeCount ??
+            0;
+
+          const durationSeconds = extractDurationSeconds(mix);
+          const durationLabel = formatDurationLabel(durationSeconds);
 
           const transformedMix = {
             id: mix.id,
             user_id: mix.user_id, // IMPORTANT: Include for ownership check
             title: mix.title,
-          artist: resolvedArtist,
+            artist: resolvedArtist,
             genre: mix.genre || "Electronic",
-          durationSeconds,
-          durationFormatted: durationLabel,
-          durationLabel,
-          duration: durationSeconds,
-          durationMillis: durationSeconds
-            ? durationSeconds * 1000
-            : null,
+            durationSeconds,
+            durationFormatted: durationLabel,
+            durationLabel,
+            duration: durationSeconds,
+            durationMillis: durationSeconds ? durationSeconds * 1000 : null,
             description: mix.description || "No description available",
             image:
               mix.artwork_url ||
@@ -288,8 +330,13 @@ export default function ListenScreen({
             audioUrl: mix.file_url,
             plays: mix.plays || mix.play_count || 0,
             user: userProfile, // Include full user profile data
-          artistStatus: userProfile?.status_message || null,
+            artistStatus: userProfile?.status_message || null,
             created_at: mix.created_at || null,
+            likeCount:
+              Number.isFinite(Number(resolvedLikeCount)) &&
+              Number(resolvedLikeCount) >= 0
+                ? Number(resolvedLikeCount)
+                : 0,
           };
 
           const searchableParts = [
@@ -318,6 +365,7 @@ export default function ListenScreen({
         })
       );
 
+      setMixLikeCounts(likeCountsMap);
       setMixes(transformedMixes);
     } catch (error) {
       console.error("❌ Error in fetchMixes:", error);
@@ -338,6 +386,45 @@ export default function ListenScreen({
   useEffect(() => {
     fetchMixes();
   }, []);
+
+  useEffect(() => {
+    const fetchUserLikedMixes = async () => {
+      if (!user?.id) {
+        setLikedMixIds(new Set());
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("mix_likes")
+          .select("mix_id")
+          .eq("user_id", user.id);
+
+        if (error) {
+          if (error.code === "42P01" || error.code === "PGRST205") {
+            console.warn(
+              "mix_likes table not found. Skipping liked mixes fetch."
+            );
+            return;
+          }
+          console.error("❌ Error fetching liked mixes:", error);
+          return;
+        }
+
+        const likedSet = new Set(
+          (data || [])
+            .map((row) => row?.mix_id)
+            .filter((mixId) => mixId !== null && mixId !== undefined)
+        );
+
+        setLikedMixIds(likedSet);
+      } catch (error) {
+        console.error("❌ Unexpected error fetching liked mixes:", error);
+      }
+    };
+
+    fetchUserLikedMixes();
+  }, [user?.id]);
 
   // Get unique genres for filter
   const genreCountsMap = mixes.reduce((acc, mix) => {
@@ -556,6 +643,166 @@ export default function ListenScreen({
     }
   };
 
+  const handleToggleLike = async (mix) => {
+    if (!mix?.id) {
+      return;
+    }
+
+    if (!user?.id) {
+      Alert.alert(
+        "Sign In Required",
+        "You need to be signed in to like a mix.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    setLikeLoadingMap((prev) => ({
+      ...prev,
+      [mix.id]: true,
+    }));
+
+    try {
+      const isCurrentlyLiked = likedMixIds.has(mix.id);
+
+      if (!isCurrentlyLiked) {
+        const { error: likeError } = await supabase
+          .from("mix_likes")
+          .insert([{ mix_id: mix.id, user_id: user.id }]);
+
+        if (likeError) {
+          if (likeError.code === "23505") {
+            console.warn("Mix already liked. Syncing local state.");
+            setLikedMixIds((prev) => {
+              const updated = new Set(prev);
+              updated.add(mix.id);
+              return updated;
+            });
+          } else if (
+            likeError.code === "42P01" ||
+            likeError.code === "PGRST205"
+          ) {
+            Alert.alert(
+              "Feature Unavailable",
+              "Mix likes are not available right now. Please try again later."
+            );
+            return;
+          } else {
+            console.error("❌ Error liking mix:", likeError);
+            Alert.alert(
+              "Error",
+              "We couldn't like this mix right now. Please try again."
+            );
+            return;
+          }
+        } else {
+          setLikedMixIds((prev) => {
+            const updated = new Set(prev);
+            updated.add(mix.id);
+            return updated;
+          });
+
+          setMixLikeCounts((prev) => {
+            const currentCount = prev?.[mix.id] || 0;
+            return {
+              ...prev,
+              [mix.id]: currentCount + 1,
+            };
+          });
+
+          setMixes((prev) =>
+            prev.map((item) => {
+              if (item.id === mix.id) {
+                const nextCount =
+                  (Number.isFinite(item.likeCount) ? item.likeCount : 0) + 1;
+                return { ...item, likeCount: nextCount };
+              }
+              return item;
+            })
+          );
+
+          if (mix.user_id && mix.user_id !== user.id) {
+            try {
+              await db.incrementUserCredits(mix.user_id, 10);
+            } catch (creditError) {
+              console.error("❌ Error awarding credits:", creditError);
+            }
+          }
+        }
+      } else {
+        const { error: unlikeError } = await supabase
+          .from("mix_likes")
+          .delete()
+          .eq("mix_id", mix.id)
+          .eq("user_id", user.id);
+
+        if (unlikeError) {
+          if (unlikeError.code === "42P01" || unlikeError.code === "PGRST205") {
+            Alert.alert(
+              "Feature Unavailable",
+              "Mix likes are not available right now. Please try again later."
+            );
+            return;
+          }
+
+          console.error("❌ Error unliking mix:", unlikeError);
+          Alert.alert(
+            "Error",
+            "We couldn't unlike this mix right now. Please try again."
+          );
+          return;
+        }
+
+        setLikedMixIds((prev) => {
+          const updated = new Set(prev);
+          updated.delete(mix.id);
+          return updated;
+        });
+
+        setMixLikeCounts((prev) => {
+          const currentCount = prev?.[mix.id] || 0;
+          const nextCount = Math.max(0, currentCount - 1);
+          return {
+            ...prev,
+            [mix.id]: nextCount,
+          };
+        });
+
+        setMixes((prev) =>
+          prev.map((item) => {
+            if (item.id === mix.id) {
+              const baseCount = Number.isFinite(item.likeCount)
+                ? item.likeCount
+                : 0;
+              const nextCount = Math.max(0, baseCount - 1);
+              return { ...item, likeCount: nextCount };
+            }
+            return item;
+          })
+        );
+
+        if (mix.user_id && mix.user_id !== user.id) {
+          try {
+            await db.incrementUserCredits(mix.user_id, -10);
+          } catch (creditError) {
+            console.error("❌ Error rolling back credits:", creditError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("❌ Unexpected error liking mix:", error);
+      Alert.alert(
+        "Error",
+        "We couldn't like this mix right now. Please try again."
+      );
+    } finally {
+      setLikeLoadingMap((prev) => {
+        const { [mix.id]: _ignored, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
   // Header component for FlatList
   const renderHeader = () => (
     <>
@@ -616,7 +863,8 @@ export default function ListenScreen({
                 genreCountsMap.has(genre)
               ) {
                 const normalized =
-                  genreCountsMap.get(genre)?.normalized || normalizeSearchValue(genre);
+                  genreCountsMap.get(genre)?.normalized ||
+                  normalizeSearchValue(genre);
                 setExpandedGenres((prev) => ({
                   ...prev,
                   [normalized]: true,
@@ -655,12 +903,12 @@ export default function ListenScreen({
               <Text style={styles.viewAllText}>
                 {showAllRecommendations ? "Show Less" : "View All"}
               </Text>
-            <Ionicons
+              <Ionicons
                 name={showAllRecommendations ? "chevron-up" : "chevron-forward"}
-              size={16}
-              color="hsl(75, 100%, 60%)"
-            />
-          </TouchableOpacity>
+                size={16}
+                color="hsl(75, 100%, 60%)"
+              />
+            </TouchableOpacity>
           )}
         </View>
         {showAllRecommendations ? (
@@ -689,46 +937,46 @@ export default function ListenScreen({
             ))}
           </View>
         ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.recommendationsScroll}
-          contentContainerStyle={styles.recommendationsContent}
-        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.recommendationsScroll}
+            contentContainerStyle={styles.recommendationsContent}
+          >
             {recommendedMixes.map((mix) => (
-            <TouchableOpacity
-              key={`rec-${mix.id}`}
-              style={styles.recommendationCard}
-              onPress={() => handleMixPress(mix)}
-              activeOpacity={0.8}
-            >
-              <Image
-                source={{ uri: mix.image }}
-                style={styles.recommendationImage}
-                resizeMode="cover"
-              />
-              <Text style={styles.recommendationTitle} numberOfLines={1}>
-                {mix.title}
-              </Text>
-              <Text style={styles.recommendationArtist} numberOfLines={1}>
-                {mix.artist}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {/* Partial next card indicator */}
-            {mixes.length > 5 && !showAllRecommendations && (
-            <View style={styles.partialCardIndicator}>
-              <View style={styles.partialCard}>
-                <Ionicons
-                  name="chevron-forward"
-                  size={24}
-                  color="hsl(75, 100%, 60%)"
+              <TouchableOpacity
+                key={`rec-${mix.id}`}
+                style={styles.recommendationCard}
+                onPress={() => handleMixPress(mix)}
+                activeOpacity={0.8}
+              >
+                <Image
+                  source={{ uri: mix.image }}
+                  style={styles.recommendationImage}
+                  resizeMode="cover"
                 />
-                <Text style={styles.partialCardText}>More</Text>
+                <Text style={styles.recommendationTitle} numberOfLines={1}>
+                  {mix.title}
+                </Text>
+                <Text style={styles.recommendationArtist} numberOfLines={1}>
+                  {mix.artist}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            {/* Partial next card indicator */}
+            {mixes.length > 5 && !showAllRecommendations && (
+              <View style={styles.partialCardIndicator}>
+                <View style={styles.partialCard}>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={24}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.partialCardText}>More</Text>
+                </View>
               </View>
-            </View>
-          )}
-        </ScrollView>
+            )}
+          </ScrollView>
         )}
       </View>
     );
@@ -747,25 +995,27 @@ export default function ListenScreen({
               typeof mix.genre === "string" && mix.genre.trim().length > 0
                 ? mix.genre
                 : "Other";
-        const normalizedGenre = normalizeSearchValue(genreKey) || "other";
-        if (!acc.has(normalizedGenre)) {
-          acc.set(normalizedGenre, {
-            displayName: genreKey,
-            mixes: [],
-          });
-        }
-        acc.get(normalizedGenre).mixes.push(mix);
+            const normalizedGenre = normalizeSearchValue(genreKey) || "other";
+            if (!acc.has(normalizedGenre)) {
+              acc.set(normalizedGenre, {
+                displayName: genreKey,
+                mixes: [],
+              });
+            }
+            acc.get(normalizedGenre).mixes.push(mix);
             return acc;
           }, new Map())
-    ).map(([normalizedGenre, genreData]) => {
-      const { displayName, mixes: genreMixes } = genreData;
-      const isExpanded = !!expandedGenres[normalizedGenre];
-      const visibleMixes = isExpanded ? genreMixes : genreMixes.slice(0, 10);
+        ).map(([normalizedGenre, genreData]) => {
+          const { displayName, mixes: genreMixes } = genreData;
+          const isExpanded = !!expandedGenres[normalizedGenre];
+          const visibleMixes = isExpanded
+            ? genreMixes
+            : genreMixes.slice(0, 10);
 
           return (
             <View key={`genre-row-${normalizedGenre}`} style={styles.genreRow}>
               <View style={styles.genreRowHeader}>
-            <Text style={styles.genreRowTitle}>{displayName}</Text>
+                <Text style={styles.genreRowTitle}>{displayName}</Text>
                 {genreMixes.length > 10 && (
                   <TouchableOpacity
                     style={styles.genreRowToggle}
@@ -807,7 +1057,11 @@ export default function ListenScreen({
                       resizeMode="cover"
                     />
                     <LinearGradient
-                      colors={["transparent", "rgba(0, 0, 0, 0.35)", "rgba(0, 0, 0, 0.8)"]}
+                      colors={[
+                        "transparent",
+                        "rgba(0, 0, 0, 0.35)",
+                        "rgba(0, 0, 0, 0.8)",
+                      ]}
                       style={styles.genreRowGradient}
                       pointerEvents="none"
                     />
@@ -866,21 +1120,40 @@ export default function ListenScreen({
       <FlatList
         data={loading ? [] : sortedMixes}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item: mix, index }) => (
-          <AnimatedListItem index={index} delay={80}>
-            <DJMix
-              mix={{ ...mix, trackNumber: index + 1 }}
-              isPlaying={playingMixId === mix.id}
-              isLoading={globalAudioState.isLoading && playingMixId === mix.id}
-              onPlayPause={() => handleMixPress(mix)}
-              onArtistPress={handleArtistPress}
-              onDelete={handleDeleteMix}
-              onAddToQueue={handleAddToQueue}
-              currentUserId={user?.id}
-              progress={playingMixId === mix.id ? globalAudioState.progress : 0}
-            />
-          </AnimatedListItem>
-        )}
+        renderItem={({ item: mix, index }) => {
+          const rawLikeCount =
+            mixLikeCounts[mix.id] ?? mix.likeCount ?? mix.likes ?? 0;
+          const normalizedLikeCount =
+            Number.isFinite(Number(rawLikeCount)) && Number(rawLikeCount) >= 0
+              ? Number(rawLikeCount)
+              : 0;
+          const isLiked = likedMixIds.has(mix.id);
+          const likeDisabled = !!likeLoadingMap[mix.id];
+
+          return (
+            <AnimatedListItem index={index} delay={80}>
+              <DJMix
+                mix={{ ...mix, trackNumber: index + 1 }}
+                isPlaying={playingMixId === mix.id}
+                isLoading={
+                  globalAudioState.isLoading && playingMixId === mix.id
+                }
+                onPlayPause={() => handleMixPress(mix)}
+                onArtistPress={handleArtistPress}
+                onDelete={handleDeleteMix}
+                onAddToQueue={handleAddToQueue}
+                currentUserId={user?.id}
+                progress={
+                  playingMixId === mix.id ? globalAudioState.progress : 0
+                }
+                isLiked={isLiked}
+                likeCount={normalizedLikeCount}
+                onLikePress={() => handleToggleLike(mix)}
+                likeDisabled={likeDisabled}
+              />
+            </AnimatedListItem>
+          );
+        }}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderListFooter}
         onEndReached={loadMoreMixes}

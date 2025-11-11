@@ -2871,10 +2871,7 @@ export default function App() {
           }
         }
 
-        const formattedTime = formatOpportunityTime(
-          startTimeRaw,
-          endTimeRaw
-        );
+        const formattedTime = formatOpportunityTime(startTimeRaw, endTimeRaw);
         const formattedCompensation = formatOpportunityCompensation(
           opp.payment,
           opp.payment_currency,

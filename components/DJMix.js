@@ -66,6 +66,10 @@ const DJMix = ({
   onAddToQueue,
   currentUserId,
   progress = 0,
+  onLikePress,
+  isLiked = false,
+  likeCount = 0,
+  likeDisabled = false,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -356,18 +360,48 @@ const DJMix = ({
             </View>
           </View>
 
-          {/* Options Menu - Show for all mixes */}
-          <TouchableOpacity
-            style={styles.optionsButton}
-            activeOpacity={0.7}
-            onPress={() => setShowOptionsMenu(true)}
-          >
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={20}
-              color="hsl(0, 0%, 70%)"
-            />
-          </TouchableOpacity>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[
+                styles.likeButton,
+                isLiked && styles.likeButtonActive,
+                likeDisabled && styles.likeButtonDisabled,
+              ]}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (onLikePress && !likeDisabled) {
+                  onLikePress();
+                }
+              }}
+            >
+              <Ionicons
+                name={isLiked ? "heart" : "heart-outline"}
+                size={18}
+                color={isLiked ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"}
+              />
+              <Text
+                style={[
+                  styles.likeCountText,
+                  isLiked && styles.likeCountTextActive,
+                ]}
+              >
+                {likeCount ?? 0}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Options Menu - Show for all mixes */}
+            <TouchableOpacity
+              style={styles.optionsButton}
+              activeOpacity={0.7}
+              onPress={() => setShowOptionsMenu(true)}
+            >
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={20}
+                color="hsl(0, 0%, 70%)"
+              />
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       </Animated.View>
 
@@ -618,6 +652,39 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 4,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 8,
+    gap: 4,
+  },
+  likeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    gap: 6,
+  },
+  likeButtonActive: {
+    borderColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "hsla(75, 100%, 60%, 0.12)",
+  },
+  likeButtonDisabled: {
+    opacity: 0.5,
+  },
+  likeCountText: {
+    color: "hsl(0, 0%, 65%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+  },
+  likeCountTextActive: {
+    color: "hsl(75, 100%, 70%)",
   },
   mixDetailText: {
     color: "hsl(0, 0%, 60%)",
