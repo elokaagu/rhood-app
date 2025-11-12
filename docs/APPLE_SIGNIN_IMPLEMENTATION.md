@@ -160,6 +160,7 @@ async signInWithApple() {
         provider: "apple",
         options: {
           redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
         },
       });
 
@@ -179,6 +180,29 @@ async signInWithApple() {
 
     if (result.type !== "success") {
       throw new Error("Apple sign-in was cancelled or failed");
+    }
+
+    try {
+      const { data: sessionData, error: sessionFromUrlError } =
+        await supabase.auth.getSessionFromUrl({
+          url: result.url,
+          storeSession: true,
+        });
+
+      if (sessionFromUrlError) {
+        console.warn(
+          "⚠️ Unable to hydrate Apple session via getSessionFromUrl:",
+          sessionFromUrlError
+        );
+      } else if (sessionData?.session) {
+        console.log("✅ Apple OAuth session restored from callback URL");
+        return sessionData;
+      }
+    } catch (sessionFromUrlException) {
+      console.warn(
+        "⚠️ Exception while parsing Apple OAuth callback:",
+        sessionFromUrlException
+      );
     }
 
     const url = new URL(result.url);

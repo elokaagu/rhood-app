@@ -82,7 +82,11 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
 
       // Send notifications (push, in-app, and email) to the applicant
       // Note: In-app notification is also created by database trigger, but we send it here for consistency
-      if (application && application.applicant_email && application.applicant_name) {
+      if (
+        application &&
+        application.applicant_email &&
+        application.applicant_name
+      ) {
         try {
           // Get user_id from the application
           const { data: appData, error: appError } = await supabase

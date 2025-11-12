@@ -334,7 +334,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
               <Text style={styles.socialButtonText}>Continue with Google</Text>
             </TouchableOpacity>
 
-            {Platform.OS === "ios" && false && (
+            {Platform.OS === "ios" && (
               <TouchableOpacity
                 style={[
                   styles.socialButton,
