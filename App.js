@@ -2654,14 +2654,46 @@ export default function App() {
         const trimmed = value.trim();
         if (!trimmed || /^tbd$/i.test(trimmed)) return null;
 
+        // Handle ISO timestamps like "2025-09-12T21:00:00Z"
+        if (/^\d{4}-\d{2}-\d{2}T/i.test(trimmed)) {
+          const parsed = new Date(trimmed);
+          if (!Number.isNaN(parsed.getTime())) {
+            return new Intl.DateTimeFormat("en-GB", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            }).format(parsed);
+          }
+        }
+
         // Handle ranges encoded within a single string (e.g. "18:00-22:00")
-        const rangeMatch = trimmed.split(/\s*(?:-|–|to)\s*/i);
-        if (rangeMatch.length === 2 && !endValue) {
+        const rangeRegex =
+          /^([0-2]?\d(?::\d{2})?(?:\s*[AaPp][Mm])?)\s*(?:-|–|to)\s*([0-2]?\d(?::\d{2})?(?:\s*[AaPp][Mm])?)$/i;
+        const rangeMatch = trimmed.match(rangeRegex);
+        if (rangeMatch && !endValue) {
           return {
-            start: sanitize(rangeMatch[0]),
-            end: sanitize(rangeMatch[1]),
+            start: sanitize(rangeMatch[1]),
+            end: sanitize(rangeMatch[2]),
             range: true,
           };
+        }
+
+        // Handle explicit AM/PM values (e.g. "9 PM", "9:30 am")
+        const meridiemMatch =
+          trimmed.match(/^([0-1]?\d)(?::([0-5]\d))?\s*([AaPp][Mm])$/);
+        if (meridiemMatch) {
+          const hours = parseInt(meridiemMatch[1], 10);
+          const minutes = meridiemMatch[2]
+            ? parseInt(meridiemMatch[2], 10)
+            : 0;
+          const period = meridiemMatch[3].toUpperCase();
+          const normalizedHours =
+            period === "PM" && hours < 12
+              ? hours + 12
+              : period === "AM" && hours === 12
+              ? 0
+              : hours;
+          return sanitize(`${normalizedHours}:${minutes.toString().padStart(2, "0")}`);
         }
 
         // Ensure we only deal with HH:mm[:ss]
@@ -2855,9 +2887,16 @@ export default function App() {
       const transformedOpportunities = opportunitiesData.map((opp) => {
         const formattedDate = formatOpportunityDate(opp.event_date);
         let startTimeRaw =
-          opp.event_time ?? opp.start_time ?? opp.event_start_time ?? null;
+          opp.event_start_time ??
+          opp.start_time ??
+          opp.event_time ??
+          opp.event_date ??
+          null;
         let endTimeRaw =
-          opp.event_end_time ?? opp.event_time_end ?? opp.end_time ?? null;
+          opp.event_end_time ??
+          opp.event_time_end ??
+          opp.end_time ??
+          null;
 
         if (!endTimeRaw && typeof startTimeRaw === "string") {
           const timeRangeParts = startTimeRaw
