@@ -209,16 +209,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       if (!ImagePicker) {
         Alert.alert(
           "Feature Not Available",
-          "Image picker requires a development build. Please use the development build to select artwork.",
-          [
-            { text: "OK", style: "default" },
-            {
-              text: "Continue Without Artwork",
-              onPress: () => {
-                console.log("📱 User chose to continue without artwork");
-              },
-            },
-          ]
+          "Artwork is required for mix submissions. Please use the development build to select artwork."
         );
         return;
       }
@@ -304,6 +295,14 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
 
     if (!mixData.title.trim()) {
       Alert.alert("Title Required", "Please enter a title for your mix");
+      return;
+    }
+
+    if (!selectedArtwork) {
+      Alert.alert(
+        "Artwork Required",
+        "Please select artwork for your mix before uploading."
+      );
       return;
     }
 
