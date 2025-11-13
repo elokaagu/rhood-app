@@ -38,34 +38,8 @@ export async function setupPlayer() {
   try {
     console.log("🎵🎵🎵 [PLAYER] Initializing react-native-track-player...");
 
-    // Step 1: Setup the player (this triggers the playback service to start)
-    // The service function (from playbackService.js) will be called automatically
-    // and will register all remote control event listeners
-    console.log("🎵 [PLAYER] Step 1: Calling TrackPlayer.setupPlayer()...");
-    await TrackPlayer.setupPlayer();
-    console.log("✅✅✅ [PLAYER] TrackPlayer.setupPlayer() completed");
-    console.log(
-      "✅✅✅ [PLAYER] Service function should have been called - check for [SERVICE] logs"
-    );
-
-    // CRITICAL: Wait for service to register remote control handlers
-    // iOS needs the event listeners to be registered BEFORE capabilities are set
-    // This ensures remote control events are properly routed
-    console.log(
-      "⏳ [PLAYER] Waiting for service to register remote control handlers..."
-    );
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    console.log(
-      "✅✅✅ [PLAYER] Service should have registered handlers by now"
-    );
-
-    // Step 2: Configure capabilities AFTER service handlers are registered
-    // CRITICAL: Capabilities tell iOS which buttons to show and enable
-    // Without these, iOS might show the UI but buttons won't work
-    // But handlers MUST be registered first, or iOS won't route events to them
-    console.log(
-      "🎵 [PLAYER] Step 2: Configuring capabilities for iOS remote controls..."
-    );
+    // Define capabilities BEFORE setupPlayer() so they're ready immediately
+    // This ensures we can call updateOptions() right after setupPlayer() completes
     const capabilities = [
       Capability.Play,
       Capability.Pause,
@@ -82,13 +56,35 @@ export async function setupPlayer() {
       Capability.SkipToNext,
     ];
 
-    console.log("🎵 [PLAYER] Full capabilities count:", capabilities.length);
+    console.log("🎵 [PLAYER] Capabilities defined:", {
+      full: capabilities.length,
+      compact: compactCapabilities.length,
+    });
+
+    // Step 1: Setup the player (this triggers the playback service to start)
+    // The service function (from playbackService.js) will be called automatically
+    // and will register all remote control event listeners SYNCHRONOUSLY
+    // CRITICAL: The service function completes BEFORE setupPlayer() resolves
+    console.log("🎵 [PLAYER] Step 1: Calling TrackPlayer.setupPlayer()...");
     console.log(
-      "🎵 [PLAYER] Compact capabilities count:",
-      compactCapabilities.length
+      "🎵 [PLAYER] This will trigger the service function to register event listeners"
+    );
+    await TrackPlayer.setupPlayer();
+    console.log("✅✅✅ [PLAYER] TrackPlayer.setupPlayer() completed");
+    console.log(
+      "✅✅✅ [PLAYER] Service function should have completed - check for [SERVICE] logs"
+    );
+
+    // Step 2: Configure capabilities IMMEDIATELY after setupPlayer() completes
+    // CRITICAL: updateOptions() must be called AFTER the service has registered listeners
+    // but IMMEDIATELY after setupPlayer() resolves to ensure native handlers are registered
+    // React-native-track-player registers native handlers when updateOptions() is called
+    // The service's JavaScript listeners must already be registered for this to work
+    console.log(
+      "🎵 [PLAYER] Step 2: Configuring capabilities IMMEDIATELY after service completion..."
     );
     console.log(
-      "🎵 [PLAYER] Capabilities include: Play, Pause, SkipToNext, SkipToPrevious, SeekTo, JumpForward, JumpBackward, Stop"
+      "🎵 [PLAYER] This will register native handlers with iOS MediaRemote framework"
     );
 
     await TrackPlayer.updateOptions({
@@ -105,14 +101,15 @@ export async function setupPlayer() {
     });
 
     console.log(
-      "✅✅✅ [PLAYER] Capabilities configured - iOS buttons should now be enabled"
+      "✅✅✅ [PLAYER] Capabilities configured - native handlers should now be registered with iOS"
     );
     console.log(
       "✅✅✅ [PLAYER] Lock screen and Control Center will show: Play, Pause, Next, Previous, Seek"
     );
 
-    // Configure progress update interval (default is 1 second)
+    // Step 3: Configure progress update interval (default is 1 second)
     // This controls how often the lock screen progress bar updates
+    // This is a separate call to avoid overwriting capabilities
     await TrackPlayer.updateOptions({
       progressUpdateEventInterval: 1, // 1 second
     });
@@ -120,6 +117,9 @@ export async function setupPlayer() {
     isInitialized = true;
     console.log(
       "✅✅✅ [PLAYER] Track player fully initialized and ready for remote controls"
+    );
+    console.log(
+      "✅✅✅ [PLAYER] Remote control commands should now be deliverable to handlers"
     );
   } catch (error) {
     console.error("❌❌❌ [PLAYER] Failed to initialize track player:", error);

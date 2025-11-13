@@ -20,6 +20,7 @@ import { sendApplicationStatusNotification } from "../lib/notificationService";
 export default function AdminApplicationsScreen({ user, onNavigate }) {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  0;
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState(null);
 

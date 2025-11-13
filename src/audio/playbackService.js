@@ -306,22 +306,32 @@ module.exports = function playbackService() {
     // Silent - progress is handled in App.js for UI updates
   });
 
+  // ============================================================================
+  // CRITICAL: All event listeners are now registered
+  // The service function must complete SYNCHRONOUSLY before setupPlayer() resolves
+  // This ensures that when updateOptions() is called, all JavaScript listeners are ready
+  // React-native-track-player will then register native handlers with iOS MediaRemote
+  // ============================================================================
   console.log(
     "✅✅✅ [SERVICE] ALL remote control handlers registered successfully"
   );
   console.log(
-    "✅✅✅ [SERVICE] iOS lock screen and Control Center buttons should now work"
+    "✅✅✅ [SERVICE] Total handlers registered: 8 (Play, Pause, Next, Previous, Seek, JumpForward, JumpBackward, Stop)"
   );
   console.log(
-    "✅✅✅ [SERVICE] Registered handlers: RemotePlay, RemotePause, RemoteNext, RemotePrevious, RemoteSeek, RemoteJumpForward, RemoteJumpBackward, RemoteStop"
+    "✅✅✅ [SERVICE] Service function completing - setupPlayer() can now resolve"
   );
   console.log(
-    "✅✅✅ [SERVICE] Service function completed - ready to receive remote control events"
+    "✅✅✅ [SERVICE] updateOptions() should be called IMMEDIATELY after setupPlayer() resolves"
   );
   console.log(
-    "✅✅✅ [SERVICE] Service will remain active - iOS can now route remote control events"
+    "✅✅✅ [SERVICE] This will register native handlers with iOS MediaRemote framework"
+  );
+  console.log(
+    "✅✅✅ [SERVICE] iOS lock screen and Control Center buttons should work after updateOptions()"
   );
   
-  // Service function doesn't need to return anything
-  // It stays alive and listens for remote control events
+  // Service function completes here - all listeners are registered synchronously
+  // setupPlayer() will now resolve, and updateOptions() should be called immediately
+  // The service stays alive and listens for remote control events
 };
