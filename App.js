@@ -2523,26 +2523,36 @@ export default function App() {
         });
       }, 300);
     } catch (error) {
-      console.error("🚨 Application error details:", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
+      const errorMessage = error?.message || "";
+      const logContext = {
+        message: errorMessage,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
         fullError: error,
-      });
+      };
 
-      // Check if it's a daily limit error
-      if (error.message.includes("Daily application limit")) {
-        console.log("🚨 Daily limit error detected");
+      const isDailyLimitError = errorMessage.includes("Daily application limit");
+      const isAlreadyAppliedError = errorMessage.includes("already applied");
+      const isMissingMixError = errorMessage.includes("upload at least one mix");
+
+      if (isDailyLimitError || isAlreadyAppliedError || isMissingMixError) {
+        console.warn("⚠️ Application handled error:", logContext);
+      } else {
+        console.error("🚨 Unexpected application error:", logContext);
+      }
+
+      if (isDailyLimitError) {
         showCustomModal({
           type: "warning",
           title: "Daily Limit Reached",
-          message: error.message,
+          message: errorMessage,
           primaryButtonText: "OK",
         });
-      } else if (error.message.includes("already applied")) {
-        console.log("🚨 Already applied error detected");
-        // Show modal and automatically move to next opportunity
+        return;
+      }
+
+      if (isAlreadyAppliedError) {
         showCustomModal({
           type: "info",
           title: "Already Applied",
@@ -2550,38 +2560,37 @@ export default function App() {
             "You've already applied for this opportunity. We'll notify you on the outcome soon.",
           primaryButtonText: "OK",
           onPrimaryPress: () => {
-            // Automatically move to next opportunity
             setCurrentOpportunityIndex(currentOpportunityIndex + 1);
             setShowModal(false);
             setSelectedOpportunity(null);
           },
         });
-      } else if (error.message.includes("upload at least one mix")) {
-        console.log("🚨 No mixes uploaded error detected");
+        return;
+      }
+
+      if (isMissingMixError) {
         showCustomModal({
           type: "warning",
           title: "Upload Required",
-          message: error.message,
+          message: errorMessage,
           primaryButtonText: "OK",
           onPrimaryPress: () => {
-            // Advance to next opportunity since card was already swiped away
             setCurrentOpportunityIndex(currentOpportunityIndex + 1);
             setShowModal(false);
             setSelectedOpportunity(null);
           },
         });
-      } else {
-        // Only log unexpected errors to console
-        console.error("🚨 Unexpected error applying to opportunity:", error);
-        showCustomModal({
-          type: "error",
-          title: "Application Failed",
-          message: `There was an error submitting your application: ${
-            error.message || "Unknown error"
-          }. Please try again.`,
-          primaryButtonText: "OK",
-        });
+        return;
       }
+
+      showCustomModal({
+        type: "error",
+        title: "Application Failed",
+        message: `There was an error submitting your application: ${
+          errorMessage || "Unknown error"
+        }. Please try again.`,
+        primaryButtonText: "OK",
+      });
     } finally {
       setSelectedOpportunity(null);
     }

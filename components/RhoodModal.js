@@ -8,6 +8,7 @@ import {
   Dimensions,
   Animated,
   Image,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -65,6 +66,66 @@ const RhoodModal = ({
   const { icon, color, bgColor } = getIconAndColor();
 
   // Parse event details for enhanced display
+  const handleLinkPress = (url) => {
+    if (!url) return;
+
+    const normalizedUrl =
+      url.startsWith("http://") || url.startsWith("https://")
+        ? url
+        : `https://${url}`;
+
+    Linking.openURL(normalizedUrl).catch((error) => {
+      console.warn("Unable to open URL:", normalizedUrl, error);
+    });
+  };
+
+  const renderTextWithLinks = (text) => {
+    if (!text) return null;
+
+    const urlRegex = /(https?:\/\/[^\s]+)/gi;
+    const segments = text.split(urlRegex);
+
+    return segments.map((segment, index) => {
+      const isUrl = /^https?:\/\/[^\s]+$/i.test(segment);
+
+      if (isUrl) {
+        return (
+          <Text
+            key={`segment-${index}`}
+            style={styles.linkText}
+            onPress={() => handleLinkPress(segment)}
+          >
+            {segment}
+          </Text>
+        );
+      }
+
+      return segment;
+    });
+  };
+
+  const renderDescriptionContent = (text) => {
+    if (!text) return null;
+
+    const lines = text.split(/\r?\n+/);
+
+    return (
+      <View style={styles.descriptionContainer}>
+        {lines.map((line, lineIndex) => (
+          <Text
+            key={`description-line-${lineIndex}`}
+            style={[
+              styles.descriptionText,
+              lineIndex > 0 && styles.descriptionLineSpacing,
+            ]}
+          >
+            {renderTextWithLinks(line.trim())}
+          </Text>
+        ))}
+      </View>
+    );
+  };
+
   const renderStructuredEventDetails = (details) => {
     if (!details) return null;
 
@@ -109,11 +170,7 @@ const RhoodModal = ({
           </View>
         )}
 
-        {details.description ? (
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.descriptionText}>{details.description}</Text>
-          </View>
-        ) : null}
+        {details.description ? renderDescriptionContent(details.description) : null}
 
         {details.applicationsRemainingText ? (
           <View style={styles.applicationsContainer}>
@@ -185,11 +242,7 @@ const RhoodModal = ({
         </View>
 
         {/* Description */}
-        {description && (
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.descriptionText}>{description}</Text>
-          </View>
-        )}
+        {description ? renderDescriptionContent(description) : null}
 
         {/* Applications Remaining */}
         {applicationsRemaining && (
@@ -518,6 +571,13 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 20,
     textAlign: "center",
+  },
+  descriptionLineSpacing: {
+    marginTop: SPACING.xs,
+  },
+  linkText: {
+    color: COLORS.primary,
+    textDecorationLine: "underline",
   },
   applicationsContainer: {
     flexDirection: "row",

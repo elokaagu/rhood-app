@@ -96,10 +96,13 @@ export default function ProfileScreen({
     // Set up real-time subscription for profile updates
     if (!user?.id) return;
 
+    let subscription = null;
+    let isMounted = true;
+
     const setupRealtimeSubscription = async () => {
       const { supabase } = await import("../lib/supabase");
 
-      const subscription = supabase
+      subscription = supabase
         .channel(`profile_${user.id}`)
         .on(
           "postgres_changes",
@@ -111,18 +114,24 @@ export default function ProfileScreen({
           },
           (payload) => {
             console.log("🔄 Profile updated in real-time:", payload);
-            // Reload profile when changes detected
-            loadProfile();
+            // Reload profile when changes detected (including credits updates)
+            if (isMounted) {
+              loadProfile();
+            }
           }
         )
         .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
     };
 
     setupRealtimeSubscription();
+
+    // Cleanup subscription on unmount or user change
+    return () => {
+      isMounted = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, [user]);
 
   const loadProfile = async () => {
@@ -154,12 +163,15 @@ export default function ProfileScreen({
         console.error("❌ Error loading gigs:", gigsError);
       }
 
-      // Load user's achievements
+      // Load user's achievements and credits
       let achievements = [];
+      let creditsValue = Number(userProfile.credits ?? 0);
       try {
-        const [allAchievements, userAchievements] = await Promise.all([
+        const [allAchievements, userAchievements, fetchedCredits] =
+          await Promise.all([
           db.getAchievements(),
           db.getUserAchievements(user.id),
+            db.getUserCredits(user.id),
         ]);
 
         if (allAchievements && allAchievements.length > 0) {
@@ -173,6 +185,10 @@ export default function ProfileScreen({
             icon: achievement.icon || "trophy",
             earned: earnedIds.has(achievement.id),
           }));
+        }
+
+        if (Number.isFinite(fetchedCredits)) {
+          creditsValue = fetchedCredits;
         }
       } catch (achievementsError) {
         console.error("❌ Error loading achievements:", achievementsError);
@@ -260,7 +276,7 @@ export default function ProfileScreen({
                 .toLowerCase()
                 .replace(/\s+/g, "")}`,
           gigsCompleted: userProfile.gigs_completed || 0,
-          credits: userProfile.credits || 0,
+          credits: Number.isFinite(creditsValue) ? creditsValue : 0,
           bio: userProfile.bio || "",
           statusMessage: userProfile.status_message || "",
           location: userProfile.city || "Location not set",
