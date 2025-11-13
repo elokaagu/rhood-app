@@ -48,9 +48,21 @@ export async function setupPlayer() {
       "✅✅✅ [PLAYER] Service function should have been called - check for [SERVICE] logs"
     );
 
-    // Step 2: Configure capabilities IMMEDIATELY after setupPlayer
+    // CRITICAL: Wait for service to register remote control handlers
+    // iOS needs the event listeners to be registered BEFORE capabilities are set
+    // This ensures remote control events are properly routed
+    console.log(
+      "⏳ [PLAYER] Waiting for service to register remote control handlers..."
+    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    console.log(
+      "✅✅✅ [PLAYER] Service should have registered handlers by now"
+    );
+
+    // Step 2: Configure capabilities AFTER service handlers are registered
     // CRITICAL: Capabilities tell iOS which buttons to show and enable
     // Without these, iOS might show the UI but buttons won't work
+    // But handlers MUST be registered first, or iOS won't route events to them
     console.log(
       "🎵 [PLAYER] Step 2: Configuring capabilities for iOS remote controls..."
     );

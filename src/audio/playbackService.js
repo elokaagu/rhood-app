@@ -234,4 +234,13 @@ module.exports = async function playbackService() {
   console.log(
     "✅✅✅ [SERVICE] iOS lock screen and Control Center buttons should now work"
   );
+  console.log(
+    "✅✅✅ [SERVICE] Registered handlers: RemotePlay, RemotePause, RemoteNext, RemotePrevious, RemoteSeek, RemoteJumpForward, RemoteJumpBackward, RemoteStop"
+  );
+  console.log(
+    "✅✅✅ [SERVICE] Service function completed - ready to receive remote control events"
+  );
+  
+  // Return a resolved promise to indicate service is ready
+  return Promise.resolve();
 };
