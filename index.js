@@ -29,10 +29,18 @@ try {
 
     // Register the service - this tells iOS where to send remote control events
     // The service function will be called when TrackPlayer.setupPlayer() is invoked
+    // CRITICAL: Require the service INSIDE the callback to ensure it's loaded fresh
     // Pattern matches react-native-track-player documentation
-    const playbackService = require("./src/audio/playbackService");
-    
-    TrackPlayer.registerPlaybackService(() => playbackService);
+    TrackPlayer.registerPlaybackService(() => {
+      const service = require("./src/audio/playbackService");
+      // Service is exported as module.exports = function playbackService()
+      // So require() returns the function directly
+      if (typeof service === "function") {
+        return service;
+      }
+      // Fallback in case export pattern is different
+      return service.default || service;
+    });
 
     console.log("✅✅✅ [STARTUP] Playback service registered successfully");
     console.log(
