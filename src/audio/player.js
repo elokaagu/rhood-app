@@ -94,6 +94,8 @@ export async function setupPlayer() {
     await TrackPlayer.updateOptions({
       capabilities,
       compactCapabilities,
+      // Jump intervals for fast forward/rewind (in seconds)
+      jumpInterval: 15, // 15 seconds for jump forward/backward
       // iOS specific options - CRITICAL for remote control events
       iosCategory: "playback", // Enables background audio and remote controls
       // Android specific options

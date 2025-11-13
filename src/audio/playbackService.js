@@ -20,7 +20,8 @@ export function setQueueNavigationCallbacks(callbacks) {
 // The playback service function - called by TrackPlayer when setupPlayer() is called
 // CRITICAL: This function runs in a background context, not in the React Native JS thread
 // All event listeners must be registered here for iOS to route remote control events
-module.exports = async function playbackService() {
+// The service function should NOT be async - event listeners must be registered synchronously
+module.exports = function playbackService() {
   // Import TrackPlayer INSIDE the service function to ensure we get the correct instance
   // This is the global TrackPlayer instance that iOS will use
   let TrackPlayer, Event, State;
@@ -49,9 +50,26 @@ module.exports = async function playbackService() {
     return;
   }
 
+  // Verify Event constants are available
+  if (!Event || !Event.RemotePlay) {
+    console.error("❌ [SERVICE] Event constants are not available");
+    console.error("❌ [SERVICE] Event object:", Event);
+    return;
+  }
+
   console.log(
     "✅ [SERVICE] TrackPlayer is ready - registering remote control handlers"
   );
+  console.log("✅ [SERVICE] Available Event types:", {
+    RemotePlay: !!Event.RemotePlay,
+    RemotePause: !!Event.RemotePause,
+    RemoteNext: !!Event.RemoteNext,
+    RemotePrevious: !!Event.RemotePrevious,
+    RemoteSeek: !!Event.RemoteSeek,
+    RemoteJumpForward: !!Event.RemoteJumpForward,
+    RemoteJumpBackward: !!Event.RemoteJumpBackward,
+    RemoteStop: !!Event.RemoteStop,
+  });
 
   // ============================================================================
   // CRITICAL: Register all remote control event listeners here
@@ -64,18 +82,27 @@ module.exports = async function playbackService() {
     console.log(
       "🔵🔵🔵 [REMOTE] PLAY button pressed on lock screen/Control Center"
     );
+    console.log("🔵 [REMOTE] TrackPlayer instance available:", !!TrackPlayer);
     try {
+      // Verify TrackPlayer is ready
+      if (!TrackPlayer || typeof TrackPlayer.getState !== "function") {
+        console.error("❌ [REMOTE] TrackPlayer not ready for play");
+        return;
+      }
+
       const state = await TrackPlayer.getState();
       console.log("🔵 [REMOTE] Current player state before play:", state);
 
       if (state !== State.Playing) {
         await TrackPlayer.play();
-        console.log("✅✅✅ [REMOTE] Play executed successfully");
+        const newState = await TrackPlayer.getState();
+        console.log("✅✅✅ [REMOTE] Play executed successfully, new state:", newState);
       } else {
         console.log("ℹ️ [REMOTE] Already playing, no action needed");
       }
     } catch (error) {
       console.error("❌❌❌ [REMOTE] Play error:", error.message, error);
+      console.error("❌❌❌ [REMOTE] Error stack:", error.stack);
     }
   });
 
@@ -84,18 +111,27 @@ module.exports = async function playbackService() {
     console.log(
       "⏸️⏸️⏸️ [REMOTE] PAUSE button pressed on lock screen/Control Center"
     );
+    console.log("⏸️ [REMOTE] TrackPlayer instance available:", !!TrackPlayer);
     try {
+      // Verify TrackPlayer is ready
+      if (!TrackPlayer || typeof TrackPlayer.getState !== "function") {
+        console.error("❌ [REMOTE] TrackPlayer not ready for pause");
+        return;
+      }
+
       const state = await TrackPlayer.getState();
       console.log("⏸️ [REMOTE] Current player state before pause:", state);
 
       if (state === State.Playing) {
         await TrackPlayer.pause();
-        console.log("✅✅✅ [REMOTE] Pause executed successfully");
+        const newState = await TrackPlayer.getState();
+        console.log("✅✅✅ [REMOTE] Pause executed successfully, new state:", newState);
       } else {
         console.log("ℹ️ [REMOTE] Already paused, no action needed");
       }
     } catch (error) {
       console.error("❌❌❌ [REMOTE] Pause error:", error.message, error);
+      console.error("❌❌❌ [REMOTE] Error stack:", error.stack);
     }
   });
 
@@ -150,24 +186,51 @@ module.exports = async function playbackService() {
   // REMOTE SEEK - Scrubbing on lock screen progress bar
   TrackPlayer.addEventListener(Event.RemoteSeek, async (event) => {
     console.log("🎯🎯🎯 [REMOTE] SEEK to position:", event.position, "seconds");
+    console.log("🎯 [REMOTE] Event object:", JSON.stringify(event));
+    console.log("🎯 [REMOTE] TrackPlayer instance available:", !!TrackPlayer);
     try {
-      await TrackPlayer.seekTo(event.position);
-      console.log("✅✅✅ [REMOTE] Seek executed successfully");
+      // Verify TrackPlayer is ready
+      if (!TrackPlayer || typeof TrackPlayer.seekTo !== "function") {
+        console.error("❌ [REMOTE] TrackPlayer not ready for seek");
+        return;
+      }
+
+      const position = event.position || event.seekTo || 0;
+      console.log("🎯 [REMOTE] Seeking to position:", position, "seconds");
+      
+      await TrackPlayer.seekTo(position);
+      
+      const newPosition = await TrackPlayer.getPosition();
+      console.log("✅✅✅ [REMOTE] Seek executed successfully, new position:", newPosition, "seconds");
     } catch (error) {
       console.error("❌❌❌ [REMOTE] Seek error:", error.message, error);
+      console.error("❌❌❌ [REMOTE] Error stack:", error.stack);
     }
   });
 
-  // REMOTE JUMP FORWARD - AirPods double-tap forward
+  // REMOTE JUMP FORWARD - AirPods double-tap forward / Fast forward button
   TrackPlayer.addEventListener(Event.RemoteJumpForward, async (event) => {
     console.log("⏩⏩⏩ [REMOTE] JUMP FORWARD by", event.interval, "seconds");
+    console.log("⏩ [REMOTE] Event object:", JSON.stringify(event));
+    console.log("⏩ [REMOTE] TrackPlayer instance available:", !!TrackPlayer);
     try {
+      // Verify TrackPlayer is ready
+      if (!TrackPlayer || typeof TrackPlayer.getPosition !== "function") {
+        console.error("❌ [REMOTE] TrackPlayer not ready for jump forward");
+        return;
+      }
+
       const position = await TrackPlayer.getPosition();
-      const newPosition = position + event.interval;
+      const interval = event.interval || 15; // Default 15 seconds if not provided
+      const newPosition = position + interval;
+      console.log("⏩ [REMOTE] Current position:", position, "seconds, jumping forward", interval, "seconds");
+      
       await TrackPlayer.seekTo(newPosition);
+      
+      const verifiedPosition = await TrackPlayer.getPosition();
       console.log(
         "✅✅✅ [REMOTE] Jump forward executed:",
-        newPosition,
+        verifiedPosition,
         "seconds"
       );
     } catch (error) {
@@ -176,19 +239,33 @@ module.exports = async function playbackService() {
         error.message,
         error
       );
+      console.error("❌❌❌ [REMOTE] Error stack:", error.stack);
     }
   });
 
-  // REMOTE JUMP BACKWARD - AirPods double-tap backward
+  // REMOTE JUMP BACKWARD - AirPods double-tap backward / Rewind button
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (event) => {
     console.log("⏪⏪⏪ [REMOTE] JUMP BACKWARD by", event.interval, "seconds");
+    console.log("⏪ [REMOTE] Event object:", JSON.stringify(event));
+    console.log("⏪ [REMOTE] TrackPlayer instance available:", !!TrackPlayer);
     try {
+      // Verify TrackPlayer is ready
+      if (!TrackPlayer || typeof TrackPlayer.getPosition !== "function") {
+        console.error("❌ [REMOTE] TrackPlayer not ready for jump backward");
+        return;
+      }
+
       const position = await TrackPlayer.getPosition();
-      const newPosition = Math.max(0, position - event.interval);
+      const interval = event.interval || 15; // Default 15 seconds if not provided
+      const newPosition = Math.max(0, position - interval);
+      console.log("⏪ [REMOTE] Current position:", position, "seconds, jumping backward", interval, "seconds");
+      
       await TrackPlayer.seekTo(newPosition);
+      
+      const verifiedPosition = await TrackPlayer.getPosition();
       console.log(
         "✅✅✅ [REMOTE] Jump backward executed:",
-        newPosition,
+        verifiedPosition,
         "seconds"
       );
     } catch (error) {
@@ -197,6 +274,7 @@ module.exports = async function playbackService() {
         error.message,
         error
       );
+      console.error("❌❌❌ [REMOTE] Error stack:", error.stack);
     }
   });
 
@@ -240,7 +318,10 @@ module.exports = async function playbackService() {
   console.log(
     "✅✅✅ [SERVICE] Service function completed - ready to receive remote control events"
   );
+  console.log(
+    "✅✅✅ [SERVICE] Service will remain active - iOS can now route remote control events"
+  );
   
-  // Return a resolved promise to indicate service is ready
-  return Promise.resolve();
+  // Service function doesn't need to return anything
+  // It stays alive and listens for remote control events
 };
