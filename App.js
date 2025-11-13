@@ -85,7 +85,6 @@ import AboutScreen from "./components/AboutScreen";
 import TermsOfServiceScreen from "./components/TermsOfServiceScreen";
 import PrivacyPolicyScreen from "./components/PrivacyPolicyScreen";
 import HelpCenterScreen from "./components/HelpCenterScreen";
-import LockScreenTest from "./components/LockScreenTest";
 // Push notifications - gracefully handle Expo Go limitations
 import {
   registerForPushNotifications,
@@ -235,6 +234,9 @@ export default function App() {
         // Set up notification listeners
         const removeListeners = setupAudioNotificationListeners();
 
+        // Initialize lock screen controls
+        await lockScreenControls.initialize();
+
         console.log("✅ Lock screen audio controls initialized");
 
         return removeListeners;
@@ -353,21 +355,6 @@ export default function App() {
     }
   }, [globalAudioState.currentTrack]);
 
-  // Setup lock screen controls
-  useEffect(() => {
-    const setupLockScreenControls = async () => {
-      try {
-        // Setup media control categories for lock screen
-        await lockScreenControls.setupMediaCategories();
-
-        console.log("🔒 Lock screen controls initialized");
-      } catch (error) {
-        console.error("❌ Error setting up lock screen controls:", error);
-      }
-    };
-
-    setupLockScreenControls();
-  }, []);
 
   // Application sent modal state
 
@@ -1202,19 +1189,13 @@ export default function App() {
               durationMillis: status.durationMillis || 0,
             };
 
-            // Update lock screen controls with current state (throttled to prevent spam)
-            // Only update every 2 seconds to match notification update rate
-            const now = Date.now();
-            if (
-              !lockScreenControls.lastLockScreenUpdate ||
-              now - lockScreenControls.lastLockScreenUpdate > 2000
-            ) {
-              lockScreenControls.setPlaybackState(
+            // Update lock screen notification (Android only, throttled internally)
+            if (Platform.OS === "android") {
+              lockScreenControls.updatePlaybackState(
                 status.isPlaying,
                 status.positionMillis || 0,
                 status.durationMillis || 0
               );
-              lockScreenControls.lastLockScreenUpdate = now;
             }
 
             return newState;
@@ -1311,12 +1292,11 @@ export default function App() {
         };
       });
 
-      // Set up lock screen controls callbacks (Android only - iOS handled by track-player)
+      // Set up lock screen controls callbacks (Android only)
       if (Platform.OS === "android") {
         lockScreenControls.setCallbacks({
           onPlayPause: async () => {
             try {
-              // Check expo-av state directly for accuracy
               if (globalAudioRef.current) {
                 const status = await globalAudioRef.current.getStatusAsync();
                 if (status.isLoaded && status.isPlaying) {
@@ -1324,74 +1304,41 @@ export default function App() {
                 } else {
                   await resumeGlobalAudio();
                 }
-              } else {
-                // Fallback to React state
-                if (globalAudioState.isPlaying) {
+              } else if (globalAudioState.isPlaying) {
                   await pauseGlobalAudio();
                 } else {
                   await resumeGlobalAudio();
-                }
               }
             } catch (error) {
-              console.error("❌ Android lock screen play/pause error:", error);
+              console.error("❌ Lock screen play/pause error:", error);
             }
           },
           onNext: async () => {
             try {
               await playNextTrack();
             } catch (error) {
-              console.error("❌ Android lock screen next error:", error);
+              console.error("❌ Lock screen next error:", error);
             }
           },
           onPrevious: async () => {
             try {
               await playPreviousTrack();
             } catch (error) {
-              console.error("❌ Android lock screen previous error:", error);
-            }
-          },
-          onSeek: async (deltaMillis) => {
-            try {
-              if (globalAudioRef.current) {
-                const status = await globalAudioRef.current.getStatusAsync();
-                if (status.isLoaded) {
-                  const newPosition = Math.max(
-                    0,
-                    Math.min(
-                      status.durationMillis,
-                      status.positionMillis + deltaMillis
-                    )
-                  );
-                  await globalAudioRef.current.setPositionAsync(newPosition);
-                  // Update state after seeking
-                  setGlobalAudioState((prev) => ({
-                    ...prev,
-                    positionMillis: newPosition,
-                    progress:
-                      status.durationMillis > 0
-                        ? newPosition / status.durationMillis
-                        : 0,
-                  }));
-                }
-              }
-            } catch (error) {
-              console.error("❌ Android lock screen seek error:", error);
+              console.error("❌ Lock screen previous error:", error);
             }
           },
         });
 
-        // Show lock screen notification for Android
+        // Show lock screen notification
         const initialStatus = await sound.getStatusAsync();
-        await lockScreenControls.showLockScreenNotification({
+        await lockScreenControls.showNotification({
           id: track.id,
           title: track.title || "R/HOOD Mix",
           artist: track.artist || "Unknown Artist",
           image: track.image || null,
-          genre: track.genre || "Electronic",
           durationMillis: initialStatus.durationMillis || 0,
         });
       }
-      // iOS: track-player automatically handles lock screen via MPNowPlayingInfoCenter
 
       console.log("🎉 Global audio started successfully:", track.title);
     } catch (error) {
@@ -1445,8 +1392,8 @@ export default function App() {
       if (globalAudioRef.current) {
         await globalAudioRef.current.pauseAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
-        // Update lock screen controls (Android only)
-        lockScreenControls.setPlaybackState(
+        // Update lock screen notification
+        lockScreenControls.updatePlaybackState(
           false,
           globalAudioState.positionMillis || 0,
           globalAudioState.durationMillis || 0
@@ -1514,9 +1461,8 @@ export default function App() {
           ...prev,
           positionMillis: newPosition,
         }));
-
-        // Update lock screen controls (Android only)
-        lockScreenControls.setPlaybackState(
+        // Update lock screen notification
+        lockScreenControls.updatePlaybackState(
           globalAudioState.isPlaying,
           newPosition,
           globalAudioState.durationMillis
@@ -1572,9 +1518,8 @@ export default function App() {
       if (globalAudioRef.current) {
         await globalAudioRef.current.playAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
-
-        // Update lock screen controls (Android only)
-        lockScreenControls.setPlaybackState(
+        // Update lock screen notification
+        lockScreenControls.updatePlaybackState(
           true,
           globalAudioState.positionMillis || 0,
           globalAudioState.durationMillis || 0
@@ -1607,9 +1552,8 @@ export default function App() {
       if (globalAudioRef.current) {
         await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
-
-        // Hide lock screen notification (Android only)
-        await lockScreenControls.hideLockScreenNotification();
+        // Hide lock screen notification
+        await lockScreenControls.hideNotification();
       }
     } catch (error) {
       console.log("❌ Error stopping audio:", error);
@@ -3707,17 +3651,6 @@ export default function App() {
       case "help":
         return <HelpCenterScreen onBack={() => setCurrentScreen("settings")} />;
 
-      case "lock-screen-test":
-        return (
-          <LockScreenTest
-            onBack={() => setCurrentScreen("settings")}
-            globalAudioState={globalAudioState}
-            onPlayAudio={playGlobalAudio}
-            onPauseAudio={pauseGlobalAudio}
-            onResumeAudio={resumeGlobalAudio}
-            onStopAudio={stopGlobalAudio}
-          />
-        );
 
       case "listen":
         return (
