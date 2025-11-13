@@ -804,17 +804,21 @@ export default function App() {
   // Setup global audio configuration for background playback
   const setupGlobalAudio = async () => {
     try {
-      // On iOS, initialize react-native-track-player for native controls
+      // NOTE: On iOS, react-native-track-player is initialized lazily when audio actually plays
+      // via playTrack() -> setupPlayer(). This ensures proper timing:
+      // 1. Service is registered at app startup (index.js)
+      // 2. Player is initialized when first track plays
+      // 3. Service function runs and registers handlers
+      // 4. Capabilities are set via updateOptions()
+      // Early initialization here could cause timing issues with service registration
+      
       if (Platform.OS === "ios" && trackPlayer) {
-        try {
-          await trackPlayer.setupPlayer();
-          console.log("✅ Track player initialized for iOS native controls");
-        } catch (trackPlayerError) {
-          console.warn(
-            "⚠️ Track player initialization failed:",
-            trackPlayerError
-          );
-        }
+        console.log(
+          "📱 iOS: Track player will be initialized when first audio plays"
+        );
+        console.log(
+          "📱 iOS: Service is already registered at app startup (index.js)"
+        );
       }
 
       // Android continues using expo-av with notifications
@@ -1003,13 +1007,13 @@ export default function App() {
           throw new Error("Audio URL is missing");
         }
 
-        // CRITICAL: Ensure player is set up BEFORE playing
-        // setupPlayer() waits for the service to register listeners,
-        // then sets capabilities, ensuring proper order for iOS remote controls
-        await trackPlayer.setupPlayer();
-
+        // CRITICAL: playTrack() internally calls setupPlayer() which:
+        // 1. Triggers the service function to register event listeners
+        // 2. Sets capabilities via updateOptions()
+        // 3. Ensures proper initialization order for iOS remote controls
+        // Do NOT call setupPlayer() here - playTrack() handles it
         console.log(
-          "📱 Starting playback via TrackPlayer - iOS remote controls should now work"
+          "📱 Starting playback via TrackPlayer - setupPlayer() will be called by playTrack()"
         );
 
         await trackPlayer.playTrack({

@@ -22,8 +22,9 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["audio"],
-        "AVAudioSessionCategory": "playback",
-        "AVAudioSessionMode": "default",
+        // NOTE: AVAudioSessionCategory and AVAudioSessionMode are managed by react-native-track-player
+        // via iosCategory: "playback" in updateOptions(). Setting them here can cause timing conflicts.
+        // TrackPlayer will set these programmatically when updateOptions() is called.
         "NSCameraUsageDescription": "This app needs access to camera to take photos for messages",
         "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select images and videos for messages",
         "NSMicrophoneUsageDescription": "This app needs access to microphone to record audio for messages",

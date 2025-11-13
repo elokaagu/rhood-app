@@ -322,7 +322,16 @@ module.exports = function playbackService() {
     "✅✅✅ [SERVICE] Service function completing - setupPlayer() can now resolve"
   );
   console.log(
-    "✅✅✅ [SERVICE] updateOptions() should be called IMMEDIATELY after setupPlayer() resolves"
+    "✅✅✅ [SERVICE] CRITICAL: Service function completed synchronously"
+  );
+  console.log(
+    "✅✅✅ [SERVICE] All TrackPlayer.addEventListener() calls have been executed"
+  );
+  console.log(
+    "✅✅✅ [SERVICE] JavaScript event listeners are now registered and ready"
+  );
+  console.log(
+    "✅✅✅ [SERVICE] updateOptions() should be called after a brief delay to allow native bridge processing"
   );
   console.log(
     "✅✅✅ [SERVICE] This will register native handlers with iOS MediaRemote framework"
@@ -332,6 +341,7 @@ module.exports = function playbackService() {
   );
   
   // Service function completes here - all listeners are registered synchronously
-  // setupPlayer() will now resolve, and updateOptions() should be called immediately
+  // setupPlayer() will now resolve, and updateOptions() should be called after a delay
   // The service stays alive and listens for remote control events
+  // IMPORTANT: This function must NOT be async and must complete synchronously
 };

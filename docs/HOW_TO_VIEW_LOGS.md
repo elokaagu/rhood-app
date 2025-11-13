@@ -47,21 +47,31 @@ Look for:
 
 ---
 
-## Method 2: Xcode Console (Best for Native Builds)
+## Method 2: Xcode Console (Best for Native Builds & TestFlight)
 
-**When to use:** Testing on physical device or need to see ALL logs including background service
+**When to use:** Testing on physical device (including TestFlight builds) or need to see ALL logs including background service
 
-### For Physical Device:
+### For Physical Device (Including TestFlight):
+
+**✅ YES - Xcode Console works for TestFlight builds!**
 
 1. **Connect your iPhone/iPad** via USB
-2. **Open Xcode**
+2. **Open Xcode** (any version - you don't need to build from it)
 3. **Window → Devices and Simulators** (or press `Cmd+Shift+2`)
 4. **Select your device** from the left sidebar
 5. **Click "Open Console"** button (or "View Device Logs")
 6. **Filter logs:**
-   - Search for: `rhoodapp` (your app name)
-   - Or search for: `[STARTUP]`, `[SERVICE]`, `[REMOTE]`
-   - Or filter by process: Select your app from the process dropdown
+   - In the search box at the top, type: `rhoodapp` or `com.rhoodapp.mobile`
+   - Or search for: `[STARTUP]`, `[SERVICE]`, `[REMOTE]`, `[PLAYER]`
+   - Or filter by process: Select your app from the process dropdown (if available)
+
+**Important for TestFlight:**
+
+- You **DO NOT** need to build from Xcode
+- You **DO NOT** need to have the project open
+- Just connect your device and open the console
+- JavaScript logs (`[STARTUP]`, `[SERVICE]`, `[REMOTE]`, `[PLAYER]`) **WILL appear** here
+- System logs (like "undeliverable command") will also appear here
 
 ### For Simulator:
 
@@ -218,6 +228,38 @@ If you see this in your chosen log viewer, you're all set!
 3. **Check log level:**
    - Some log viewers filter by level
    - Make sure debug/info logs are enabled
+
+### "I'm testing on TestFlight - where are the logs?"
+
+**✅ Use Xcode Console (Method 2 above)**
+
+1. Connect your device via USB
+2. Open Xcode → Window → Devices and Simulators
+3. Select your device → Click "Open Console"
+4. Filter by: `rhoodapp` or `[STARTUP]` or `[SERVICE]` or `[REMOTE]`
+
+**What to look for in TestFlight logs:**
+
+- `[STARTUP]` - Should appear when app starts
+- `[SERVICE]` - Should appear when audio starts playing
+- `[REMOTE]` - Should appear when you press lock screen buttons
+- `[PLAYER]` - Should appear during TrackPlayer initialization
+
+**If you see "undeliverable command" errors:**
+
+- This means iOS is sending commands but handlers aren't registered
+- Look for `[SERVICE]` logs to confirm service ran
+- Look for `[PLAYER]` logs to confirm capabilities were set
+- **Common causes:**
+  - Service function not being called (check for `[STARTUP]` logs)
+  - `updateOptions()` not being called (check for `[PLAYER]` logs)
+  - `updateOptions()` failing silently (check for error logs after `[PLAYER]` logs)
+  - Native handlers not being registered (check if `updateOptions()` completed successfully)
+- **What to check:**
+  - Filter Xcode Console for `[STARTUP]` - should see service registration
+  - Filter for `[SERVICE]` - should see "ALL remote control handlers registered successfully"
+  - Filter for `[PLAYER]` - should see "Capabilities configured - native handlers should now be registered"
+  - If you see `[PLAYER]` logs but no `[SERVICE]` logs, the service might not be running
 
 ### "I see Metro logs but not native logs"
 

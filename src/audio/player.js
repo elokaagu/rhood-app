@@ -75,44 +75,80 @@ export async function setupPlayer() {
       "✅✅✅ [PLAYER] Service function should have completed - check for [SERVICE] logs"
     );
 
-    // Step 2: Configure capabilities IMMEDIATELY after setupPlayer() completes
-    // CRITICAL: updateOptions() must be called AFTER the service has registered listeners
-    // but IMMEDIATELY after setupPlayer() resolves to ensure native handlers are registered
-    // React-native-track-player registers native handlers when updateOptions() is called
-    // The service's JavaScript listeners must already be registered for this to work
+    // CRITICAL: Delay to ensure native bridge has processed service registration
+    // The service function runs synchronously in JavaScript, but the native bridge
+    // needs time to process the event listener registrations before we call updateOptions()
+    // This ensures iOS MediaRemote can properly wire up the native handlers
+    // Increased delay to 250ms to ensure native bridge has fully processed everything
     console.log(
-      "🎵 [PLAYER] Step 2: Configuring capabilities IMMEDIATELY after service completion..."
+      "🎵 [PLAYER] Waiting 250ms for native bridge to process service registration..."
+    );
+    console.log(
+      "🎵 [PLAYER] This ensures event listeners are registered before updateOptions()"
+    );
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    console.log("✅✅✅ [PLAYER] Native bridge should have processed service registration");
+
+    // Step 2: Configure capabilities AFTER ensuring service registration is processed
+    // CRITICAL: updateOptions() registers native handlers with iOS MediaRemote framework
+    // The service's JavaScript listeners must already be registered for this to work
+    // React-native-track-player will wire up native handlers when updateOptions() is called
+    console.log(
+      "🎵 [PLAYER] Step 2: Configuring capabilities to register native handlers..."
     );
     console.log(
       "🎵 [PLAYER] This will register native handlers with iOS MediaRemote framework"
     );
 
-    await TrackPlayer.updateOptions({
-      capabilities,
-      compactCapabilities,
-      // Jump intervals for fast forward/rewind (in seconds)
-      jumpInterval: 15, // 15 seconds for jump forward/backward
-      // iOS specific options - CRITICAL for remote control events
-      iosCategory: "playback", // Enables background audio and remote controls
-      // Android specific options
-      android: {
-        alwaysShowNotification: Platform.OS === "android",
-      },
-    });
+    // CRITICAL: Call updateOptions ONCE with ALL options
+    // This registers native handlers with iOS MediaRemote framework
+    // The service's JavaScript listeners must already be registered (from setupPlayer above)
+    try {
+      const options = {
+        capabilities,
+        compactCapabilities,
+        // Jump intervals for fast forward/rewind (in seconds)
+        jumpInterval: 15, // 15 seconds for jump forward/backward
+        // Progress update interval (how often lock screen progress bar updates)
+        progressUpdateEventInterval: 1, // 1 second
+        // iOS specific options - CRITICAL for remote control events
+        iosCategory: "playback", // Enables background audio and remote controls
+        // Android specific options
+        android: {
+          alwaysShowNotification: Platform.OS === "android",
+        },
+      };
 
-    console.log(
-      "✅✅✅ [PLAYER] Capabilities configured - native handlers should now be registered with iOS"
-    );
-    console.log(
-      "✅✅✅ [PLAYER] Lock screen and Control Center will show: Play, Pause, Next, Previous, Seek"
-    );
+      console.log("🎵 [PLAYER] Calling updateOptions() with:", {
+        capabilitiesCount: capabilities.length,
+        compactCapabilitiesCount: compactCapabilities.length,
+        jumpInterval: options.jumpInterval,
+        iosCategory: options.iosCategory,
+      });
 
-    // Step 3: Configure progress update interval (default is 1 second)
-    // This controls how often the lock screen progress bar updates
-    // This is a separate call to avoid overwriting capabilities
-    await TrackPlayer.updateOptions({
-      progressUpdateEventInterval: 1, // 1 second
-    });
+      await TrackPlayer.updateOptions(options);
+
+      console.log(
+        "✅✅✅ [PLAYER] Capabilities configured - native handlers should now be registered with iOS"
+      );
+      console.log(
+        "✅✅✅ [PLAYER] Lock screen and Control Center will show: Play, Pause, Next, Previous, Seek"
+      );
+      console.log(
+        "✅✅✅ [PLAYER] All options set in single updateOptions() call to ensure proper registration"
+      );
+    } catch (updateError) {
+      console.error("❌❌❌ [PLAYER] Failed to update options:", updateError);
+      console.error("❌❌❌ [PLAYER] Error details:", {
+        message: updateError.message,
+        stack: updateError.stack,
+        error: updateError,
+      });
+      // Don't throw - allow playback to continue, but remote controls won't work
+      console.warn(
+        "⚠️ [PLAYER] Continuing without remote controls - playback will still work"
+      );
+    }
 
     isInitialized = true;
     console.log(
