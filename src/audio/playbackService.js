@@ -86,11 +86,7 @@ module.exports = function playbackService() {
         return;
       }
 
-      // If no active track but queue has tracks, wait a moment for TrackPlayer to set it
-      if (!activeTrack && queue.length > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
-
+      // Call play() directly - TrackPlayer will handle track activation
       await TrackPlayer.play();
       const newState = await TrackPlayer.getState();
       const newPosition = await TrackPlayer.getPosition();
