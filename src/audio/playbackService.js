@@ -2,13 +2,15 @@
 // Background service for react-native-track-player
 // Handles remote control events from iOS (lock screen, Control Center, AirPods)
 
-// Store queue navigation callbacks from App.js
+// Store callbacks from App.js
 let playNextTrack = null;
 let playPreviousTrack = null;
+let stopGlobalAudio = null;
 
 export function setQueueNavigationCallbacks(callbacks) {
   playNextTrack = callbacks?.playNextTrack || null;
   playPreviousTrack = callbacks?.playPreviousTrack || null;
+  stopGlobalAudio = callbacks?.stopGlobalAudio || null;
 }
 
 // Service function - called by TrackPlayer when setupPlayer() is invoked
@@ -37,7 +39,12 @@ module.exports = function playbackService() {
 
   TrackPlayer.addEventListener(Event.RemoteStop, async () => {
     try {
-      await TrackPlayer.stop();
+      if (stopGlobalAudio) {
+        await stopGlobalAudio();
+      } else {
+        await TrackPlayer.stop();
+        await TrackPlayer.reset();
+      }
     } catch (error) {
       console.error("RemoteStop error:", error);
     }
@@ -48,7 +55,12 @@ module.exports = function playbackService() {
       if (playNextTrack) {
         await playNextTrack();
       } else {
-        await TrackPlayer.skipToNext();
+        try {
+          await TrackPlayer.skipToNext();
+        } catch (skipError) {
+          // If skipToNext fails (e.g., no next track), ignore the error
+          console.log("No next track available");
+        }
       }
     } catch (error) {
       console.error("RemoteNext error:", error);
@@ -60,7 +72,12 @@ module.exports = function playbackService() {
       if (playPreviousTrack) {
         await playPreviousTrack();
       } else {
-        await TrackPlayer.skipToPrevious();
+        try {
+          await TrackPlayer.skipToPrevious();
+        } catch (skipError) {
+          // If skipToPrevious fails (e.g., no previous track), ignore the error
+          console.log("No previous track available");
+        }
       }
     } catch (error) {
       console.error("RemotePrevious error:", error);

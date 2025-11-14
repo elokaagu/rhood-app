@@ -2149,14 +2149,15 @@ export default function App() {
 
   // Set up queue navigation callbacks after functions are defined
   useEffect(() => {
-    if (setQueueNavigationCallbacks && playNextTrack && playPreviousTrack) {
+    if (setQueueNavigationCallbacks && playNextTrack && playPreviousTrack && stopGlobalAudio) {
       setQueueNavigationCallbacks({
         playNextTrack,
         playPreviousTrack,
+        stopGlobalAudio,
       });
       console.log("✅ Queue navigation callbacks registered");
     }
-  }, [playNextTrack, playPreviousTrack]);
+  }, [playNextTrack, playPreviousTrack, stopGlobalAudio]);
 
   // Share functionality
   const shareTrack = async () => {
