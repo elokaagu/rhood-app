@@ -511,6 +511,15 @@ export default function App() {
         const isActuallyPlaying = nativeState === TrackPlayerState.Playing;
         const position = await TrackPlayerInstance.getPosition();
         const duration = await TrackPlayerInstance.getDuration();
+        const queue = await TrackPlayerInstance.getQueue();
+        const activeTrack = await TrackPlayerInstance.getActiveTrack();
+
+        // CRITICAL DIAGNOSTIC: Check if queue is empty while music is playing
+        if (queue.length === 0 && globalAudioState.isPlaying) {
+          console.error("❌❌❌ CRITICAL: TrackPlayer queue is EMPTY while music is playing!");
+          console.error("❌❌❌ This means audio is coming from expo-av, NOT TrackPlayer!");
+          console.error("❌❌❌ Check App.js playGlobalAudio() - ensure iOS uses ONLY TrackPlayer");
+        }
 
         // Always update isPlaying immediately - it's critical for button UI
         setGlobalAudioState((prev) => {
@@ -525,6 +534,9 @@ export default function App() {
             console.log("🔄 State sync: isPlaying changed", {
               was: prev.isPlaying,
               now: isActuallyPlaying,
+              queueLength: queue.length,
+              activeTrack: activeTrack ? activeTrack.id : "none",
+              position: position,
             });
 
             return {
@@ -576,9 +588,21 @@ export default function App() {
               const newProgress = duration > 0 ? position / duration : 0;
 
               if (prev.isPlaying !== isActuallyPlaying) {
-                console.log("🎵 PlaybackState event: isPlaying changed", {
-                  was: prev.isPlaying,
-                  now: isActuallyPlaying,
+                // Get queue info for diagnostic
+                TrackPlayerInstance.getQueue().then(queue => {
+                  TrackPlayerInstance.getActiveTrack().then(activeTrack => {
+                    console.log("🎵 PlaybackState event: isPlaying changed", {
+                      was: prev.isPlaying,
+                      now: isActuallyPlaying,
+                      queueLength: queue.length,
+                      activeTrack: activeTrack ? activeTrack.id : "none",
+                    });
+                    
+                    if (queue.length === 0 && isActuallyPlaying) {
+                      console.error("❌❌❌ CRITICAL: Queue is EMPTY but state is Playing!");
+                      console.error("❌❌❌ Audio is NOT coming from TrackPlayer!");
+                    }
+                  });
                 });
 
                 return {

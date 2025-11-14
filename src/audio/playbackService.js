@@ -223,5 +223,7 @@ module.exports = function playbackService() {
 
   console.log("✅✅✅ [SERVICE] ALL EVENT LISTENERS REGISTERED SUCCESSFULLY");
   console.log("✅ [SERVICE] All event listeners registered successfully");
-  console.log("🔵 [SERVICE] Service function completed, returning to TrackPlayer");
+  console.log(
+    "🔵 [SERVICE] Service function completed, returning to TrackPlayer"
+  );
 };
