@@ -54,7 +54,9 @@ module.exports = function playbackService() {
   console.log("✅ [SERVICE] TrackPlayer and Event validated successfully");
 
   // Register remote control event listeners
+  console.log("🔵 [SERVICE] About to register RemotePlay listener...");
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
+    console.log("🔊🔊🔊 REMOTE PLAY EVENT RECEIVED IN JAVASCRIPT SERVICE");
     console.log("🔊 RemotePlay event received");
     try {
       const state = await TrackPlayer.getState();
@@ -106,7 +108,9 @@ module.exports = function playbackService() {
     }
   });
 
+  console.log("🔵 [SERVICE] About to register RemotePause listener...");
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
+    console.log("⏸️⏸️⏸️ REMOTE PAUSE EVENT RECEIVED IN JAVASCRIPT SERVICE");
     console.log("⏸️ RemotePause event received");
     try {
       const state = await TrackPlayer.getState();
@@ -217,5 +221,7 @@ module.exports = function playbackService() {
     }
   });
 
+  console.log("✅✅✅ [SERVICE] ALL EVENT LISTENERS REGISTERED SUCCESSFULLY");
   console.log("✅ [SERVICE] All event listeners registered successfully");
+  console.log("🔵 [SERVICE] Service function completed, returning to TrackPlayer");
 };
