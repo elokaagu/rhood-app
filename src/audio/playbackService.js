@@ -61,7 +61,7 @@ module.exports = function playbackService() {
       const queue = await TrackPlayer.getQueue();
       const activeTrack = await TrackPlayer.getActiveTrack();
       const position = await TrackPlayer.getPosition();
-      
+
       console.log(
         "🔊 [SERVICE] DIAGNOSTIC - Current state:",
         state,
@@ -75,13 +75,21 @@ module.exports = function playbackService() {
 
       if (queue.length === 0) {
         console.error("❌ [SERVICE] Queue is empty while music is playing!");
-        console.error("❌ [SERVICE] This means audio is coming from expo-av, not TrackPlayer!");
-        console.error("❌ [SERVICE] Check App.js - ensure iOS uses ONLY TrackPlayer for playback");
+        console.error(
+          "❌ [SERVICE] This means audio is coming from expo-av, not TrackPlayer!"
+        );
+        console.error(
+          "❌ [SERVICE] Check App.js - ensure iOS uses ONLY TrackPlayer for playback"
+        );
         return;
       }
 
       if (!activeTrack) {
-        console.warn("⚠️ [SERVICE] No active track, but queue has", queue.length, "tracks");
+        console.warn(
+          "⚠️ [SERVICE] No active track, but queue has",
+          queue.length,
+          "tracks"
+        );
       }
 
       await TrackPlayer.play();
@@ -104,7 +112,7 @@ module.exports = function playbackService() {
       const state = await TrackPlayer.getState();
       const queue = await TrackPlayer.getQueue();
       const activeTrack = await TrackPlayer.getActiveTrack();
-      
+
       console.log(
         "⏸️ [SERVICE] DIAGNOSTIC - Current state:",
         state,
@@ -116,7 +124,9 @@ module.exports = function playbackService() {
 
       if (queue.length === 0) {
         console.error("❌ [SERVICE] Queue is empty while music is playing!");
-        console.error("❌ [SERVICE] This means audio is coming from expo-av, not TrackPlayer!");
+        console.error(
+          "❌ [SERVICE] This means audio is coming from expo-av, not TrackPlayer!"
+        );
       }
 
       await TrackPlayer.pause();
