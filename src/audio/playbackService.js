@@ -91,8 +91,8 @@ module.exports = function playbackService() {
         await new Promise((resolve) => setTimeout(resolve, 200));
       }
 
-        await TrackPlayer.play();
-        const newState = await TrackPlayer.getState();
+      await TrackPlayer.play();
+      const newState = await TrackPlayer.getState();
       const newPosition = await TrackPlayer.getPosition();
       console.log(
         "✅ [SERVICE] TrackPlayer.play() called, new state:",
@@ -130,8 +130,8 @@ module.exports = function playbackService() {
         );
       }
 
-        await TrackPlayer.pause();
-        const newState = await TrackPlayer.getState();
+      await TrackPlayer.pause();
+      const newState = await TrackPlayer.getState();
       console.log(
         "✅ [SERVICE] TrackPlayer.pause() called, new state:",
         newState
