@@ -20,23 +20,31 @@ let isInitialized = false;
 
 /**
  * Initialize TrackPlayer with capabilities
+ * This should be called once when the app starts or before first playback
  */
 export async function setupPlayer() {
   if (!TrackPlayer) {
     throw new Error("react-native-track-player is not available");
   }
 
-  if (isInitialized) {
-    return;
+  // Only call setupPlayer() once - it initializes the native player
+  if (!isInitialized) {
+    try {
+      console.log("🎵 [PLAYER] Calling TrackPlayer.setupPlayer()...");
+      await TrackPlayer.setupPlayer();
+      console.log(
+        "✅ [PLAYER] TrackPlayer.setupPlayer() completed - service should be called now"
+      );
+      isInitialized = true;
+    } catch (error) {
+      console.error("❌ [PLAYER] Failed to setup player:", error);
+      throw error;
+    }
   }
 
+  // Always update options to ensure capabilities are set correctly
+  // This is safe to call multiple times and ensures remote controls work
   try {
-    console.log("🎵 [PLAYER] Calling TrackPlayer.setupPlayer()...");
-    await TrackPlayer.setupPlayer();
-    console.log(
-      "✅ [PLAYER] TrackPlayer.setupPlayer() completed - service should be called now"
-    );
-
     console.log("🎵 [PLAYER] Updating options with capabilities...");
     await TrackPlayer.updateOptions({
       stopWithApp: false,
@@ -68,11 +76,8 @@ export async function setupPlayer() {
       progressUpdateEventInterval: 1,
     });
     console.log("✅ [PLAYER] TrackPlayer.updateOptions() completed");
-
-    isInitialized = true;
-    console.log("✅ [PLAYER] TrackPlayer fully initialized");
   } catch (error) {
-    console.error("Failed to initialize TrackPlayer:", error);
+    console.error("❌ [PLAYER] Failed to update options:", error);
     throw error;
   }
 }

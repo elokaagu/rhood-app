@@ -355,7 +355,6 @@ export default function App() {
     }
   }, [globalAudioState.currentTrack]);
 
-
   // Application sent modal state
 
   // Edit profile modal state
@@ -499,8 +498,7 @@ export default function App() {
 
     // Import TrackPlayer for event listeners
     const TrackPlayerModule = require("react-native-track-player");
-    const TrackPlayerInstance =
-      TrackPlayerModule.default || TrackPlayerModule;
+    const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
     const TrackPlayerState = TrackPlayerModule.State;
     const TrackPlayerEvent = TrackPlayerModule.Event;
 
@@ -516,9 +514,15 @@ export default function App() {
 
         // CRITICAL DIAGNOSTIC: Check if queue is empty while music is playing
         if (queue.length === 0 && globalAudioState.isPlaying) {
-          console.error("❌❌❌ CRITICAL: TrackPlayer queue is EMPTY while music is playing!");
-          console.error("❌❌❌ This means audio is coming from expo-av, NOT TrackPlayer!");
-          console.error("❌❌❌ Check App.js playGlobalAudio() - ensure iOS uses ONLY TrackPlayer");
+          console.error(
+            "❌❌❌ CRITICAL: TrackPlayer queue is EMPTY while music is playing!"
+          );
+          console.error(
+            "❌❌❌ This means audio is coming from expo-av, NOT TrackPlayer!"
+          );
+          console.error(
+            "❌❌❌ Check App.js playGlobalAudio() - ensure iOS uses ONLY TrackPlayer"
+          );
         }
 
         // Always update isPlaying immediately - it's critical for button UI
@@ -571,14 +575,44 @@ export default function App() {
     };
 
     // Listen to playback state changes for immediate updates
+    // This is CRITICAL for lock screen remote controls - it fires immediately when state changes
     try {
       playbackStateListener = TrackPlayerInstance.addEventListener(
         TrackPlayerEvent.PlaybackState,
         async (data) => {
           try {
             const isActuallyPlaying = data.state === TrackPlayerState.Playing;
-            const position = await TrackPlayerInstance.getPosition();
-            const duration = await TrackPlayerInstance.getDuration();
+
+            // Immediately update isPlaying state - this is critical for UI responsiveness
+            // Get position/duration in parallel for faster updates
+            const [position, duration, queue, activeTrack] = await Promise.all([
+              TrackPlayerInstance.getPosition(),
+              TrackPlayerInstance.getDuration(),
+              TrackPlayerInstance.getQueue(),
+              TrackPlayerInstance.getActiveTrack(),
+            ]);
+
+            // Diagnostic logging when state changes (especially from remote controls)
+            const prevState = globalAudioState;
+            if (prevState.isPlaying !== isActuallyPlaying) {
+              console.log(
+                "🎵 [REMOTE] PlaybackState changed via remote control or app",
+                {
+                  was: prevState.isPlaying,
+                  now: isActuallyPlaying,
+                  queueLength: queue.length,
+                  activeTrack: activeTrack ? activeTrack.id : "none",
+                  position: position.toFixed(1) + "s",
+                }
+              );
+
+              if (queue.length === 0 && isActuallyPlaying) {
+                console.error(
+                  "❌❌❌ CRITICAL: Queue is EMPTY but state is Playing!"
+                );
+                console.error("❌❌❌ Audio is NOT coming from TrackPlayer!");
+              }
+            }
 
             setGlobalAudioState((prev) => {
               if (!prev.currentTrack) return prev;
@@ -587,29 +621,8 @@ export default function App() {
               const newDuration = duration * 1000;
               const newProgress = duration > 0 ? position / duration : 0;
 
-              // Always update state from PlaybackState events (not just when isPlaying changes)
+              // Always update state from PlaybackState events
               // This ensures UI stays in sync when remote controls change playback
-              const isPlayingChanged = prev.isPlaying !== isActuallyPlaying;
-              
-              if (isPlayingChanged) {
-                // Get queue info for diagnostic when state changes
-                TrackPlayerInstance.getQueue().then(queue => {
-                  TrackPlayerInstance.getActiveTrack().then(activeTrack => {
-                    console.log("🎵 PlaybackState event: isPlaying changed", {
-                      was: prev.isPlaying,
-                      now: isActuallyPlaying,
-                      queueLength: queue.length,
-                      activeTrack: activeTrack ? activeTrack.id : "none",
-                    });
-                    
-                    if (queue.length === 0 && isActuallyPlaying) {
-                      console.error("❌❌❌ CRITICAL: Queue is EMPTY but state is Playing!");
-                      console.error("❌❌❌ Audio is NOT coming from TrackPlayer!");
-                    }
-                  });
-                });
-              }
-
               return {
                 ...prev,
                 isPlaying: isActuallyPlaying,
@@ -622,6 +635,9 @@ export default function App() {
             console.warn("⚠️ PlaybackState event error:", error);
           }
         }
+      );
+      console.log(
+        "✅ [SYNC] PlaybackState listener registered for immediate remote control updates"
       );
     } catch (error) {
       console.warn("⚠️ Could not add PlaybackState listener:", error);
@@ -638,7 +654,8 @@ export default function App() {
 
               const newPosition = data.position * 1000;
               const newDuration = data.duration * 1000;
-              const newProgress = data.duration > 0 ? data.position / data.duration : 0;
+              const newProgress =
+                data.duration > 0 ? data.position / data.duration : 0;
 
               return {
                 ...prev,
@@ -667,10 +684,16 @@ export default function App() {
         clearInterval(syncIntervalId);
       }
       // Remove event listeners if they're subscription objects
-      if (playbackStateListener && typeof playbackStateListener.remove === 'function') {
+      if (
+        playbackStateListener &&
+        typeof playbackStateListener.remove === "function"
+      ) {
         playbackStateListener.remove();
       }
-      if (playbackProgressListener && typeof playbackProgressListener.remove === 'function') {
+      if (
+        playbackProgressListener &&
+        typeof playbackProgressListener.remove === "function"
+      ) {
         playbackProgressListener.remove();
       }
     };
@@ -902,7 +925,7 @@ export default function App() {
       // 3. Service function runs and registers handlers
       // 4. Capabilities are set via updateOptions()
       // Early initialization here could cause timing issues with service registration
-      
+
       if (Platform.OS === "ios" && trackPlayer) {
         console.log(
           "📱 iOS: Track player will be initialized when first audio plays"
@@ -1409,9 +1432,9 @@ export default function App() {
                   await resumeGlobalAudio();
                 }
               } else if (globalAudioState.isPlaying) {
-                  await pauseGlobalAudio();
-                } else {
-                  await resumeGlobalAudio();
+                await pauseGlobalAudio();
+              } else {
+                await resumeGlobalAudio();
               }
             } catch (error) {
               console.error("❌ Lock screen play/pause error:", error);
@@ -1477,17 +1500,12 @@ export default function App() {
 
         await TrackPlayerInstance.pause();
 
-        // Verify it paused
-        const state = await TrackPlayerInstance.getState();
-        const TrackPlayerState = TrackPlayerModule.State;
-        const isPaused = state !== TrackPlayerState.Playing;
-
-        // Update state immediately
+        // State will be updated automatically via PlaybackState event listener
+        // But update immediately for better UX responsiveness
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
 
         console.log(
-          "⏸️ iOS: Audio paused via track-player directly, verified:",
-          isPaused
+          "⏸️ iOS: Audio paused via track-player - state will sync via event listener"
         );
         return;
       }
@@ -1603,17 +1621,12 @@ export default function App() {
 
         await TrackPlayerInstance.play();
 
-        // Verify it started
-        const state = await TrackPlayerInstance.getState();
-        const TrackPlayerState = TrackPlayerModule.State;
-        const isPlaying = state === TrackPlayerState.Playing;
-
-        // Update state immediately
+        // State will be updated automatically via PlaybackState event listener
+        // But update immediately for better UX responsiveness
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
 
         console.log(
-          "▶️ iOS: Audio resumed via track-player directly, verified:",
-          isPlaying
+          "▶️ iOS: Audio resumed via track-player - state will sync via event listener"
         );
         return;
       }
@@ -2253,7 +2266,12 @@ export default function App() {
 
   // Set up queue navigation callbacks after functions are defined
   useEffect(() => {
-    if (setQueueNavigationCallbacks && playNextTrack && playPreviousTrack && stopGlobalAudio) {
+    if (
+      setQueueNavigationCallbacks &&
+      playNextTrack &&
+      playPreviousTrack &&
+      stopGlobalAudio
+    ) {
       setQueueNavigationCallbacks({
         playNextTrack,
         playPreviousTrack,
@@ -2585,9 +2603,13 @@ export default function App() {
         fullError: error,
       };
 
-      const isDailyLimitError = errorMessage.includes("Daily application limit");
+      const isDailyLimitError = errorMessage.includes(
+        "Daily application limit"
+      );
       const isAlreadyAppliedError = errorMessage.includes("already applied");
-      const isMissingMixError = errorMessage.includes("upload at least one mix");
+      const isMissingMixError = errorMessage.includes(
+        "upload at least one mix"
+      );
 
       if (isDailyLimitError || isAlreadyAppliedError || isMissingMixError) {
         console.warn("⚠️ Application handled error:", logContext);
@@ -2741,13 +2763,12 @@ export default function App() {
         }
 
         // Handle explicit AM/PM values (e.g. "9 PM", "9:30 am")
-        const meridiemMatch =
-          trimmed.match(/^([0-1]?\d)(?::([0-5]\d))?\s*([AaPp][Mm])$/);
+        const meridiemMatch = trimmed.match(
+          /^([0-1]?\d)(?::([0-5]\d))?\s*([AaPp][Mm])$/
+        );
         if (meridiemMatch) {
           const hours = parseInt(meridiemMatch[1], 10);
-          const minutes = meridiemMatch[2]
-            ? parseInt(meridiemMatch[2], 10)
-            : 0;
+          const minutes = meridiemMatch[2] ? parseInt(meridiemMatch[2], 10) : 0;
           const period = meridiemMatch[3].toUpperCase();
           const normalizedHours =
             period === "PM" && hours < 12
@@ -2755,7 +2776,9 @@ export default function App() {
               : period === "AM" && hours === 12
               ? 0
               : hours;
-          return sanitize(`${normalizedHours}:${minutes.toString().padStart(2, "0")}`);
+          return sanitize(
+            `${normalizedHours}:${minutes.toString().padStart(2, "0")}`
+          );
         }
 
         // Ensure we only deal with HH:mm[:ss]
@@ -2955,10 +2978,7 @@ export default function App() {
           opp.event_date ??
           null;
         let endTimeRaw =
-          opp.event_end_time ??
-          opp.event_time_end ??
-          opp.end_time ??
-          null;
+          opp.event_end_time ?? opp.event_time_end ?? opp.end_time ?? null;
 
         if (!endTimeRaw && typeof startTimeRaw === "string") {
           const timeRangeParts = startTimeRaw
@@ -3755,7 +3775,6 @@ export default function App() {
 
       case "help":
         return <HelpCenterScreen onBack={() => setCurrentScreen("settings")} />;
-
 
       case "listen":
         return (
