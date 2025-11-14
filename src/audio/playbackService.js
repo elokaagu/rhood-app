@@ -21,12 +21,10 @@ function setQueueNavigationCallbacks(callbacks) {
   stopGlobalAudio = callbacks?.stopGlobalAudio || null;
 }
 
-// Export this so your UI code can still import it
-exports.setQueueNavigationCallbacks = setQueueNavigationCallbacks;
-
 // Default export for TrackPlayer playback service
 // CRITICAL: This function must be SYNCHRONOUS - event listeners must be registered immediately
-module.exports = function playbackService() {
+// TrackPlayer will call this function when setupPlayer() is called
+function playbackService() {
   console.log("🛰️ RHOOD playbackService started");
 
   // Validate TrackPlayer and Event are available
@@ -219,4 +217,11 @@ module.exports = function playbackService() {
   console.log(
     "🔵 [SERVICE] Service function completed, returning to TrackPlayer"
   );
-};
+}
+
+// Export the service function as default export
+// TrackPlayer will call this when setupPlayer() is invoked
+module.exports = playbackService;
+
+// Also export setQueueNavigationCallbacks for UI code to use
+module.exports.setQueueNavigationCallbacks = setQueueNavigationCallbacks;
