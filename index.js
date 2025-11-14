@@ -17,7 +17,9 @@ try {
   const TrackPlayer = require("react-native-track-player");
   if (TrackPlayer && TrackPlayer.registerPlaybackService) {
     console.log("🔊 [STARTUP] Registering playback service...");
-    TrackPlayer.registerPlaybackService(() => require("./src/audio/playbackService"));
+    TrackPlayer.registerPlaybackService(() =>
+      require("./src/audio/playbackService")
+    );
     console.log("✅ [STARTUP] Playback service registration completed");
   } else {
     console.warn(
