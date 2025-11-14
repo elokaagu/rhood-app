@@ -6,11 +6,15 @@
 let playNextTrack = null;
 let playPreviousTrack = null;
 let stopGlobalAudio = null;
+let pauseGlobalAudio = null;
+let resumeGlobalAudio = null;
 
 export function setQueueNavigationCallbacks(callbacks) {
   playNextTrack = callbacks?.playNextTrack || null;
   playPreviousTrack = callbacks?.playPreviousTrack || null;
   stopGlobalAudio = callbacks?.stopGlobalAudio || null;
+  pauseGlobalAudio = callbacks?.pauseGlobalAudio || null;
+  resumeGlobalAudio = callbacks?.resumeGlobalAudio || null;
 }
 
 // Service function - called by TrackPlayer when setupPlayer() is invoked
@@ -23,7 +27,11 @@ module.exports = function playbackService() {
   // Register remote control event listeners
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
     try {
-      await TrackPlayer.play();
+      if (resumeGlobalAudio) {
+        await resumeGlobalAudio();
+      } else {
+        await TrackPlayer.play();
+      }
     } catch (error) {
       console.error("RemotePlay error:", error);
     }
@@ -31,7 +39,11 @@ module.exports = function playbackService() {
 
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
     try {
-      await TrackPlayer.pause();
+      if (pauseGlobalAudio) {
+        await pauseGlobalAudio();
+      } else {
+        await TrackPlayer.pause();
+      }
     } catch (error) {
       console.error("RemotePause error:", error);
     }
