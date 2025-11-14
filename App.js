@@ -494,16 +494,19 @@ export default function App() {
     }
 
     let syncIntervalId = null;
+    let playbackStateListener = null;
+    let playbackProgressListener = null;
+
+    // Import TrackPlayer for event listeners
+    const TrackPlayerModule = require("react-native-track-player");
+    const TrackPlayerInstance =
+      TrackPlayerModule.default || TrackPlayerModule;
+    const TrackPlayerState = TrackPlayerModule.State;
+    const TrackPlayerEvent = TrackPlayerModule.Event;
 
     // Sync state from track-player - this ensures UI stays in sync
     const syncState = async () => {
       try {
-        // Import TrackPlayer directly to get actual state
-        const TrackPlayerModule = require("react-native-track-player");
-        const TrackPlayerInstance =
-          TrackPlayerModule.default || TrackPlayerModule;
-        const TrackPlayerState = TrackPlayerModule.State;
-
         const nativeState = await TrackPlayerInstance.getState();
         const isActuallyPlaying = nativeState === TrackPlayerState.Playing;
         const position = await TrackPlayerInstance.getPosition();
@@ -518,10 +521,6 @@ export default function App() {
           const newProgress = duration > 0 ? position / duration : 0;
 
           // ALWAYS update if isPlaying changed, regardless of other values
-          // iOS: track-player automatically updates lock screen controls via MPNowPlayingInfoCenter
-          // When track-player state changes (play/pause), it updates the playback rate,
-          // which causes iOS to show the correct button on the lock screen automatically.
-          // We just need to keep our in-app UI state in sync.
           if (prev.isPlaying !== isActuallyPlaying) {
             console.log("🔄 State sync: isPlaying changed", {
               was: prev.isPlaying,
@@ -530,7 +529,7 @@ export default function App() {
 
             return {
               ...prev,
-              isPlaying: isActuallyPlaying, // Update immediately for in-app UI
+              isPlaying: isActuallyPlaying,
               positionMillis: newPosition,
               durationMillis: newDuration,
               progress: newProgress,
@@ -545,29 +544,108 @@ export default function App() {
           ) {
             return {
               ...prev,
-              isPlaying: isActuallyPlaying, // Always sync this too
+              isPlaying: isActuallyPlaying,
               positionMillis: newPosition,
               durationMillis: newDuration,
               progress: newProgress,
             };
           }
 
-          return prev; // No change needed
+          return prev;
         });
       } catch (error) {
         console.warn("⚠️ State sync error:", error);
       }
     };
 
+    // Listen to playback state changes for immediate updates
+    try {
+      playbackStateListener = TrackPlayerInstance.addEventListener(
+        TrackPlayerEvent.PlaybackState,
+        async (data) => {
+          try {
+            const isActuallyPlaying = data.state === TrackPlayerState.Playing;
+            const position = await TrackPlayerInstance.getPosition();
+            const duration = await TrackPlayerInstance.getDuration();
+
+            setGlobalAudioState((prev) => {
+              if (!prev.currentTrack) return prev;
+
+              const newPosition = position * 1000;
+              const newDuration = duration * 1000;
+              const newProgress = duration > 0 ? position / duration : 0;
+
+              if (prev.isPlaying !== isActuallyPlaying) {
+                console.log("🎵 PlaybackState event: isPlaying changed", {
+                  was: prev.isPlaying,
+                  now: isActuallyPlaying,
+                });
+
+                return {
+                  ...prev,
+                  isPlaying: isActuallyPlaying,
+                  positionMillis: newPosition,
+                  durationMillis: newDuration,
+                  progress: newProgress,
+                };
+              }
+
+              return prev;
+            });
+          } catch (error) {
+            console.warn("⚠️ PlaybackState event error:", error);
+          }
+        }
+      );
+    } catch (error) {
+      console.warn("⚠️ Could not add PlaybackState listener:", error);
+    }
+
+    // Listen to progress updates
+    try {
+      playbackProgressListener = TrackPlayerInstance.addEventListener(
+        TrackPlayerEvent.PlaybackProgressUpdated,
+        async (data) => {
+          try {
+            setGlobalAudioState((prev) => {
+              if (!prev.currentTrack) return prev;
+
+              const newPosition = data.position * 1000;
+              const newDuration = data.duration * 1000;
+              const newProgress = data.duration > 0 ? data.position / data.duration : 0;
+
+              return {
+                ...prev,
+                positionMillis: newPosition,
+                durationMillis: newDuration,
+                progress: newProgress,
+              };
+            });
+          } catch (error) {
+            console.warn("⚠️ PlaybackProgressUpdated event error:", error);
+          }
+        }
+      );
+    } catch (error) {
+      console.warn("⚠️ Could not add PlaybackProgressUpdated listener:", error);
+    }
+
     // Initial sync
     syncState();
 
-    // Sync every 300ms for more responsive UI (especially for isPlaying)
-    syncIntervalId = setInterval(syncState, 300);
+    // Sync every 200ms for more responsive UI
+    syncIntervalId = setInterval(syncState, 200);
 
     return () => {
       if (syncIntervalId) {
         clearInterval(syncIntervalId);
+      }
+      // Remove event listeners if they're subscription objects
+      if (playbackStateListener && typeof playbackStateListener.remove === 'function') {
+        playbackStateListener.remove();
+      }
+      if (playbackProgressListener && typeof playbackProgressListener.remove === 'function') {
+        playbackProgressListener.remove();
       }
     };
   }, [Platform.OS, trackPlayer, globalAudioState.currentTrack?.id]);
@@ -2149,17 +2227,15 @@ export default function App() {
 
   // Set up queue navigation callbacks after functions are defined
   useEffect(() => {
-    if (setQueueNavigationCallbacks && playNextTrack && playPreviousTrack && stopGlobalAudio && pauseGlobalAudio && resumeGlobalAudio) {
+    if (setQueueNavigationCallbacks && playNextTrack && playPreviousTrack && stopGlobalAudio) {
       setQueueNavigationCallbacks({
         playNextTrack,
         playPreviousTrack,
         stopGlobalAudio,
-        pauseGlobalAudio,
-        resumeGlobalAudio,
       });
       console.log("✅ Queue navigation callbacks registered");
     }
-  }, [playNextTrack, playPreviousTrack, stopGlobalAudio, pauseGlobalAudio, resumeGlobalAudio]);
+  }, [playNextTrack, playPreviousTrack, stopGlobalAudio]);
 
   // Share functionality
   const shareTrack = async () => {

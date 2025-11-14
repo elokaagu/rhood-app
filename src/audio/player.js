@@ -34,25 +34,32 @@ export async function setupPlayer() {
     await TrackPlayer.setupPlayer();
 
     await TrackPlayer.updateOptions({
+      stopWithApp: false,
+      alwaysPauseOnInterruption: true,
       capabilities: [
         Capability.Play,
         Capability.Pause,
+        Capability.Stop,
+        Capability.SeekTo,
         Capability.SkipToNext,
         Capability.SkipToPrevious,
-        Capability.SeekTo,
         Capability.JumpForward,
         Capability.JumpBackward,
-        Capability.Stop,
       ],
       compactCapabilities: [
         Capability.Play,
         Capability.Pause,
         Capability.SkipToNext,
+        Capability.SkipToPrevious,
       ],
+      // iOS / Android extras
       iosCategory: "playback",
       android: {
         alwaysShowNotification: Platform.OS === "android",
       },
+      // Jump controls intervals
+      forwardJumpInterval: 15,
+      backwardJumpInterval: 15,
       progressUpdateEventInterval: 1,
     });
 
