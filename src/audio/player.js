@@ -87,15 +87,31 @@ export async function addTrack(track) {
 
   await setupPlayer();
 
+  // Ensure URL is a string (not an object with uri property)
+  let trackUrl = track.url;
+  if (typeof trackUrl === "object" && trackUrl.uri) {
+    trackUrl = trackUrl.uri;
+  }
+  if (typeof trackUrl !== "string") {
+    throw new Error(`Invalid track URL: ${JSON.stringify(trackUrl)}`);
+  }
+
+  console.log(
+    "🎵 [PLAYER] Adding track with URL:",
+    trackUrl.substring(0, 50) + "..."
+  );
+
   await TrackPlayer.add({
     id: track.id,
-    url: track.url,
+    url: trackUrl,
     title: track.title,
     artist: track.artist,
     artwork: track.artwork || undefined,
     duration: track.duration || undefined,
     genre: track.genre || "Electronic",
   });
+
+  console.log("✅ [PLAYER] Track added successfully");
 }
 
 /**
@@ -125,11 +141,62 @@ export async function playTrack(track) {
   console.log("✅ [PLAYER] Track added, queue length:", queue.length);
 
   console.log("🎵 [PLAYER] Starting playback...");
+
+  // Wait a moment for track to be ready
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  // Get active track to verify it's loaded
+  const activeTrack = await TrackPlayer.getActiveTrack();
+  console.log(
+    "🎵 [PLAYER] Active track:",
+    activeTrack ? activeTrack.id : "none"
+  );
+
+  // TrackPlayer should automatically make the first track active when we add it
+  // But let's verify and wait a bit for it to be ready
+  if (!activeTrack) {
+    console.warn(
+      "⚠️ [PLAYER] No active track after adding, waiting for track to load..."
+    );
+    // Wait a bit longer for track to load
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    const queue = await TrackPlayer.getQueue();
+    console.log("🎵 [PLAYER] Queue after wait:", queue.length, "tracks");
+
+    if (queue.length === 0) {
+      throw new Error("Cannot play: Track was not added to queue");
+    }
+
+    // Check active track again
+    const retryActiveTrack = await TrackPlayer.getActiveTrack();
+    if (!retryActiveTrack) {
+      console.warn(
+        "⚠️ [PLAYER] Still no active track, TrackPlayer should set it automatically when play() is called"
+      );
+    }
+  }
+
+  console.log("🎵 [PLAYER] Calling TrackPlayer.play()...");
   await TrackPlayer.play();
 
-  // Verify playback started
+  // Verify playback started - wait a bit for state to update
+  await new Promise((resolve) => setTimeout(resolve, 200));
   const state = await TrackPlayer.getState();
-  console.log("✅ [PLAYER] Playback started, state:", state);
+  const position = await TrackPlayer.getPosition();
+  console.log(
+    "✅ [PLAYER] Playback started, state:",
+    state,
+    "position:",
+    position
+  );
+
+  if (state !== State.Playing) {
+    console.error(
+      "❌ [PLAYER] TrackPlayer.play() was called but state is not Playing:",
+      state
+    );
+  }
 }
 
 /**

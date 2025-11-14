@@ -8,6 +8,8 @@ const trackPlayerModule = require("react-native-track-player");
 const TrackPlayer = trackPlayerModule.default || trackPlayerModule;
 // Event enum – from module or from TrackPlayer
 const Event = trackPlayerModule.Event || TrackPlayer.Event;
+// State enum – from module or from TrackPlayer
+const State = trackPlayerModule.State || TrackPlayer.State;
 
 // ⚠️ NOTE: These won't work cross-runtime on iOS (app JS vs service JS)
 // but we can keep them for Android / future tweaks if needed.
@@ -71,12 +73,41 @@ module.exports = function playbackService() {
         return;
       }
 
-      await TrackPlayer.play();
-      const newState = await TrackPlayer.getState();
+      // Get active track
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      console.log("🔊 [SERVICE] Active track before play:", activeTrack ? activeTrack.id : "none");
+      
+      // If no active track but queue has tracks, TrackPlayer should handle it
+      if (!activeTrack && queue.length > 0) {
+        console.log("🔊 [SERVICE] No active track but queue has tracks - TrackPlayer should handle this");
+      }
+
+      try {
+        await TrackPlayer.play();
+        console.log("✅ [SERVICE] TrackPlayer.play() called successfully");
+      } catch (playError) {
+        console.error("❌ [SERVICE] TrackPlayer.play() threw an error:", playError);
+        throw playError; // Re-throw to be caught by outer try-catch
+      }
+      
+      // Wait a moment for state to update
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+        const newState = await TrackPlayer.getState();
+      const position = await TrackPlayer.getPosition();
       console.log(
-        "✅ [SERVICE] TrackPlayer.play() called, new state:",
-        newState
+        "✅ [SERVICE] After play() call - state:",
+        newState,
+        "position:",
+        position
       );
+      
+      if (newState !== State.Playing) {
+        console.error("❌ [SERVICE] TrackPlayer.play() was called but state is not Playing:", newState);
+        console.error("❌ [SERVICE] This means the audio is NOT actually playing!");
+      } else {
+        console.log("✅ [SERVICE] Audio playback confirmed - state is Playing");
+      }
     } catch (error) {
       console.error("❌ [SERVICE] RemotePlay error:", error);
     }
@@ -88,12 +119,22 @@ module.exports = function playbackService() {
       const state = await TrackPlayer.getState();
       console.log("⏸️ [SERVICE] Current state before pause:", state);
 
-      await TrackPlayer.pause();
-      const newState = await TrackPlayer.getState();
+        await TrackPlayer.pause();
+      
+      // Wait a moment for state to update
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+        const newState = await TrackPlayer.getState();
       console.log(
         "✅ [SERVICE] TrackPlayer.pause() called, new state:",
         newState
       );
+      
+      if (newState === State.Playing) {
+        console.error("❌ [SERVICE] TrackPlayer.pause() was called but state is still Playing!");
+      } else {
+        console.log("✅ [SERVICE] Audio pause confirmed - state is not Playing");
+      }
     } catch (error) {
       console.error("❌ [SERVICE] RemotePause error:", error);
     }
