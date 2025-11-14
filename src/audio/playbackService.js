@@ -25,9 +25,35 @@ function setQueueNavigationCallbacks(callbacks) {
 exports.setQueueNavigationCallbacks = setQueueNavigationCallbacks;
 
 // Default export for TrackPlayer playback service
-module.exports = async function playbackService() {
+// CRITICAL: This function must be SYNCHRONOUS - event listeners must be registered immediately
+module.exports = function playbackService() {
   console.log("🛰️ RHOOD playbackService started");
 
+  // Validate TrackPlayer and Event are available
+  if (!TrackPlayer) {
+    console.error("❌ [SERVICE] TrackPlayer is null or undefined");
+    return;
+  }
+
+  if (typeof TrackPlayer.addEventListener !== "function") {
+    console.error(
+      "❌ [SERVICE] TrackPlayer.addEventListener is not a function",
+      {
+        TrackPlayerType: typeof TrackPlayer,
+        TrackPlayerKeys: Object.keys(TrackPlayer || {}),
+      }
+    );
+    return;
+  }
+
+  if (!Event) {
+    console.error("❌ [SERVICE] Event is null or undefined");
+    return;
+  }
+
+  console.log("✅ [SERVICE] TrackPlayer and Event validated successfully");
+
+  // Register remote control event listeners
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
     console.log("🔊 RemotePlay event received");
     try {
@@ -122,4 +148,6 @@ module.exports = async function playbackService() {
       console.error("RemoteJumpBackward error:", error);
     }
   });
+
+  console.log("✅ [SERVICE] All event listeners registered successfully");
 };

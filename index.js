@@ -15,13 +15,21 @@ import App from "./App";
 try {
   const TrackPlayer = require("react-native-track-player");
   if (TrackPlayer && TrackPlayer.registerPlaybackService) {
+    console.log("🔊 [STARTUP] Registering playback service...");
     TrackPlayer.registerPlaybackService(() => {
       // This is the exact pattern from the library docs
-      return require("./src/audio/playbackService");
+      const service = require("./src/audio/playbackService");
+      console.log("✅ [STARTUP] Service module loaded, type:", typeof service);
+      return service;
     });
+    console.log("✅ [STARTUP] Playback service registration completed");
+  } else {
+    console.warn(
+      "⚠️ [STARTUP] TrackPlayer.registerPlaybackService not available"
+    );
   }
 } catch (error) {
-  console.log("TrackPlayer not available, skipping playback service", error);
+  console.error("❌ [STARTUP] Error registering playback service:", error);
 }
 
 registerRootComponent(App);

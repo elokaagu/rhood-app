@@ -31,8 +31,13 @@ export async function setupPlayer() {
   }
 
   try {
+    console.log("🎵 [PLAYER] Calling TrackPlayer.setupPlayer()...");
     await TrackPlayer.setupPlayer();
+    console.log(
+      "✅ [PLAYER] TrackPlayer.setupPlayer() completed - service should be called now"
+    );
 
+    console.log("🎵 [PLAYER] Updating options with capabilities...");
     await TrackPlayer.updateOptions({
       stopWithApp: false,
       alwaysPauseOnInterruption: true,
@@ -62,8 +67,10 @@ export async function setupPlayer() {
       backwardJumpInterval: 15,
       progressUpdateEventInterval: 1,
     });
+    console.log("✅ [PLAYER] TrackPlayer.updateOptions() completed");
 
     isInitialized = true;
+    console.log("✅ [PLAYER] TrackPlayer fully initialized");
   } catch (error) {
     console.error("Failed to initialize TrackPlayer:", error);
     throw error;
