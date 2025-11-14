@@ -57,18 +57,45 @@ module.exports = function playbackService() {
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
     console.log("🔊 RemotePlay event received");
     try {
+      const state = await TrackPlayer.getState();
+      const queue = await TrackPlayer.getQueue();
+      console.log(
+        "🔊 [SERVICE] Current state:",
+        state,
+        "Queue length:",
+        queue.length
+      );
+
+      if (queue.length === 0) {
+        console.warn("⚠️ [SERVICE] Queue is empty, cannot play");
+        return;
+      }
+
       await TrackPlayer.play();
+      const newState = await TrackPlayer.getState();
+      console.log(
+        "✅ [SERVICE] TrackPlayer.play() called, new state:",
+        newState
+      );
     } catch (error) {
-      console.error("RemotePlay error:", error);
+      console.error("❌ [SERVICE] RemotePlay error:", error);
     }
   });
 
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
     console.log("⏸️ RemotePause event received");
     try {
+      const state = await TrackPlayer.getState();
+      console.log("⏸️ [SERVICE] Current state before pause:", state);
+
       await TrackPlayer.pause();
+      const newState = await TrackPlayer.getState();
+      console.log(
+        "✅ [SERVICE] TrackPlayer.pause() called, new state:",
+        newState
+      );
     } catch (error) {
-      console.error("RemotePause error:", error);
+      console.error("❌ [SERVICE] RemotePause error:", error);
     }
   });
 

@@ -106,10 +106,30 @@ export async function playTrack(track) {
     throw new Error("react-native-track-player is not available");
   }
 
+  console.log("🎵 [PLAYER] playTrack called with:", {
+    id: track.id,
+    title: track.title,
+    url: track.url,
+  });
+
   await setupPlayer();
+
+  console.log("🎵 [PLAYER] Resetting queue...");
   await TrackPlayer.reset();
+
+  console.log("🎵 [PLAYER] Adding track to queue...");
   await addTrack(track);
+
+  // Verify track was added
+  const queue = await TrackPlayer.getQueue();
+  console.log("✅ [PLAYER] Track added, queue length:", queue.length);
+
+  console.log("🎵 [PLAYER] Starting playback...");
   await TrackPlayer.play();
+
+  // Verify playback started
+  const state = await TrackPlayer.getState();
+  console.log("✅ [PLAYER] Playback started, state:", state);
 }
 
 /**
