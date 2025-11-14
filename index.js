@@ -12,16 +12,12 @@ import { registerRootComponent } from "expo";
 import App from "./App";
 
 // Register playback service for react-native-track-player
+// Simplified registration pattern as recommended
 try {
   const TrackPlayer = require("react-native-track-player");
   if (TrackPlayer && TrackPlayer.registerPlaybackService) {
     console.log("🔊 [STARTUP] Registering playback service...");
-    TrackPlayer.registerPlaybackService(() => {
-      // This is the exact pattern from the library docs
-      const service = require("./src/audio/playbackService");
-      console.log("✅ [STARTUP] Service module loaded, type:", typeof service);
-      return service;
-    });
+    TrackPlayer.registerPlaybackService(() => require("./src/audio/playbackService"));
     console.log("✅ [STARTUP] Playback service registration completed");
   } else {
     console.warn(

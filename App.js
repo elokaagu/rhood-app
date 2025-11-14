@@ -587,8 +587,12 @@ export default function App() {
               const newDuration = duration * 1000;
               const newProgress = duration > 0 ? position / duration : 0;
 
-              if (prev.isPlaying !== isActuallyPlaying) {
-                // Get queue info for diagnostic
+              // Always update state from PlaybackState events (not just when isPlaying changes)
+              // This ensures UI stays in sync when remote controls change playback
+              const isPlayingChanged = prev.isPlaying !== isActuallyPlaying;
+              
+              if (isPlayingChanged) {
+                // Get queue info for diagnostic when state changes
                 TrackPlayerInstance.getQueue().then(queue => {
                   TrackPlayerInstance.getActiveTrack().then(activeTrack => {
                     console.log("🎵 PlaybackState event: isPlaying changed", {
@@ -604,17 +608,15 @@ export default function App() {
                     }
                   });
                 });
-
-                return {
-                  ...prev,
-                  isPlaying: isActuallyPlaying,
-                  positionMillis: newPosition,
-                  durationMillis: newDuration,
-                  progress: newProgress,
-                };
               }
 
-              return prev;
+              return {
+                ...prev,
+                isPlaying: isActuallyPlaying,
+                positionMillis: newPosition,
+                durationMillis: newDuration,
+                progress: newProgress,
+              };
             });
           } catch (error) {
             console.warn("⚠️ PlaybackState event error:", error);
