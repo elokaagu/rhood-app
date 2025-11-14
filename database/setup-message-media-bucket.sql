@@ -63,5 +63,3 @@ USING (bucket_id = 'message-media');
 -- FOR SELECT
 -- TO public
 -- USING (bucket_id = 'message-media');
-
-the lock screen didn't work. can you delete and completely reimplement it so that it looks like the spotify and appplementations. use the native IlOS system so that it can be accessed in the ock screen
