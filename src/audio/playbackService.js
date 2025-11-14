@@ -86,16 +86,13 @@ module.exports = function playbackService() {
         return;
       }
 
-      if (!activeTrack) {
-        console.warn(
-          "⚠️ [SERVICE] No active track, but queue has",
-          queue.length,
-          "tracks"
-        );
+      // If no active track but queue has tracks, wait a moment for TrackPlayer to set it
+      if (!activeTrack && queue.length > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
 
-      await TrackPlayer.play();
-      const newState = await TrackPlayer.getState();
+        await TrackPlayer.play();
+        const newState = await TrackPlayer.getState();
       const newPosition = await TrackPlayer.getPosition();
       console.log(
         "✅ [SERVICE] TrackPlayer.play() called, new state:",
@@ -133,8 +130,8 @@ module.exports = function playbackService() {
         );
       }
 
-      await TrackPlayer.pause();
-      const newState = await TrackPlayer.getState();
+        await TrackPlayer.pause();
+        const newState = await TrackPlayer.getState();
       console.log(
         "✅ [SERVICE] TrackPlayer.pause() called, new state:",
         newState

@@ -134,6 +134,12 @@ export async function playTrack(track) {
     throw new Error("Track was not added to queue!");
   }
 
+  // Ensure track is ready - wait for TrackPlayer to process the track
+  if (!activeTrack && queue.length > 0) {
+    // Wait for TrackPlayer to set the first track as active
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
   console.log("🎵 [PLAYER] Starting playback...");
   await TrackPlayer.play();
 
