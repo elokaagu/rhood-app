@@ -7,7 +7,17 @@ const trackPlayerModule = require("react-native-track-player");
 // Make sure we get the actual TrackPlayer instance (default export or module)
 const TrackPlayer = trackPlayerModule.default || trackPlayerModule;
 // Event enum – from module or from TrackPlayer
-const Event = trackPlayerModule.Event || TrackPlayer.Event;
+// Fallback to string event names if Event enum is not available
+const Event = trackPlayerModule.Event || TrackPlayer.Event || {
+  RemotePlay: 'remote-play',
+  RemotePause: 'remote-pause',
+  RemoteStop: 'remote-stop',
+  RemoteNext: 'remote-next',
+  RemotePrevious: 'remote-previous',
+  RemoteSeek: 'remote-seek',
+  RemoteJumpForward: 'remote-jump-forward',
+  RemoteJumpBackward: 'remote-jump-backward',
+};
 
 // ⚠️ NOTE: These won't work cross-runtime on iOS (app JS vs service JS)
 // but we can keep them for Android / future tweaks if needed.
@@ -22,9 +32,10 @@ function setQueueNavigationCallbacks(callbacks) {
 }
 
 // Default export for TrackPlayer playback service
-// CRITICAL: This function must be SYNCHRONOUS - event listeners must be registered immediately
 // TrackPlayer will call this function when setupPlayer() is called
-function playbackService() {
+// Can be sync or async - event listeners must be registered immediately
+module.exports = async function playbackService() {
+  console.log("🛰️🛰️🛰️ RHOOD playbackService FUNCTION CALLED BY TRACKPLAYER");
   console.log("🛰️ RHOOD playbackService started");
 
   // Validate TrackPlayer and Event are available
@@ -44,12 +55,16 @@ function playbackService() {
     return;
   }
 
+  // Log Event availability for debugging
   if (!Event) {
-    console.error("❌ [SERVICE] Event is null or undefined");
-    return;
+    console.warn("⚠️ [SERVICE] Event enum not available, using string event names");
+  } else {
+    console.log("✅ [SERVICE] Event enum available:", Object.keys(Event));
   }
 
   console.log("✅ [SERVICE] TrackPlayer and Event validated successfully");
+  console.log("🔵 [SERVICE] TrackPlayer type:", typeof TrackPlayer);
+  console.log("🔵 [SERVICE] TrackPlayer.addEventListener type:", typeof TrackPlayer.addEventListener);
 
   // Register remote control event listeners
   console.log("🔵 [SERVICE] About to register RemotePlay listener...");
@@ -217,11 +232,8 @@ function playbackService() {
   console.log(
     "🔵 [SERVICE] Service function completed, returning to TrackPlayer"
   );
-}
-
-// Export the service function as default export
-// TrackPlayer will call this when setupPlayer() is invoked
-module.exports = playbackService;
+};
 
 // Also export setQueueNavigationCallbacks for UI code to use
+// Attach it to the exported function
 module.exports.setQueueNavigationCallbacks = setQueueNavigationCallbacks;
