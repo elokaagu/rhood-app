@@ -497,10 +497,20 @@ export default function App() {
     const playbackStateListener = TrackPlayer.addEventListener(
       Event.PlaybackState,
       async (data) => {
+        console.log("🎵 [APP] PlaybackState event received:", data.state);
         try {
           const isPlaying = data.state === State.Playing;
           const position = await TrackPlayer.getPosition();
           const duration = await TrackPlayer.getDuration();
+
+          console.log(
+            "🎵 [APP] Updating state - isPlaying:",
+            isPlaying,
+            "position:",
+            position,
+            "duration:",
+            duration
+          );
 
           setGlobalAudioState((prev) => {
             if (!prev.currentTrack) return prev;
@@ -513,10 +523,11 @@ export default function App() {
             };
           });
         } catch (error) {
-          console.warn("PlaybackState event error:", error);
+          console.warn("⚠️ [APP] PlaybackState event error:", error);
         }
       }
     );
+    console.log("✅ [APP] PlaybackState listener registered");
 
     // Listen to progress updates
     const progressListener = TrackPlayer.addEventListener(

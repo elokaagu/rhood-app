@@ -27,10 +27,15 @@ export async function setupPlayer() {
   }
 
   if (!isInitialized) {
+    console.log("🎵 [PLAYER] Calling TrackPlayer.setupPlayer()...");
     await TrackPlayer.setupPlayer();
+    console.log(
+      "✅ [PLAYER] TrackPlayer.setupPlayer() completed - service should be called now"
+    );
     isInitialized = true;
   }
 
+  console.log("🎵 [PLAYER] Updating options with capabilities...");
   await TrackPlayer.updateOptions({
     stopWithApp: false,
     capabilities: [
@@ -53,6 +58,7 @@ export async function setupPlayer() {
     forwardJumpInterval: 15,
     backwardJumpInterval: 15,
   });
+  console.log("✅ [PLAYER] TrackPlayer.updateOptions() completed");
 }
 
 /**
