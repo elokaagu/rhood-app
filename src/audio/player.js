@@ -20,66 +20,39 @@ let isInitialized = false;
 
 /**
  * Initialize TrackPlayer with capabilities
- * This should be called once when the app starts or before first playback
  */
 export async function setupPlayer() {
   if (!TrackPlayer) {
     throw new Error("react-native-track-player is not available");
   }
 
-  // Only call setupPlayer() once - it initializes the native player
   if (!isInitialized) {
-    try {
-      console.log("🎵 [PLAYER] Calling TrackPlayer.setupPlayer()...");
-      await TrackPlayer.setupPlayer();
-      console.log(
-        "✅ [PLAYER] TrackPlayer.setupPlayer() completed - service should be called now"
-      );
-      isInitialized = true;
-    } catch (error) {
-      console.error("❌ [PLAYER] Failed to setup player:", error);
-      throw error;
-    }
+    await TrackPlayer.setupPlayer();
+    isInitialized = true;
   }
 
-  // Always update options to ensure capabilities are set correctly
-  // This is safe to call multiple times and ensures remote controls work
-  try {
-    console.log("🎵 [PLAYER] Updating options with capabilities...");
-    await TrackPlayer.updateOptions({
-      stopWithApp: false,
-      alwaysPauseOnInterruption: true,
-      capabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.Stop,
-        Capability.SeekTo,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-        Capability.JumpForward,
-        Capability.JumpBackward,
-      ],
-      compactCapabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-      ],
-      // iOS / Android extras
-      iosCategory: "playback",
-      android: {
-        alwaysShowNotification: Platform.OS === "android",
-      },
-      // Jump controls intervals
-      forwardJumpInterval: 15,
-      backwardJumpInterval: 15,
-      progressUpdateEventInterval: 1,
-    });
-    console.log("✅ [PLAYER] TrackPlayer.updateOptions() completed");
-  } catch (error) {
-    console.error("❌ [PLAYER] Failed to update options:", error);
-    throw error;
-  }
+  await TrackPlayer.updateOptions({
+    stopWithApp: false,
+    capabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.Stop,
+      Capability.SeekTo,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
+      Capability.JumpForward,
+      Capability.JumpBackward,
+    ],
+    compactCapabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
+    ],
+    iosCategory: "playback",
+    forwardJumpInterval: 15,
+    backwardJumpInterval: 15,
+  });
 }
 
 /**
@@ -99,7 +72,6 @@ export async function addTrack(track) {
     artist: track.artist,
     artwork: track.artwork || undefined,
     duration: track.duration || undefined,
-    genre: track.genre || "Electronic",
   });
 }
 
@@ -111,54 +83,10 @@ export async function playTrack(track) {
     throw new Error("react-native-track-player is not available");
   }
 
-  console.log("🎵 [PLAYER] playTrack called with:", {
-    id: track.id,
-    title: track.title,
-    url: track.url,
-  });
-
   await setupPlayer();
-
-  console.log("🎵 [PLAYER] Resetting queue...");
   await TrackPlayer.reset();
-
-  console.log("🎵 [PLAYER] Adding track to queue...");
   await addTrack(track);
-
-  // Verify track was added
-  const queue = await TrackPlayer.getQueue();
-  const activeTrack = await TrackPlayer.getActiveTrack();
-  console.log(
-    "✅ [PLAYER] Track added, queue length:",
-    queue.length,
-    "active track:",
-    activeTrack ? activeTrack.id : "none"
-  );
-
-  if (queue.length === 0) {
-    throw new Error("Track was not added to queue!");
-  }
-
-  console.log("🎵 [PLAYER] Starting playback...");
   await TrackPlayer.play();
-
-  // Verify playback started
-  await new Promise((resolve) => setTimeout(resolve, 300)); // Wait for state to update
-  const state = await TrackPlayer.getState();
-  const position = await TrackPlayer.getPosition();
-  console.log(
-    "✅ [PLAYER] Playback started, state:",
-    state,
-    "position:",
-    position
-  );
-
-  if (state !== State.Playing) {
-    console.error(
-      "❌ [PLAYER] WARNING: TrackPlayer.play() was called but state is not Playing:",
-      state
-    );
-  }
 }
 
 /**
@@ -228,7 +156,6 @@ export async function getPlaybackState() {
       track,
     };
   } catch (error) {
-    console.error("Failed to get playback state:", error);
     return {
       isPlaying: false,
       position: 0,

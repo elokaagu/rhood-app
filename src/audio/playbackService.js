@@ -1,239 +1,54 @@
 // src/audio/playbackService.js
 // Background service for react-native-track-player
-// Handles remote control events from iOS (lock screen, Control Center, AirPods)
+// Handles remote control events from iOS lock screen, Control Center, and AirPods
 
-const trackPlayerModule = require("react-native-track-player");
+const TrackPlayer =
+  require("react-native-track-player").default ||
+  require("react-native-track-player");
+const { Event } = require("react-native-track-player");
 
-// Make sure we get the actual TrackPlayer instance (default export or module)
-const TrackPlayer = trackPlayerModule.default || trackPlayerModule;
-// Event enum – from module or from TrackPlayer
-// Fallback to string event names if Event enum is not available
-const Event = trackPlayerModule.Event || TrackPlayer.Event || {
-  RemotePlay: 'remote-play',
-  RemotePause: 'remote-pause',
-  RemoteStop: 'remote-stop',
-  RemoteNext: 'remote-next',
-  RemotePrevious: 'remote-previous',
-  RemoteSeek: 'remote-seek',
-  RemoteJumpForward: 'remote-jump-forward',
-  RemoteJumpBackward: 'remote-jump-backward',
-};
-
-// ⚠️ NOTE: These won't work cross-runtime on iOS (app JS vs service JS)
-// but we can keep them for Android / future tweaks if needed.
-let playNextTrack = null;
-let playPreviousTrack = null;
-let stopGlobalAudio = null;
-
-function setQueueNavigationCallbacks(callbacks) {
-  playNextTrack = callbacks?.playNextTrack || null;
-  playPreviousTrack = callbacks?.playPreviousTrack || null;
-  stopGlobalAudio = callbacks?.stopGlobalAudio || null;
-}
-
-// Default export for TrackPlayer playback service
-// TrackPlayer will call this function when setupPlayer() is called
-// Can be sync or async - event listeners must be registered immediately
 module.exports = async function playbackService() {
-  console.log("🛰️🛰️🛰️ RHOOD playbackService FUNCTION CALLED BY TRACKPLAYER");
-  console.log("🛰️ RHOOD playbackService started");
-
-  // Validate TrackPlayer and Event are available
-  if (!TrackPlayer) {
-    console.error("❌ [SERVICE] TrackPlayer is null or undefined");
-    return;
-  }
-
-  if (typeof TrackPlayer.addEventListener !== "function") {
-    console.error(
-      "❌ [SERVICE] TrackPlayer.addEventListener is not a function",
-      {
-        TrackPlayerType: typeof TrackPlayer,
-        TrackPlayerKeys: Object.keys(TrackPlayer || {}),
-      }
-    );
-    return;
-  }
-
-  // Log Event availability for debugging
-  if (!Event) {
-    console.warn("⚠️ [SERVICE] Event enum not available, using string event names");
-  } else {
-    console.log("✅ [SERVICE] Event enum available:", Object.keys(Event));
-  }
-
-  console.log("✅ [SERVICE] TrackPlayer and Event validated successfully");
-  console.log("🔵 [SERVICE] TrackPlayer type:", typeof TrackPlayer);
-  console.log("🔵 [SERVICE] TrackPlayer.addEventListener type:", typeof TrackPlayer.addEventListener);
-
-  // Register remote control event listeners
-  console.log("🔵 [SERVICE] About to register RemotePlay listener...");
-  TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    console.log("🔊🔊🔊 REMOTE PLAY EVENT RECEIVED IN JAVASCRIPT SERVICE");
-    console.log("🔊 RemotePlay event received");
-    try {
-      const state = await TrackPlayer.getState();
-      const queue = await TrackPlayer.getQueue();
-      const activeTrack = await TrackPlayer.getActiveTrack();
-      const position = await TrackPlayer.getPosition();
-
-      console.log(
-        "🔊 [SERVICE] DIAGNOSTIC - Current state:",
-        state,
-        "Queue length:",
-        queue.length,
-        "Active track:",
-        activeTrack ? activeTrack.id : "none",
-        "Position:",
-        position
-      );
-
-      if (queue.length === 0) {
-        console.error("❌ [SERVICE] Queue is empty while music is playing!");
-        console.error(
-          "❌ [SERVICE] This means audio is coming from expo-av, not TrackPlayer!"
-        );
-        console.error(
-          "❌ [SERVICE] Check App.js - ensure iOS uses ONLY TrackPlayer for playback"
-        );
-        return;
-      }
-
-      // Call play() directly - TrackPlayer will handle track activation
-      await TrackPlayer.play();
-      const newState = await TrackPlayer.getState();
-      const newPosition = await TrackPlayer.getPosition();
-      console.log(
-        "✅ [SERVICE] TrackPlayer.play() called, new state:",
-        newState,
-        "new position:",
-        newPosition
-      );
-    } catch (error) {
-      console.error("❌ [SERVICE] RemotePlay error:", error);
-    }
+  // Play button pressed
+  TrackPlayer.addEventListener(Event.RemotePlay, () => {
+    TrackPlayer.play();
   });
 
-  console.log("🔵 [SERVICE] About to register RemotePause listener...");
-  TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    console.log("⏸️⏸️⏸️ REMOTE PAUSE EVENT RECEIVED IN JAVASCRIPT SERVICE");
-    console.log("⏸️ RemotePause event received");
-    try {
-      const state = await TrackPlayer.getState();
-      const queue = await TrackPlayer.getQueue();
-      const activeTrack = await TrackPlayer.getActiveTrack();
-
-      console.log(
-        "⏸️ [SERVICE] DIAGNOSTIC - Current state:",
-        state,
-        "Queue length:",
-        queue.length,
-        "Active track:",
-        activeTrack ? activeTrack.id : "none"
-      );
-
-      if (queue.length === 0) {
-        console.error("❌ [SERVICE] Queue is empty while music is playing!");
-        console.error(
-          "❌ [SERVICE] This means audio is coming from expo-av, not TrackPlayer!"
-        );
-      }
-
-      await TrackPlayer.pause();
-      const newState = await TrackPlayer.getState();
-      console.log(
-        "✅ [SERVICE] TrackPlayer.pause() called, new state:",
-        newState
-      );
-    } catch (error) {
-      console.error("❌ [SERVICE] RemotePause error:", error);
-    }
+  // Pause button pressed
+  TrackPlayer.addEventListener(Event.RemotePause, () => {
+    TrackPlayer.pause();
   });
 
-  TrackPlayer.addEventListener(Event.RemoteStop, async () => {
-    console.log("⏹️ RemoteStop event received");
-    try {
-      if (stopGlobalAudio) {
-        await stopGlobalAudio();
-      } else {
-        await TrackPlayer.stop();
-        await TrackPlayer.reset();
-      }
-    } catch (error) {
-      console.error("RemoteStop error:", error);
-    }
+  // Stop button pressed
+  TrackPlayer.addEventListener(Event.RemoteStop, () => {
+    TrackPlayer.stop();
   });
 
-  TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-    console.log("⏭️ RemoteNext event received");
-    try {
-      if (playNextTrack) {
-        await playNextTrack();
-      } else {
-        try {
-          await TrackPlayer.skipToNext();
-        } catch (skipError) {
-          console.log("No next track available");
-        }
-      }
-    } catch (error) {
-      console.error("RemoteNext error:", error);
-    }
+  // Next button pressed
+  TrackPlayer.addEventListener(Event.RemoteNext, () => {
+    TrackPlayer.skipToNext();
   });
 
-  TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-    console.log("⏮️ RemotePrevious event received");
-    try {
-      if (playPreviousTrack) {
-        await playPreviousTrack();
-      } else {
-        try {
-          await TrackPlayer.skipToPrevious();
-        } catch (skipError) {
-          console.log("No previous track available");
-        }
-      }
-    } catch (error) {
-      console.error("RemotePrevious error:", error);
-    }
+  // Previous button pressed
+  TrackPlayer.addEventListener(Event.RemotePrevious, () => {
+    TrackPlayer.skipToPrevious();
   });
 
-  TrackPlayer.addEventListener(Event.RemoteSeek, async (data) => {
-    console.log("⏩ RemoteSeek to", data.position);
-    try {
-      await TrackPlayer.seekTo(data.position);
-    } catch (error) {
-      console.error("RemoteSeek error:", error);
-    }
+  // Seek/scrub
+  TrackPlayer.addEventListener(Event.RemoteSeek, (event) => {
+    TrackPlayer.seekTo(event.position);
   });
 
-  TrackPlayer.addEventListener(Event.RemoteJumpForward, async (data) => {
-    console.log("⏩ RemoteJumpForward", data.interval);
-    try {
-      const position = await TrackPlayer.getPosition();
-      await TrackPlayer.seekTo(position + (data.interval || 15));
-    } catch (error) {
-      console.error("RemoteJumpForward error:", error);
-    }
+  // Jump forward
+  TrackPlayer.addEventListener(Event.RemoteJumpForward, (event) => {
+    TrackPlayer.getPosition().then((position) => {
+      TrackPlayer.seekTo(position + (event.interval || 15));
+    });
   });
 
-  TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (data) => {
-    console.log("⏪ RemoteJumpBackward", data.interval);
-    try {
-      const position = await TrackPlayer.getPosition();
-      await TrackPlayer.seekTo(Math.max(0, position - (data.interval || 15)));
-    } catch (error) {
-      console.error("RemoteJumpBackward error:", error);
-    }
+  // Jump backward
+  TrackPlayer.addEventListener(Event.RemoteJumpBackward, (event) => {
+    TrackPlayer.getPosition().then((position) => {
+      TrackPlayer.seekTo(Math.max(0, position - (event.interval || 15)));
+    });
   });
-
-  console.log("✅✅✅ [SERVICE] ALL EVENT LISTENERS REGISTERED SUCCESSFULLY");
-  console.log("✅ [SERVICE] All event listeners registered successfully");
-  console.log(
-    "🔵 [SERVICE] Service function completed, returning to TrackPlayer"
-  );
 };
-
-// Also export setQueueNavigationCallbacks for UI code to use
-// Attach it to the exported function
-module.exports.setQueueNavigationCallbacks = setQueueNavigationCallbacks;
