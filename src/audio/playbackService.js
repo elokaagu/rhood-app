@@ -59,23 +59,39 @@ module.exports = function playbackService() {
     try {
       const state = await TrackPlayer.getState();
       const queue = await TrackPlayer.getQueue();
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      const position = await TrackPlayer.getPosition();
+      
       console.log(
-        "🔊 [SERVICE] Current state:",
+        "🔊 [SERVICE] DIAGNOSTIC - Current state:",
         state,
         "Queue length:",
-        queue.length
+        queue.length,
+        "Active track:",
+        activeTrack ? activeTrack.id : "none",
+        "Position:",
+        position
       );
 
       if (queue.length === 0) {
-        console.warn("⚠️ [SERVICE] Queue is empty, cannot play");
+        console.error("❌ [SERVICE] Queue is empty while music is playing!");
+        console.error("❌ [SERVICE] This means audio is coming from expo-av, not TrackPlayer!");
+        console.error("❌ [SERVICE] Check App.js - ensure iOS uses ONLY TrackPlayer for playback");
         return;
+      }
+
+      if (!activeTrack) {
+        console.warn("⚠️ [SERVICE] No active track, but queue has", queue.length, "tracks");
       }
 
       await TrackPlayer.play();
       const newState = await TrackPlayer.getState();
+      const newPosition = await TrackPlayer.getPosition();
       console.log(
         "✅ [SERVICE] TrackPlayer.play() called, new state:",
-        newState
+        newState,
+        "new position:",
+        newPosition
       );
     } catch (error) {
       console.error("❌ [SERVICE] RemotePlay error:", error);
@@ -86,7 +102,22 @@ module.exports = function playbackService() {
     console.log("⏸️ RemotePause event received");
     try {
       const state = await TrackPlayer.getState();
-      console.log("⏸️ [SERVICE] Current state before pause:", state);
+      const queue = await TrackPlayer.getQueue();
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      
+      console.log(
+        "⏸️ [SERVICE] DIAGNOSTIC - Current state:",
+        state,
+        "Queue length:",
+        queue.length,
+        "Active track:",
+        activeTrack ? activeTrack.id : "none"
+      );
+
+      if (queue.length === 0) {
+        console.error("❌ [SERVICE] Queue is empty while music is playing!");
+        console.error("❌ [SERVICE] This means audio is coming from expo-av, not TrackPlayer!");
+      }
 
       await TrackPlayer.pause();
       const newState = await TrackPlayer.getState();

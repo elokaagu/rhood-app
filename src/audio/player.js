@@ -122,14 +122,25 @@ export async function playTrack(track) {
 
   // Verify track was added
   const queue = await TrackPlayer.getQueue();
-  console.log("✅ [PLAYER] Track added, queue length:", queue.length);
+  const activeTrack = await TrackPlayer.getActiveTrack();
+  console.log("✅ [PLAYER] Track added, queue length:", queue.length, "active track:", activeTrack ? activeTrack.id : "none");
+
+  if (queue.length === 0) {
+    throw new Error("Track was not added to queue!");
+  }
 
   console.log("🎵 [PLAYER] Starting playback...");
   await TrackPlayer.play();
 
   // Verify playback started
+  await new Promise(resolve => setTimeout(resolve, 300)); // Wait for state to update
   const state = await TrackPlayer.getState();
-  console.log("✅ [PLAYER] Playback started, state:", state);
+  const position = await TrackPlayer.getPosition();
+  console.log("✅ [PLAYER] Playback started, state:", state, "position:", position);
+  
+  if (state !== State.Playing) {
+    console.error("❌ [PLAYER] WARNING: TrackPlayer.play() was called but state is not Playing:", state);
+  }
 }
 
 /**
