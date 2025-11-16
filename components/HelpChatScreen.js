@@ -251,7 +251,13 @@ export default function HelpChatScreen({ user, onBack }) {
         text: reply.text,
         sender: "bot",
         timestamp: new Date(),
-        quickActions: reply.quickActions,
+        quickActions:
+          reply.quickActions && reply.quickActions.length
+            ? reply.quickActions
+            : [
+                // Offer ticket creation when answer seems generic
+                { text: "Raise a support ticket", action: "escalate" },
+              ],
       };
       setIsTyping(false);
       setMessages((prev) => [...prev, botMessage]);
