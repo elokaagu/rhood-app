@@ -16,7 +16,7 @@ import {
   sharedStyles,
 } from "../lib/sharedStyles";
 
-export default function HelpCenterScreen({ onBack }) {
+export default function HelpCenterScreen({ onBack, onNavigate }) {
   const [expandedSections, setExpandedSections] = useState({});
 
   const toggleSection = (sectionId) => {
@@ -55,14 +55,35 @@ export default function HelpCenterScreen({ onBack }) {
         <View style={styles.quickLinksSection}>
           <Text style={styles.sectionTitle}>Quick Links</Text>
           <TouchableOpacity
+            style={[styles.quickLinkCard, styles.primaryQuickLinkCard]}
+            onPress={() => {
+              if (onNavigate) {
+                onNavigate("help-chat");
+              }
+            }}
+          >
+            <Ionicons name="chatbubbles" size={24} color="hsl(75, 100%, 60%)" />
+            <View style={styles.quickLinkContent}>
+              <Text style={styles.quickLinkTitle}>Chat with Support</Text>
+              <Text style={styles.quickLinkSubtitle}>
+                Get instant help from our support bot
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color="hsl(0, 0%, 50%)"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.quickLinkCard}
             onPress={handleContactSupport}
           >
             <Ionicons name="mail" size={24} color="hsl(75, 100%, 60%)" />
             <View style={styles.quickLinkContent}>
-              <Text style={styles.quickLinkTitle}>Contact Support</Text>
+              <Text style={styles.quickLinkTitle}>Email Support</Text>
               <Text style={styles.quickLinkSubtitle}>
-                Get help from our team
+                Send us an email directly
               </Text>
             </View>
             <Ionicons
@@ -390,6 +411,11 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
+    marginBottom: SPACING.sm,
+  },
+  primaryQuickLinkCard: {
+    borderColor: "hsl(75, 100%, 60%)",
+    borderWidth: 2,
   },
   quickLinkContent: {
     flex: 1,

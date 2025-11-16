@@ -96,10 +96,7 @@ const SplashScreen = ({ onFinish }) => {
     setVideoError(true);
   };
 
-  // Wait for fonts to load
-  if (!fontsLoaded) {
-    return null;
-  }
+  // Don't block rendering if fonts aren't ready; fall back to system font
 
   // Calculate rotation transform
   const rotateInterpolate = rotateAnim.interpolate({

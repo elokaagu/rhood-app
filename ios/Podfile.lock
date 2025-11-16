@@ -49,17 +49,17 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - expo-dev-client (6.0.16):
+  - expo-dev-client (6.0.17):
     - EXManifests
     - expo-dev-launcher
     - expo-dev-menu
     - expo-dev-menu-interface
     - EXUpdatesInterface
-  - expo-dev-launcher (6.0.16):
+  - expo-dev-launcher (6.0.17):
     - boost
     - DoubleConversion
     - EXManifests
-    - expo-dev-launcher/Main (= 6.0.16)
+    - expo-dev-launcher/Main (= 6.0.17)
     - expo-dev-menu
     - expo-dev-menu-interface
     - ExpoModulesCore
@@ -92,7 +92,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - expo-dev-launcher/Main (6.0.16):
+  - expo-dev-launcher/Main (6.0.17):
     - boost
     - DoubleConversion
     - EXManifests
@@ -129,7 +129,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - expo-dev-launcher/Unsafe (6.0.16):
+  - expo-dev-launcher/Unsafe (6.0.17):
     - boost
     - DoubleConversion
     - EXManifests
@@ -165,11 +165,11 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - expo-dev-menu (7.0.15):
+  - expo-dev-menu (7.0.16):
     - boost
     - DoubleConversion
-    - expo-dev-menu/Main (= 7.0.15)
-    - expo-dev-menu/ReactNativeCompatibles (= 7.0.15)
+    - expo-dev-menu/Main (= 7.0.16)
+    - expo-dev-menu/ReactNativeCompatibles (= 7.0.16)
     - fast_float
     - fmt
     - glog
@@ -196,7 +196,7 @@ PODS:
     - SocketRocket
     - Yoga
   - expo-dev-menu-interface (2.0.0)
-  - expo-dev-menu/Main (7.0.15):
+  - expo-dev-menu/Main (7.0.16):
     - boost
     - DoubleConversion
     - EXManifests
@@ -228,7 +228,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - expo-dev-menu/ReactNativeCompatibles (7.0.15):
+  - expo-dev-menu/ReactNativeCompatibles (7.0.16):
     - boost
     - DoubleConversion
     - fast_float
@@ -3046,9 +3046,9 @@ SPEC CHECKSUMS:
   EXManifests: 224345a575fca389073c416297b6348163f28d1a
   EXNotifications: 7cff475adb5d7a255a9ea46bbd2589cb3b454506
   Expo: a07756d8b898f3c151e98cf57354400edd272bec
-  expo-dev-client: 974463bca58c100a32f099450e9413893bee3de8
-  expo-dev-launcher: 31960c9440aea2dc13ba7f6fd616ae345a04b5de
-  expo-dev-menu: 4e31300648128fa607adf0df2be580cbee3bb7b4
+  expo-dev-client: b6e7b4f4063ae44b5e68cc6a8bcc0c79c3037c1a
+  expo-dev-launcher: 676301f4f96f54bf1f81e9d1cfd718cd75084e70
+  expo-dev-menu: 6009ebffa2e97e232f4ebe40a334e1921b844a62
   expo-dev-menu-interface: 600df12ea01efecdd822daaf13cc0ac091775533
   ExpoAppleAuthentication: bc9de6e9ff3340604213ab9031d4c4f7f802623e
   ExpoAsset: 9ba6fbd677fb8e241a3899ac00fa735bc911eadf

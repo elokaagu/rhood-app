@@ -1316,7 +1316,7 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     marginTop: 16,
     marginBottom: 8,
-    fontFamily: "TS Block Bold",
+    fontFamily: "TS-Block-Bold",
   },
   emptyAudioSubtitle: {
     fontSize: 14,

@@ -81,6 +81,7 @@ import AboutScreen from "./components/AboutScreen";
 import TermsOfServiceScreen from "./components/TermsOfServiceScreen";
 import PrivacyPolicyScreen from "./components/PrivacyPolicyScreen";
 import HelpCenterScreen from "./components/HelpCenterScreen";
+import HelpChatScreen from "./components/HelpChatScreen";
 // Push notifications - gracefully handle Expo Go limitations
 import {
   registerForPushNotifications,
@@ -3212,7 +3213,7 @@ export default function App() {
   // Wait for fonts to load
   if (!fontsLoaded) {
     console.log("⏳ App: Waiting for fonts to load...");
-    return null; // or a loading screen
+    // Do not block rendering; continue with system fonts until ready
   }
 
   // Show splash screen first
@@ -3581,7 +3582,23 @@ export default function App() {
         );
 
       case "help":
-        return <HelpCenterScreen onBack={() => setCurrentScreen("settings")} />;
+        return (
+          <HelpCenterScreen
+            onBack={() => setCurrentScreen("settings")}
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
+          />
+        );
+
+      case "help-chat":
+        return (
+          <HelpChatScreen
+            user={user}
+            onBack={() => setCurrentScreen("help")}
+          />
+        );
 
       case "listen":
         return (

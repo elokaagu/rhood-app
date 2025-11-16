@@ -75,13 +75,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
     return insets.top + HEADER_HEIGHT_ESTIMATE;
   }, [insets.top]);
 
+  // Extra space to account for the overlaid bottom tab bar
+  const tabBarOverlayOffset = 96; // approximate height incl. shadow/rounding
+
   const bottomInputPadding = useMemo(() => {
     const BASE_PADDING = 12;
-    return BASE_PADDING + Math.max(insets.bottom, 10);
+    return BASE_PADDING + Math.max(insets.bottom, 10) + tabBarOverlayOffset;
   }, [insets.bottom]);
 
   const scrollBottomPadding = useMemo(
-    () => bottomInputPadding + 64,
+    () => bottomInputPadding + 24,
     [bottomInputPadding]
   );
 
@@ -2221,7 +2224,7 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 60%)",
     fontSize: 16,
     fontWeight: "700",
-    fontFamily: "TS Block Bold",
+    fontFamily: "TS-Block-Bold",
     marginBottom: 2,
     letterSpacing: 0.5,
   },
@@ -2254,7 +2257,7 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 60%)",
     fontSize: 24,
     fontWeight: "700",
-    fontFamily: "TS Block Bold",
+    fontFamily: "TS-Block-Bold",
     marginBottom: 12,
     textAlign: "center",
     letterSpacing: 0.5,
@@ -2497,7 +2500,7 @@ const styles = StyleSheet.create({
   connectButtonText: {
     color: "hsl(0, 0%, 0%)",
     fontSize: 16,
-    fontFamily: "TS Block Bold",
+    fontFamily: "TS-Block-Bold",
     fontWeight: "600",
   },
   attachButton: {
