@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Markdown from "react-native-markdown-display";
 import {
   COLORS,
   TYPOGRAPHY,
@@ -28,6 +30,19 @@ export default function HelpChatScreen({ user, onBack }) {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef(null);
+  const insets = useSafeAreaInsets();
+
+  // Match MessagesScreen bottom insets logic
+  const TAB_BAR_OVERLAY_OFFSET = 96;
+  const bottomInputPadding = useMemo(() => {
+    const BASE_PADDING = 12;
+    return BASE_PADDING + Math.max(insets.bottom, 10) + TAB_BAR_OVERLAY_OFFSET;
+  }, [insets.bottom]);
+
+  const scrollBottomPadding = useMemo(
+    () => bottomInputPadding + 24,
+    [bottomInputPadding]
+  );
 
   // Initialize with welcome message
   useEffect(() => {
@@ -347,14 +362,19 @@ export default function HelpChatScreen({ user, onBack }) {
             isUser ? styles.userMessageBubble : styles.botMessageBubble,
           ]}
         >
-          <Text
-            style={[
-              styles.messageText,
-              isUser ? styles.userMessageText : styles.botMessageText,
-            ]}
-          >
-            {message.text}
-          </Text>
+          {isUser ? (
+            <Text
+              style={[styles.messageText, styles.userMessageText]}
+            >
+              {message.text}
+            </Text>
+          ) : (
+            <Markdown
+              style={markdownStyles}
+            >
+              {message.text}
+            </Markdown>
+          )}
         </View>
         {message.quickActions && message.quickActions.length > 0 && (
           <View style={styles.quickActionsContainer}>
@@ -396,7 +416,7 @@ export default function HelpChatScreen({ user, onBack }) {
         <ScrollView
           ref={scrollViewRef}
           style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
+          contentContainerStyle={[styles.messagesContent, { paddingBottom: scrollBottomPadding }]}
           showsVerticalScrollIndicator={false}
         >
           {messages.map(renderMessage)}
@@ -408,7 +428,7 @@ export default function HelpChatScreen({ user, onBack }) {
         </ScrollView>
 
         {/* Input */}
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}>
           <TextInput
             style={styles.input}
             placeholder="Type your message..."
@@ -587,4 +607,41 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.backgroundSecondary,
   },
 });
+
+const markdownStyles = {
+  body: {
+    color: COLORS.textPrimary,
+    fontFamily: TYPOGRAPHY.primary,
+    fontSize: TYPOGRAPHY.base,
+    lineHeight: 20,
+  },
+  heading3: {
+    ...sharedStyles.tsBlockBoldHeading,
+    fontSize: 16,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  strong: {
+    fontWeight: "700",
+  },
+  bullet_list: {
+    marginVertical: 4,
+  },
+  ordered_list: {
+    marginVertical: 4,
+  },
+  list_item: {
+    flexDirection: "row",
+  },
+  paragraph: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  code_inline: {
+    backgroundColor: COLORS.backgroundTertiary,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+};
 
