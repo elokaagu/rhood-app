@@ -492,8 +492,10 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.md,
   },
   headerTitle: {
-    ...sharedStyles.tsBlockBoldHeading,
     fontSize: 20,
+    fontFamily: "TS-Block-Bold",
+    fontWeight: "700",
+    color: COLORS.textPrimary,
   },
   headerSubtitle: {
     fontSize: 12,
