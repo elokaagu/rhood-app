@@ -33,10 +33,10 @@ export default function HelpChatScreen({ user, onBack }) {
   const scrollViewRef = useRef(null);
   const insets = useSafeAreaInsets();
 
-  // Match MessagesScreen bottom insets logic
-  const TAB_BAR_OVERLAY_OFFSET = 96;
+  // Reduced padding to sit just above bottom tab bar
+  const TAB_BAR_OVERLAY_OFFSET = 70; // Reduced from 96 for tighter spacing
   const bottomInputPadding = useMemo(() => {
-    const BASE_PADDING = 12;
+    const BASE_PADDING = 8; // Reduced from 12
     return BASE_PADDING + Math.max(insets.bottom, 10) + TAB_BAR_OVERLAY_OFFSET;
   }, [insets.bottom]);
 
