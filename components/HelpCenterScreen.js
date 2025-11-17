@@ -30,6 +30,36 @@ export default function HelpCenterScreen({ onBack, onNavigate }) {
     Linking.openURL("mailto:hello@rhood.io?subject=Help Request");
   };
 
+  const handleSupportLinkPress = () => {
+    Linking.openURL("mailto:hello@rhood.io?subject=Help Request");
+  };
+
+  const renderTextWithLinks = (text, textStyle = styles.answerText) => {
+    if (!text) return null;
+    
+    // Replace "here" with a clickable link when it's in support context
+    const parts = text.split(/(\bhere\b)/gi);
+    
+    return (
+      <Text style={textStyle}>
+        {parts.map((part, index) => {
+          if (part.toLowerCase() === "here") {
+            return (
+              <Text
+                key={index}
+                style={styles.linkText}
+                onPress={handleSupportLinkPress}
+              >
+                {part}
+              </Text>
+            );
+          }
+          return part;
+        })}
+      </Text>
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -117,13 +147,13 @@ export default function HelpCenterScreen({ onBack, onNavigate }) {
                 </TouchableOpacity>
                 {expandedSections[item.id] && (
                   <View style={styles.faqAnswer}>
-                    <Text style={styles.answerText}>{item.answer}</Text>
+                    {renderTextWithLinks(item.answer)}
                     {item.bullets && (
                       <View style={styles.bulletList}>
                         {item.bullets.map((bullet, index) => (
                           <View key={index} style={styles.bulletItem}>
                             <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.bulletText}>{bullet}</Text>
+                            {renderTextWithLinks(bullet, styles.bulletText)}
                           </View>
                         ))}
                       </View>
@@ -292,7 +322,7 @@ const helpSections = [
         id: "delete-account",
         question: "How do I delete my account?",
         answer:
-          "To delete your account, please contact our support team at hello@rhood.io. We'll help you through the process and answer any questions.",
+          "To delete your account, please contact our support team here. We'll help you through the process and answer any questions.",
       },
       {
         id: "privacy",
@@ -316,7 +346,7 @@ const helpSections = [
           "Try resetting your password if you forgot it",
           "Check your internet connection",
           "If using social sign-in, make sure you're using the same account you signed up with",
-          "Contact support at hello@rhood.io if the problem persists",
+          "Contact support here if the problem persists",
         ],
       },
       {
@@ -496,6 +526,10 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 85%)",
     lineHeight: 20,
+  },
+  linkText: {
+    color: "hsl(75, 100%, 60%)",
+    textDecorationLine: "underline",
   },
   contactSection: {
     marginTop: SPACING.xl,

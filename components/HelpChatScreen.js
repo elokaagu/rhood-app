@@ -50,13 +50,13 @@ export default function HelpChatScreen({ user, onBack }) {
     const loadConversationHistory = async () => {
       if (!user?.id) {
         // Show welcome message for anonymous users
-        const welcomeMessage = {
-          id: "welcome",
-          text: "Hi! I'm here to help. What can I assist you with today?",
-          sender: "bot",
-          timestamp: new Date(),
-        };
-        setMessages([welcomeMessage]);
+    const welcomeMessage = {
+      id: "welcome",
+      text: "Hi! I'm here to help. What can I assist you with today?",
+      sender: "bot",
+      timestamp: new Date(),
+    };
+    setMessages([welcomeMessage]);
         return;
       }
 
@@ -461,11 +461,11 @@ export default function HelpChatScreen({ user, onBack }) {
           ]}
         >
           {isUser ? (
-            <Text
+          <Text
               style={[styles.messageText, styles.userMessageText]}
-            >
-              {message.text}
-            </Text>
+          >
+            {message.text}
+          </Text>
           ) : (
             <Markdown
               style={markdownStyles}
@@ -528,23 +528,23 @@ export default function HelpChatScreen({ user, onBack }) {
         {/* Input */}
         <View style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}>
           <View style={styles.inputWrapper}>
-            <TextInput
+          <TextInput
               style={styles.messageInput}
               placeholder="Type a message..."
               placeholderTextColor="hsl(0, 0%, 50%)"
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
               maxHeight={100}
-              maxLength={500}
+            maxLength={500}
               onSubmitEditing={() => handleSendMessage()}
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
                 (!inputText.trim() || isTyping) && styles.sendButtonDisabled,
-              ]}
-              onPress={() => handleSendMessage()}
+            ]}
+            onPress={() => handleSendMessage()}
               disabled={!inputText.trim() || isTyping}
             >
               {isTyping ? (
@@ -552,7 +552,7 @@ export default function HelpChatScreen({ user, onBack }) {
               ) : (
                 <Ionicons name="send" size={20} color="hsl(0, 0%, 0%)" />
               )}
-            </TouchableOpacity>
+          </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>

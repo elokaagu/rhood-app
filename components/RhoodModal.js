@@ -95,7 +95,7 @@ const RhoodModal = ({
             style={styles.linkText}
             onPress={() => handleLinkPress(segment)}
           >
-            {segment}
+            here
           </Text>
         );
       }
@@ -576,8 +576,9 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   linkText: {
-    color: COLORS.primary,
+    color: "hsl(75, 100%, 60%)",
     textDecorationLine: "underline",
+    fontWeight: "500",
   },
   applicationsContainer: {
     flexDirection: "row",
