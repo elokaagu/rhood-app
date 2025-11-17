@@ -29,6 +29,8 @@
         "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select images and videos for messages",
         "NSMicrophoneUsageDescription": "This app needs access to microphone to record audio for messages",
         "NSUserNotificationsUsageDescription": "This app needs notification permissions to show music controls on the lock screen",
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to show nearby opportunities and calculate distances.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to show nearby opportunities and calculate distances.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLName": "rhoodapp",
@@ -54,7 +56,9 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "notification": {
@@ -78,6 +82,12 @@
           "icon": "./assets/rhood_logo.png",
           "color": "#ffffff",
           "iosDisplayInForeground": true
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "This app needs access to your location to show nearby opportunities and calculate distances."
         }
       ]
     ],

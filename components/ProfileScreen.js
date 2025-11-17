@@ -46,6 +46,7 @@ export default function ProfileScreen({
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackPosition, setPlaybackPosition] = useState(0);
   const [playbackDuration, setPlaybackDuration] = useState(0);
+  const [connectionsCount, setConnectionsCount] = useState(0);
   const soundRef = useRef(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
 
@@ -163,16 +164,20 @@ export default function ProfileScreen({
         console.error("❌ Error loading gigs:", gigsError);
       }
 
-      // Load user's achievements and credits
+      // Load user's achievements, credits, and connections count
       let achievements = [];
       let creditsValue = Number(userProfile.credits ?? 0);
+      let connections = 0;
       try {
-        const [allAchievements, userAchievements, fetchedCredits] =
+        const [allAchievements, userAchievements, fetchedCredits, connectionsData] =
           await Promise.all([
           db.getAchievements(),
           db.getUserAchievements(user.id),
             db.getUserCredits(user.id),
+            db.getUserConnections(user.id, "accepted"), // Only count accepted connections
         ]);
+        
+        connections = connectionsData?.length || 0;
 
         if (allAchievements && allAchievements.length > 0) {
           const earnedIds = new Set(
@@ -190,6 +195,7 @@ export default function ProfileScreen({
         if (Number.isFinite(fetchedCredits)) {
           creditsValue = fetchedCredits;
         }
+        setConnectionsCount(connections);
       } catch (achievementsError) {
         console.error("❌ Error loading achievements:", achievementsError);
       }
@@ -488,6 +494,37 @@ export default function ProfileScreen({
           ))}
         </View>
       </View>
+    );
+  };
+
+  const renderConnections = () => {
+    return (
+      <TouchableOpacity
+        style={styles.connectionsContainer}
+        onPress={() => onNavigate && onNavigate("connections-list")}
+        activeOpacity={0.7}
+      >
+        <View style={styles.connectionsHeader}>
+          <View style={styles.connectionsIconContainer}>
+            <Ionicons
+              name="people"
+              size={24}
+              color="hsl(75, 100%, 60%)"
+            />
+          </View>
+          <View style={styles.connectionsInfo}>
+            <Text style={styles.connectionsTitle}>Connections</Text>
+            <Text style={styles.connectionsCount}>
+              {connectionsCount} {connectionsCount === 1 ? "connection" : "connections"}
+            </Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color="hsl(0, 0%, 50%)"
+          />
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -859,6 +896,9 @@ export default function ProfileScreen({
 
         {/* Achievements */}
         {renderAchievements()}
+
+        {/* Connections */}
+        {renderConnections()}
       </ScrollView>
 
       {/* Bottom gradient fade overlay */}
@@ -1278,6 +1318,44 @@ const styles = StyleSheet.create({
   },
   achievementTextEarned: {
     color: "hsl(0, 0%, 100%)",
+  },
+  connectionsContainer: {
+    marginTop: 0,
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  connectionsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  connectionsIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  connectionsInfo: {
+    flex: 1,
+  },
+  connectionsTitle: {
+    fontSize: 16,
+    fontFamily: "TS-Block-Bold",
+    fontWeight: "700",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  connectionsCount: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Helvetica Neue",
   },
   uploadButton: {
     marginHorizontal: 20,

@@ -325,13 +325,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
         type: selectedFile.mimeType,
       });
 
-      // Validate audio file format
+      // Validate audio file format - Only MP3 or WAV allowed
       const fileExt = selectedFile.name.split(".").pop().toLowerCase();
-      const validFormats = ["mp3", "wav", "m4a", "aac", "ogg", "flac"];
+      const validFormats = ["mp3", "wav"];
       if (!validFormats.includes(fileExt)) {
         Alert.alert(
           "Invalid Format",
-          `Please select a valid audio file (${validFormats.join(", ")})`
+          "Please select an MP3 or WAV audio file only."
         );
         setUploading(false);
         return;

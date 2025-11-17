@@ -82,11 +82,18 @@ import TermsOfServiceScreen from "./components/TermsOfServiceScreen";
 import PrivacyPolicyScreen from "./components/PrivacyPolicyScreen";
 import HelpCenterScreen from "./components/HelpCenterScreen";
 import HelpChatScreen from "./components/HelpChatScreen";
+import ConnectionsListScreen from "./components/ConnectionsListScreen";
 // Push notifications - gracefully handle Expo Go limitations
 import {
   registerForPushNotifications,
   setupNotificationListeners,
 } from "./lib/pushNotifications";
+import {
+  getCurrentLocation,
+  calculateDistance,
+  formatDistance,
+  checkLocationMatch,
+} from "./lib/locationService";
 
 // Static Album Art Component
 const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
@@ -247,6 +254,14 @@ export default function App() {
 
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
+
+  // Complete profile modal state
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
+  const [hasShownCompleteProfileModal, setHasShownCompleteProfileModal] = useState(false);
+
+  // Location state
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationMismatchWarning, setLocationMismatchWarning] = useState(false);
   const [showFullScreenMenu, setShowFullScreenMenu] = useState(false);
 
   // Gesture handlers for full-screen player
@@ -856,6 +871,17 @@ export default function App() {
         // For login flow, always go to opportunities page
         console.log("🎯 Login successful - navigating to opportunities");
         setCurrentScreen("opportunities");
+
+        // Check if profile picture is missing and show complete profile modal
+        if (!profile.profile_image_url && !hasShownCompleteProfileModal) {
+          setTimeout(() => {
+            setShowCompleteProfileModal(true);
+            setHasShownCompleteProfileModal(true);
+          }, 1000);
+        }
+
+        // Fetch user location and check for mismatch
+        fetchUserLocation(profile);
       } else {
         console.log("⚠️ No profile found after OAuth - user needs onboarding");
         console.log("🔍 Profile query returned:", profile);
@@ -897,18 +923,40 @@ export default function App() {
     setShowEditProfile(true);
   };
 
-  const handleProfileSaved = (updatedProfile) => {
+  const handleProfileSaved = async (updatedProfile) => {
     setShowEditProfile(false);
-    // Update the local djProfile state with the updated profile
-    setDjProfile({
-      djName: updatedProfile.dj_name,
-      firstName: updatedProfile.first_name || "",
-      lastName: updatedProfile.last_name || "",
-      instagram: updatedProfile.instagram || "",
-      soundcloud: updatedProfile.soundcloud || "",
-      city: updatedProfile.city,
-      genres: updatedProfile.genres,
-    });
+    
+    // Refresh profile from database to get latest data including profile_image_url
+    try {
+      if (user?.id) {
+        const refreshedProfile = await db.getUserProfile(user.id);
+        if (refreshedProfile) {
+          setDjProfile(refreshedProfile);
+          
+          // If profile picture was added, close the complete profile modal
+          if (refreshedProfile.profile_image_url) {
+            setShowCompleteProfileModal(false);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+      // Fallback to using updatedProfile if refresh fails
+      setDjProfile({
+        djName: updatedProfile.dj_name,
+        firstName: updatedProfile.first_name || "",
+        lastName: updatedProfile.last_name || "",
+        instagram: updatedProfile.instagram || "",
+        soundcloud: updatedProfile.soundcloud || "",
+        city: updatedProfile.city,
+        genres: updatedProfile.genres,
+      });
+      
+      // If profile picture was added, close the complete profile modal
+      if (updatedProfile.profile_image_url) {
+        setShowCompleteProfileModal(false);
+      }
+    }
     // Also save to AsyncStorage for offline access
     AsyncStorage.setItem(
       "djProfile",
@@ -926,6 +974,49 @@ export default function App() {
 
   const handleProfileCancel = () => {
     setShowEditProfile(false);
+  };
+
+  // Fetch user location and check for mismatch with profile city
+  const fetchUserLocation = async (profile) => {
+    try {
+      const location = await getCurrentLocation();
+      if (location) {
+        setUserLocation(location);
+
+        // Check if location matches profile city
+        if (profile?.city) {
+          const matchResult = await checkLocationMatch(
+            profile.city,
+            location.latitude,
+            location.longitude
+          );
+
+          if (!matchResult.matches && matchResult.currentCity) {
+            setLocationMismatchWarning(true);
+            // Show warning modal after a short delay
+            setTimeout(() => {
+              showCustomModal({
+                type: "warning",
+                title: "Location Mismatch",
+                message: `Your current location (${matchResult.currentCity}) doesn't match your profile city (${profile.city}). Update your profile to show accurate opportunities.`,
+                primaryButtonText: "Update Profile",
+                secondaryButtonText: "Dismiss",
+                onPrimaryPress: () => {
+                  setShowModal(false);
+                  setShowEditProfile(true);
+                },
+                onSecondaryPress: () => {
+                  setShowModal(false);
+                  setLocationMismatchWarning(false);
+                },
+              });
+            }, 2000);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching location:", error);
+    }
   };
 
   const showLogin = () => {
@@ -2254,6 +2345,7 @@ export default function App() {
         compensation: opportunity.compensation,
         location: opportunity.location,
         description: opportunity.description,
+        distanceFormatted: opportunity.distanceFormatted,
       },
       primaryButtonText: "Apply",
       secondaryButtonText: "Close",
@@ -2312,6 +2404,7 @@ export default function App() {
         compensation: currentOpportunity.compensation,
         location: currentOpportunity.location,
         description: currentOpportunity.description,
+        distanceFormatted: currentOpportunity.distanceFormatted,
         applicationsRemainingText: `You have ${applicationsRemainingCount} applications remaining today.`,
       },
       primaryButtonText: "Apply Now",
@@ -2819,11 +2912,26 @@ export default function App() {
           createdAt &&
           createdAt.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
 
+        // Calculate distance if user location is available and opportunity has coordinates
+        let distance = null;
+        let distanceFormatted = null;
+        if (userLocation && opp.latitude && opp.longitude) {
+          distance = calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            opp.latitude,
+            opp.longitude
+          );
+          distanceFormatted = formatDistance(distance);
+        }
+
         return {
           id: opp.id,
           venue: opp.venue || "",
           title: opp.title,
           location: resolvedLocation,
+          distance,
+          distanceFormatted,
           date: formattedDate,
           rawDate: opp.event_date,
           time: formattedTime,
@@ -3190,13 +3298,20 @@ export default function App() {
       // Navigate to opportunities after onboarding completion
       setCurrentScreen("opportunities");
 
-      showCustomModal({
-        type: "success",
-        title: "Success",
-        message: "Welcome to R/HOOD! Your profile has been saved to the cloud.",
-        primaryButtonText: "OK",
-        onPrimaryPress: () => setShowModal(false),
-      });
+      // Check if profile picture is missing and show complete profile modal
+      if (!savedProfile?.profile_image_url) {
+        setTimeout(() => {
+          setShowCompleteProfileModal(true);
+        }, 1500); // Show after success modal closes
+      } else {
+        showCustomModal({
+          type: "success",
+          title: "Success",
+          message: "Welcome to R/HOOD! Your profile has been saved to the cloud.",
+          primaryButtonText: "OK",
+          onPrimaryPress: () => setShowModal(false),
+        });
+      }
     } catch (error) {
       console.error("❌ Error saving profile:", error);
       showCustomModal({
@@ -3561,6 +3676,18 @@ export default function App() {
             onResumeAudio={resumeGlobalAudio}
             onStopAudio={stopGlobalAudio}
             onBack={() => setCurrentScreen("connections")}
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
+          />
+        );
+
+      case "connections-list":
+        return (
+          <ConnectionsListScreen
+            user={user}
+            onBack={() => setCurrentScreen("profile")}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
@@ -4683,6 +4810,22 @@ export default function App() {
             onCancel={handleProfileCancel}
           />
         </Modal>
+
+        {/* Complete Profile Modal */}
+        <RhoodModal
+          visible={showCompleteProfileModal}
+          onClose={() => setShowCompleteProfileModal(false)}
+          title="Complete Your Profile"
+          message="Add a profile picture to personalize your profile and help others recognize you."
+          type="info"
+          primaryButtonText="Add Photo"
+          secondaryButtonText="Maybe Later"
+          onPrimaryPress={() => {
+            setShowCompleteProfileModal(false);
+            setShowEditProfile(true);
+          }}
+          onSecondaryPress={() => setShowCompleteProfileModal(false)}
+        />
 
         {/* Black fade overlay for splash screen transition */}
         {showFadeOverlay && (

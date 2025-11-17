@@ -137,7 +137,12 @@ const RhoodModal = ({
         label: "Compensation",
         value: details.compensation,
       },
-      { type: "location", label: "Location", value: details.location },
+      { 
+        type: "location", 
+        label: "Location", 
+        value: details.location,
+        distance: details.distanceFormatted || null,
+      },
     ].filter(
       (item) =>
         item.value !== null &&
@@ -164,6 +169,9 @@ const RhoodModal = ({
                 <View style={styles.eventDetailContent}>
                   <Text style={styles.eventDetailLabel}>{detail.label}</Text>
                   <Text style={styles.eventDetailValue}>{detail.value}</Text>
+                  {detail.distance && (
+                    <Text style={styles.eventDetailDistance}>{detail.distance}</Text>
+                  )}
                 </View>
               </View>
             ))}
@@ -556,6 +564,12 @@ const styles = StyleSheet.create({
   eventDetailValue: {
     fontSize: TYPOGRAPHY.md,
     color: COLORS.textPrimary,
+    fontWeight: TYPOGRAPHY.medium,
+  },
+  eventDetailDistance: {
+    fontSize: TYPOGRAPHY.sm,
+    color: COLORS.primary,
+    marginTop: 2,
     fontWeight: TYPOGRAPHY.medium,
   },
   descriptionContainer: {
