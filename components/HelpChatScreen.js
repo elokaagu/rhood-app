@@ -25,6 +25,7 @@ import {
 import { supabase } from "../lib/supabase";
 import * as Haptics from "expo-haptics";
 import { getAssistantReply } from "../lib/aiChat";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function HelpChatScreen({ user, onBack }) {
   const [messages, setMessages] = useState([]);
@@ -45,16 +46,71 @@ export default function HelpChatScreen({ user, onBack }) {
     [bottomInputPadding]
   );
 
-  // Initialize with welcome message
+  // Storage key for conversation history
+  const STORAGE_KEY = user?.id 
+    ? `help_chat_history_${user.id}` 
+    : "help_chat_history_anonymous";
+
+  // Load conversation history on mount
   useEffect(() => {
-    const welcomeMessage = {
-      id: "welcome",
-      text: "Hi! I'm here to help. What can I assist you with today?",
-      sender: "bot",
-      timestamp: new Date(),
+    const loadConversationHistory = async () => {
+      try {
+        const savedHistory = await AsyncStorage.getItem(STORAGE_KEY);
+        if (savedHistory) {
+          const parsed = JSON.parse(savedHistory);
+          // Convert timestamp strings back to Date objects
+          const messagesWithDates = parsed.map((msg) => ({
+            ...msg,
+            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+          }));
+          setMessages(messagesWithDates);
+        } else {
+          // Only show welcome message if no history exists
+          const welcomeMessage = {
+            id: "welcome",
+            text: "Hi! I'm here to help. What can I assist you with today?",
+            sender: "bot",
+            timestamp: new Date(),
+          };
+          setMessages([welcomeMessage]);
+        }
+      } catch (error) {
+        console.error("Error loading conversation history:", error);
+        // Fallback to welcome message on error
+        const welcomeMessage = {
+          id: "welcome",
+          text: "Hi! I'm here to help. What can I assist you with today?",
+          sender: "bot",
+          timestamp: new Date(),
+        };
+        setMessages([welcomeMessage]);
+      }
     };
-    setMessages([welcomeMessage]);
-  }, []);
+
+    loadConversationHistory();
+  }, [STORAGE_KEY]);
+
+  // Save conversation history whenever messages change
+  useEffect(() => {
+    const saveConversationHistory = async () => {
+      if (messages.length === 0) return; // Don't save empty array
+      
+      try {
+        // Convert Date objects to ISO strings for storage
+        const messagesToSave = messages.map((msg) => ({
+          ...msg,
+          timestamp: msg.timestamp instanceof Date 
+            ? msg.timestamp.toISOString() 
+            : msg.timestamp,
+        }));
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(messagesToSave));
+      } catch (error) {
+        console.error("Error saving conversation history:", error);
+      }
+    };
+
+    saveConversationHistory();
+  }, [messages, STORAGE_KEY]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
