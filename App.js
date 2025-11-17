@@ -94,6 +94,14 @@ import {
   formatDistance,
   checkLocationMatch,
 } from "./lib/locationService";
+import {
+  initAnalytics,
+  setAnalyticsUser,
+  resetAnalyticsUser,
+  track,
+  trackScreenView,
+  AnalyticsEvents,
+} from "./lib/analytics";
 
 // Static Album Art Component
 const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
@@ -250,7 +258,20 @@ export default function App() {
     };
 
     initializeNotifications();
+    
+    // Initialize analytics
+    (async () => {
+      await initAnalytics();
+      await track(AnalyticsEvents.APP_OPEN);
+    })();
   }, []);
+
+  // Track screen views when screen changes
+  useEffect(() => {
+    if (currentScreen && user) {
+      trackScreenView(currentScreen, screenParams);
+    }
+  }, [currentScreen, user]);
 
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
@@ -868,9 +889,20 @@ export default function App() {
         setDjProfile(profile);
         setIsFirstTime(false);
 
+        // Set analytics user
+        await setAnalyticsUser(user.id, {
+          email: user.email,
+          dj_name: profile.dj_name || profile.djName,
+          city: profile.city,
+        });
+        await track(AnalyticsEvents.USER_LOGGED_IN, {
+          method: "oauth",
+        });
+
         // For login flow, always go to opportunities page
         console.log("🎯 Login successful - navigating to opportunities");
         setCurrentScreen("opportunities");
+        await trackScreenView("opportunities");
 
         // Check if profile picture is missing and show complete profile modal
         if (!profile.profile_image_url && !hasShownCompleteProfileModal) {
@@ -909,6 +941,8 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      await track(AnalyticsEvents.USER_LOGGED_OUT);
+      await resetAnalyticsUser();
       await auth.signOut();
       setUser(null);
       setShowAuth(true);
@@ -926,12 +960,26 @@ export default function App() {
   const handleProfileSaved = async (updatedProfile) => {
     setShowEditProfile(false);
     
+    // Track profile update
+    await track(AnalyticsEvents.PROFILE_UPDATED, {
+      has_profile_image: !!updatedProfile.profile_image_url,
+      has_city: !!updatedProfile.city,
+      genres_count: updatedProfile.genres?.length || 0,
+    });
+    
     // Refresh profile from database to get latest data including profile_image_url
     try {
       if (user?.id) {
         const refreshedProfile = await db.getUserProfile(user.id);
         if (refreshedProfile) {
           setDjProfile(refreshedProfile);
+          
+          // Update analytics user properties
+          await setAnalyticsUser(user.id, {
+            email: user.email,
+            dj_name: refreshedProfile.dj_name,
+            city: refreshedProfile.city,
+          });
           
           // If profile picture was added, close the complete profile modal
           if (refreshedProfile.profile_image_url) {
@@ -993,6 +1041,13 @@ export default function App() {
 
           if (!matchResult.matches && matchResult.currentCity) {
             setLocationMismatchWarning(true);
+            
+            // Track location mismatch
+            track(AnalyticsEvents.LOCATION_MISMATCH, {
+              profile_city: profile.city,
+              current_city: matchResult.currentCity,
+            });
+            
             // Show warning modal after a short delay
             setTimeout(() => {
               showCustomModal({
@@ -1012,6 +1067,13 @@ export default function App() {
               });
             }, 2000);
           }
+          
+          // Track location fetched
+          track(AnalyticsEvents.LOCATION_FETCHED, {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            accuracy: location.accuracy,
+          });
         }
       }
     } catch (error) {
@@ -2330,11 +2392,20 @@ export default function App() {
     console.log("🎯 Navigating to screen:", screen);
     setCurrentScreen(screen);
     setScreenParams(params);
+    trackScreenView(screen, params);
     closeMenu();
   };
 
   const handleOpportunityPress = (opportunity) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Track opportunity viewed
+    track(AnalyticsEvents.OPPORTUNITY_VIEWED, {
+      opportunity_id: opportunity.id,
+      opportunity_title: opportunity.title,
+      opportunity_location: opportunity.location,
+    });
+    
     showCustomModal({
       type: "info",
       title: opportunity.title,
@@ -2389,6 +2460,13 @@ export default function App() {
 
     // Show detailed opportunity information for confirmation
     const currentOpportunity = opportunities[currentOpportunityIndex];
+    
+    // Track swipe right
+    await track(AnalyticsEvents.SWIPE_RIGHT, {
+      opportunity_id: currentOpportunity?.id,
+      opportunity_title: currentOpportunity?.title,
+      opportunity_location: currentOpportunity?.location,
+    });
     setSelectedOpportunity(currentOpportunity);
 
     const applicationsRemainingCount =
@@ -2453,6 +2531,15 @@ export default function App() {
 
       // Apply to opportunity using existing logic
       await db.applyToOpportunity(opportunity.id, user.id);
+
+      // Track opportunity applied
+      await track(AnalyticsEvents.OPPORTUNITY_APPLIED, {
+        opportunity_id: opportunity.id,
+        opportunity_title: opportunity.title,
+        opportunity_location: opportunity.location,
+        opportunity_compensation: opportunity.compensation,
+        distance_km: opportunity.distance || null,
+      });
 
       // Refresh daily stats after successful application
       try {

@@ -28,3 +28,7 @@ project.xcworkspace
 
 # CocoaPods
 /Pods/
+
+# Environment variables
+.env
+.env.local

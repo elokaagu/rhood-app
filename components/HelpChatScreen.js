@@ -25,6 +25,7 @@ import {
 import { supabase, db } from "../lib/supabase";
 import * as Haptics from "expo-haptics";
 import { getAssistantReply } from "../lib/aiChat";
+import { track, AnalyticsEvents } from "../lib/analytics";
 
 export default function HelpChatScreen({ user, onBack }) {
   const [messages, setMessages] = useState([]);
@@ -289,6 +290,11 @@ export default function HelpChatScreen({ user, onBack }) {
     // Save user message to database
     try {
       await db.saveHelpChatMessage(user.id, userMessage);
+      
+      // Track help chat message
+      track(AnalyticsEvents.HELP_CHAT_MESSAGE, {
+        message_length: messageText.length,
+      });
     } catch (error) {
       console.error("Error saving user message:", error);
       // Continue even if save fails
@@ -299,8 +305,16 @@ export default function HelpChatScreen({ user, onBack }) {
       const history = messages.slice(-10); // keep context short for latency
       const ai = await getAssistantReply(messageText, { history });
       const textReply = ai?.text;
+      
+      // Check if AI returned an error message
+      const isErrorResponse = textReply && (
+        textReply.includes("I couldn't reach our assistant") ||
+        textReply.includes("AI is not enabled") ||
+        textReply.includes("having trouble")
+      );
+      
       const reply =
-        textReply && typeof textReply === "string"
+        textReply && typeof textReply === "string" && !isErrorResponse
           ? { text: textReply, quickActions: [] }
           : getBotResponse(messageText);
 
@@ -402,10 +416,24 @@ export default function HelpChatScreen({ user, onBack }) {
         }
       }
     } catch (error) {
-      // Fallback: Use mailto link
-      const mailtoLink = `mailto:hello@rhood.io?subject=Support Request from ${userName}&body=${encodeURIComponent(
-        `Hi R/HOOD Support,\n\nI need help with the following issue:\n\n${conversationHistory}\n\nUser: ${userName}\nEmail: ${userEmail}\nUser ID: ${user?.id || "Unknown"}\n\nThank you!`
-      )}`;
+      // Fallback: Use mailto link with properly formatted body
+      // Format conversation history for email
+      const emailBody = `Hi R/HOOD Support,
+
+I need help with the following issue:
+
+${conversationHistory}
+
+User: ${userName}
+Email: ${userEmail}
+User ID: ${user?.id || "Unknown"}
+
+Thank you!`;
+
+      // Encode only once and use proper URL encoding
+      const encodedSubject = encodeURIComponent(`Support Request from ${userName}`);
+      const encodedBody = encodeURIComponent(emailBody);
+      const mailtoLink = `mailto:hello@rhood.io?subject=${encodedSubject}&body=${encodedBody}`;
 
       Alert.alert(
         "Contact Support",
@@ -415,27 +443,38 @@ export default function HelpChatScreen({ user, onBack }) {
           {
             text: "Open Email",
             onPress: async () => {
-              const canOpen = await Linking.canOpenURL(mailtoLink);
-              if (canOpen) {
-                await Linking.openURL(mailtoLink);
-                const successMessage = {
-                  id: Date.now().toString(),
-                  text: "I've opened your email app. Please send the message and our team will respond within 24 hours.",
-                  sender: "bot",
-                  timestamp: new Date(),
-                };
-                setMessages((prev) => [...prev, successMessage]);
-                
-                // Save success message to database
-                if (user?.id) {
-                  try {
-                    await db.saveHelpChatMessage(user.id, successMessage);
-                  } catch (error) {
-                    console.error("Error saving success message:", error);
+              try {
+                // Check if we can open mailto links
+                const canOpen = await Linking.canOpenURL("mailto:");
+                if (canOpen) {
+                  await Linking.openURL(mailtoLink);
+                  const successMessage = {
+                    id: Date.now().toString(),
+                    text: "I've opened your email app. Please send the message and our team will respond within 24 hours.",
+                    sender: "bot",
+                    timestamp: new Date(),
+                  };
+                  setMessages((prev) => [...prev, successMessage]);
+                  
+                  // Save success message to database
+                  if (user?.id) {
+                    try {
+                      await db.saveHelpChatMessage(user.id, successMessage);
+                    } catch (error) {
+                      console.error("Error saving success message:", error);
+                    }
                   }
+                } else {
+                  Alert.alert("Error", "Could not open email app. Please email hello@rhood.io directly.");
                 }
-              } else {
-                Alert.alert("Error", "Could not open email app. Please email hello@rhood.io directly.");
+              } catch (linkError) {
+                console.error("Error opening mailto link:", linkError);
+                // Fallback: Show email address and let user copy it
+                Alert.alert(
+                  "Email Support",
+                  `Please email us at hello@rhood.io with your question. We'll respond within 24 hours.`,
+                  [{ text: "OK" }]
+                );
               }
             },
           },

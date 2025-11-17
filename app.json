@@ -12,31 +12,32 @@
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": ["**/*", "assets/**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rhoodapp.mobile",
       "buildNumber": "70",
+      "deploymentTarget": "13.0",
       "newArchEnabled": false,
       "usesAppleSignIn": true,
+      "googleServicesFile": "./ios/GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["audio"],
-        // NOTE: AVAudioSessionCategory and AVAudioSessionMode are managed by react-native-track-player
-        // via iosCategory: "playback" in updateOptions(). Setting them here can cause timing conflicts.
-        // TrackPlayer will set these programmatically when updateOptions() is called.
         "NSCameraUsageDescription": "This app needs access to camera to take photos for messages",
         "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select images and videos for messages",
         "NSMicrophoneUsageDescription": "This app needs access to microphone to record audio for messages",
         "NSUserNotificationsUsageDescription": "This app needs notification permissions to show music controls on the lock screen",
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to show nearby opportunities and calculate distances.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to show nearby opportunities and calculate distances.",
+        "NSUserTrackingUsageDescription": "We use your data to improve your experience and show you relevant opportunities.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLName": "rhoodapp",
             "CFBundleURLSchemes": ["rhoodapp"]
           }
-        ]
+        ],
+        "LSApplicationQueriesSchemes": ["mailto"]
       }
     },
     "android": {
@@ -45,6 +46,7 @@
         "backgroundColor": "#000000"
       },
       "package": "com.rhoodapp.mobile",
+      "googleServicesFile": "./android/app/google-services.json",
       "newArchEnabled": false,
       "permissions": [
         "android.permission.WAKE_LOCK",
@@ -69,7 +71,8 @@
       "eas": {
         "projectId": "499f2244-43f3-478d-8b88-85c2da9f1d52"
       },
-      "openaiModel": "gpt-4o-mini"
+      "openaiModel": "gpt-4o-mini",
+      "mixpanelToken": "93ccc1f355ea98a1b4a34565320f6a83"
     },
     "plugins": [
       "expo-font",
@@ -89,7 +92,15 @@
         {
           "locationAlwaysAndWhenInUsePermission": "This app needs access to your location to show nearby opportunities and calculate distances."
         }
-      ]
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "We use your data to improve your experience and show you relevant opportunities."
+        }
+      ],
+      "@react-native-firebase/app",
+      "./plugins/withFirebaseFix"
     ],
     "scheme": "rhoodapp",
     "owner": "elokaagu",

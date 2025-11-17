@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
 import { supabase } from "../lib/supabase";
+import { track, AnalyticsEvents } from "../lib/analytics";
 import { LinearGradient } from "expo-linear-gradient";
 
 // Conditionally import DocumentPicker
@@ -639,6 +640,17 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete }) {
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Track mix upload
+      await track(AnalyticsEvents.MIX_UPLOADED, {
+        mix_id: mixRecord.id,
+        mix_title: mixData.title,
+        duration_seconds: Math.round(selectedFileDuration / 1000),
+        file_format: fileExt,
+        file_size_mb: (selectedFile.size / (1024 * 1024)).toFixed(2),
+        has_artwork: !!artworkUrl,
+        set_as_primary: mixData.setAsPrimary || false,
+      });
 
       Alert.alert(
         "Success!",

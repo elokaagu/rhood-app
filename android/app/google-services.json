@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "138565213712",
+    "project_id": "rhood-app",
+    "storage_bucket": "rhood-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:138565213712:android:16d7ba2b9bbd7ce944b495",
+        "android_client_info": {
+          "package_name": "com.rhoodapp.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4I0ygqwYoBB8_IYdKp4a9t3WYh0SphsU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
