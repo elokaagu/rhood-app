@@ -19,7 +19,8 @@ serve(async (req) => {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+        "Access-Control-Allow-Headers":
+          "authorization, x-client-info, apikey, content-type",
       },
     });
   }
@@ -58,16 +59,13 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser();
 
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        {
-          status: 401,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
     }
 
     // Check for API key
@@ -136,7 +134,9 @@ serve(async (req) => {
     if (kbContext.length > 0) {
       messages.push({
         role: "system",
-        content: `Additional context from R/HOOD documentation:\n\n${kbContext.join("\n\n")}`,
+        content: `Additional context from R/HOOD documentation:\n\n${kbContext.join(
+          "\n\n"
+        )}`,
       });
     }
 
@@ -152,18 +152,21 @@ serve(async (req) => {
     messages.push({ role: "user", content: userMessage });
 
     // Call OpenAI API
-    const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.6,
-        messages,
-      }),
-    });
+    const openaiResponse = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.6,
+          messages,
+        }),
+      }
+    );
 
     if (!openaiResponse.ok) {
       const errorText = await openaiResponse.text();
@@ -188,16 +191,13 @@ serve(async (req) => {
       openaiData?.choices?.[0]?.message?.content?.trim() ||
       "Sorry—I'm having trouble answering right now.";
 
-    return new Response(
-      JSON.stringify({ text: content }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      }
-    );
+    return new Response(JSON.stringify({ text: content }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
   } catch (error) {
     console.error("Edge function error:", error);
     return new Response(
@@ -215,4 +215,3 @@ serve(async (req) => {
     );
   }
 });
-
