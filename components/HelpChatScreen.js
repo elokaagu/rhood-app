@@ -22,10 +22,9 @@ import {
   RADIUS,
   sharedStyles,
 } from "../lib/sharedStyles";
-import { supabase } from "../lib/supabase";
+import { supabase, db } from "../lib/supabase";
 import * as Haptics from "expo-haptics";
 import { getAssistantReply } from "../lib/aiChat";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function HelpChatScreen({ user, onBack }) {
   const [messages, setMessages] = useState([]);
@@ -46,24 +45,35 @@ export default function HelpChatScreen({ user, onBack }) {
     [bottomInputPadding]
   );
 
-  // Storage key for conversation history
-  const STORAGE_KEY = user?.id 
-    ? `help_chat_history_${user.id}` 
-    : "help_chat_history_anonymous";
-
-  // Load conversation history on mount
+  // Load conversation history from database on mount
   useEffect(() => {
     const loadConversationHistory = async () => {
+      if (!user?.id) {
+        // Show welcome message for anonymous users
+        const welcomeMessage = {
+          id: "welcome",
+          text: "Hi! I'm here to help. What can I assist you with today?",
+          sender: "bot",
+          timestamp: new Date(),
+        };
+        setMessages([welcomeMessage]);
+        return;
+      }
+
       try {
-        const savedHistory = await AsyncStorage.getItem(STORAGE_KEY);
-        if (savedHistory) {
-          const parsed = JSON.parse(savedHistory);
-          // Convert timestamp strings back to Date objects
-          const messagesWithDates = parsed.map((msg) => ({
-            ...msg,
-            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+        const savedMessages = await db.getHelpChatMessages(user.id);
+        
+        if (savedMessages && savedMessages.length > 0) {
+          // Convert database messages to app format
+          const formattedMessages = savedMessages.map((msg) => ({
+            id: msg.id,
+            text: msg.text,
+            sender: msg.sender,
+            timestamp: new Date(msg.created_at),
+            quickActions: msg.metadata?.quickActions || null,
+            error: msg.metadata?.error || null,
           }));
-          setMessages(messagesWithDates);
+          setMessages(formattedMessages);
         } else {
           // Only show welcome message if no history exists
           const welcomeMessage = {
@@ -88,29 +98,7 @@ export default function HelpChatScreen({ user, onBack }) {
     };
 
     loadConversationHistory();
-  }, [STORAGE_KEY]);
-
-  // Save conversation history whenever messages change
-  useEffect(() => {
-    const saveConversationHistory = async () => {
-      if (messages.length === 0) return; // Don't save empty array
-      
-      try {
-        // Convert Date objects to ISO strings for storage
-        const messagesToSave = messages.map((msg) => ({
-          ...msg,
-          timestamp: msg.timestamp instanceof Date 
-            ? msg.timestamp.toISOString() 
-            : msg.timestamp,
-        }));
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(messagesToSave));
-      } catch (error) {
-        console.error("Error saving conversation history:", error);
-      }
-    };
-
-    saveConversationHistory();
-  }, [messages, STORAGE_KEY]);
+  }, [user?.id]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -279,9 +267,14 @@ export default function HelpChatScreen({ user, onBack }) {
     const messageText = text || inputText.trim();
     if (!messageText) return;
 
+    if (!user?.id) {
+      Alert.alert("Please sign in", "You need to be signed in to use the help chat.");
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Add user message
+    // Add user message to UI immediately
     const userMessage = {
       id: Date.now().toString(),
       text: messageText,
@@ -292,6 +285,14 @@ export default function HelpChatScreen({ user, onBack }) {
     setMessages((prev) => [...prev, userMessage]);
     setInputText("");
     setIsTyping(true);
+
+    // Save user message to database
+    try {
+      await db.saveHelpChatMessage(user.id, userMessage);
+    } catch (error) {
+      console.error("Error saving user message:", error);
+      // Continue even if save fails
+    }
 
     try {
       // Prefer AI reply if configured; fallback to rules if not
@@ -318,6 +319,14 @@ export default function HelpChatScreen({ user, onBack }) {
       };
       setIsTyping(false);
       setMessages((prev) => [...prev, botMessage]);
+
+      // Save bot message to database
+      try {
+        await db.saveHelpChatMessage(user.id, botMessage);
+      } catch (error) {
+        console.error("Error saving bot message:", error);
+        // Continue even if save fails
+      }
     } catch (e) {
       const fallback = getBotResponse(messageText);
       const botMessage = {
@@ -329,6 +338,14 @@ export default function HelpChatScreen({ user, onBack }) {
       };
       setIsTyping(false);
       setMessages((prev) => [...prev, botMessage]);
+
+      // Save fallback bot message to database
+      try {
+        await db.saveHelpChatMessage(user.id, botMessage);
+      } catch (error) {
+        console.error("Error saving bot message:", error);
+        // Continue even if save fails
+      }
     }
   };
 
@@ -375,6 +392,15 @@ export default function HelpChatScreen({ user, onBack }) {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, successMessage]);
+      
+      // Save success message to database
+      if (user?.id) {
+        try {
+          await db.saveHelpChatMessage(user.id, successMessage);
+        } catch (error) {
+          console.error("Error saving success message:", error);
+        }
+      }
     } catch (error) {
       // Fallback: Use mailto link
       const mailtoLink = `mailto:hello@rhood.io?subject=Support Request from ${userName}&body=${encodeURIComponent(
@@ -399,6 +425,15 @@ export default function HelpChatScreen({ user, onBack }) {
                   timestamp: new Date(),
                 };
                 setMessages((prev) => [...prev, successMessage]);
+                
+                // Save success message to database
+                if (user?.id) {
+                  try {
+                    await db.saveHelpChatMessage(user.id, successMessage);
+                  } catch (error) {
+                    console.error("Error saving success message:", error);
+                  }
+                }
               } else {
                 Alert.alert("Error", "Could not open email app. Please email hello@rhood.io directly.");
               }
