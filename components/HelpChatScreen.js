@@ -511,9 +511,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContent: {
-    padding: SPACING.md,
-    paddingTop: SPACING.xl, // Extra top padding to push content down
-    paddingBottom: SPACING.xl,
+    padding: 16,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   messageContainer: {
     marginBottom: SPACING.md,
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   inputContainer: {
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: "hsl(0, 0%, 0%)", // Match main background, no grey padding
     borderTopWidth: 2,
     borderTopColor: "hsl(75, 100%, 60%)",
   },
