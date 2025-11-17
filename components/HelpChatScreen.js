@@ -429,7 +429,7 @@ export default function HelpChatScreen({ user, onBack }) {
           {messages.map(renderMessage)}
           {isTyping && (
             <View style={styles.typingIndicator}>
-              <Text style={styles.typingText}>Support Bot is typing...</Text>
+              <Text style={styles.typingText}>Thinking...</Text>
             </View>
           )}
         </ScrollView>
