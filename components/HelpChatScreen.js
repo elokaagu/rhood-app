@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   Linking,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -435,30 +436,33 @@ export default function HelpChatScreen({ user, onBack }) {
 
         {/* Input */}
         <View style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}>
-          <TextInput
-            style={styles.input}
-            placeholder="Type your message..."
-            placeholderTextColor={COLORS.textTertiary}
-            value={inputText}
-            onChangeText={setInputText}
-            onSubmitEditing={() => handleSendMessage()}
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              !inputText.trim() && styles.sendButtonDisabled,
-            ]}
-            onPress={() => handleSendMessage()}
-            disabled={!inputText.trim()}
-          >
-            <Ionicons
-              name="send"
-              size={20}
-              color={inputText.trim() ? COLORS.background : COLORS.textTertiary}
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.messageInput}
+              placeholder="Type a message..."
+              placeholderTextColor="hsl(0, 0%, 50%)"
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              maxHeight={100}
+              maxLength={500}
+              onSubmitEditing={() => handleSendMessage()}
             />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                (!inputText.trim() || isTyping) && styles.sendButtonDisabled,
+              ]}
+              onPress={() => handleSendMessage()}
+              disabled={!inputText.trim() || isTyping}
+            >
+              {isTyping ? (
+                <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
+              ) : (
+                <Ionicons name="send" size={20} color="hsl(0, 0%, 0%)" />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -578,39 +582,50 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   inputContainer: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopWidth: 2,
+    borderTopColor: "hsl(75, 100%, 60%)",
+  },
+  inputWrapper: {
     flexDirection: "row",
     alignItems: "flex-end",
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.background,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  input: {
+  messageInput: {
     flex: 1,
-    minHeight: 40,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
     maxHeight: 100,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.backgroundSecondary,
-    borderRadius: RADIUS.full,
+    marginRight: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    color: COLORS.textPrimary,
-    fontSize: TYPOGRAPHY.base,
-    fontFamily: TYPOGRAPHY.primary,
-    marginRight: SPACING.sm,
+    borderColor: "hsl(75, 100%, 60%)",
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.primary,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sendButtonDisabled: {
-    backgroundColor: COLORS.backgroundSecondary,
+    backgroundColor: "hsl(0, 0%, 30%)",
+    shadowColor: "hsl(0, 0%, 0%)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 });
 
