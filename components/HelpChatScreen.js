@@ -512,6 +512,7 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     padding: SPACING.md,
+    paddingTop: SPACING.xl, // Extra top padding to push content down
     paddingBottom: SPACING.xl,
   },
   messageContainer: {
