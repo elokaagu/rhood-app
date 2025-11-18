@@ -541,11 +541,7 @@ export default function App() {
 
   // iOS: Sync state from TrackPlayer to keep UI in sync with lock screen controls
   useEffect(() => {
-    if (
-      Platform.OS !== "ios" ||
-      !trackPlayer ||
-      !globalAudioState.currentTrack
-    ) {
+    if (Platform.OS !== "ios" || !trackPlayer) {
       return;
     }
 
@@ -553,6 +549,8 @@ export default function App() {
       require("react-native-track-player").default ||
       require("react-native-track-player");
     const { State, Event } = require("react-native-track-player");
+
+    console.log("🎵 [APP] Setting up TrackPlayer event listeners");
 
     // Listen to playback state changes (fires when lock screen buttons are pressed)
     const playbackStateListener = TrackPlayer.addEventListener(
@@ -565,7 +563,7 @@ export default function App() {
           const duration = await TrackPlayer.getDuration();
 
           console.log(
-            "🎵 [APP] Updating state - isPlaying:",
+            "🎵 [APP] Updating state from lock screen - isPlaying:",
             isPlaying,
             "position:",
             position,
@@ -574,7 +572,10 @@ export default function App() {
           );
 
           setGlobalAudioState((prev) => {
-            if (!prev.currentTrack) return prev;
+            if (!prev.currentTrack) {
+              console.warn("⚠️ [APP] No current track in state, skipping update");
+              return prev;
+            }
             return {
               ...prev,
               isPlaying,
@@ -605,12 +606,37 @@ export default function App() {
         });
       }
     );
+    console.log("✅ [APP] PlaybackProgressUpdated listener registered");
+
+    // Listen to track changes
+    const trackChangedListener = TrackPlayer.addEventListener(
+      Event.PlaybackTrackChanged,
+      async (data) => {
+        console.log("🎵 [APP] Track changed event:", data);
+        // TrackPlayer will handle the track change, just sync state
+        try {
+          const state = await trackPlayer.getPlaybackState();
+          setGlobalAudioState((prev) => ({
+            ...prev,
+            isPlaying: state.isPlaying,
+            positionMillis: state.position * 1000,
+            durationMillis: state.duration * 1000,
+            progress: state.duration > 0 ? state.position / state.duration : 0,
+          }));
+        } catch (error) {
+          console.warn("⚠️ [APP] Error syncing state after track change:", error);
+        }
+      }
+    );
+    console.log("✅ [APP] PlaybackTrackChanged listener registered");
 
     return () => {
+      console.log("🧹 [APP] Cleaning up TrackPlayer event listeners");
       if (playbackStateListener?.remove) playbackStateListener.remove();
       if (progressListener?.remove) progressListener.remove();
+      if (trackChangedListener?.remove) trackChangedListener.remove();
     };
-  }, [trackPlayer, globalAudioState.currentTrack?.id]);
+  }, [trackPlayer]);
 
   // State to track network errors for daily stats refresh
   const [networkErrorCount, setNetworkErrorCount] = useState(0);
@@ -1151,15 +1177,26 @@ export default function App() {
           throw new Error("Audio URL is missing");
         }
 
-        // playTrack() handles:
-        // 1. setupPlayer() initialization
-        // 2. Converting track format (audioUrl -> url, image -> artwork)
-        // 3. Adding track to queue and starting playback
-        // 4. Lock screen controls are automatically handled by the service
-        console.log("📱 Starting playback via TrackPlayer");
+        // CRITICAL: playTrack() internally calls setupPlayer() which:
+        // 1. Triggers the service function to register event listeners
+        // 2. Sets capabilities via updateOptions()
+        // 3. Ensures proper initialization order for iOS remote controls
+        // Do NOT call setupPlayer() here - playTrack() handles it
+        console.log(
+          "📱 Starting playback via TrackPlayer - setupPlayer() will be called by playTrack()"
+        );
 
-        // Pass the track directly - playTrack() will convert the format
-        await trackPlayer.playTrack(track);
+        await trackPlayer.playTrack({
+          id: track.id || `track-${Date.now()}`,
+          url: audioUrl,
+          title: track.title || "R/HOOD Mix",
+          artist: track.artist || "Unknown Artist",
+          artwork: track.image || null, // Must be https, square, ≥1024px recommended
+          duration: track.durationMillis
+            ? track.durationMillis / 1000
+            : undefined,
+          genre: track.genre || "Electronic",
+        });
 
         // Update state immediately - track-player will update via events
         setGlobalAudioState((prev) => {
@@ -1509,6 +1546,8 @@ export default function App() {
           return;
         }
         await trackPlayer.pause();
+        // Update state immediately to keep UI in sync
+        setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
         return;
       }
 
@@ -1608,6 +1647,8 @@ export default function App() {
           return;
         }
         await trackPlayer.resume();
+        // Update state immediately to keep UI in sync
+        setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
         return;
       }
 
