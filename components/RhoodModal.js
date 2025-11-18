@@ -558,13 +558,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    height: 40, // Fixed height to prevent expansion
     marginBottom: SPACING.md,
   },
   shareButton: {
     padding: SPACING.xs,
+    width: 40, // Fixed width to match close button
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
   closeButton: {
     padding: SPACING.xs,
+    width: 40, // Fixed width
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
   iconContainer: {
     width: 80,

@@ -45,6 +45,7 @@ export default function ConnectionsScreen({
   const [connectionsFadeAnim] = useState(new Animated.Value(0));
   const [discoverFadeAnim] = useState(new Animated.Value(0));
   const [hasLoadedConnections, setHasLoadedConnections] = useState(false);
+  const hasLoadedMessagesRef = useRef(false);
   const [connectionMessage, setConnectionMessage] = useState("");
   const [connectionModalType, setConnectionModalType] = useState("success");
   const [showConnectionModal, setShowConnectionModal] = useState(false);
@@ -127,22 +128,17 @@ export default function ConnectionsScreen({
       await loadDiscoverDJs();
       // Check R/HOOD membership
       await checkRhoodMembership();
-
-      // If Messages tab is active, ensure data is loaded
-      if (activeTab === "connections") {
-        await loadUserAndConnections();
-      }
     };
     initializeData();
   }, []);
 
-  // Load data when Messages tab becomes active
+  // Load data when Messages tab becomes active (only if not already loaded)
   useEffect(() => {
-    if (activeTab === "connections" && user) {
+    if (activeTab === "connections" && user && !hasLoadedConnections) {
       loadUserAndConnections();
       checkRhoodMembership();
     }
-  }, [activeTab, user]);
+  }, [activeTab, user, hasLoadedConnections]);
 
   const loadUserAndConnections = async ({ showLoader = false } = {}) => {
     try {
@@ -439,21 +435,23 @@ export default function ConnectionsScreen({
     setRefreshing(false);
   };
 
-  // Refresh messages when screen comes into focus
+  // Load messages once when connections are first loaded
   useEffect(() => {
-    const refreshMessages = async () => {
-      if (user?.id && connections.length > 0) {
+    const loadMessages = async () => {
+      // Only load if we have connections, user, and haven't loaded messages yet
+      // Also check that connections have actually been loaded (hasLoadedConnections)
+      if (user?.id && connections.length > 0 && hasLoadedConnections && !hasLoadedMessagesRef.current) {
+        hasLoadedMessagesRef.current = true;
         await loadLastMessagesForConnections(user.id, connections);
       }
     };
 
-    // Refresh messages when component mounts or user/connections change
-    refreshMessages();
-  }, [user?.id, connections.length]);
+    loadMessages();
+  }, [user?.id, connections.length, hasLoadedConnections]);
 
   // Set up real-time subscription for messages to keep chat list updated
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !hasLoadedConnections || connections.length === 0) return;
 
     console.log("📨 Setting up real-time subscription for messages list");
 
@@ -470,8 +468,8 @@ export default function ConnectionsScreen({
         },
         (payload) => {
           console.log("📨 New message received in list:", payload.new);
-          // Refresh last messages when a new message arrives
-          if (user?.id && connections.length > 0) {
+          // Refresh last messages when a new message arrives (only after initial load)
+          if (user?.id && connections.length > 0 && hasLoadedMessagesRef.current) {
             loadLastMessagesForConnections(user.id, connections);
           }
         }
@@ -499,11 +497,11 @@ export default function ConnectionsScreen({
       console.log("📨 Cleaning up messages list subscription");
       supabase.removeChannel(channel);
     };
-  }, [user?.id, connections.length]);
+  }, [user?.id, connections.length, hasLoadedConnections]);
 
-  // Periodic refresh to ensure accuracy (every 10 seconds)
+  // Periodic refresh to ensure accuracy (every 10 seconds) - only after initial load
   useEffect(() => {
-    if (!user?.id || connections.length === 0) return;
+    if (!user?.id || connections.length === 0 || !hasLoadedMessagesRef.current) return;
 
     const refreshInterval = setInterval(() => {
       console.log("🔄 Periodic refresh of messages list");

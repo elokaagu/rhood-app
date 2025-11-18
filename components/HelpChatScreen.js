@@ -79,7 +79,7 @@ export default function HelpChatScreen({ user, onBack }) {
           // Only show welcome message if no history exists
           const welcomeMessage = {
             id: "welcome",
-            text: "Hey! 👋 I'm here to help you with anything R/HOOD related. What's up?",
+            text: "Hey! I'm here to help you with anything R/HOOD related. What's up?",
             sender: "bot",
             timestamp: new Date(),
           };
