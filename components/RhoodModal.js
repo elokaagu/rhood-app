@@ -150,7 +150,7 @@ const RhoodModal = ({
           </Text>
         );
       }
-      
+
       // Check if text segment contains "here" - make it clickable and link to nearest URL
       if (/\bhere\b/i.test(segment.value)) {
         // Find the URL to link to (use the URL associated with this segment, or the first one)
