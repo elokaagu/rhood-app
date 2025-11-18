@@ -87,7 +87,8 @@ const RhoodModal = ({
     if (!text) return null;
 
     // Enhanced URL regex: matches http://, https://, www., or common domains
-    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/gi;
+    const urlRegex =
+      /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/gi;
     const segments = [];
     let lastIndex = 0;
     let match;
@@ -118,17 +119,17 @@ const RhoodModal = ({
           urlIndex: urlIndex,
         });
       }
-      
+
       // Add URL
       segments.push({
         type: "url",
         value: urlMatch.url,
         urlIndex: urlIndex,
       });
-      
+
       lastIndex = urlMatch.index + urlMatch.length;
     });
-    
+
     // Add remaining text
     if (lastIndex < text.length) {
       segments.push({
@@ -156,7 +157,8 @@ const RhoodModal = ({
       // Check if text segment contains "here" - make it clickable and link to nearest URL
       if (/\bhere\b/i.test(segment.value)) {
         // Find the URL to link to (use the URL associated with this segment, or the first one)
-        const targetUrl = urlMatches[segment.urlIndex]?.url || urlMatches[0]?.url;
+        const targetUrl =
+          urlMatches[segment.urlIndex]?.url || urlMatches[0]?.url;
         if (targetUrl) {
           const parts = segment.value.split(/(\bhere\b)/gi);
           return (
@@ -179,7 +181,7 @@ const RhoodModal = ({
           );
         }
       }
-      
+
       return <Text key={`text-${index}`}>{segment.value}</Text>;
     });
   };
@@ -217,9 +219,9 @@ const RhoodModal = ({
         label: "Compensation",
         value: details.compensation,
       },
-      { 
-        type: "location", 
-        label: "Location", 
+      {
+        type: "location",
+        label: "Location",
         value: details.location,
         distance: details.distanceFormatted || null,
       },
@@ -250,7 +252,9 @@ const RhoodModal = ({
                   <Text style={styles.eventDetailLabel}>{detail.label}</Text>
                   <Text style={styles.eventDetailValue}>{detail.value}</Text>
                   {detail.distance && (
-                    <Text style={styles.eventDetailDistance}>{detail.distance}</Text>
+                    <Text style={styles.eventDetailDistance}>
+                      {detail.distance}
+                    </Text>
                   )}
                 </View>
               </View>
@@ -258,22 +262,9 @@ const RhoodModal = ({
           </View>
         )}
 
-        {details.description ? renderDescriptionContent(details.description) : null}
-
-        {details.applicationsRemainingText ? (
-          <View style={styles.applicationsContainer}>
-            <View style={styles.applicationsIcon}>
-              <Ionicons
-                name="checkmark-circle"
-                size={20}
-                color={COLORS.primary}
-              />
-            </View>
-            <Text style={styles.applicationsText}>
-              {details.applicationsRemainingText}
-            </Text>
-          </View>
-        ) : null}
+        {details.description
+          ? renderDescriptionContent(details.description)
+          : null}
       </View>
     );
   };
@@ -282,7 +273,6 @@ const RhoodModal = ({
     const lines = message.split("\n");
     const eventDetails = [];
     let description = "";
-    let applicationsRemaining = "";
 
     lines.forEach((line, index) => {
       if (line.startsWith("Date:")) {
@@ -299,8 +289,6 @@ const RhoodModal = ({
           type: "location",
           value: line.replace("Location: ", ""),
         });
-      } else if (line.includes("applications remaining today")) {
-        applicationsRemaining = line;
       } else if (line.trim() && !line.includes("applications remaining")) {
         description = line;
       }
@@ -331,20 +319,6 @@ const RhoodModal = ({
 
         {/* Description */}
         {description ? renderDescriptionContent(description) : null}
-
-        {/* Applications Remaining */}
-        {applicationsRemaining && (
-          <View style={styles.applicationsContainer}>
-            <View style={styles.applicationsIcon}>
-              <Ionicons
-                name="checkmark-circle"
-                size={20}
-                color={COLORS.primary}
-              />
-            </View>
-            <Text style={styles.applicationsText}>{applicationsRemaining}</Text>
-          </View>
-        )}
       </View>
     );
   };
@@ -384,28 +358,31 @@ const RhoodModal = ({
     try {
       // Build share message with opportunity details
       let shareMessage = `🎧 ${title}\n\n`;
-      
+
       if (eventDetails) {
         if (eventDetails.description) {
           shareMessage += `${eventDetails.description}\n\n`;
         }
-        
+
         const details = [];
         if (eventDetails.date) details.push(`📅 Date: ${eventDetails.date}`);
         if (eventDetails.time) details.push(`⏰ Time: ${eventDetails.time}`);
-        if (eventDetails.location) details.push(`📍 Location: ${eventDetails.location}`);
-        if (eventDetails.compensation) details.push(`💰 Compensation: ${eventDetails.compensation}`);
-        if (eventDetails.distanceFormatted) details.push(`📏 Distance: ${eventDetails.distanceFormatted}`);
-        
+        if (eventDetails.location)
+          details.push(`📍 Location: ${eventDetails.location}`);
+        if (eventDetails.compensation)
+          details.push(`💰 Compensation: ${eventDetails.compensation}`);
+        if (eventDetails.distanceFormatted)
+          details.push(`📏 Distance: ${eventDetails.distanceFormatted}`);
+
         if (details.length > 0) {
           shareMessage += details.join("\n") + "\n\n";
         }
       } else if (message) {
         shareMessage += `${message}\n\n`;
       }
-      
+
       shareMessage += `Check it out on R/HOOD! 🎵`;
-      
+
       await Share.share({
         message: shareMessage,
         title: `Share: ${title}`,
@@ -440,12 +417,24 @@ const RhoodModal = ({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={[styles.modalContainer, { paddingTop: Math.max(insets.top + SPACING.xl, SPACING.xl) }]}>
+        <View
+          style={[
+            styles.modalContainer,
+            { paddingTop: Math.max(insets.top + SPACING.md, SPACING.md) },
+          ]}
+        >
           {/* Header */}
           <View style={styles.header}>
             {showShareButton && (
-              <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-                <Ionicons name="share-outline" size={24} color={COLORS.primary} />
+              <TouchableOpacity
+                style={styles.shareButton}
+                onPress={handleShare}
+              >
+                <Ionicons
+                  name="share-outline"
+                  size={24}
+                  color={COLORS.primary}
+                />
               </TouchableOpacity>
             )}
             {showCloseButton && (
@@ -545,7 +534,8 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: COLORS.backgroundSecondary,
     borderRadius: RADIUS.xl,
-    padding: SPACING.xl,
+    padding: SPACING.md,
+    paddingTop: SPACING.md, // Will be overridden by inline style, but set default
     width: "100%",
     maxWidth: 400,
     borderWidth: 1,
@@ -561,7 +551,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     height: 40, // Fixed height to prevent expansion
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
   },
   shareButton: {
     padding: SPACING.xs,
@@ -584,7 +574,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xs,
     borderWidth: 2,
     borderColor: "hsl(75, 100%, 60%, 0.3)", // R/HOOD lime border
   },
@@ -594,7 +584,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xs,
     backgroundColor: "transparent",
     borderWidth: 0,
   },
@@ -605,7 +595,7 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: "center",
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.xs,
   },
   title: {
     fontSize: TYPOGRAPHY["3xl"],
@@ -613,7 +603,7 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.bold,
     color: COLORS.textPrimary,
     textAlign: "center",
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
     letterSpacing: 0.5,
   },
   message: {

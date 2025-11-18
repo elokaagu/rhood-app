@@ -284,12 +284,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.md,
+    paddingBottom: SPACING["5xl"] * 2, // Extra bottom padding to prevent content from being cut off by tab bar (120px)
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: SPACING.xxl * 2,
+    paddingVertical: SPACING["5xl"] * 2,
   },
   emptyTitle: {
     fontSize: TYPOGRAPHY.lg,
