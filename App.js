@@ -1151,26 +1151,15 @@ export default function App() {
           throw new Error("Audio URL is missing");
         }
 
-        // CRITICAL: playTrack() internally calls setupPlayer() which:
-        // 1. Triggers the service function to register event listeners
-        // 2. Sets capabilities via updateOptions()
-        // 3. Ensures proper initialization order for iOS remote controls
-        // Do NOT call setupPlayer() here - playTrack() handles it
-        console.log(
-          "📱 Starting playback via TrackPlayer - setupPlayer() will be called by playTrack()"
-        );
+        // playTrack() handles:
+        // 1. setupPlayer() initialization
+        // 2. Converting track format (audioUrl -> url, image -> artwork)
+        // 3. Adding track to queue and starting playback
+        // 4. Lock screen controls are automatically handled by the service
+        console.log("📱 Starting playback via TrackPlayer");
 
-        await trackPlayer.playTrack({
-          id: track.id || `track-${Date.now()}`,
-          url: audioUrl,
-          title: track.title || "R/HOOD Mix",
-          artist: track.artist || "Unknown Artist",
-          artwork: track.image || null, // Must be https, square, ≥1024px recommended
-          duration: track.durationMillis
-            ? track.durationMillis / 1000
-            : undefined,
-          genre: track.genre || "Electronic",
-        });
+        // Pass the track directly - playTrack() will convert the format
+        await trackPlayer.playTrack(track);
 
         // Update state immediately - track-player will update via events
         setGlobalAudioState((prev) => {
