@@ -1,8 +1,6 @@
 // src/audio/player.js
 // TrackPlayer setup and playback functions
 
-import { Platform } from "react-native";
-
 let TrackPlayer = null;
 let Capability = null;
 let State = null;
@@ -17,6 +15,7 @@ try {
 }
 
 let isInitialized = false;
+let optionsUpdated = false;
 
 /**
  * Initialize TrackPlayer with capabilities
@@ -35,30 +34,42 @@ export async function setupPlayer() {
     isInitialized = true;
   }
 
-  console.log("🎵 [PLAYER] Updating options with capabilities...");
-  await TrackPlayer.updateOptions({
-    stopWithApp: false,
-    capabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.Stop,
-      Capability.SeekTo,
-      Capability.SkipToNext,
-      Capability.SkipToPrevious,
-      Capability.JumpForward,
-      Capability.JumpBackward,
-    ],
-    compactCapabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.SkipToNext,
-      Capability.SkipToPrevious,
-    ],
-    iosCategory: "playback",
-    forwardJumpInterval: 15,
-    backwardJumpInterval: 15,
-  });
-  console.log("✅ [PLAYER] TrackPlayer.updateOptions() completed");
+  // Only update options once after initialization
+  if (!optionsUpdated) {
+    console.log("🎵 [PLAYER] Updating options with capabilities...");
+    await TrackPlayer.updateOptions({
+      stopWithApp: false,
+      alwaysPauseOnInterruption: true,
+      capabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.Stop,
+        Capability.SeekTo,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+        Capability.JumpForward,
+        Capability.JumpBackward,
+      ],
+      compactCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+      ],
+      notificationCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SeekTo,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+      ],
+      iosCategory: "playback",
+      forwardJumpInterval: 15,
+      backwardJumpInterval: 15,
+    });
+    console.log("✅ [PLAYER] TrackPlayer.updateOptions() completed");
+    optionsUpdated = true;
+  }
 }
 
 /**

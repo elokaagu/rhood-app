@@ -124,13 +124,12 @@ export default function HelpChatScreen({ user, onBack }) {
     ) {
       return {
         text:
-          "I can help with upload issues! Here are common solutions:\n\n" +
-          "• File size limit: Maximum 500MB per file\n" +
-          "• Supported formats: MP3, WAV, M4A, AAC\n" +
-          "• Check your internet connection\n" +
-          "• Try closing and reopening the app\n" +
-          "• Make sure you're logged in\n\n" +
-          "If the problem persists, I can connect you with our support team.",
+          "Got it! Let's figure out your upload issue. Can you tell me:\n\n" +
+          "• What happens when you try to upload? Does it fail immediately, or get stuck?\n" +
+          "• What format is your file? (MP3, WAV, etc.)\n" +
+          "• How big is the file? (Max is 500MB)\n" +
+          "• Are you seeing any error messages?\n\n" +
+          "Once I know these details, I can give you the exact fix!",
         quickActions: [
           { text: "File too large", action: "file-size" },
           { text: "Upload keeps failing", action: "upload-failing" },
@@ -149,12 +148,11 @@ export default function HelpChatScreen({ user, onBack }) {
     ) {
       return {
         text:
-          "I can help with location issues! Here's what you can do:\n\n" +
-          "• Go to Settings > Edit Profile\n" +
-          "• Update your city/location manually\n" +
-          "• Make sure location services are enabled in your device settings\n" +
-          "• Try restarting the app\n\n" +
-          "If you still can't update your location, I can connect you with support.",
+          "Ah, location issues can be annoying! Let me help you fix this. What's happening exactly?\n\n" +
+          "• Is your city not showing up in the list?\n" +
+          "• Or does it not save when you try to update it?\n" +
+          "• Is it showing the wrong location?\n\n" +
+          "Tell me which one and I'll walk you through the fix step by step!",
         quickActions: [
           { text: "Can't find my city", action: "city-not-found" },
           { text: "Location won't save", action: "location-save" },
@@ -173,16 +171,18 @@ export default function HelpChatScreen({ user, onBack }) {
     ) {
       return {
         text:
-          "I can help with:\n\n" +
-          "• Uploading mixes\n" +
-          "• Location settings\n" +
-          "• Account issues\n" +
-          "• App features\n" +
-          "• Troubleshooting\n\n" +
-          "What specific issue are you facing?",
+          "For sure! I'm here to help. What's going on?\n\n" +
+          "Are you having trouble with:\n" +
+          "• Uploading a mix?\n" +
+          "• Finding or applying to opportunities?\n" +
+          "• Your location or profile?\n" +
+          "• Connecting with other DJs?\n" +
+          "• Something else?\n\n" +
+          "Tell me what you're trying to do and what's not working, and I'll help you figure it out!",
         quickActions: [
           { text: "Upload help", action: "upload" },
           { text: "Location help", action: "location" },
+          { text: "Opportunities", action: "general" },
           { text: "Other questions", action: "general" },
         ],
       };
@@ -197,11 +197,11 @@ export default function HelpChatScreen({ user, onBack }) {
     ) {
       return {
         text:
-          "For account issues:\n\n" +
-          "• Reset password: Use 'Forgot Password' on the login screen\n" +
-          "• Login problems: Check your email and password\n" +
-          "• Account settings: Go to Settings > Account\n\n" +
-          "Need more help? I can connect you with support.",
+          "Got it! Let's sort out your account issue. What's happening?\n\n" +
+          "• Can't log in? Are you getting an error message?\n" +
+          "• Forgot your password? I can walk you through resetting it\n" +
+          "• Need to change account settings? I'll show you where to go\n\n" +
+          "Tell me which one and I'll guide you through it!",
         quickActions: [
           { text: "Can't log in", action: "login-issue" },
           { text: "Forgot password", action: "password-reset" },
@@ -210,19 +210,19 @@ export default function HelpChatScreen({ user, onBack }) {
       };
     }
 
-    // Default response
+    // Default response - be more proactive
     return {
       text:
-        "I understand you're looking for help. Could you tell me more about the issue?\n\n" +
-        "I can help with:\n" +
-        "• Upload problems\n" +
-        "• Location settings\n" +
-        "• Account questions\n" +
-        "• General app help\n\n" +
-        "Or I can connect you directly with our support team.",
+        "Got it! I'm here to help you figure this out. Can you tell me a bit more about what's going on?\n\n" +
+        "For example:\n" +
+        "• What are you trying to do?\n" +
+        "• What happens when you try?\n" +
+        "• Are you seeing any error messages?\n\n" +
+        "The more details you give me, the better I can help you solve it!",
       quickActions: [
         { text: "Upload issues", action: "upload" },
         { text: "Location issues", action: "location" },
+        { text: "Account problems", action: "account" },
         { text: "Contact support", action: "escalate" },
       ],
     };

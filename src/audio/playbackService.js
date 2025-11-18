@@ -6,136 +6,54 @@ const trackPlayerModule = require("react-native-track-player");
 const TrackPlayer = trackPlayerModule.default || trackPlayerModule;
 const Event = trackPlayerModule.Event || trackPlayerModule.Event;
 
-console.log(
-  "🔵 [SERVICE] Module loaded, TrackPlayer:",
-  !!TrackPlayer,
-  "Event:",
-  !!Event
-);
+module.exports = async function () {
+  console.log("🎧 [Service] Playback service started");
 
-module.exports = async function playbackService() {
-  console.log("🛰️🛰️🛰️ [SERVICE] SERVICE FUNCTION CALLED BY TRACKPLAYER");
-  console.log("🔵 [SERVICE] TrackPlayer type:", typeof TrackPlayer);
-  console.log("🔵 [SERVICE] Event type:", typeof Event);
-  console.log(
-    "🔵 [SERVICE] TrackPlayer.addEventListener:",
-    typeof TrackPlayer?.addEventListener
-  );
-
-  if (!TrackPlayer) {
-    console.error("❌ [SERVICE] TrackPlayer is null!");
-    return;
-  }
-
-  if (!Event) {
-    console.error("❌ [SERVICE] Event is null!");
-    return;
-  }
-
-  if (typeof TrackPlayer.addEventListener !== "function") {
-    console.error("❌ [SERVICE] addEventListener is not a function!");
-    return;
-  }
-
-  console.log("✅ [SERVICE] Registering event listeners...");
-
-  // Play button pressed
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    console.log("🔊🔊🔊 [SERVICE] REMOTE PLAY EVENT FIRED!");
-    try {
-      await TrackPlayer.play();
-      console.log("✅ [SERVICE] TrackPlayer.play() called");
-    } catch (error) {
-      console.error("❌ [SERVICE] Error in RemotePlay:", error);
-    }
+    console.log("🎧 [Service] RemotePlay");
+    await TrackPlayer.play();
   });
-  console.log("✅ [SERVICE] RemotePlay listener registered");
 
-  // Pause button pressed
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    console.log("⏸️⏸️⏸️ [SERVICE] REMOTE PAUSE EVENT FIRED!");
-    try {
-      await TrackPlayer.pause();
-      console.log("✅ [SERVICE] TrackPlayer.pause() called");
-    } catch (error) {
-      console.error("❌ [SERVICE] Error in RemotePause:", error);
-    }
+    console.log("🎧 [Service] RemotePause");
+    await TrackPlayer.pause();
   });
-  console.log("✅ [SERVICE] RemotePause listener registered");
 
-  // Stop button pressed
-  TrackPlayer.addEventListener(Event.RemoteStop, async () => {
-    console.log("⏹️ [SERVICE] REMOTE STOP EVENT FIRED!");
-    try {
-      await TrackPlayer.stop();
-      console.log("✅ [SERVICE] TrackPlayer.stop() called");
-    } catch (error) {
-      console.error("❌ [SERVICE] Error in RemoteStop:", error);
-    }
+  TrackPlayer.addEventListener(Event.RemoteSeek, async (event) => {
+    console.log("🎧 [Service] RemoteSeek →", event.position);
+    await TrackPlayer.seekTo(event.position);
   });
-  console.log("✅ [SERVICE] RemoteStop listener registered");
 
-  // Next button pressed
   TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-    console.log("⏭️ [SERVICE] REMOTE NEXT EVENT FIRED!");
+    console.log("🎧 [Service] RemoteNext");
     try {
       await TrackPlayer.skipToNext();
-      console.log("✅ [SERVICE] TrackPlayer.skipToNext() called");
-    } catch (error) {
-      console.error("❌ [SERVICE] Error in RemoteNext:", error);
+    } catch (e) {
+      console.log("No next track:", e.message);
     }
   });
-  console.log("✅ [SERVICE] RemoteNext listener registered");
 
-  // Previous button pressed
   TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-    console.log("⏮️ [SERVICE] REMOTE PREVIOUS EVENT FIRED!");
+    console.log("🎧 [Service] RemotePrevious");
     try {
       await TrackPlayer.skipToPrevious();
-      console.log("✅ [SERVICE] TrackPlayer.skipToPrevious() called");
-    } catch (error) {
-      console.error("❌ [SERVICE] Error in RemotePrevious:", error);
+    } catch (e) {
+      console.log("No previous track:", e.message);
     }
   });
-  console.log("✅ [SERVICE] RemotePrevious listener registered");
 
-  // Seek/scrub
-  TrackPlayer.addEventListener(Event.RemoteSeek, async (event) => {
-    console.log("⏩ [SERVICE] REMOTE SEEK EVENT FIRED:", event.position);
-    try {
-      await TrackPlayer.seekTo(event.position);
-      console.log("✅ [SERVICE] TrackPlayer.seekTo() called");
-    } catch (error) {
-      console.error("❌ [SERVICE] Error in RemoteSeek:", error);
-    }
+  TrackPlayer.addEventListener(Event.RemoteJumpForward, async () => {
+    console.log("🎧 [Service] RemoteJumpForward");
+    await TrackPlayer.seekBy(15);
   });
-  console.log("✅ [SERVICE] RemoteSeek listener registered");
 
-  // Jump forward
-  TrackPlayer.addEventListener(Event.RemoteJumpForward, async (event) => {
-    console.log("⏩ [SERVICE] REMOTE JUMP FORWARD EVENT FIRED");
-    try {
-      const position = await TrackPlayer.getPosition();
-      await TrackPlayer.seekTo(position + (event.interval || 15));
-      console.log("✅ [SERVICE] TrackPlayer.seekTo() called for jump forward");
-    } catch (error) {
-      console.error("❌ [SERVICE] Error in RemoteJumpForward:", error);
-    }
+  TrackPlayer.addEventListener(Event.RemoteJumpBackward, async () => {
+    console.log("🎧 [Service] RemoteJumpBackward");
+    await TrackPlayer.seekBy(-15);
   });
-  console.log("✅ [SERVICE] RemoteJumpForward listener registered");
 
-  // Jump backward
-  TrackPlayer.addEventListener(Event.RemoteJumpBackward, async (event) => {
-    console.log("⏪ [SERVICE] REMOTE JUMP BACKWARD EVENT FIRED");
-    try {
-      const position = await TrackPlayer.getPosition();
-      await TrackPlayer.seekTo(Math.max(0, position - (event.interval || 15)));
-      console.log("✅ [SERVICE] TrackPlayer.seekTo() called for jump backward");
-    } catch (error) {
-      console.error("❌ [SERVICE] Error in RemoteJumpBackward:", error);
-    }
+  TrackPlayer.addEventListener(Event.RemoteStop, async () => {
+    console.log("🎧 [Service] RemoteStop");
+    await TrackPlayer.stop();
   });
-  console.log("✅ [SERVICE] RemoteJumpBackward listener registered");
-
-  console.log("✅✅✅ [SERVICE] ALL EVENT LISTENERS REGISTERED SUCCESSFULLY");
 };

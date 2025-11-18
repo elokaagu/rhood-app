@@ -23,12 +23,21 @@ try {
   if (TrackPlayer && TrackPlayer.registerPlaybackService) {
     console.log("🔊 [STARTUP] Registering playback service...");
     TrackPlayer.registerPlaybackService(() => {
-      console.log(
-        "🔊 [STARTUP] Service factory function called, requiring service module..."
-      );
       const service = require("./src/audio/playbackService");
-      console.log("🔊 [STARTUP] Service module loaded, type:", typeof service);
-      return service;
+      console.log("✅ [STARTUP] Service module loaded, type:", typeof service);
+
+      if (typeof service !== "function") {
+        console.error(
+          "❌ [STARTUP] Service is not a function! Got:",
+          typeof service,
+          "- Check playbackService.js exports"
+        );
+        throw new Error(
+          "Playback service must export a function. Got: " + typeof service
+        );
+      }
+
+      return service; // Should be "function" with CommonJS module.exports
     });
     console.log("✅ [STARTUP] Playback service registration completed");
   } else {

@@ -185,12 +185,15 @@ export default function App() {
   const [fontsLoaded, fontError] = useFonts({
     "TS Block Bold": require("./assets/TS Block Bold.ttf"),
   });
-  
+
   // Log font status (but don't block app if it fails)
   useEffect(() => {
     if (fontError) {
       // Font failed to load - app will use system fonts gracefully
-      console.warn("⚠️ Custom font not available, using system fonts:", fontError?.message?.substring(0, 80));
+      console.warn(
+        "⚠️ Custom font not available, using system fonts:",
+        fontError?.message?.substring(0, 80)
+      );
     } else if (fontsLoaded) {
       console.log("✅ TS Block Bold font loaded successfully");
     }
@@ -259,6 +262,8 @@ export default function App() {
         const removeListeners = setupAudioNotificationListeners();
 
         // Initialize lock screen controls
+        // Note: On iOS, this does nothing - TrackPlayer handles lock screen controls automatically
+        // On Android, this sets up MediaStyle notifications
         await lockScreenControls.initialize();
 
         console.log("✅ Lock screen audio controls initialized");
@@ -270,7 +275,7 @@ export default function App() {
     };
 
     initializeNotifications();
-    
+
     // Initialize analytics
     (async () => {
       await initAnalytics();
@@ -289,8 +294,10 @@ export default function App() {
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
 
   // Complete profile modal state
-  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
-  const [hasShownCompleteProfileModal, setHasShownCompleteProfileModal] = useState(false);
+  const [showCompleteProfileModal, setShowCompleteProfileModal] =
+    useState(false);
+  const [hasShownCompleteProfileModal, setHasShownCompleteProfileModal] =
+    useState(false);
 
   // Location state
   const [userLocation, setUserLocation] = useState(null);
@@ -973,28 +980,28 @@ export default function App() {
 
   const handleProfileSaved = async (updatedProfile) => {
     setShowEditProfile(false);
-    
+
     // Track profile update
     await track(AnalyticsEvents.PROFILE_UPDATED, {
       has_profile_image: !!updatedProfile.profile_image_url,
       has_city: !!updatedProfile.city,
       genres_count: updatedProfile.genres?.length || 0,
     });
-    
+
     // Refresh profile from database to get latest data including profile_image_url
     try {
       if (user?.id) {
         const refreshedProfile = await db.getUserProfile(user.id);
         if (refreshedProfile) {
           setDjProfile(refreshedProfile);
-          
+
           // Update analytics user properties
           await setAnalyticsUser(user.id, {
             email: user.email,
             dj_name: refreshedProfile.dj_name,
             city: refreshedProfile.city,
           });
-          
+
           // If profile picture was added, close the complete profile modal
           if (refreshedProfile.profile_image_url) {
             setShowCompleteProfileModal(false);
@@ -1004,16 +1011,16 @@ export default function App() {
     } catch (error) {
       console.error("Error refreshing profile:", error);
       // Fallback to using updatedProfile if refresh fails
-    setDjProfile({
-      djName: updatedProfile.dj_name,
-      firstName: updatedProfile.first_name || "",
-      lastName: updatedProfile.last_name || "",
-      instagram: updatedProfile.instagram || "",
-      soundcloud: updatedProfile.soundcloud || "",
-      city: updatedProfile.city,
-      genres: updatedProfile.genres,
-    });
-      
+      setDjProfile({
+        djName: updatedProfile.dj_name,
+        firstName: updatedProfile.first_name || "",
+        lastName: updatedProfile.last_name || "",
+        instagram: updatedProfile.instagram || "",
+        soundcloud: updatedProfile.soundcloud || "",
+        city: updatedProfile.city,
+        genres: updatedProfile.genres,
+      });
+
       // If profile picture was added, close the complete profile modal
       if (updatedProfile.profile_image_url) {
         setShowCompleteProfileModal(false);
@@ -1055,13 +1062,13 @@ export default function App() {
 
           if (!matchResult.matches && matchResult.currentCity) {
             setLocationMismatchWarning(true);
-            
+
             // Track location mismatch
             track(AnalyticsEvents.LOCATION_MISMATCH, {
               profile_city: profile.city,
               current_city: matchResult.currentCity,
             });
-            
+
             // Show warning modal after a short delay
             setTimeout(() => {
               showCustomModal({
@@ -1081,7 +1088,7 @@ export default function App() {
               });
             }, 2000);
           }
-          
+
           // Track location fetched
           track(AnalyticsEvents.LOCATION_FETCHED, {
             latitude: location.latitude,
@@ -1509,10 +1516,7 @@ export default function App() {
         if (!trackPlayer || !globalAudioState.currentTrack) {
           return;
         }
-        const TrackPlayer =
-          require("react-native-track-player").default ||
-          require("react-native-track-player");
-        await TrackPlayer.pause();
+        await trackPlayer.pause();
         return;
       }
 
@@ -1543,11 +1547,6 @@ export default function App() {
           return;
         }
 
-        // Import TrackPlayer directly for absolute control
-        const TrackPlayerModule = require("react-native-track-player");
-        const TrackPlayerInstance =
-          TrackPlayerModule.default || TrackPlayerModule;
-
         const state = await trackPlayer.getPlaybackState();
         const currentPosition = state.position * 1000;
         const newPosition = Math.max(
@@ -1555,7 +1554,7 @@ export default function App() {
           Math.min(state.duration * 1000, currentPosition + seekAmount)
         );
 
-        await TrackPlayerInstance.seekTo(newPosition / 1000);
+        await trackPlayer.seekTo(newPosition / 1000);
 
         // Update state immediately
         setGlobalAudioState((prev) => ({
@@ -1616,10 +1615,7 @@ export default function App() {
         if (!trackPlayer || !globalAudioState.currentTrack) {
           return;
         }
-        const TrackPlayer =
-          require("react-native-track-player").default ||
-          require("react-native-track-player");
-        await TrackPlayer.play();
+        await trackPlayer.resume();
         return;
       }
 
@@ -1641,17 +1637,11 @@ export default function App() {
 
   const stopGlobalAudio = async () => {
     try {
-      // iOS: Use track-player directly
+      // iOS: Use track-player
       if (Platform.OS === "ios" && trackPlayer) {
         try {
-          const TrackPlayerModule = require("react-native-track-player");
-          const TrackPlayerInstance =
-            TrackPlayerModule.default || TrackPlayerModule;
-
-          await TrackPlayerInstance.stop();
-          await TrackPlayerInstance.reset(); // Clear queue
-
-          console.log("🎵 iOS track-player stopped and reset directly");
+          await trackPlayer.stop();
+          console.log("🎵 iOS track-player stopped");
         } catch (error) {
           console.warn("⚠️ Track player stop failed:", error);
         }
@@ -2412,14 +2402,14 @@ export default function App() {
 
   const handleOpportunityPress = (opportunity) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     // Track opportunity viewed
     track(AnalyticsEvents.OPPORTUNITY_VIEWED, {
       opportunity_id: opportunity.id,
       opportunity_title: opportunity.title,
       opportunity_location: opportunity.location,
     });
-    
+
     showCustomModal({
       type: "info",
       title: opportunity.title,
@@ -2475,7 +2465,7 @@ export default function App() {
 
     // Show detailed opportunity information for confirmation
     const currentOpportunity = opportunities[currentOpportunityIndex];
-    
+
     // Track swipe right
     await track(AnalyticsEvents.SWIPE_RIGHT, {
       opportunity_id: currentOpportunity?.id,
@@ -3407,13 +3397,14 @@ export default function App() {
           setShowCompleteProfileModal(true);
         }, 1500); // Show after success modal closes
       } else {
-      showCustomModal({
-        type: "success",
-        title: "Success",
-        message: "Welcome to R/HOOD! Your profile has been saved to the cloud.",
-        primaryButtonText: "OK",
-        onPrimaryPress: () => setShowModal(false),
-      });
+        showCustomModal({
+          type: "success",
+          title: "Success",
+          message:
+            "Welcome to R/HOOD! Your profile has been saved to the cloud.",
+          primaryButtonText: "OK",
+          onPrimaryPress: () => setShowModal(false),
+        });
       }
     } catch (error) {
       console.error("❌ Error saving profile:", error);
@@ -3821,10 +3812,7 @@ export default function App() {
 
       case "help-chat":
         return (
-          <HelpChatScreen
-            user={user}
-            onBack={() => setCurrentScreen("help")}
-          />
+          <HelpChatScreen user={user} onBack={() => setCurrentScreen("help")} />
         );
 
       case "listen":
