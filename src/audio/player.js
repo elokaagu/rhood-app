@@ -26,26 +26,13 @@ export async function setupPlayer() {
   }
 
   if (!isInitialized) {
-    console.log("🎵 [PLAYER] Calling TrackPlayer.setupPlayer()...");
     await TrackPlayer.setupPlayer();
-    console.log(
-      "✅ [PLAYER] TrackPlayer.setupPlayer() completed - service should be called now"
-    );
     isInitialized = true;
-    
-    // Give the service time to register all event listeners
-    // This ensures listeners are ready before we configure capabilities
-    console.log("🎵 [PLAYER] Waiting for service to register listeners...");
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    console.log("✅ [PLAYER] Service should have registered listeners");
   }
 
-  // Only update options once after initialization
   if (!optionsUpdated) {
-    console.log("🎵 [PLAYER] Updating options with capabilities...");
     await TrackPlayer.updateOptions({
       stopWithApp: false,
-      alwaysPauseOnInterruption: true,
       capabilities: [
         Capability.Play,
         Capability.Pause,
@@ -62,18 +49,10 @@ export async function setupPlayer() {
         Capability.SkipToNext,
         Capability.SkipToPrevious,
       ],
-      notificationCapabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.SeekTo,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-      ],
       iosCategory: "playback",
       forwardJumpInterval: 15,
       backwardJumpInterval: 15,
     });
-    console.log("✅ [PLAYER] TrackPlayer.updateOptions() completed");
     optionsUpdated = true;
   }
 }
