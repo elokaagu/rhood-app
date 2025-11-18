@@ -32,6 +32,12 @@ export async function setupPlayer() {
       "✅ [PLAYER] TrackPlayer.setupPlayer() completed - service should be called now"
     );
     isInitialized = true;
+    
+    // Give the service time to register all event listeners
+    // This ensures listeners are ready before we configure capabilities
+    console.log("🎵 [PLAYER] Waiting for service to register listeners...");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    console.log("✅ [PLAYER] Service should have registered listeners");
   }
 
   // Only update options once after initialization
