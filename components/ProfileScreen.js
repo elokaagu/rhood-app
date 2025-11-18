@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     textTransform: "uppercase",
     letterSpacing: 1,
@@ -1000,7 +1000,7 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 24,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
   },
@@ -1064,7 +1064,7 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 24,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginTop: 8,
     marginBottom: 4,
@@ -1080,7 +1080,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 12,
   },
@@ -1125,7 +1125,7 @@ const styles = StyleSheet.create({
   },
   audioTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
   },
@@ -1254,7 +1254,7 @@ const styles = StyleSheet.create({
   },
   gigName: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     flex: 1,
   },
@@ -1347,7 +1347,7 @@ const styles = StyleSheet.create({
   },
   connectionsTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
@@ -1394,7 +1394,7 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     marginTop: 16,
     marginBottom: 8,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
   },
   emptyAudioSubtitle: {
     fontSize: 14,

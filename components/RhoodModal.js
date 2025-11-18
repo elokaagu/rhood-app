@@ -9,6 +9,7 @@ import {
   Animated,
   Image,
   Linking,
+  Share,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -33,6 +34,7 @@ const RhoodModal = ({
   onSecondaryPress,
   type = "info", // 'info', 'success', 'warning', 'error'
   showCloseButton = true,
+  showShareButton = false, // New prop to show share button
 }) => {
   const getIconAndColor = () => {
     switch (type) {
@@ -82,25 +84,101 @@ const RhoodModal = ({
   const renderTextWithLinks = (text) => {
     if (!text) return null;
 
-    const urlRegex = /(https?:\/\/[^\s]+)/gi;
-    const segments = text.split(urlRegex);
+    // Enhanced URL regex: matches http://, https://, www., or common domains
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/gi;
+    const segments = [];
+    let lastIndex = 0;
+    let match;
+    const urlMatches = [];
 
+    // Find all URL matches and store them
+    while ((match = urlRegex.exec(text)) !== null) {
+      urlMatches.push({
+        url: match[0],
+        index: match.index,
+        length: match[0].length,
+      });
+    }
+
+    // If no URLs found, check if text contains "here" - might be a reference to a URL elsewhere
+    if (urlMatches.length === 0) {
+      return <Text>{text}</Text>;
+    }
+
+    // Build segments with URLs and text
+    urlMatches.forEach((urlMatch, urlIndex) => {
+      // Add text before URL
+      if (urlMatch.index > lastIndex) {
+        const textBefore = text.substring(lastIndex, urlMatch.index);
+        segments.push({
+          type: "text",
+          value: textBefore,
+          urlIndex: urlIndex,
+        });
+      }
+      
+      // Add URL
+      segments.push({
+        type: "url",
+        value: urlMatch.url,
+        urlIndex: urlIndex,
+      });
+      
+      lastIndex = urlMatch.index + urlMatch.length;
+    });
+    
+    // Add remaining text
+    if (lastIndex < text.length) {
+      segments.push({
+        type: "text",
+        value: text.substring(lastIndex),
+        urlIndex: urlMatches.length - 1,
+      });
+    }
+
+    // Render segments
     return segments.map((segment, index) => {
-      const isUrl = /^https?:\/\/[^\s]+$/i.test(segment);
-
-      if (isUrl) {
+      if (segment.type === "url") {
+        // Replace URL with clickable "here"
         return (
           <Text
-            key={`segment-${index}`}
+            key={`url-${index}`}
             style={styles.linkText}
-            onPress={() => handleLinkPress(segment)}
+            onPress={() => handleLinkPress(segment.value)}
           >
             here
           </Text>
         );
       }
-
-      return segment;
+      
+      // Check if text segment contains "here" - make it clickable and link to nearest URL
+      if (/\bhere\b/i.test(segment.value)) {
+        // Find the URL to link to (use the URL associated with this segment, or the first one)
+        const targetUrl = urlMatches[segment.urlIndex]?.url || urlMatches[0]?.url;
+        if (targetUrl) {
+          const parts = segment.value.split(/(\bhere\b)/gi);
+          return (
+            <Text key={`text-${index}`}>
+              {parts.map((part, partIndex) => {
+                if (/\bhere\b/i.test(part)) {
+                  return (
+                    <Text
+                      key={`here-${partIndex}`}
+                      style={styles.linkText}
+                      onPress={() => handleLinkPress(targetUrl)}
+                    >
+                      {part}
+                    </Text>
+                  );
+                }
+                return part;
+              })}
+            </Text>
+          );
+        }
+      }
+      
+      return <Text key={`text-${index}`}>{segment.value}</Text>;
     });
   };
 
@@ -300,6 +378,41 @@ const RhoodModal = ({
     }
   };
 
+  const handleShare = async () => {
+    try {
+      // Build share message with opportunity details
+      let shareMessage = `🎧 ${title}\n\n`;
+      
+      if (eventDetails) {
+        if (eventDetails.description) {
+          shareMessage += `${eventDetails.description}\n\n`;
+        }
+        
+        const details = [];
+        if (eventDetails.date) details.push(`📅 Date: ${eventDetails.date}`);
+        if (eventDetails.time) details.push(`⏰ Time: ${eventDetails.time}`);
+        if (eventDetails.location) details.push(`📍 Location: ${eventDetails.location}`);
+        if (eventDetails.compensation) details.push(`💰 Compensation: ${eventDetails.compensation}`);
+        if (eventDetails.distanceFormatted) details.push(`📏 Distance: ${eventDetails.distanceFormatted}`);
+        
+        if (details.length > 0) {
+          shareMessage += details.join("\n") + "\n\n";
+        }
+      } else if (message) {
+        shareMessage += `${message}\n\n`;
+      }
+      
+      shareMessage += `Check it out on R/HOOD! 🎵`;
+      
+      await Share.share({
+        message: shareMessage,
+        title: `Share: ${title}`,
+      });
+    } catch (error) {
+      console.warn("Error sharing opportunity:", error);
+    }
+  };
+
   const shouldRenderStructuredDetails =
     type === "info" && eventDetails && Object.keys(eventDetails).length > 0;
 
@@ -328,6 +441,11 @@ const RhoodModal = ({
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.header}>
+            {showShareButton && (
+              <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+                <Ionicons name="share-outline" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
+            )}
             {showCloseButton && (
               <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                 <Ionicons name="close" size={24} color={COLORS.textSecondary} />
@@ -373,13 +491,17 @@ const RhoodModal = ({
               </View>
             ) : (
               <>
-                {message ? <Text style={styles.message}>{message}</Text> : null}
+                {message ? (
+                  <Text style={styles.message}>
+                    {renderTextWithLinks(message)}
+                  </Text>
+                ) : null}
               </>
             )}
 
             {shouldRenderStructuredDetails && supplementalMessage ? (
               <Text style={[styles.message, { marginTop: SPACING.md }]}>
-                {supplementalMessage}
+                {renderTextWithLinks(supplementalMessage)}
               </Text>
             ) : null}
           </View>
@@ -434,8 +556,12 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: SPACING.md,
+  },
+  shareButton: {
+    padding: SPACING.xs,
   },
   closeButton: {
     padding: SPACING.xs,

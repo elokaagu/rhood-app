@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "hsl(0, 0%, 15%)",
   },
   tsBlockBoldHeading: {
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontSize: 22,
     color: "#FFFFFF", // Brand white
     textAlign: "left", // Left aligned as per guidelines
@@ -938,7 +938,7 @@ const styles = StyleSheet.create({
   },
   noResultsTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginTop: 16,
     marginBottom: 8,
@@ -970,7 +970,7 @@ const styles = StyleSheet.create({
   },
   preferenceBannerTitle: {
     fontSize: 14,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(75, 100%, 60%)",
     textTransform: "uppercase",
     letterSpacing: 0.4,
@@ -1031,7 +1031,7 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 12.5,
     lineHeight: 14,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     flex: 1,
     flexShrink: 1,

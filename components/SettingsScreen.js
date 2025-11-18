@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   tsBlockBoldHeading: {
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontSize: 22,
     color: "#FFFFFF", // Brand white
     textAlign: "left", // Left aligned as per guidelines
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(75, 100%, 60%)",
     marginLeft: 8,
     textTransform: "uppercase",

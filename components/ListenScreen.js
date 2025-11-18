@@ -1285,7 +1285,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "hsl(0, 0%, 15%)",
   },
   tsBlockBoldHeading: {
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontSize: 18, // Reduced from 22 for better balance
     color: "#FFFFFF", // Brand white
     textAlign: "left", // Left aligned as per guidelines
@@ -1317,7 +1317,7 @@ const styles = StyleSheet.create({
   },
   uploadTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginTop: 12,
@@ -1353,7 +1353,7 @@ const styles = StyleSheet.create({
   },
   recommendationsTitle: {
     fontSize: 16, // Reduced from 18 for consistency
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 16,
@@ -1566,7 +1566,7 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginTop: 16,
     marginBottom: 8,
@@ -1686,7 +1686,7 @@ const styles = StyleSheet.create({
   },
   genreRowTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     letterSpacing: 0.5,
   },

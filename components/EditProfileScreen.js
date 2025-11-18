@@ -1302,7 +1302,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "hsl(0, 0%, 100%)",
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
   },
   modalCloseButton: {
     padding: 4,

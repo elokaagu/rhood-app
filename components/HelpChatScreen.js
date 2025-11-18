@@ -35,9 +35,9 @@ export default function HelpChatScreen({ user, onBack }) {
   const insets = useSafeAreaInsets();
 
   // Reduced padding to sit just above bottom tab bar
-  const TAB_BAR_OVERLAY_OFFSET = 70; // Reduced from 96 for tighter spacing
+  const TAB_BAR_OVERLAY_OFFSET = 40; // Reduced from 96 for tighter spacing
   const bottomInputPadding = useMemo(() => {
-    const BASE_PADDING = 8; // Reduced from 12
+    const BASE_PADDING = 0; // Increased to push message bar down
     return BASE_PADDING + Math.max(insets.bottom, 10) + TAB_BAR_OVERLAY_OFFSET;
   }, [insets.bottom]);
 
@@ -51,19 +51,19 @@ export default function HelpChatScreen({ user, onBack }) {
     const loadConversationHistory = async () => {
       if (!user?.id) {
         // Show welcome message for anonymous users
-    const welcomeMessage = {
-      id: "welcome",
-      text: "Hi! I'm here to help. What can I assist you with today?",
-      sender: "bot",
-      timestamp: new Date(),
-    };
-    setMessages([welcomeMessage]);
+        const welcomeMessage = {
+          id: "welcome",
+          text: "Hi! I'm here to help. What can I assist you with today?",
+          sender: "bot",
+          timestamp: new Date(),
+        };
+        setMessages([welcomeMessage]);
         return;
       }
 
       try {
         const savedMessages = await db.getHelpChatMessages(user.id);
-        
+
         if (savedMessages && savedMessages.length > 0) {
           // Convert database messages to app format
           const formattedMessages = savedMessages.map((msg) => ({
@@ -79,7 +79,7 @@ export default function HelpChatScreen({ user, onBack }) {
           // Only show welcome message if no history exists
           const welcomeMessage = {
             id: "welcome",
-            text: "Hi! I'm here to help. What can I assist you with today?",
+            text: "Hey! 👋 I'm here to help you with anything R/HOOD related. What's up?",
             sender: "bot",
             timestamp: new Date(),
           };
@@ -123,7 +123,8 @@ export default function HelpChatScreen({ user, onBack }) {
       lowerMessage.includes("upload failed")
     ) {
       return {
-        text: "I can help with upload issues! Here are common solutions:\n\n" +
+        text:
+          "I can help with upload issues! Here are common solutions:\n\n" +
           "• File size limit: Maximum 500MB per file\n" +
           "• Supported formats: MP3, WAV, M4A, AAC\n" +
           "• Check your internet connection\n" +
@@ -147,7 +148,8 @@ export default function HelpChatScreen({ user, onBack }) {
       lowerMessage.includes("location not working")
     ) {
       return {
-        text: "I can help with location issues! Here's what you can do:\n\n" +
+        text:
+          "I can help with location issues! Here's what you can do:\n\n" +
           "• Go to Settings > Edit Profile\n" +
           "• Update your city/location manually\n" +
           "• Make sure location services are enabled in your device settings\n" +
@@ -170,7 +172,8 @@ export default function HelpChatScreen({ user, onBack }) {
       lowerMessage.includes("question")
     ) {
       return {
-        text: "I can help with:\n\n" +
+        text:
+          "I can help with:\n\n" +
           "• Uploading mixes\n" +
           "• Location settings\n" +
           "• Account issues\n" +
@@ -193,7 +196,8 @@ export default function HelpChatScreen({ user, onBack }) {
       lowerMessage.includes("sign in")
     ) {
       return {
-        text: "For account issues:\n\n" +
+        text:
+          "For account issues:\n\n" +
           "• Reset password: Use 'Forgot Password' on the login screen\n" +
           "• Login problems: Check your email and password\n" +
           "• Account settings: Go to Settings > Account\n\n" +
@@ -208,7 +212,8 @@ export default function HelpChatScreen({ user, onBack }) {
 
     // Default response
     return {
-      text: "I understand you're looking for help. Could you tell me more about the issue?\n\n" +
+      text:
+        "I understand you're looking for help. Could you tell me more about the issue?\n\n" +
         "I can help with:\n" +
         "• Upload problems\n" +
         "• Location settings\n" +
@@ -269,7 +274,10 @@ export default function HelpChatScreen({ user, onBack }) {
     if (!messageText) return;
 
     if (!user?.id) {
-      Alert.alert("Please sign in", "You need to be signed in to use the help chat.");
+      Alert.alert(
+        "Please sign in",
+        "You need to be signed in to use the help chat."
+      );
       return;
     }
 
@@ -290,7 +298,7 @@ export default function HelpChatScreen({ user, onBack }) {
     // Save user message to database
     try {
       await db.saveHelpChatMessage(user.id, userMessage);
-      
+
       // Track help chat message
       track(AnalyticsEvents.HELP_CHAT_MESSAGE, {
         message_length: messageText.length,
@@ -305,14 +313,14 @@ export default function HelpChatScreen({ user, onBack }) {
       const history = messages.slice(-10); // keep context short for latency
       const ai = await getAssistantReply(messageText, { history });
       const textReply = ai?.text;
-      
+
       // Check if AI returned an error message
-      const isErrorResponse = textReply && (
-        textReply.includes("I couldn't reach our assistant") ||
-        textReply.includes("AI is not enabled") ||
-        textReply.includes("having trouble")
-      );
-      
+      const isErrorResponse =
+        textReply &&
+        (textReply.includes("I couldn't reach our assistant") ||
+          textReply.includes("AI is not enabled") ||
+          textReply.includes("having trouble"));
+
       const reply =
         textReply && typeof textReply === "string" && !isErrorResponse
           ? { text: textReply, quickActions: [] }
@@ -367,11 +375,14 @@ export default function HelpChatScreen({ user, onBack }) {
   const handleEscalate = async () => {
     // Collect conversation history
     const conversationHistory = messages
-      .map((msg) => `${msg.sender === "user" ? "You" : "Support Bot"}: ${msg.text}`)
+      .map(
+        (msg) => `${msg.sender === "user" ? "You" : "Support Bot"}: ${msg.text}`
+      )
       .join("\n\n");
 
     const userEmail = user?.email || "user@example.com";
-    const userName = user?.user_metadata?.dj_name || user?.user_metadata?.first_name || "User";
+    const userName =
+      user?.user_metadata?.dj_name || user?.user_metadata?.first_name || "User";
 
     try {
       // Try to send via Supabase Edge Function (if available)
@@ -389,7 +400,9 @@ export default function HelpChatScreen({ user, onBack }) {
             <hr>
             <p><em>This message was sent from the in-app help chat.</em></p>
           `,
-          text: `Support Request from ${userName}\n\nUser: ${userName} (${userEmail})\nUser ID: ${user?.id || "Unknown"}\n\nConversation History:\n\n${conversationHistory}`,
+          text: `Support Request from ${userName}\n\nUser: ${userName} (${userEmail})\nUser ID: ${
+            user?.id || "Unknown"
+          }\n\nConversation History:\n\n${conversationHistory}`,
         },
       });
 
@@ -401,12 +414,15 @@ export default function HelpChatScreen({ user, onBack }) {
       // Success - show confirmation
       const successMessage = {
         id: Date.now().toString(),
-        text: "Great! I've sent your message to our support team. They'll get back to you at " + userEmail + " within 24 hours.",
+        text:
+          "Great! I've sent your message to our support team. They'll get back to you at " +
+          userEmail +
+          " within 24 hours.",
         sender: "bot",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, successMessage]);
-      
+
       // Save success message to database
       if (user?.id) {
         try {
@@ -431,7 +447,9 @@ User ID: ${user?.id || "Unknown"}
 Thank you!`;
 
       // Encode only once and use proper URL encoding
-      const encodedSubject = encodeURIComponent(`Support Request from ${userName}`);
+      const encodedSubject = encodeURIComponent(
+        `Support Request from ${userName}`
+      );
       const encodedBody = encodeURIComponent(emailBody);
       const mailtoLink = `mailto:hello@rhood.io?subject=${encodedSubject}&body=${encodedBody}`;
 
@@ -455,7 +473,7 @@ Thank you!`;
                     timestamp: new Date(),
                   };
                   setMessages((prev) => [...prev, successMessage]);
-                  
+
                   // Save success message to database
                   if (user?.id) {
                     try {
@@ -465,7 +483,10 @@ Thank you!`;
                     }
                   }
                 } else {
-                  Alert.alert("Error", "Could not open email app. Please email hello@rhood.io directly.");
+                  Alert.alert(
+                    "Error",
+                    "Could not open email app. Please email hello@rhood.io directly."
+                  );
                 }
               } catch (linkError) {
                 console.error("Error opening mailto link:", linkError);
@@ -500,17 +521,11 @@ Thank you!`;
           ]}
         >
           {isUser ? (
-          <Text
-              style={[styles.messageText, styles.userMessageText]}
-          >
-            {message.text}
-          </Text>
-          ) : (
-            <Markdown
-              style={markdownStyles}
-            >
+            <Text style={[styles.messageText, styles.userMessageText]}>
               {message.text}
-            </Markdown>
+            </Text>
+          ) : (
+            <Markdown style={markdownStyles}>{message.text}</Markdown>
           )}
         </View>
         {message.quickActions && message.quickActions.length > 0 && (
@@ -553,7 +568,10 @@ Thank you!`;
         <ScrollView
           ref={scrollViewRef}
           style={styles.messagesContainer}
-          contentContainerStyle={[styles.messagesContent, { paddingBottom: scrollBottomPadding }]}
+          contentContainerStyle={[
+            styles.messagesContent,
+            { paddingBottom: scrollBottomPadding },
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {messages.map(renderMessage)}
@@ -565,25 +583,27 @@ Thank you!`;
         </ScrollView>
 
         {/* Input */}
-        <View style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}>
+        <View
+          style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}
+        >
           <View style={styles.inputWrapper}>
-          <TextInput
+            <TextInput
               style={styles.messageInput}
               placeholder="Type a message..."
               placeholderTextColor="hsl(0, 0%, 50%)"
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
               maxHeight={100}
-            maxLength={500}
+              maxLength={500}
               onSubmitEditing={() => handleSendMessage()}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
+            />
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
                 (!inputText.trim() || isTyping) && styles.sendButtonDisabled,
-            ]}
-            onPress={() => handleSendMessage()}
+              ]}
+              onPress={() => handleSendMessage()}
               disabled={!inputText.trim() || isTyping}
             >
               {isTyping ? (
@@ -591,7 +611,7 @@ Thank you!`;
               ) : (
                 <Ionicons name="send" size={20} color="hsl(0, 0%, 0%)" />
               )}
-          </TouchableOpacity>
+            </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -623,7 +643,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "700",
     color: COLORS.textPrimary,
   },
@@ -798,4 +818,3 @@ const markdownStyles = {
     borderRadius: 4,
   },
 };
-

@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
   },
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(75, 100%, 60%)",
     marginBottom: 12,
   },
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 8%)",
   },
 });

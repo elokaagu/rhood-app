@@ -43,7 +43,7 @@ try {
   console.warn("⚠️ Track player not available:", error.message);
 }
 import { LinearGradient } from "expo-linear-gradient";
-import { useFonts } from "expo-font";
+import { useFonts, Font } from "expo-font";
 import * as Haptics from "expo-haptics";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
@@ -180,9 +180,21 @@ const AutoScrollText = ({ text, style, containerWidth = 200 }) => {
 
 export default function App() {
   // Load custom fonts
-  const [fontsLoaded] = useFonts({
-    "TS-Block-Bold": require("./assets/TS Block Bold.ttf"),
+  // Use the actual font family name "TS Block Bold" (not PostScript name)
+  // This matches the internal font name from the TTF file
+  const [fontsLoaded, fontError] = useFonts({
+    "TS Block Bold": require("./assets/TS Block Bold.ttf"),
   });
+  
+  // Log font status (but don't block app if it fails)
+  useEffect(() => {
+    if (fontError) {
+      // Font failed to load - app will use system fonts gracefully
+      console.warn("⚠️ Custom font not available, using system fonts:", fontError?.message?.substring(0, 80));
+    } else if (fontsLoaded) {
+      console.log("✅ TS Block Bold font loaded successfully");
+    }
+  }, [fontsLoaded, fontError]);
 
   // Format time helper function
   const formatTime = (milliseconds) => {
@@ -439,6 +451,8 @@ export default function App() {
       onSecondaryPress: config.onSecondaryPress || null,
       showCloseButton:
         config.showCloseButton !== undefined ? config.showCloseButton : true,
+      showShareButton:
+        config.showShareButton !== undefined ? config.showShareButton : false,
     });
     setShowModal(true);
   };
@@ -990,15 +1004,15 @@ export default function App() {
     } catch (error) {
       console.error("Error refreshing profile:", error);
       // Fallback to using updatedProfile if refresh fails
-      setDjProfile({
-        djName: updatedProfile.dj_name,
-        firstName: updatedProfile.first_name || "",
-        lastName: updatedProfile.last_name || "",
-        instagram: updatedProfile.instagram || "",
-        soundcloud: updatedProfile.soundcloud || "",
-        city: updatedProfile.city,
-        genres: updatedProfile.genres,
-      });
+    setDjProfile({
+      djName: updatedProfile.dj_name,
+      firstName: updatedProfile.first_name || "",
+      lastName: updatedProfile.last_name || "",
+      instagram: updatedProfile.instagram || "",
+      soundcloud: updatedProfile.soundcloud || "",
+      city: updatedProfile.city,
+      genres: updatedProfile.genres,
+    });
       
       // If profile picture was added, close the complete profile modal
       if (updatedProfile.profile_image_url) {
@@ -2420,6 +2434,7 @@ export default function App() {
       },
       primaryButtonText: "Apply",
       secondaryButtonText: "Close",
+      showShareButton: true, // Enable share button for opportunities
       onPrimaryPress: () => {
         showCustomModal({
           type: "success",
@@ -2488,6 +2503,7 @@ export default function App() {
       primaryButtonText: "Apply Now",
       secondaryButtonText: "Cancel",
       showCloseButton: false,
+      showShareButton: true, // Enable share button for opportunities
       onPrimaryPress: () => handleConfirmApply(currentOpportunity),
       onSecondaryPress: () => {
         console.log(
@@ -3391,13 +3407,13 @@ export default function App() {
           setShowCompleteProfileModal(true);
         }, 1500); // Show after success modal closes
       } else {
-        showCustomModal({
-          type: "success",
-          title: "Success",
-          message: "Welcome to R/HOOD! Your profile has been saved to the cloud.",
-          primaryButtonText: "OK",
-          onPrimaryPress: () => setShowModal(false),
-        });
+      showCustomModal({
+        type: "success",
+        title: "Success",
+        message: "Welcome to R/HOOD! Your profile has been saved to the cloud.",
+        primaryButtonText: "OK",
+        onPrimaryPress: () => setShowModal(false),
+      });
       }
     } catch (error) {
       console.error("❌ Error saving profile:", error);
@@ -3412,11 +3428,8 @@ export default function App() {
     }
   };
 
-  // Wait for fonts to load
-  if (!fontsLoaded) {
-    console.log("⏳ App: Waiting for fonts to load...");
-    // Do not block rendering; continue with system fonts until ready
-  }
+  // Fonts will load asynchronously - app continues with system fonts until ready
+  // No need to block or log repeatedly
 
   // Show splash screen first
   if (showSplash) {
@@ -4939,6 +4952,7 @@ export default function App() {
           onPrimaryPress={modalConfig.onPrimaryPress}
           onSecondaryPress={modalConfig.onSecondaryPress}
           showCloseButton={modalConfig.showCloseButton}
+          showShareButton={modalConfig.showShareButton}
         />
 
         {/* Brief Form Modal - REMOVED (simplified to swipe-to-apply) */}
@@ -5004,31 +5018,27 @@ const styles = StyleSheet.create({
   logoText: {
     color: "#C2CC06", // Brand lime green
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontFamily: "TS Block Bold",
     letterSpacing: 1,
   },
   logoTextGreen: {
     color: "#C2CC06", // Brand lime green - matches the green logo
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontFamily: "TS Block Bold",
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
   logoTextWhite: {
     color: "#FFFFFF", // White - matches the white logo
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontFamily: "TS Block Bold",
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
   logoTextBlack: {
     color: "#000000", // Black - matches the black logo
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontFamily: "TS Block Bold",
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
@@ -5070,8 +5080,7 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     fontSize: 20,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "bold",
+    fontFamily: "TS Block Bold",
     color: "#FFFFFF", // Brand white text
     marginBottom: 20,
     textAlign: "center",
@@ -5081,8 +5090,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "bold",
+    fontFamily: "TS Block Bold",
     color: "#C2CC06", // Brand lime green
     textAlign: "center",
     marginBottom: 10,
@@ -5092,7 +5100,7 @@ const styles = StyleSheet.create({
   },
   // TS Block Bold for impactful headings
   tsBlockBoldHeading: {
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontSize: 22,
     color: "#FFFFFF", // Brand white
     textAlign: "left", // Left aligned as per guidelines
@@ -5369,8 +5377,7 @@ const styles = StyleSheet.create({
   },
   profileDJ: {
     fontSize: 24,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontFamily: "TS Block Bold",
     color: "#C2CC06", // Brand lime green
     marginBottom: 5,
     // Removed glow effects
@@ -5517,8 +5524,7 @@ const styles = StyleSheet.create({
   },
   emptyOpportunitiesTitle: {
     fontSize: 20,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginTop: 16,
     marginBottom: 8,
@@ -5589,7 +5595,7 @@ const styles = StyleSheet.create({
   },
   noMoreTitle: {
     fontSize: 24,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginTop: 20,
     marginBottom: 12,
@@ -5938,8 +5944,7 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 24,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     letterSpacing: 1,
   },
@@ -6266,7 +6271,7 @@ const styles = StyleSheet.create({
   },
   fullScreenHeaderTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
     textAlign: "center",
@@ -6294,7 +6299,7 @@ const styles = StyleSheet.create({
   },
   fullScreenTrackTitle: {
     fontSize: 24,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "900",
     textAlign: "center",
@@ -6423,7 +6428,7 @@ const styles = StyleSheet.create({
   },
   aboutDJTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
     marginBottom: 4,

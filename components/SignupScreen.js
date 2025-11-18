@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   logoText: {
     color: "hsl(75, 100%, 60%)",
     fontSize: 32,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "900",
     letterSpacing: 1,
     marginBottom: 10,

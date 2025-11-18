@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   tsBlockBoldHeading: {
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontSize: 22,
     color: "#FFFFFF", // Brand white
     textAlign: "left", // Left aligned as per guidelines
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
   },
   noResultsTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginTop: 16,
     marginBottom: 8,
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
   },
   loadingTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(75, 100%, 60%)",
     marginTop: 16,
     marginBottom: 8,
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   },
   communityName: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(75, 100%, 60%)",
     flex: 1,
   },

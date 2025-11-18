@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
@@ -29,8 +35,7 @@ import * as WebBrowser from "expo-web-browser";
 
 const URL_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
 
-const stripTrailingPunctuation = (url = "") =>
-  url.replace(/[),.;!?]+$/g, "");
+const stripTrailingPunctuation = (url = "") => url.replace(/[),.;!?]+$/g, "");
 
 const extractUrls = (text = "") => {
   if (!text) return [];
@@ -76,10 +81,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
   }, [insets.top]);
 
   // Extra space to account for the overlaid bottom tab bar
-  const tabBarOverlayOffset = 96; // approximate height incl. shadow/rounding
+  const tabBarOverlayOffset = 0; // Reduced from 96 for tighter spacing
 
   const bottomInputPadding = useMemo(() => {
-    const BASE_PADDING = 12;
+    const BASE_PADDING = 0; // Set to 0 to match HelpChatScreen
     return BASE_PADDING + Math.max(insets.bottom, 10) + tabBarOverlayOffset;
   }, [insets.bottom]);
 
@@ -190,9 +195,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       };
 
       const getTitleTag = () => {
-        const titleMatch = truncatedHtml.match(
-          /<title[^>]*>([^<]*)<\/title>/i
-        );
+        const titleMatch = truncatedHtml.match(/<title[^>]*>([^<]*)<\/title>/i);
         if (titleMatch && titleMatch[1]) return titleMatch[1];
         return "";
       };
@@ -317,7 +320,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 key={`${message.id}-link-${index}`}
                 style={[
                   styles.messageLink,
-                  message.isOwn ? styles.ownMessageLink : styles.otherMessageLink,
+                  message.isOwn
+                    ? styles.ownMessageLink
+                    : styles.otherMessageLink,
                 ]}
                 onPress={() => handleUrlPress(segment.value)}
               >
@@ -342,34 +347,34 @@ const MessagesScreen = ({ user, navigation, route }) => {
         const isOwn = message.isOwn;
 
         return (
-        <TouchableOpacity
-          key={`${message.id}-${preview.url}`}
-          style={[
-            styles.linkPreviewCard,
-            message.isOwn
-              ? styles.ownLinkPreviewCard
-              : styles.otherLinkPreviewCard,
-          ]}
-          activeOpacity={0.85}
-          onPress={() => handleUrlPress(preview.url)}
-        >
-          {preview.image ? (
-            <Image
-              source={{ uri: preview.image }}
-              style={styles.linkPreviewImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.linkPreviewPlaceholder}>
-              <Ionicons
-                name="link-outline"
-                size={24}
-                color="hsl(0, 0%, 65%)"
+          <TouchableOpacity
+            key={`${message.id}-${preview.url}`}
+            style={[
+              styles.linkPreviewCard,
+              message.isOwn
+                ? styles.ownLinkPreviewCard
+                : styles.otherLinkPreviewCard,
+            ]}
+            activeOpacity={0.85}
+            onPress={() => handleUrlPress(preview.url)}
+          >
+            {preview.image ? (
+              <Image
+                source={{ uri: preview.image }}
+                style={styles.linkPreviewImage}
+                resizeMode="cover"
               />
-            </View>
-          )}
-          <View style={styles.linkPreviewContent}>
-            {preview.siteName ? (
+            ) : (
+              <View style={styles.linkPreviewPlaceholder}>
+                <Ionicons
+                  name="link-outline"
+                  size={24}
+                  color="hsl(0, 0%, 65%)"
+                />
+              </View>
+            )}
+            <View style={styles.linkPreviewContent}>
+              {preview.siteName ? (
                 <Text
                   style={[
                     styles.linkPreviewSite,
@@ -379,9 +384,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   ]}
                   numberOfLines={1}
                 >
-                {preview.siteName}
-              </Text>
-            ) : null}
+                  {preview.siteName}
+                </Text>
+              ) : null}
               <Text
                 style={[
                   styles.linkPreviewTitle,
@@ -391,9 +396,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 ]}
                 numberOfLines={2}
               >
-              {preview.title || preview.url}
-            </Text>
-            {preview.description ? (
+                {preview.title || preview.url}
+              </Text>
+              {preview.description ? (
                 <Text
                   style={[
                     styles.linkPreviewDescription,
@@ -403,22 +408,20 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   ]}
                   numberOfLines={2}
                 >
-                {preview.description}
-              </Text>
-            ) : null}
+                  {preview.description}
+                </Text>
+              ) : null}
               <Text
                 style={[
                   styles.linkPreviewUrl,
-                  isOwn
-                    ? styles.ownLinkPreviewUrl
-                    : styles.otherLinkPreviewUrl,
+                  isOwn ? styles.ownLinkPreviewUrl : styles.otherLinkPreviewUrl,
                 ]}
                 numberOfLines={1}
               >
-              {preview.url.replace(/^https?:\/\//, "")}
-            </Text>
-          </View>
-        </TouchableOpacity>
+                {preview.url.replace(/^https?:\/\//, "")}
+              </Text>
+            </View>
+          </TouchableOpacity>
         );
       });
     },
@@ -476,7 +479,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
         });
       } catch (error) {
         console.error("Error deleting message:", error);
-        Alert.alert("Error", "Failed to delete this message. Please try again.");
+        Alert.alert(
+          "Error",
+          "Failed to delete this message. Please try again."
+        );
       }
     },
     [supabase]
@@ -2102,7 +2108,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
         {/* Input */}
         {chatType === "individual" && !isConnected ? (
           <View
-            style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}
+            style={[
+              styles.inputContainer,
+              { paddingBottom: bottomInputPadding },
+            ]}
           >
             <View style={styles.connectionRequiredContainer}>
               <Text style={styles.connectionRequiredText}>
@@ -2124,7 +2133,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
           </View>
         ) : (
           <View
-            style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}
+            style={[
+              styles.inputContainer,
+              { paddingBottom: bottomInputPadding },
+            ]}
           >
             <View style={styles.inputWrapper}>
               <TouchableOpacity
@@ -2224,7 +2236,7 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 60%)",
     fontSize: 16,
     fontWeight: "700",
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     marginBottom: 2,
     letterSpacing: 0.5,
   },
@@ -2257,7 +2269,7 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 60%)",
     fontSize: 24,
     fontWeight: "700",
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     marginBottom: 12,
     textAlign: "center",
     letterSpacing: 0.5,
@@ -2500,7 +2512,7 @@ const styles = StyleSheet.create({
   connectButtonText: {
     color: "hsl(0, 0%, 0%)",
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "600",
   },
   attachButton: {

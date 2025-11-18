@@ -24,8 +24,9 @@ const { width, height } = Dimensions.get("window");
 
 const SplashScreen = ({ onFinish }) => {
   // Load custom fonts
+  // Use the actual font family name "TS Block Bold"
   const [fontsLoaded] = useFonts({
-    "TS-Block-Bold": require("../assets/TS Block Bold.ttf"),
+    "TS Block Bold": require("../assets/TS Block Bold.ttf"),
   });
 
   // Animation states
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   welcomeText: {
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontSize: 18,
     color: "#FFFFFF",
     textAlign: "center",

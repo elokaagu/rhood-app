@@ -777,7 +777,7 @@ const styles = {
   },
   title: {
     fontSize: 32,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "900",
     color: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
     textAlign: "center",

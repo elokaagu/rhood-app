@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tsBlockBoldHeading: {
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontSize: 22,
     color: "#FFFFFF", // Brand white
     textAlign: "left", // Left aligned as per guidelines
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   },
   noResultsTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginTop: 16,
     marginBottom: 8,
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   },
   djName: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
     marginRight: 8,

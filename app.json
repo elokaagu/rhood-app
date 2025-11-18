@@ -99,8 +99,8 @@
           "userTrackingPermission": "We use your data to improve your experience and show you relevant opportunities."
         }
       ],
-      "@react-native-firebase/app",
-      "./plugins/withFirebaseFix"
+      "./plugins/withFirebaseModularHeaders",
+      "@react-native-firebase/app"
     ],
     "scheme": "rhoodapp",
     "owner": "elokaagu",

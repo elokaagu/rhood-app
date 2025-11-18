@@ -262,8 +262,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: TYPOGRAPHY.xl,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "700",
+    fontFamily: "TS Block Bold",
     color: COLORS.textPrimary,
   },
   headerSubtitle: {
@@ -293,8 +292,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: TYPOGRAPHY.lg,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "700",
+    fontFamily: "TS Block Bold",
     color: COLORS.textPrimary,
     marginTop: SPACING.lg,
     marginBottom: SPACING.sm,
@@ -314,8 +312,7 @@ const styles = StyleSheet.create({
   },
   discoverButtonText: {
     fontSize: TYPOGRAPHY.base,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "700",
+    fontFamily: "TS Block Bold",
     color: COLORS.background,
   },
   connectionCard: {
@@ -368,8 +365,7 @@ const styles = StyleSheet.create({
   },
   connectionName: {
     fontSize: TYPOGRAPHY.base,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "700",
+    fontFamily: "TS Block Bold",
     color: COLORS.textPrimary,
     marginRight: SPACING.xs,
   },

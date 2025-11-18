@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 24,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     textAlign: "center",
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "700",
     color: "hsl(75, 100%, 60%)",
     marginBottom: SPACING.md,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   },
   subsectionTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "600",
     color: "hsl(0, 0%, 95%)",
     marginBottom: SPACING.sm,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   contactLabel: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     marginBottom: SPACING.xs,

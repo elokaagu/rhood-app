@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     fontSize: 20,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     lineHeight: 26,
   },

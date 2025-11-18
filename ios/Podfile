@@ -38,8 +38,13 @@ target 'RHOOD' do
 
   config = use_native_modules!(config_command)
 
-  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
-  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
+  # Use static frameworks for Firebase compatibility
+  # This allows Firebase Swift pods to work without global use_modular_headers!
+  use_frameworks! :linkage => :static
+  
+  # Override if explicitly set in properties
+  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks'] && podfile_properties['ios.useFrameworks'] != 'static'
+  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS'] && ENV['USE_FRAMEWORKS'] != 'static'
 
   use_react_native!(
     :path => config[:reactNativePath],

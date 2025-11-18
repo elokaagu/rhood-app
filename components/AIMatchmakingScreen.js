@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 5,
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   },
   matchScore: {
     fontSize: 32,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "900",
   },
   matchScoreLabel: {

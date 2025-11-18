@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 28,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     marginBottom: SPACING.sm,
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     marginBottom: SPACING.md,

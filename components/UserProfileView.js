@@ -987,7 +987,7 @@ const styles = StyleSheet.create({
   },
   profileDisplayName: {
     fontSize: 22,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
     textAlign: "center",
@@ -1049,7 +1049,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 16,
   },
@@ -1226,7 +1226,7 @@ const styles = StyleSheet.create({
   },
   audioIdTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 16,
     textTransform: "uppercase",

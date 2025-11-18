@@ -313,8 +313,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 5,
   },
@@ -351,8 +350,7 @@ const styles = StyleSheet.create({
   },
   analyticsNumber: {
     fontSize: 24,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "900",
+    fontFamily: "TS Block Bold",
     color: "hsl(75, 100%, 60%)",
     marginBottom: 4,
   },
@@ -385,7 +383,7 @@ const styles = StyleSheet.create({
   },
   matchScore: {
     fontSize: 32,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "900",
   },
   matchScoreLabel: {

@@ -2140,7 +2140,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
     textTransform: "uppercase",
@@ -2182,7 +2182,7 @@ const styles = StyleSheet.create({
   },
   noResultsTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginTop: 16,
     marginBottom: 8,
@@ -2346,8 +2346,7 @@ const styles = StyleSheet.create({
   },
   connectionName: {
     fontSize: 14,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "600",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     flex: 1,
   },
@@ -2396,8 +2395,7 @@ const styles = StyleSheet.create({
   },
   ctaTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "600",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginTop: 8,
     marginBottom: 4,
@@ -2592,7 +2590,7 @@ const styles = StyleSheet.create({
   },
   pendingRequestsTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     letterSpacing: 0.5,
   },
@@ -2727,8 +2725,7 @@ const styles = StyleSheet.create({
   },
   discoverName: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "700",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     flex: 1,
   },
@@ -2866,8 +2863,7 @@ const styles = StyleSheet.create({
   },
   discoverName: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
-    fontWeight: "700",
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 2,
   },

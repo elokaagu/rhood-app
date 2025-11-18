@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
     textAlign: "center",
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   },
   quickLinkTitle: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 2,
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "700",
     color: "hsl(75, 100%, 60%)",
     marginBottom: SPACING.md,
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   questionText: {
     flex: 1,
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     marginRight: SPACING.sm,
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
   },
   contactTitle: {
     fontSize: 20,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     marginBottom: SPACING.sm,
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
   },
   contactButtonText: {
     fontSize: 16,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "700",
     color: "hsl(0, 0%, 0%)",
     marginLeft: SPACING.sm,
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    fontFamily: "TS-Block-Bold",
+    fontFamily: "TS Block Bold",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     marginBottom: SPACING.xs,
