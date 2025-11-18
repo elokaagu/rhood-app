@@ -184,6 +184,7 @@ export default function ProfileScreen({
             userAchievements.map((ua) => ua.achievement_id)
           );
 
+          // Show first 4 achievements on profile, but keep all for the list page
           achievements = allAchievements.slice(0, 4).map((achievement) => ({
             id: achievement.id,
             name: achievement.name,
@@ -463,9 +464,24 @@ export default function ProfileScreen({
       return null;
     }
 
+    // Count earned achievements
+    const earnedCount = profile.achievements.filter((a) => a.earned).length;
+    const totalCount = profile.achievements.length;
+
     return (
-      <View style={styles.achievementsContainer}>
-        <Text style={styles.sectionTitle}>Achievements</Text>
+      <TouchableOpacity
+        style={styles.achievementsContainer}
+        onPress={() => onNavigate && onNavigate("achievements-list")}
+        activeOpacity={0.7}
+      >
+        <View style={styles.achievementsHeader}>
+          <Text style={styles.sectionTitle}>Achievements</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color="hsl(0, 0%, 50%)"
+          />
+        </View>
         <View style={styles.achievementsGrid}>
           {profile.achievements.map((achievement) => (
             <View
@@ -493,7 +509,12 @@ export default function ProfileScreen({
             </View>
           ))}
         </View>
-      </View>
+        {earnedCount > 0 && (
+          <Text style={styles.achievementsCount}>
+            {earnedCount} of {totalCount} earned
+          </Text>
+        )}
+      </TouchableOpacity>
     );
   };
 
@@ -1290,6 +1311,19 @@ const styles = StyleSheet.create({
   achievementsContainer: {
     paddingHorizontal: 20,
     marginBottom: 20,
+  },
+  achievementsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  achievementsCount: {
+    fontSize: 12,
+    color: "hsl(75, 100%, 60%)",
+    fontFamily: "Helvetica Neue",
+    marginTop: 8,
+    textAlign: "center",
   },
   achievementsGrid: {
     flexDirection: "row",

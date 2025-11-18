@@ -83,6 +83,9 @@ import PrivacyPolicyScreen from "./components/PrivacyPolicyScreen";
 import HelpCenterScreen from "./components/HelpCenterScreen";
 import HelpChatScreen from "./components/HelpChatScreen";
 import ConnectionsListScreen from "./components/ConnectionsListScreen";
+import AchievementsListScreen from "./components/AchievementsListScreen";
+import AdminApplicationsScreen from "./components/AdminApplicationsScreen";
+import BrandGigsPortal from "./components/BrandGigsPortal";
 // Push notifications - gracefully handle Expo Go limitations
 import {
   registerForPushNotifications,
@@ -3783,6 +3786,33 @@ export default function App() {
               setCurrentScreen(screen);
               setScreenParams(params);
             }}
+          />
+        );
+
+      case "achievements-list":
+        return (
+          <AchievementsListScreen
+            user={user}
+            onBack={() => setCurrentScreen("profile")}
+          />
+        );
+
+      case "admin-applications":
+        return (
+          <AdminApplicationsScreen
+            user={user}
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
+          />
+        );
+
+      case "brand-gigs-portal":
+        return (
+          <BrandGigsPortal
+            user={user}
+            onBack={() => setCurrentScreen("admin-applications")}
           />
         );
 

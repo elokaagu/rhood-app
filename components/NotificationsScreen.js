@@ -39,6 +39,9 @@ const formatRelativeTime = (timestamp) => {
   return `${diffInWeeks} week${diffInWeeks === 1 ? "" : "s"} ago`;
 };
 
+const removeCelebrateEmoji = (title = "") =>
+  title.replace(/🎉/g, "").trim();
+
 export default function NotificationsScreen({
   user: propUser,
   onNavigate,
@@ -228,10 +231,14 @@ export default function NotificationsScreen({
         })
         .map((notification) => {
         const rawTitle = notification.title || "";
-        const displayTitle =
+        const baseTitle =
           notification.type === "connection"
             ? rawTitle.replace(/^\s*New\s+/i, "").trim() || "Connection Request"
             : rawTitle;
+        const displayTitle =
+          notification.type === "application"
+            ? removeCelebrateEmoji(baseTitle)
+            : baseTitle;
 
         return {
         id: notification.id,

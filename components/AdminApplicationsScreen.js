@@ -277,13 +277,21 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Application Reviews</Text>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={onRefresh}
-          disabled={refreshing}
-        >
-          <Ionicons name="refresh" size={24} color="hsl(75, 100%, 60%)" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.gigsButton}
+            onPress={() => onNavigate && onNavigate("brand-gigs-portal")}
+          >
+            <Ionicons name="calendar" size={20} color="hsl(75, 100%, 60%)" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={onRefresh}
+            disabled={refreshing}
+          >
+            <Ionicons name="refresh" size={24} color="hsl(75, 100%, 60%)" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -334,6 +342,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "hsl(0, 0%, 100%)",
     marginLeft: 16,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  gigsButton: {
+    padding: 8,
   },
   refreshButton: {
     padding: 8,

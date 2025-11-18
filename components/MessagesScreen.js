@@ -1681,6 +1681,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   style={[
                     styles.messageBubble,
                     message.isOwn ? styles.ownBubble : styles.otherBubble,
+                    message.messageType !== "text" && message.mediaUrl && styles.mediaBubble,
                   ]}
                   onLongPress={() => handleMessageLongPress(message)}
                   delayLongPress={250}
@@ -2329,6 +2330,11 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 12%)",
     borderBottomLeftRadius: 4,
   },
+  mediaBubble: {
+    backgroundColor: "transparent",
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
@@ -2655,12 +2661,17 @@ const styles = StyleSheet.create({
   },
   mediaContent: {
     marginBottom: 8,
+    backgroundColor: "hsl(0, 0%, 0%)",
+    borderRadius: 12,
+    overflow: "hidden",
   },
   messageImage: {
     width: 200,
     height: 200,
     borderRadius: 12,
     marginBottom: 4,
+    backgroundColor: "hsl(0, 0%, 0%)",
+    overflow: "hidden",
   },
   messageVideo: {
     position: "relative",

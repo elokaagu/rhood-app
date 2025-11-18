@@ -11,6 +11,7 @@ import {
   Linking,
   Share,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
   COLORS,
@@ -36,6 +37,7 @@ const RhoodModal = ({
   showCloseButton = true,
   showShareButton = false, // New prop to show share button
 }) => {
+  const insets = useSafeAreaInsets();
   const getIconAndColor = () => {
     switch (type) {
       case "success":
@@ -438,7 +440,7 @@ const RhoodModal = ({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { paddingTop: Math.max(insets.top + SPACING.xl, SPACING.xl) }]}>
           {/* Header */}
           <View style={styles.header}>
             {showShareButton && (
