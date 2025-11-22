@@ -347,34 +347,34 @@ const MessagesScreen = ({ user, navigation, route }) => {
         const isOwn = message.isOwn;
 
         return (
-          <TouchableOpacity
-            key={`${message.id}-${preview.url}`}
-            style={[
-              styles.linkPreviewCard,
-              message.isOwn
-                ? styles.ownLinkPreviewCard
-                : styles.otherLinkPreviewCard,
-            ]}
-            activeOpacity={0.85}
-            onPress={() => handleUrlPress(preview.url)}
-          >
-            {preview.image ? (
-              <Image
-                source={{ uri: preview.image }}
-                style={styles.linkPreviewImage}
-                resizeMode="cover"
+        <TouchableOpacity
+          key={`${message.id}-${preview.url}`}
+          style={[
+            styles.linkPreviewCard,
+            message.isOwn
+              ? styles.ownLinkPreviewCard
+              : styles.otherLinkPreviewCard,
+          ]}
+          activeOpacity={0.85}
+          onPress={() => handleUrlPress(preview.url)}
+        >
+          {preview.image ? (
+            <Image
+              source={{ uri: preview.image }}
+              style={styles.linkPreviewImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.linkPreviewPlaceholder}>
+              <Ionicons
+                name="link-outline"
+                size={24}
+                color="hsl(0, 0%, 65%)"
               />
-            ) : (
-              <View style={styles.linkPreviewPlaceholder}>
-                <Ionicons
-                  name="link-outline"
-                  size={24}
-                  color="hsl(0, 0%, 65%)"
-                />
-              </View>
-            )}
-            <View style={styles.linkPreviewContent}>
-              {preview.siteName ? (
+            </View>
+          )}
+          <View style={styles.linkPreviewContent}>
+            {preview.siteName ? (
                 <Text
                   style={[
                     styles.linkPreviewSite,
@@ -384,9 +384,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   ]}
                   numberOfLines={1}
                 >
-                  {preview.siteName}
-                </Text>
-              ) : null}
+                {preview.siteName}
+              </Text>
+            ) : null}
               <Text
                 style={[
                   styles.linkPreviewTitle,
@@ -396,9 +396,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 ]}
                 numberOfLines={2}
               >
-                {preview.title || preview.url}
-              </Text>
-              {preview.description ? (
+              {preview.title || preview.url}
+            </Text>
+            {preview.description ? (
                 <Text
                   style={[
                     styles.linkPreviewDescription,
@@ -408,9 +408,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   ]}
                   numberOfLines={2}
                 >
-                  {preview.description}
-                </Text>
-              ) : null}
+                {preview.description}
+              </Text>
+            ) : null}
               <Text
                 style={[
                   styles.linkPreviewUrl,
@@ -418,10 +418,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 ]}
                 numberOfLines={1}
               >
-                {preview.url.replace(/^https?:\/\//, "")}
-              </Text>
-            </View>
-          </TouchableOpacity>
+              {preview.url.replace(/^https?:\/\//, "")}
+            </Text>
+          </View>
+        </TouchableOpacity>
         );
       });
     },

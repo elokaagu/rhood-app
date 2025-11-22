@@ -44,5 +44,17 @@ module.exports = async function() {
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, () => {
     TrackPlayer.seekBy(-15);
   });
+
+  // Playback Queue Ended - Auto-play next track
+  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async ({ position, track }) => {
+    console.log("🎵 Queue ended, attempting to play next track");
+    // The app will handle playing the next track from the queue
+    // This event is just a notification that the current track finished
+  });
+
+  // Playback Track Changed - Handle track transitions
+  TrackPlayer.addEventListener(Event.PlaybackTrackChanged, async ({ nextTrack }) => {
+    console.log("🎵 Track changed to:", nextTrack?.title);
+  });
 };
 

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   Image,
   Linking,
   Share,
+  Alert,
+  ActionSheetIOS,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +23,10 @@ import {
   RADIUS,
   sharedStyles,
 } from "../lib/sharedStyles";
+import {
+  generateExternalShareMessage,
+  generateDMShareMessage,
+} from "../lib/shareOpportunity";
 
 const { width, height } = Dimensions.get("window");
 
@@ -36,6 +43,9 @@ const RhoodModal = ({
   type = "info", // 'info', 'success', 'warning', 'error'
   showCloseButton = true,
   showShareButton = false, // New prop to show share button
+  shareOpportunity = null, // Opportunity object to share
+  shareUserId = null, // User ID for referral code
+  onShareInApp = null, // Callback for in-app sharing
 }) => {
   const insets = useSafeAreaInsets();
   const getIconAndColor = () => {
@@ -354,34 +364,111 @@ const RhoodModal = ({
     }
   };
 
+  const [showShareOptions, setShowShareOptions] = useState(false);
+
   const handleShare = async () => {
-    try {
-      // Build share message with opportunity details
-      let shareMessage = `🎧 ${title}\n\n`;
-
-      if (eventDetails) {
-        if (eventDetails.description) {
-          shareMessage += `${eventDetails.description}\n\n`;
-        }
-
-        const details = [];
-        if (eventDetails.date) details.push(`📅 Date: ${eventDetails.date}`);
-        if (eventDetails.time) details.push(`⏰ Time: ${eventDetails.time}`);
-        if (eventDetails.location)
-          details.push(`📍 Location: ${eventDetails.location}`);
-        if (eventDetails.compensation)
-          details.push(`💰 Compensation: ${eventDetails.compensation}`);
-        if (eventDetails.distanceFormatted)
-          details.push(`📏 Distance: ${eventDetails.distanceFormatted}`);
-
-        if (details.length > 0) {
-          shareMessage += details.join("\n") + "\n\n";
-        }
-      } else if (message) {
-        shareMessage += `${message}\n\n`;
+    // If this is an opportunity share and we have share options, show action sheet
+    if (shareOpportunity && shareUserId) {
+      if (Platform.OS === "ios") {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            options: ["Cancel", "Share via DM", "Share Outside App"],
+            cancelButtonIndex: 0,
+          },
+          async (buttonIndex) => {
+            if (buttonIndex === 1) {
+              // Share via DM (in-app)
+              await handleShareInApp();
+            } else if (buttonIndex === 2) {
+              // Share outside app
+              await handleShareExternal();
+            }
+          }
+        );
+      } else {
+        // Android - show Alert with options
+        Alert.alert(
+          "Share Opportunity",
+          "How would you like to share?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Share via DM",
+              onPress: handleShareInApp,
+            },
+            {
+              text: "Share Outside App",
+              onPress: handleShareExternal,
+            },
+          ],
+          { cancelable: true }
+        );
       }
+    } else {
+      // Legacy share for non-opportunity shares
+      await handleShareExternal();
+    }
+  };
 
-      shareMessage += `Check it out on R/HOOD! 🎵`;
+  const handleShareInApp = async () => {
+    try {
+      if (onShareInApp && shareOpportunity) {
+        const shareMessage = await generateDMShareMessage(
+          shareOpportunity,
+          shareUserId
+        );
+        onShareInApp(shareMessage, shareOpportunity);
+        onClose(); // Close the opportunity modal after sharing
+      } else {
+        Alert.alert(
+          "Not Available",
+          "In-app sharing is not available right now."
+        );
+      }
+    } catch (error) {
+      console.error("Error sharing in-app:", error);
+      Alert.alert("Error", "Failed to share via DM. Please try again.");
+    }
+  };
+
+  const handleShareExternal = async () => {
+    try {
+      let shareMessage;
+
+      if (shareOpportunity && shareUserId) {
+        // Use the new share message generator with referral code
+        shareMessage = await generateExternalShareMessage(
+          shareOpportunity,
+          shareUserId
+        );
+      } else {
+        // Legacy share message generation
+        shareMessage = `🎧 ${title}\n\n`;
+
+        if (eventDetails) {
+          if (eventDetails.description) {
+            shareMessage += `${eventDetails.description}\n\n`;
+          }
+
+          const details = [];
+          if (eventDetails.date) details.push(`📅 Date: ${eventDetails.date}`);
+          if (eventDetails.time) details.push(`⏰ Time: ${eventDetails.time}`);
+          if (eventDetails.location)
+            details.push(`📍 Location: ${eventDetails.location}`);
+          if (eventDetails.compensation)
+            details.push(`💰 Compensation: ${eventDetails.compensation}`);
+          if (eventDetails.distanceFormatted)
+            details.push(`📏 Distance: ${eventDetails.distanceFormatted}`);
+
+          if (details.length > 0) {
+            shareMessage += details.join("\n") + "\n\n";
+          }
+        } else if (message) {
+          shareMessage += `${message}\n\n`;
+        }
+
+        shareMessage += `Check it out on R/HOOD! 🎵`;
+      }
 
       await Share.share({
         message: shareMessage,
@@ -420,7 +507,7 @@ const RhoodModal = ({
         <View
           style={[
             styles.modalContainer,
-            { paddingTop: Math.max(insets.top + SPACING.md, SPACING.md) },
+            { paddingTop: Math.max(insets.top + SPACING.xl, SPACING.xl) },
           ]}
         >
           {/* Header */}
@@ -534,8 +621,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: COLORS.backgroundSecondary,
     borderRadius: RADIUS.xl,
-    padding: SPACING.md,
-    paddingTop: SPACING.md, // Will be overridden by inline style, but set default
+    padding: SPACING.xl,
     width: "100%",
     maxWidth: 400,
     borderWidth: 1,
@@ -551,7 +637,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     height: 40, // Fixed height to prevent expansion
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.md,
   },
   shareButton: {
     padding: SPACING.xs,
@@ -574,7 +660,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.lg,
     borderWidth: 2,
     borderColor: "hsl(75, 100%, 60%, 0.3)", // R/HOOD lime border
   },
@@ -584,7 +670,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.lg,
     backgroundColor: "transparent",
     borderWidth: 0,
   },
@@ -595,7 +681,7 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: "center",
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.xl,
   },
   title: {
     fontSize: TYPOGRAPHY["3xl"],
@@ -603,7 +689,7 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.bold,
     color: COLORS.textPrimary,
     textAlign: "center",
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
     letterSpacing: 0.5,
   },
   message: {

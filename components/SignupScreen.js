@@ -24,6 +24,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
     firstName: "",
     lastName: "",
     city: "",
+    inviteCode: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -97,6 +98,18 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
         };
 
         await db.createUserProfile(profileData);
+        
+        // Process referral if invite code was provided
+        if (formData.inviteCode && formData.inviteCode.trim()) {
+          try {
+            await db.processReferral(formData.inviteCode.trim(), user.id);
+            console.log("✅ Referral processed successfully");
+          } catch (referralError) {
+            // Don't block signup if referral fails, just log it
+            console.warn("⚠️ Referral processing failed:", referralError);
+          }
+        }
+        
         onSignupSuccess(user);
       }
     } catch (error) {
@@ -314,6 +327,25 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
                 />
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Invite Code Input (Optional) */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Invite Code (Optional)</Text>
+            <Text style={styles.helperText}>
+              Enter a friend's invite code to earn them credits
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter invite code"
+              placeholderTextColor="hsl(0, 0%, 50%)"
+              value={formData.inviteCode}
+              onChangeText={(value) =>
+                updateFormData("inviteCode", value.toUpperCase())
+              }
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
           </View>
 
           {/* Signup Button */}
@@ -560,5 +592,11 @@ const styles = StyleSheet.create({
   },
   appleButtonText: {
     color: "hsl(0, 0%, 100%)",
+  },
+  helperText: {
+    color: "hsl(0, 0%, 60%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    marginBottom: 8,
   },
 });

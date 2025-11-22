@@ -32,6 +32,8 @@ export default function ConnectionsScreen({
   user: propUser,
   onNavigate,
   initialTab = "discover",
+  route = null, // Add route prop for share mode
+  onPlayAudio, // Add audio playback handler
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -42,6 +44,8 @@ export default function ConnectionsScreen({
   const [activeTab, setActiveTab] = useState(initialTab); // 'connections' or 'discover'
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [discoverUsers, setDiscoverUsers] = useState([]);
+  const [popularDJs, setPopularDJs] = useState([]);
+  const [popularDJsLoading, setPopularDJsLoading] = useState(false);
   const [connectionsFadeAnim] = useState(new Animated.Value(0));
   const [discoverFadeAnim] = useState(new Animated.Value(0));
   const [hasLoadedConnections, setHasLoadedConnections] = useState(false);
@@ -120,12 +124,61 @@ export default function ConnectionsScreen({
     }
   }, [propUser]);
 
+  // Load popular DJs (trending DJs)
+  const loadPopularDJs = async () => {
+    try {
+      setPopularDJsLoading(true);
+      
+      // Get popular DJs based on recent activity, credits, and mix uploads
+      const { data: popularUsers, error } = await supabase
+        .from('user_profiles')
+        .select(`
+          id,
+          dj_name,
+          profile_image_url,
+          city,
+          genres,
+          credits,
+          gigs_completed,
+          created_at
+        `)
+        .not('dj_name', 'is', null)
+        .order('credits', { ascending: false })
+        .order('gigs_completed', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error("Error loading popular DJs:", error);
+        // Fallback: get recent DJs
+        const { data: recentUsers } = await supabase
+          .from('user_profiles')
+          .select('id, dj_name, profile_image_url, city, genres')
+          .not('dj_name', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        setPopularDJs(recentUsers || []);
+        return;
+      }
+
+      setPopularDJs(popularUsers || []);
+    } catch (error) {
+      console.error("Error loading popular DJs:", error);
+      setPopularDJs([]);
+    } finally {
+      setPopularDJsLoading(false);
+    }
+  };
+
   // Load user and discover data on mount
   useEffect(() => {
     const initializeData = async () => {
       await loadUserAndConnections({ showLoader: true });
       // Load discover data after connections are loaded
       await loadDiscoverDJs();
+      // Load popular DJs
+      await loadPopularDJs();
       // Check R/HOOD membership
       await checkRhoodMembership();
     };
@@ -625,6 +678,14 @@ export default function ConnectionsScreen({
   };
 
   const handleConnectionPress = (connection) => {
+    // Check if we're in share mode
+    const routeParams = route?.params || {};
+    if (routeParams.shareMode && routeParams.onShareSelect) {
+      // Handle sharing opportunity to this connection
+      routeParams.onShareSelect(connection.id);
+      return;
+    }
+
     const payload = {
       isGroupChat: false,
       djId: connection.id,
@@ -1748,6 +1809,89 @@ export default function ConnectionsScreen({
               <SkeletonList count={4} />
             ) : (
               <Animated.View style={{ opacity: discoverFadeAnim }}>
+                {/* Popular DJs - Trending DJs */}
+                {popularDJs.length > 0 && (
+                  <View style={styles.recommendationsSection}>
+                    <View style={styles.recommendationsHeader}>
+                      <Ionicons
+                        name="trending-up"
+                        size={18}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                      <Text style={styles.recommendationsTitle}>
+                        Popular DJs
+                      </Text>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.recommendationsScroll}
+                      contentContainerStyle={styles.recommendationsContent}
+                    >
+                      {popularDJs.map((dj) => (
+                        <TouchableOpacity
+                          key={dj.id}
+                          style={styles.recommendationCard}
+                          onPress={() => {
+                            if (onNavigate) {
+                              onNavigate("user-profile", { userId: dj.id, djName: dj.dj_name });
+                            }
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <View style={styles.recommendationImageContainer}>
+                            <ProgressiveImage
+                              source={
+                                dj.profile_image_url
+                                  ? { uri: dj.profile_image_url }
+                                  : null
+                              }
+                              style={styles.recommendationImage}
+                              placeholder={
+                                <View style={[styles.recommendationImage, { backgroundColor: "hsl(0, 0%, 12%)", justifyContent: "center", alignItems: "center" }]}>
+                                  <Ionicons name="person" size={40} color="hsl(75, 100%, 60%)" />
+                                </View>
+                              }
+                            />
+                            {/* Dark gradient overlay at bottom for text visibility */}
+                            <LinearGradient
+                              colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.95)"]}
+                              style={styles.recommendationGradient}
+                            />
+                            {/* Text overlay */}
+                            <View style={styles.recommendationInfo}>
+                              <Text
+                                style={styles.recommendationTitle}
+                                numberOfLines={1}
+                              >
+                                {dj.dj_name || "DJ"}
+                              </Text>
+                              {dj.city && (
+                                <Text
+                                  style={styles.recommendationArtist}
+                                  numberOfLines={1}
+                                >
+                                  {dj.city}
+                                </Text>
+                              )}
+                              {dj.genres && dj.genres.length > 0 && (
+                                <Text
+                                  style={styles.recommendationGenre}
+                                  numberOfLines={1}
+                                >
+                                  {dj.genres.slice(0, 2).join(", ")}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    {/* Divider line */}
+                    <View style={styles.recommendationsDivider} />
+                  </View>
+                )}
+
                 {incomingConnectionRequests.length > 0 && (
                   <View style={[styles.pendingRequestsSection, { marginTop: 0 }]}>
                     <View style={styles.pendingRequestsHeader}>
@@ -2787,6 +2931,86 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)",
+  },
+  // Recommendations Section Styles
+  recommendationsSection: {
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  recommendationsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 8,
+  },
+  recommendationsTitle: {
+    fontSize: 18,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    letterSpacing: 0.5,
+  },
+  recommendationsScroll: {
+    marginHorizontal: -20,
+  },
+  recommendationsContent: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  recommendationCard: {
+    width: 160,
+    height: 200,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%, 0.1)",
+  },
+  recommendationImageContainer: {
+    width: "100%",
+    height: "100%",
+    position: "relative",
+  },
+  recommendationImage: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  recommendationGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "50%",
+  },
+  recommendationInfo: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 12,
+    gap: 4,
+  },
+  recommendationTitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+  },
+  recommendationArtist: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+  },
+  recommendationGenre: {
+    fontSize: 11,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+    marginTop: 2,
+  },
+  recommendationsDivider: {
+    height: 1,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    marginTop: 24,
+    marginHorizontal: 20,
   },
   discoverActions: {
     flexDirection: "column",

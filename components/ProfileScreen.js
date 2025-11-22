@@ -11,8 +11,11 @@ import {
   Animated,
   ActivityIndicator,
   Modal,
+  Share,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-audio";
 import ProgressiveImage from "./ProgressiveImage";
@@ -47,6 +50,11 @@ export default function ProfileScreen({
   const [playbackPosition, setPlaybackPosition] = useState(0);
   const [playbackDuration, setPlaybackDuration] = useState(0);
   const [connectionsCount, setConnectionsCount] = useState(0);
+  const [inviteCode, setInviteCode] = useState(null);
+  const [referralStats, setReferralStats] = useState({
+    totalReferrals: 0,
+    totalCreditsEarned: 0,
+  });
   const soundRef = useRef(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
 
@@ -164,20 +172,35 @@ export default function ProfileScreen({
         console.error("❌ Error loading gigs:", gigsError);
       }
 
-      // Load user's achievements, credits, and connections count
+      // Load user's achievements, credits, connections count, invite code, and referral stats
       let achievements = [];
       let creditsValue = Number(userProfile.credits ?? 0);
       let connections = 0;
+      let userInviteCode = null;
+      let userReferralStats = { totalReferrals: 0, totalCreditsEarned: 0 };
       try {
-        const [allAchievements, userAchievements, fetchedCredits, connectionsData] =
-          await Promise.all([
+        const [
+          allAchievements,
+          userAchievements,
+          fetchedCredits,
+          connectionsData,
+          fetchedInviteCode,
+          fetchedReferralStats,
+        ] = await Promise.all([
           db.getAchievements(),
           db.getUserAchievements(user.id),
-            db.getUserCredits(user.id),
-            db.getUserConnections(user.id, "accepted"), // Only count accepted connections
+          db.getUserCredits(user.id),
+          db.getUserConnections(user.id, "accepted"), // Only count accepted connections
+          db.getUserInviteCode(user.id),
+          db.getReferralStats(user.id),
         ]);
         
         connections = connectionsData?.length || 0;
+        userInviteCode = fetchedInviteCode;
+        userReferralStats = fetchedReferralStats || {
+          totalReferrals: 0,
+          totalCreditsEarned: 0,
+        };
 
         if (allAchievements && allAchievements.length > 0) {
           const earnedIds = new Set(
@@ -197,6 +220,8 @@ export default function ProfileScreen({
           creditsValue = fetchedCredits;
         }
         setConnectionsCount(connections);
+        setInviteCode(userInviteCode);
+        setReferralStats(userReferralStats);
       } catch (achievementsError) {
         console.error("❌ Error loading achievements:", achievementsError);
       }
@@ -346,6 +371,111 @@ export default function ProfileScreen({
     });
   };
 
+  // Generate referral link
+  const getReferralLink = () => {
+    if (!inviteCode) return null;
+    return `https://rhood.io/invite/${inviteCode}`;
+  };
+
+  // Generate referral share message
+  const getReferralShareMessage = () => {
+    if (!inviteCode) return "";
+    return `🎧 Join R/HOOD - The DJ Community!\n\n🎁 Use my invite code when you sign up: ${inviteCode}\n\nYou'll help me earn credits and I'll help you get started! 🎵\n\n📱 Download R/HOOD app: https://rhood.io/download`;
+  };
+
+  // Copy referral link
+  const handleCopyLink = async () => {
+    const link = getReferralLink();
+    if (!link) {
+      Alert.alert("Error", "Invite code not available");
+      return;
+    }
+    try {
+      await Clipboard.setStringAsync(link);
+      Alert.alert("Copied!", "Referral link copied to clipboard");
+    } catch (error) {
+      console.error("Failed to copy link:", error);
+      Alert.alert("Error", "Failed to copy link");
+    }
+  };
+
+  // Share via WhatsApp
+  const handleShareWhatsApp = async () => {
+    const message = getReferralShareMessage();
+    if (!message) {
+      Alert.alert("Error", "Invite code not available");
+      return;
+    }
+    const url = `whatsapp://send?text=${encodeURIComponent(message)}`;
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback to web WhatsApp
+        const webUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        await Linking.openURL(webUrl);
+      }
+    } catch (error) {
+      console.error("Error sharing via WhatsApp:", error);
+      Alert.alert("Error", "Could not open WhatsApp");
+    }
+  };
+
+  // Share via Instagram DM
+  const handleShareInstagram = async () => {
+    const message = getReferralShareMessage();
+    if (!message) {
+      Alert.alert("Error", "Invite code not available");
+      return;
+    }
+    // Instagram doesn't support direct message sharing via URL scheme
+    // Use native share sheet instead
+    try {
+      await Share.share({
+        message: message,
+        title: "Invite a DJ to R/HOOD",
+      });
+    } catch (error) {
+      console.error("Error sharing via Instagram:", error);
+      Alert.alert("Error", "Could not share");
+    }
+  };
+
+  // Share via SMS
+  const handleShareSMS = async () => {
+    const message = getReferralShareMessage();
+    if (!message) {
+      Alert.alert("Error", "Invite code not available");
+      return;
+    }
+    const url = `sms:?body=${encodeURIComponent(message)}`;
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error("Error sharing via SMS:", error);
+      Alert.alert("Error", "Could not open SMS");
+    }
+  };
+
+  // Share via native share sheet
+  const handleShareNative = async () => {
+    const message = getReferralShareMessage();
+    const link = getReferralLink();
+    if (!message || !link) {
+      Alert.alert("Error", "Invite code not available");
+      return;
+    }
+    try {
+      await Share.share({
+        message: `${message}\n\n${link}`,
+        title: "Invite a DJ to R/HOOD",
+      });
+    } catch (error) {
+      console.error("Error sharing:", error);
+    }
+  };
+
   const handleAudioPlay = async () => {
     try {
       // Check if this audio ID is currently playing
@@ -475,45 +605,25 @@ export default function ProfileScreen({
         activeOpacity={0.7}
       >
         <View style={styles.achievementsHeader}>
-          <Text style={styles.sectionTitle}>Achievements</Text>
+          <View style={styles.achievementsIconContainer}>
+            <Ionicons
+              name="trophy"
+              size={24}
+              color="hsl(75, 100%, 60%)"
+            />
+          </View>
+          <View style={styles.achievementsInfo}>
+            <Text style={styles.achievementsTitle}>Achievements</Text>
+            <Text style={styles.achievementsCount}>
+              {earnedCount} of {totalCount} earned
+            </Text>
+          </View>
           <Ionicons
             name="chevron-forward"
             size={20}
             color="hsl(0, 0%, 50%)"
           />
         </View>
-        <View style={styles.achievementsGrid}>
-          {profile.achievements.map((achievement) => (
-            <View
-              key={achievement.id}
-              style={[
-                styles.achievementBadge,
-                achievement.earned && styles.achievementEarned,
-              ]}
-            >
-              <Ionicons
-                name={achievement.icon}
-                size={20}
-                color={
-                  achievement.earned ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 30%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.achievementText,
-                  achievement.earned && styles.achievementTextEarned,
-                ]}
-              >
-                {achievement.name}
-              </Text>
-            </View>
-          ))}
-        </View>
-        {earnedCount > 0 && (
-          <Text style={styles.achievementsCount}>
-            {earnedCount} of {totalCount} earned
-          </Text>
-        )}
       </TouchableOpacity>
     );
   };
@@ -532,11 +642,42 @@ export default function ProfileScreen({
               size={24}
               color="hsl(75, 100%, 60%)"
             />
-          </View>
+      </View>
           <View style={styles.connectionsInfo}>
             <Text style={styles.connectionsTitle}>Connections</Text>
             <Text style={styles.connectionsCount}>
               {connectionsCount} {connectionsCount === 1 ? "connection" : "connections"}
+            </Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color="hsl(0, 0%, 50%)"
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderInvitePanel = () => {
+    return (
+      <TouchableOpacity
+        style={styles.invitePanelContainer}
+        onPress={() => onNavigate && onNavigate("invite")}
+        activeOpacity={0.7}
+      >
+        <View style={styles.invitePanelHeader}>
+          <View style={styles.invitePanelIconContainer}>
+            <Ionicons
+              name="gift"
+              size={24}
+              color="hsl(75, 100%, 60%)"
+            />
+          </View>
+          <View style={styles.invitePanelInfo}>
+            <Text style={styles.invitePanelTitle}>Invite a DJ</Text>
+            <Text style={styles.invitePanelCount}>
+              {referralStats.totalReferrals} {referralStats.totalReferrals === 1 ? "referral" : "referrals"}
             </Text>
           </View>
           <Ionicons
@@ -920,6 +1061,9 @@ export default function ProfileScreen({
 
         {/* Connections */}
         {renderConnections()}
+
+        {/* Invite a DJ Panel */}
+        {renderInvitePanel()}
       </ScrollView>
 
       {/* Bottom gradient fade overlay */}
@@ -1091,6 +1235,180 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statLabel: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Helvetica Neue",
+  },
+  referralSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  inviteCodeCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  referralLinkCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  referralLinkHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  referralLinkTitle: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+  },
+  referralLinkContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "hsl(0, 0%, 5%)",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  referralLinkText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    marginRight: 8,
+  },
+  copyLinkButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    gap: 6,
+  },
+  copyLinkButtonText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+  },
+  shareOptionsContainer: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  shareOptionsTitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 70%)",
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  shareButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  shareButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "hsl(0, 0%, 5%)",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+    gap: 6,
+  },
+  shareButtonText: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
+  },
+  inviteCodeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  inviteCodeTitle: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+  },
+  inviteCodeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "hsl(0, 0%, 5%)",
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  inviteCodeText: {
+    fontSize: 20,
+    fontFamily: "TS Block Bold",
+    color: "hsl(75, 100%, 60%)",
+    letterSpacing: 2,
+  },
+  inviteCodeDescription: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 60%)",
+    fontFamily: "Helvetica Neue",
+    lineHeight: 16,
+  },
+  referralStatsCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  referralStatsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  referralStatItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  referralStatDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: "hsl(0, 0%, 15%)",
+  },
+  referralStatNumber: {
+    fontSize: 24,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  referralStatLabel: {
     fontSize: 12,
     color: "hsl(0, 0%, 70%)",
     fontFamily: "Helvetica Neue",
@@ -1309,49 +1627,41 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   achievementsContainer: {
+    marginTop: 0,
+    marginBottom: 24,
     paddingHorizontal: 20,
-    marginBottom: 20,
   },
   achievementsHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  achievementsCount: {
-    fontSize: 12,
-    color: "hsl(75, 100%, 60%)",
-    fontFamily: "Helvetica Neue",
-    marginTop: 8,
-    textAlign: "center",
-  },
-  achievementsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  achievementBadge: {
-    flexDirection: "row",
     alignItems: "center",
     backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
   },
-  achievementEarned: {
-    borderColor: "hsl(75, 100%, 60%)",
-    backgroundColor: "hsl(0, 0%, 5%)",
+  achievementsIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
   },
-  achievementText: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 50%)",
-    fontFamily: "Helvetica Neue",
-    marginLeft: 6,
+  achievementsInfo: {
+    flex: 1,
   },
-  achievementTextEarned: {
+  achievementsTitle: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  achievementsCount: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Helvetica Neue",
   },
   connectionsContainer: {
     marginTop: 0,
@@ -1387,6 +1697,43 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   connectionsCount: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Helvetica Neue",
+  },
+  invitePanelContainer: {
+    marginTop: 0,
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  invitePanelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  invitePanelIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  invitePanelInfo: {
+    flex: 1,
+  },
+  invitePanelTitle: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  invitePanelCount: {
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
     fontFamily: "Helvetica Neue",

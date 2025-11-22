@@ -182,38 +182,70 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
     }
   };
 
-  const renderApplication = (application) => (
-    <View key={application.application_id} style={styles.applicationCard}>
-      <View style={styles.applicationHeader}>
-        <View style={styles.applicantInfo}>
-          <ProgressiveImage
-            source={{ uri: application.applicant_profile_url }}
-            style={styles.profileImage}
-            placeholderStyle={styles.profileImagePlaceholder}
-          />
-          <View style={styles.applicantDetails}>
-            <Text style={styles.applicantName}>
-              {application.applicant_name}
-            </Text>
-            <Text style={styles.opportunityTitle}>
-              {application.opportunity_title}
-            </Text>
-            <Text style={styles.appliedDate}>
-              Applied: {formatDate(application.applied_at)}
+  const renderApplication = (application) => {
+    const isBoosted = application.is_boosted && 
+      application.boost_expires_at && 
+      new Date(application.boost_expires_at) > new Date();
+    
+    const getTimeRemaining = () => {
+      if (!isBoosted) return null;
+      const expires = new Date(application.boost_expires_at);
+      const now = new Date();
+      const diff = expires - now;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    };
+
+    return (
+      <View key={application.application_id} style={[
+        styles.applicationCard,
+        isBoosted && styles.boostedCard
+      ]}>
+        <View style={styles.applicationHeader}>
+          <View style={styles.applicantInfo}>
+            <ProgressiveImage
+              source={{ uri: application.applicant_profile_url }}
+              style={styles.profileImage}
+              placeholderStyle={styles.profileImagePlaceholder}
+            />
+            <View style={styles.applicantDetails}>
+              <View style={styles.applicantNameRow}>
+                <Text style={styles.applicantName}>
+                  {application.applicant_name}
+                </Text>
+                {isBoosted && (
+                  <View style={styles.boostBadge}>
+                    <Ionicons name="flash" size={12} color="hsl(0, 0%, 0%)" />
+                    <Text style={styles.boostBadgeText}>BOOSTED</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.opportunityTitle}>
+                {application.opportunity_title}
+              </Text>
+              <Text style={styles.appliedDate}>
+                Applied: {formatDate(application.applied_at)}
+              </Text>
+              {isBoosted && (
+                <Text style={styles.boostTimeRemaining}>
+                  Boost expires in: {getTimeRemaining()}
+                </Text>
+              )}
+            </View>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(application.application_status) },
+            ]}
+          >
+            <Text style={styles.statusText}>
+              {application.application_status.toUpperCase()}
             </Text>
           </View>
         </View>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(application.application_status) },
-          ]}
-        >
-          <Text style={styles.statusText}>
-            {application.application_status.toUpperCase()}
-          </Text>
-        </View>
-      </View>
 
       {application.application_message && (
         <View style={styles.messageContainer}>
@@ -246,7 +278,8 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
         </View>
       )}
     </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -284,13 +317,13 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
           >
             <Ionicons name="calendar" size={20} color="hsl(75, 100%, 60%)" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={onRefresh}
-            disabled={refreshing}
-          >
-            <Ionicons name="refresh" size={24} color="hsl(75, 100%, 60%)" />
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={onRefresh}
+          disabled={refreshing}
+        >
+          <Ionicons name="refresh" size={24} color="hsl(75, 100%, 60%)" />
+        </TouchableOpacity>
         </View>
       </View>
 
@@ -374,6 +407,38 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 20%)",
+  },
+  boostedCard: {
+    borderColor: "hsl(75, 100%, 60%)",
+    borderWidth: 2,
+    backgroundColor: "hsl(0, 0%, 10%)",
+  },
+  applicantNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  boostBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 4,
+  },
+  boostBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "hsl(0, 0%, 0%)",
+    letterSpacing: 0.5,
+  },
+  boostTimeRemaining: {
+    fontSize: 11,
+    color: "hsl(75, 100%, 60%)",
+    marginTop: 4,
+    fontStyle: "italic",
   },
   applicationHeader: {
     flexDirection: "row",

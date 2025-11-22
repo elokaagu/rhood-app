@@ -84,6 +84,7 @@ import HelpCenterScreen from "./components/HelpCenterScreen";
 import HelpChatScreen from "./components/HelpChatScreen";
 import ConnectionsListScreen from "./components/ConnectionsListScreen";
 import AchievementsListScreen from "./components/AchievementsListScreen";
+import InviteScreen from "./components/InviteScreen";
 import AdminApplicationsScreen from "./components/AdminApplicationsScreen";
 import BrandGigsPortal from "./components/BrandGigsPortal";
 // Push notifications - gracefully handle Expo Go limitations
@@ -463,6 +464,9 @@ export default function App() {
         config.showCloseButton !== undefined ? config.showCloseButton : true,
       showShareButton:
         config.showShareButton !== undefined ? config.showShareButton : false,
+      shareOpportunity: config.shareOpportunity || null,
+      shareUserId: config.shareUserId || null,
+      onShareInApp: config.onShareInApp || null,
     });
     setShowModal(true);
   };
@@ -545,96 +549,209 @@ export default function App() {
       return;
     }
 
-    const TrackPlayer =
-      require("react-native-track-player").default ||
-      require("react-native-track-player");
-    const { State, Event } = require("react-native-track-player");
+    let TrackPlayer;
+    let State;
+    let Event;
+
+    try {
+      TrackPlayer =
+        require("react-native-track-player").default ||
+        require("react-native-track-player");
+      ({ State, Event } = require("react-native-track-player"));
+
+      if (!TrackPlayer || !TrackPlayer.addEventListener) {
+        console.warn(
+          "⚠️ [APP] TrackPlayer not available or addEventListener missing"
+        );
+        return;
+      }
+    } catch (error) {
+      console.warn("⚠️ [APP] Failed to load TrackPlayer:", error.message);
+      return;
+    }
 
     console.log("🎵 [APP] Setting up TrackPlayer event listeners");
 
-    // Listen to playback state changes (fires when lock screen buttons are pressed)
-    const playbackStateListener = TrackPlayer.addEventListener(
-      Event.PlaybackState,
-      async (data) => {
-        console.log("🎵 [APP] PlaybackState event received:", data.state);
-        try {
-          const isPlaying = data.state === State.Playing;
-          const position = await TrackPlayer.getPosition();
-          const duration = await TrackPlayer.getDuration();
+    // Listen to remote control events directly (lock screen buttons)
+    // The playback service handles the actual play/pause, TrackPlayer will fire PlaybackState events
+    // We don't need separate listeners here - PlaybackState listener will handle it
+    // But we'll keep them for immediate UI feedback
+    let remotePlayListener;
+    let remotePauseListener;
 
-          console.log(
-            "🎵 [APP] Updating state from lock screen - isPlaying:",
-            isPlaying,
-            "position:",
-            position,
-            "duration:",
-            duration
-          );
-
+    try {
+      remotePlayListener = TrackPlayer.addEventListener(
+        Event.RemotePlay,
+        async () => {
+          console.log("🎵 [APP] RemotePlay event received (lock screen play)");
+          // Immediately update UI - PlaybackState event will sync properly later
           setGlobalAudioState((prev) => {
-            if (!prev.currentTrack) {
-              console.warn("⚠️ [APP] No current track in state, skipping update");
-              return prev;
-            }
+            if (!prev.currentTrack) return prev;
             return {
               ...prev,
-              isPlaying,
-              positionMillis: position * 1000,
-              durationMillis: duration * 1000,
-              progress: duration > 0 ? position / duration : 0,
+              isPlaying: true,
             };
           });
-        } catch (error) {
-          console.warn("⚠️ [APP] PlaybackState event error:", error);
         }
-      }
-    );
-    console.log("✅ [APP] PlaybackState listener registered");
+      );
 
-    // Listen to progress updates
-    const progressListener = TrackPlayer.addEventListener(
-      Event.PlaybackProgressUpdated,
-      (data) => {
-        setGlobalAudioState((prev) => {
-          if (!prev.currentTrack) return prev;
-          return {
-            ...prev,
-            positionMillis: data.position * 1000,
-            durationMillis: data.duration * 1000,
-            progress: data.duration > 0 ? data.position / data.duration : 0,
-          };
-        });
-      }
-    );
-    console.log("✅ [APP] PlaybackProgressUpdated listener registered");
-
-    // Listen to track changes
-    const trackChangedListener = TrackPlayer.addEventListener(
-      Event.PlaybackTrackChanged,
-      async (data) => {
-        console.log("🎵 [APP] Track changed event:", data);
-        // TrackPlayer will handle the track change, just sync state
-        try {
-          const state = await trackPlayer.getPlaybackState();
-          setGlobalAudioState((prev) => ({
-            ...prev,
-            isPlaying: state.isPlaying,
-            positionMillis: state.position * 1000,
-            durationMillis: state.duration * 1000,
-            progress: state.duration > 0 ? state.position / state.duration : 0,
-          }));
-        } catch (error) {
-          console.warn("⚠️ [APP] Error syncing state after track change:", error);
+      remotePauseListener = TrackPlayer.addEventListener(
+        Event.RemotePause,
+        async () => {
+          console.log(
+            "🎵 [APP] RemotePause event received (lock screen pause)"
+          );
+          // Immediately update UI - PlaybackState event will sync properly later
+          setGlobalAudioState((prev) => {
+            if (!prev.currentTrack) return prev;
+            return {
+              ...prev,
+              isPlaying: false,
+            };
+          });
         }
-      }
-    );
-    console.log("✅ [APP] PlaybackTrackChanged listener registered");
+      );
+    } catch (error) {
+      console.warn(
+        "⚠️ [APP] Failed to register remote event listeners:",
+        error.message
+      );
+      return; // Exit early if listeners can't be registered
+    }
+
+    // Listen to playback state changes (fires when state changes from any source)
+    // This is the main sync mechanism - fires after play/pause/seek from any source
+    let playbackStateListener;
+    let progressListener;
+    let trackChangedListener;
+
+    try {
+      playbackStateListener = TrackPlayer.addEventListener(
+        Event.PlaybackState,
+        async (data) => {
+          console.log("🎵 [APP] PlaybackState event received:", data.state);
+          try {
+            const isPlaying = data.state === State.Playing;
+            const position = await TrackPlayer.getPosition();
+            const duration = await TrackPlayer.getDuration();
+
+            console.log(
+              "🎵 [APP] Syncing state from PlaybackState - isPlaying:",
+              isPlaying,
+              "position:",
+              position,
+              "duration:",
+              duration
+            );
+
+            setGlobalAudioState((prev) => {
+              if (!prev.currentTrack) {
+                console.warn(
+                  "⚠️ [APP] No current track in state, skipping update"
+                );
+                return prev;
+              }
+              return {
+                ...prev,
+                isPlaying,
+                positionMillis: position * 1000,
+                durationMillis: duration * 1000,
+                progress: duration > 0 ? position / duration : 0,
+              };
+            });
+          } catch (error) {
+            console.warn("⚠️ [APP] PlaybackState event error:", error);
+          }
+        }
+      );
+
+      // Listen to progress updates
+      progressListener = TrackPlayer.addEventListener(
+        Event.PlaybackProgressUpdated,
+        (data) => {
+          setGlobalAudioState((prev) => {
+            if (!prev.currentTrack) return prev;
+            return {
+              ...prev,
+              positionMillis: data.position * 1000,
+              durationMillis: data.duration * 1000,
+              progress: data.duration > 0 ? data.position / data.duration : 0,
+            };
+          });
+        }
+      );
+
+      // Listen to track changes
+      trackChangedListener = TrackPlayer.addEventListener(
+        Event.PlaybackTrackChanged,
+        async (data) => {
+          console.log("🎵 [APP] Track changed event:", data);
+          // TrackPlayer will handle the track change, just sync state
+          try {
+            const state = await trackPlayer.getPlaybackState();
+            setGlobalAudioState((prev) => ({
+              ...prev,
+              isPlaying: state.isPlaying,
+              positionMillis: state.position * 1000,
+              durationMillis: state.duration * 1000,
+              progress:
+                state.duration > 0 ? state.position / state.duration : 0,
+            }));
+          } catch (error) {
+            console.warn(
+              "⚠️ [APP] Error syncing state after track change:",
+              error
+            );
+          }
+        }
+      );
+
+      // Listen to queue ended - auto-play next track (continuous play)
+      const queueEndedListener = TrackPlayer.addEventListener(
+        Event.PlaybackQueueEnded,
+        async (data) => {
+          console.log("🎵 [APP] Queue ended event, playing next track");
+          try {
+            // Get next track from queue
+            const nextTrack = getNextTrack();
+            if (nextTrack) {
+              console.log("🎵 [APP] Playing next track:", nextTrack.title);
+              await playNextTrack();
+            } else {
+              console.log("🎵 [APP] No more tracks in queue");
+              // Optionally, if repeat all is enabled, restart from beginning
+              const currentState = globalAudioStateRef.current;
+              if (currentState.repeatMode === "all" && currentState.queue.length > 0) {
+                setGlobalAudioState((prev) => ({
+                  ...prev,
+                  currentQueueIndex: -1,
+                }));
+                await playNextTrack();
+              }
+            }
+          } catch (error) {
+            console.error("⚠️ [APP] Error playing next track after queue ended:", error);
+          }
+        }
+      );
+
+      console.log("✅ [APP] All playback listeners registered");
+    } catch (error) {
+      console.warn(
+        "⚠️ [APP] Failed to register playback event listeners:",
+        error.message
+      );
+      return; // Exit early if listeners can't be registered
+    }
 
     return () => {
       console.log("🧹 [APP] Cleaning up TrackPlayer event listeners");
+      if (remotePlayListener?.remove) remotePlayListener.remove();
+      if (remotePauseListener?.remove) remotePauseListener.remove();
       if (playbackStateListener?.remove) playbackStateListener.remove();
       if (progressListener?.remove) progressListener.remove();
       if (trackChangedListener?.remove) trackChangedListener.remove();
+      if (queueEndedListener?.remove) queueEndedListener.remove();
     };
   }, [trackPlayer]);
 
@@ -2164,8 +2281,211 @@ export default function App() {
       ...prev,
       queue: [],
       currentQueueIndex: -1,
+      isShuffled: false,
     }));
     console.log("🗑️ Queue cleared");
+  };
+
+  // Shuffle functions
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
+  // Shuffle ALL mixes
+  const shuffleAllMixes = async (allMixes) => {
+    if (!allMixes || allMixes.length === 0) {
+      console.warn("No mixes available to shuffle");
+      return;
+    }
+
+    const shuffled = shuffleArray(allMixes);
+    const currentTrack = globalAudioState.currentTrack;
+    
+    // If a track is currently playing, keep it first and shuffle the rest
+    let queue = shuffled;
+    if (currentTrack) {
+      const currentIndex = shuffled.findIndex(t => t.id === currentTrack.id);
+      if (currentIndex > 0) {
+        queue = [currentTrack, ...shuffled.filter(t => t.id !== currentTrack.id)];
+      } else if (currentIndex === -1) {
+        queue = [currentTrack, ...shuffled];
+      }
+    }
+
+    setGlobalAudioState((prev) => ({
+      ...prev,
+      queue: queue,
+      currentQueueIndex: currentTrack ? 0 : -1,
+      isShuffled: true,
+    }));
+
+    console.log(`🔀 Shuffled ${queue.length} mixes`);
+  };
+
+  // Shuffle BY GENRE
+  const shuffleByGenre = async (allMixes, genre) => {
+    if (!allMixes || allMixes.length === 0) {
+      console.warn("No mixes available to shuffle");
+      return;
+    }
+
+    const genreMixes = allMixes.filter(mix => mix.genre === genre);
+    if (genreMixes.length === 0) {
+      console.warn(`No mixes found for genre: ${genre}`);
+      return;
+    }
+
+    const shuffled = shuffleArray(genreMixes);
+    const currentTrack = globalAudioState.currentTrack;
+    
+    let queue = shuffled;
+    if (currentTrack && currentTrack.genre === genre) {
+      const currentIndex = shuffled.findIndex(t => t.id === currentTrack.id);
+      if (currentIndex > 0) {
+        queue = [currentTrack, ...shuffled.filter(t => t.id !== currentTrack.id)];
+      } else if (currentIndex === -1) {
+        queue = [currentTrack, ...shuffled];
+      }
+    }
+
+    setGlobalAudioState((prev) => ({
+      ...prev,
+      queue: queue,
+      currentQueueIndex: currentTrack && currentTrack.genre === genre ? 0 : -1,
+      isShuffled: true,
+    }));
+
+    console.log(`🔀 Shuffled ${queue.length} ${genre} mixes`);
+  };
+
+  // Shuffle "Based on what you like" - uses ML recommendation system
+  const shuffleBasedOnLikes = async (allMixes, userLikedMixIds = []) => {
+    if (!allMixes || allMixes.length === 0) {
+      console.warn("No mixes available to shuffle");
+      return;
+    }
+
+    if (!user?.id) {
+      // Fallback to simple shuffle if no user
+      return shuffleAllMixes(allMixes);
+    }
+
+    try {
+      // Use recommendation system to get weighted recommendations
+      const { getRecommendedMixes } = require("./lib/mixRecommendations");
+      const recommended = await getRecommendedMixes(user.id, 50, true); // Get more for shuffle pool
+      
+      if (recommended && recommended.length > 0) {
+        // Map recommended mix IDs to full mix objects
+        const recommendedMixIds = new Set(recommended.map(m => m.id));
+        const recommendedMixes = allMixes.filter(mix => recommendedMixIds.has(mix.id));
+        
+        // Sort by recommendation score (weighted random sampling)
+        const weightedMixes = recommendedMixes.map(mix => {
+          const rec = recommended.find(r => r.id === mix.id);
+          return {
+            ...mix,
+            recommendationWeight: rec?.recommendationScore || rec?.recommendation_weight || 0.5,
+          };
+        });
+
+        // Weighted random shuffle (higher weight = more likely to appear early)
+        const shuffled = weightedShuffle(weightedMixes);
+        const currentTrack = globalAudioState.currentTrack;
+        
+        let queue = shuffled;
+        if (currentTrack) {
+          const currentIndex = shuffled.findIndex(t => t.id === currentTrack.id);
+          if (currentIndex > 0) {
+            queue = [currentTrack, ...shuffled.filter(t => t.id !== currentTrack.id)];
+          } else if (currentIndex === -1) {
+            queue = [currentTrack, ...shuffled];
+          }
+        }
+
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          queue: queue,
+          currentQueueIndex: currentTrack ? 0 : -1,
+          isShuffled: true,
+        }));
+
+        console.log(`🔀 Shuffled ${queue.length} mixes based on ML recommendations`);
+        return;
+      }
+    } catch (error) {
+      console.error("Error using recommendation system for shuffle:", error);
+    }
+
+    // Fallback to simple genre-based shuffle
+    const likedMixes = allMixes.filter(mix => userLikedMixIds.includes(mix.id));
+    const likedGenres = new Set(likedMixes.map(mix => mix.genre).filter(Boolean));
+    const similarMixes = allMixes.filter(mix => 
+      likedGenres.has(mix.genre) || likedMixes.some(liked => 
+        liked.genre === mix.genre || 
+        (liked.user_id === mix.user_id && liked.id !== mix.id)
+      )
+    );
+
+    const combined = [...new Map([
+      ...likedMixes.map(m => [m.id, m]),
+      ...similarMixes.map(m => [m.id, m])
+    ]).values()];
+
+    if (combined.length === 0) {
+      return shuffleAllMixes(allMixes);
+    }
+
+    const shuffled = shuffleArray(combined);
+    const currentTrack = globalAudioState.currentTrack;
+    
+    let queue = shuffled;
+    if (currentTrack) {
+      const currentIndex = shuffled.findIndex(t => t.id === currentTrack.id);
+      if (currentIndex > 0) {
+        queue = [currentTrack, ...shuffled.filter(t => t.id !== currentTrack.id)];
+      } else if (currentIndex === -1) {
+        queue = [currentTrack, ...shuffled];
+      }
+    }
+
+    setGlobalAudioState((prev) => ({
+      ...prev,
+      queue: queue,
+      currentQueueIndex: currentTrack ? 0 : -1,
+      isShuffled: true,
+    }));
+
+    console.log(`🔀 Shuffled ${queue.length} mixes based on your likes (fallback)`);
+  };
+
+  // Weighted shuffle function for recommendation-based shuffling
+  const weightedShuffle = (items) => {
+    const shuffled = [...items];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      // Weighted random selection
+      const weights = shuffled.slice(0, i + 1).map(item => item.recommendationWeight || 0.5);
+      const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+      let random = Math.random() * totalWeight;
+      
+      let selectedIndex = 0;
+      for (let j = 0; j < weights.length; j++) {
+        random -= weights[j];
+        if (random <= 0) {
+          selectedIndex = j;
+          break;
+        }
+      }
+      
+      // Swap selected item to current position
+      [shuffled[i], shuffled[selectedIndex]] = [shuffled[selectedIndex], shuffled[i]];
+    }
+    return shuffled;
   };
 
   const getNextTrack = () => {
@@ -2527,6 +2847,9 @@ export default function App() {
       secondaryButtonText: "Cancel",
       showCloseButton: false,
       showShareButton: true, // Enable share button for opportunities
+      shareOpportunity: currentOpportunity, // Pass opportunity for sharing
+      shareUserId: user?.id || null, // Pass user ID for referral code
+      onShareInApp: handleShareOpportunityInApp, // Handler for in-app sharing
       onPrimaryPress: () => handleConfirmApply(currentOpportunity),
       onSecondaryPress: () => {
         console.log(
@@ -2569,7 +2892,8 @@ export default function App() {
       setShowModal(false);
 
       // Apply to opportunity using existing logic
-      await db.applyToOpportunity(opportunity.id, user.id);
+      const application = await db.applyToOpportunity(opportunity.id, user.id);
+      const applicationId = application?.id;
 
       // Track opportunity applied
       await track(AnalyticsEvents.OPPORTUNITY_APPLIED, {
@@ -2613,11 +2937,53 @@ export default function App() {
           );
         }
 
+        // Get user credits to check if they can boost
+        let userCredits = 0;
+        try {
+          const userProfile = await db.getUserProfile(user.id);
+          userCredits = userProfile?.credits || 0;
+        } catch (error) {
+          console.error("Error getting user credits:", error);
+        }
+
+        const canBoost = userCredits >= 10 && applicationId; // Boost costs 10 credits
+        const boostMessage = canBoost
+          ? `\n\n💡 Boost your application to the top for 24 hours (10 credits)`
+          : applicationId
+          ? `\n\n💡 Boost your application to the top for 24 hours (requires 10 credits)`
+          : "";
+
         showCustomModal({
           type: "success",
           title: "Application Sent!",
-          message: `Your application for ${opportunity.title} has been sent successfully. You have ${updatedRemaining} applications remaining today.`,
-          primaryButtonText: "OK",
+          message: `Your application for ${opportunity.title} has been sent successfully. You have ${updatedRemaining} applications remaining today.${boostMessage}`,
+          primaryButtonText: canBoost ? "Boost Application" : "OK",
+          secondaryButtonText: canBoost ? "Skip" : undefined,
+          onPrimaryPress: canBoost && applicationId
+            ? async () => {
+                try {
+                  hideCustomModal();
+                  await db.boostApplication(applicationId, 24, 10);
+                  // Refresh user credits
+                  const updatedProfile = await db.getUserProfile(user.id);
+                  showCustomModal({
+                    type: "success",
+                    title: "Application Boosted!",
+                    message: `Your application has been boosted to the top of the list for 24 hours. You now have ${updatedProfile?.credits || 0} credits remaining.`,
+                    primaryButtonText: "OK",
+                  });
+                } catch (boostError) {
+                  console.error("Error boosting application:", boostError);
+                  const errorMsg = boostError?.message || "Failed to boost application";
+                  showCustomModal({
+                    type: "error",
+                    title: "Boost Failed",
+                    message: errorMsg,
+                    primaryButtonText: "OK",
+                  });
+                }
+              }
+            : undefined,
         });
       }, 300);
     } catch (error) {
@@ -2701,6 +3067,70 @@ export default function App() {
   const resetOpportunities = () => {
     setCurrentOpportunityIndex(0);
     setSwipedOpportunities([]);
+  };
+
+  // Handle sharing opportunity via in-app DM
+  const handleShareOpportunityInApp = async (shareMessage, opportunity) => {
+    try {
+      // Navigate to connections screen in share mode
+      setCurrentScreen("connections");
+      setScreenParams({
+        initialTab: "connections",
+        shareMode: true,
+        shareMessage: shareMessage,
+        shareOpportunity: opportunity,
+        onShareSelect: async (selectedUserId) => {
+          // Send the message when a connection is selected
+          await sendOpportunityShareMessage(
+            selectedUserId,
+            shareMessage,
+            opportunity
+          );
+        },
+      });
+    } catch (error) {
+      console.error("Error initiating in-app share:", error);
+      Alert.alert("Error", "Failed to open connections. Please try again.");
+    }
+  };
+
+  // Send opportunity share message to a specific user
+  const sendOpportunityShareMessage = async (
+    receiverId,
+    shareMessage,
+    opportunity
+  ) => {
+    try {
+      // Get or create message thread
+      const threadId = await db.findOrCreateIndividualMessageThread(
+        user.id,
+        receiverId
+      );
+
+      // Send the message
+      const { error } = await supabase.from("messages").insert({
+        thread_id: threadId,
+        sender_id: user.id,
+        content: shareMessage,
+        message_type: "text",
+      });
+
+      if (error) throw error;
+
+      // Navigate to the message thread
+      setCurrentScreen("messages");
+      setScreenParams({
+        djId: receiverId,
+        chatType: "individual",
+        threadId: threadId,
+        returnToConnectionsTab: "connections",
+      });
+
+      Alert.alert("Sent!", "Opportunity shared successfully!");
+    } catch (error) {
+      console.error("Error sending opportunity share:", error);
+      Alert.alert("Error", "Failed to send message. Please try again.");
+    }
   };
 
   const refreshOpportunities = async () => {
@@ -3199,8 +3629,9 @@ export default function App() {
       if (!user) return;
 
       const userSettings = await db.getUserSettings(user.id);
+      // Default to false - messages should not trigger notifications unless user opts in
       const messageNotificationsEnabled =
-        userSettings?.message_notifications ?? true;
+        userSettings?.message_notifications ?? false;
 
       const [notificationCount, messageCount] = await Promise.all([
         db.getUnreadNotificationCount(user.id, {
@@ -3372,6 +3803,13 @@ export default function App() {
 
         savedProfile = await db.updateUserProfile(user.id, updateData);
         console.log("✅ Update complete:", savedProfile);
+
+        // Ensure existing profile has invite code
+        try {
+          await db.getUserInviteCode(user.id);
+        } catch (codeError) {
+          console.warn("⚠️ Failed to ensure invite code:", codeError);
+        }
       } catch (error) {
         console.log(
           "🆕 Profile doesn't exist (or error checking):",
@@ -3401,6 +3839,13 @@ export default function App() {
         try {
           savedProfile = await db.createUserProfile(profileData);
           console.log("✅ Profile created successfully:", savedProfile);
+
+          // Ensure invite code is generated
+          try {
+            await db.getUserInviteCode(user.id);
+          } catch (codeError) {
+            console.warn("⚠️ Failed to ensure invite code:", codeError);
+          }
         } catch (createError) {
           console.error("❌ Error creating profile:", createError);
           console.error(
@@ -3667,7 +4112,27 @@ export default function App() {
           <ConnectionsScreen
             user={user}
             initialTab={screenParams.initialTab || "discover"}
+            route={{ params: screenParams }}
             onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
+            onPlayAudio={playGlobalAudio}
+          />
+        );
+
+      case "messages-list":
+        // Messages list shows Connections screen with connections tab (which displays messages)
+        return (
+          <ConnectionsScreen
+            user={user}
+            initialTab="connections"
+            route={{ params: { ...screenParams, returnToMessagesList: true } }}
+            onNavigate={(screen, params = {}) => {
+              // If navigating to messages screen, add returnToMessagesList flag
+              if (screen === "messages") {
+                params.returnToMessagesList = true;
+              }
               setCurrentScreen(screen);
               setScreenParams(params);
             }}
@@ -3827,6 +4292,14 @@ export default function App() {
           />
         );
 
+      case "invite":
+        return (
+          <InviteScreen
+            user={user}
+            onBack={() => setCurrentScreen("profile")}
+          />
+        );
+
       case "admin-applications":
         return (
           <AdminApplicationsScreen
@@ -3891,6 +4364,9 @@ export default function App() {
               setScreenParams(params);
             }}
             user={user}
+            onShuffleAll={shuffleAllMixes}
+            onShuffleByGenre={shuffleByGenre}
+            onShuffleBasedOnLikes={shuffleBasedOnLikes}
           />
         );
 
@@ -3966,6 +4442,9 @@ export default function App() {
             onPlayNext={playNextTrack}
             onClearQueue={clearQueue}
             user={user}
+            onShuffleAll={shuffleAllMixes}
+            onShuffleByGenre={shuffleByGenre}
+            onShuffleBasedOnLikes={shuffleBasedOnLikes}
           />
         );
     }
@@ -4041,21 +4520,15 @@ export default function App() {
               ]}
               onPress={() => handleMenuNavigation("connections")}
             >
-              <View style={styles.tabIconContainer}>
-                <Ionicons
-                  name="people-outline"
-                  size={20}
-                  color={
-                    currentScreen === "connections"
-                      ? "hsl(75, 100%, 60%)"
-                      : "hsl(0, 0%, 70%)"
-                  }
-                />
-                <NotificationBadge
-                  count={unreadMessageCount}
-                  style={styles.tabNotificationBadge}
-                />
-              </View>
+              <Ionicons
+                name="people-outline"
+                size={20}
+                color={
+                  currentScreen === "connections"
+                    ? "hsl(75, 100%, 60%)"
+                    : "hsl(0, 0%, 70%)"
+                }
+              />
               <Text
                 style={[
                   styles.tabText,
@@ -4288,230 +4761,249 @@ export default function App() {
         </Modal>
 
         {/* Dark Fade Overlay Above Play Bar */}
-        {globalAudioState.currentTrack && currentScreen !== "messages" && (
-          <View style={styles.playBarFadeOverlay} />
-        )}
+        {globalAudioState.currentTrack &&
+          currentScreen !== "messages" &&
+          currentScreen !== "help-chat" && (
+            <View style={styles.playBarFadeOverlay} />
+          )}
 
         {/* Global Audio Player - shows when there's a current track */}
-        {globalAudioState.currentTrack && currentScreen !== "messages" && (
-          <Animated.View
-            style={[
-              styles.globalAudioPlayer,
-              {
-                opacity: audioPlayerOpacity,
-                transform: [
-                  {
-                    translateY: audioPlayerTranslateY,
-                  },
-                ],
-              },
-            ]}
-          >
-            <TouchableOpacity
-              onPress={() => setShowFullScreenPlayer(true)}
-              activeOpacity={0.9}
-              style={styles.audioPlayerContent}
+        {globalAudioState.currentTrack &&
+          currentScreen !== "messages" &&
+          currentScreen !== "help-chat" && (
+            <Animated.View
+              style={[
+                styles.globalAudioPlayer,
+                {
+                  opacity: audioPlayerOpacity,
+                  transform: [
+                    {
+                      translateY: audioPlayerTranslateY,
+                    },
+                  ],
+                },
+              ]}
             >
-              {/* Album Art */}
-              <View style={styles.audioAlbumArt}>
-                {globalAudioState.currentTrack.image ? (
-                  <Image
-                    source={{ uri: globalAudioState.currentTrack.image }}
-                    style={styles.albumArtImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.albumArtPlaceholder}>
-                    <Ionicons
-                      name="musical-notes"
-                      size={24}
-                      color="hsl(75, 100%, 60%)"
+              <TouchableOpacity
+                onPress={() => setShowFullScreenPlayer(true)}
+                activeOpacity={0.9}
+                style={styles.audioPlayerContent}
+              >
+                {/* Album Art */}
+                <View style={styles.audioAlbumArt}>
+                  {globalAudioState.currentTrack.image ? (
+                    <Image
+                      source={{ uri: globalAudioState.currentTrack.image }}
+                      style={styles.albumArtImage}
+                      resizeMode="cover"
                     />
-                  </View>
-                )}
-              </View>
+                  ) : (
+                    <View style={styles.albumArtPlaceholder}>
+                      <Ionicons
+                        name="musical-notes"
+                        size={24}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                    </View>
+                  )}
+                </View>
 
-              <View style={styles.audioTrackInfo}>
-                <AutoScrollText
-                  text={globalAudioState.currentTrack.title}
-                  style={styles.audioTrackTitle}
-                  containerWidth={200}
-                />
-                <Text style={styles.audioTrackArtist} numberOfLines={1}>
-                  {globalAudioState.currentTrack.artist}
-                </Text>
-              </View>
+                <View style={styles.audioTrackInfo}>
+                  <AutoScrollText
+                    text={globalAudioState.currentTrack.title}
+                    style={styles.audioTrackTitle}
+                    containerWidth={200}
+                  />
+                  <Text style={styles.audioTrackArtist} numberOfLines={1}>
+                    {globalAudioState.currentTrack.artist}
+                  </Text>
+                  {/* Up Next Preview */}
+                  {(() => {
+                    const nextTrack = getNextTrack();
+                    if (nextTrack) {
+                      return (
+                        <View style={styles.upNextPreview}>
+                          <Text style={styles.upNextLabel}>Up Next:</Text>
+                          <Text style={styles.upNextTrack} numberOfLines={1}>
+                            {nextTrack.title} • {nextTrack.artist}
+                          </Text>
+                        </View>
+                      );
+                    }
+                    return null;
+                  })()}
+                </View>
 
-              {/* Timer - Compact format */}
-              <View style={styles.audioTimeContainer}>
-                <Text style={styles.audioTimeText}>
-                  {formatTime(globalAudioState.positionMillis || 0)} /{" "}
-                  {formatTime(globalAudioState.durationMillis || 0)}
-                </Text>
-              </View>
+                {/* Timer - Compact format */}
+                <View style={styles.audioTimeContainer}>
+                  <Text style={styles.audioTimeText}>
+                    {formatTime(globalAudioState.positionMillis || 0)} /{" "}
+                    {formatTime(globalAudioState.durationMillis || 0)}
+                  </Text>
+                </View>
 
-              <View style={styles.audioControls}>
-                {/* Play/Pause Button */}
-                <TouchableOpacity
-                  style={styles.audioControlButton}
-                  onPress={async (e) => {
-                    e.stopPropagation();
-                    try {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                <View style={styles.audioControls}>
+                  {/* Play/Pause Button */}
+                  <TouchableOpacity
+                    style={styles.audioControlButton}
+                    onPress={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-                      // iOS: Control track-player directly using native TrackPlayer
-                      if (
-                        Platform.OS === "ios" &&
-                        trackPlayer &&
-                        globalAudioState.currentTrack
-                      ) {
-                        try {
-                          // Import TrackPlayer and State directly
-                          const TrackPlayerModule = require("react-native-track-player");
-                          const TrackPlayerInstance =
-                            TrackPlayerModule.default || TrackPlayerModule;
-                          const TrackPlayerState = TrackPlayerModule.State;
+                        // iOS: Control track-player directly using native TrackPlayer
+                        if (
+                          Platform.OS === "ios" &&
+                          trackPlayer &&
+                          globalAudioState.currentTrack
+                        ) {
+                          try {
+                            // Import TrackPlayer and State directly
+                            const TrackPlayerModule = require("react-native-track-player");
+                            const TrackPlayerInstance =
+                              TrackPlayerModule.default || TrackPlayerModule;
+                            const TrackPlayerState = TrackPlayerModule.State;
 
-                          // Get actual playback state from native player
-                          const currentState =
-                            await TrackPlayerInstance.getState();
-                          const isCurrentlyPlaying =
-                            currentState === TrackPlayerState.Playing;
+                            // Get actual playback state from native player
+                            const currentState =
+                              await TrackPlayerInstance.getState();
+                            const isCurrentlyPlaying =
+                              currentState === TrackPlayerState.Playing;
 
-                          console.log(
-                            "🎵 Mini player - controlling playback:",
-                            {
-                              currentState,
-                              isCurrentlyPlaying,
-                              willBe: !isCurrentlyPlaying,
-                            }
-                          );
-
-                          // Use native TrackPlayer methods directly
-                          if (isCurrentlyPlaying) {
-                            await TrackPlayerInstance.pause();
-                            console.log("✅ Paused via native TrackPlayer");
-
-                            // Update state
-                            setGlobalAudioState((prev) => ({
-                              ...prev,
-                              isPlaying: false,
-                            }));
-                          } else {
-                            await TrackPlayerInstance.play();
                             console.log(
-                              "✅ Started/resumed via native TrackPlayer"
+                              "🎵 Mini player - controlling playback:",
+                              {
+                                currentState,
+                                isCurrentlyPlaying,
+                                willBe: !isCurrentlyPlaying,
+                              }
                             );
 
-                            // Update state
-                            setGlobalAudioState((prev) => ({
-                              ...prev,
-                              isPlaying: true,
-                            }));
-                          }
+                            // Use native TrackPlayer methods directly
+                            if (isCurrentlyPlaying) {
+                              await TrackPlayerInstance.pause();
+                              console.log("✅ Paused via native TrackPlayer");
 
-                          // Re-verify after a moment
-                          setTimeout(async () => {
-                            try {
-                              const verifiedState =
-                                await TrackPlayerInstance.getState();
-                              const verifiedPlaying =
-                                verifiedState === TrackPlayerState.Playing;
+                              // Update state
                               setGlobalAudioState((prev) => ({
                                 ...prev,
-                                isPlaying: verifiedPlaying,
+                                isPlaying: false,
                               }));
+                            } else {
+                              await TrackPlayerInstance.play();
                               console.log(
-                                "✅ Verified state:",
-                                verifiedPlaying
+                                "✅ Started/resumed via native TrackPlayer"
                               );
-                            } catch (err) {
-                              console.warn("⚠️ Could not verify state:", err);
+
+                              // Update state
+                              setGlobalAudioState((prev) => ({
+                                ...prev,
+                                isPlaying: true,
+                              }));
                             }
-                          }, 300);
-                        } catch (error) {
-                          console.error("❌ Track-player error:", error);
-                          // Fallback to global functions
+
+                            // Re-verify after a moment
+                            setTimeout(async () => {
+                              try {
+                                const verifiedState =
+                                  await TrackPlayerInstance.getState();
+                                const verifiedPlaying =
+                                  verifiedState === TrackPlayerState.Playing;
+                                setGlobalAudioState((prev) => ({
+                                  ...prev,
+                                  isPlaying: verifiedPlaying,
+                                }));
+                                console.log(
+                                  "✅ Verified state:",
+                                  verifiedPlaying
+                                );
+                              } catch (err) {
+                                console.warn("⚠️ Could not verify state:", err);
+                              }
+                            }, 300);
+                          } catch (error) {
+                            console.error("❌ Track-player error:", error);
+                            // Fallback to global functions
+                            if (globalAudioState.isPlaying) {
+                              await pauseGlobalAudio();
+                            } else {
+                              await resumeGlobalAudio();
+                            }
+                          }
+                        } else {
+                          // Android: Use React state
                           if (globalAudioState.isPlaying) {
                             await pauseGlobalAudio();
                           } else {
                             await resumeGlobalAudio();
                           }
                         }
-                      } else {
-                        // Android: Use React state
-                        if (globalAudioState.isPlaying) {
-                          await pauseGlobalAudio();
-                        } else {
-                          await resumeGlobalAudio();
-                        }
+                      } catch (error) {
+                        console.error("❌ Error in play/pause button:", error);
                       }
-                    } catch (error) {
-                      console.error("❌ Error in play/pause button:", error);
-                    }
-                  }}
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={globalAudioState.isPlaying ? "pause" : "play"}
+                      size={22}
+                      color="hsl(0, 0%, 0%)"
+                    />
+                  </TouchableOpacity>
+
+                  {/* Close / Stop Button */}
+                  <TouchableOpacity
+                    style={styles.audioCloseButton}
+                    onPress={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      } catch (hapticError) {
+                        console.warn("Haptics not available:", hapticError);
+                      }
+                      await stopGlobalAudio();
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Stop playback"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close" size={22} color="hsl(0, 0%, 60%)" />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+
+              {/* Progress Bar - Positioned at bottom */}
+              <View
+                ref={miniProgressBarRef}
+                style={styles.audioProgressContainer}
+                {...progressBarPanResponder.panHandlers}
+              >
+                <TouchableOpacity
+                  style={styles.audioProgressBar}
+                  onPress={handleProgressBarPress}
                   activeOpacity={0.8}
                 >
-                  <Ionicons
-                    name={globalAudioState.isPlaying ? "pause" : "play"}
-                    size={22}
-                    color="hsl(0, 0%, 0%)"
+                  <View
+                    style={[
+                      styles.audioProgressFill,
+                      {
+                        width: `${(globalAudioState.progress || 0) * 100}%`,
+                      },
+                    ]}
+                  />
+                  {/* Scrubber Thumb */}
+                  <View
+                    style={[
+                      styles.scrubberThumb,
+                      {
+                        left: `${(globalAudioState.progress || 0) * 100}%`,
+                      },
+                    ]}
                   />
                 </TouchableOpacity>
-
-                {/* Close / Stop Button */}
-                <TouchableOpacity
-                  style={styles.audioCloseButton}
-                  onPress={async (e) => {
-                    e.stopPropagation();
-                    try {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    } catch (hapticError) {
-                      console.warn("Haptics not available:", hapticError);
-                    }
-                    await stopGlobalAudio();
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Stop playback"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close" size={22} color="hsl(0, 0%, 60%)" />
-                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-
-            {/* Progress Bar - Positioned at bottom */}
-            <View
-              ref={miniProgressBarRef}
-              style={styles.audioProgressContainer}
-              {...progressBarPanResponder.panHandlers}
-            >
-              <TouchableOpacity
-                style={styles.audioProgressBar}
-                onPress={handleProgressBarPress}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[
-                    styles.audioProgressFill,
-                    {
-                      width: `${(globalAudioState.progress || 0) * 100}%`,
-                    },
-                  ]}
-                />
-                {/* Scrubber Thumb */}
-                <View
-                  style={[
-                    styles.scrubberThumb,
-                    {
-                      left: `${(globalAudioState.progress || 0) * 100}%`,
-                    },
-                  ]}
-                />
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        )}
+            </Animated.View>
+          )}
 
         {/* Full-Screen Audio Player Modal */}
         {showFullScreenPlayer && globalAudioState.currentTrack && (
@@ -5001,6 +5493,9 @@ export default function App() {
           onSecondaryPress={modalConfig.onSecondaryPress}
           showCloseButton={modalConfig.showCloseButton}
           showShareButton={modalConfig.showShareButton}
+          shareOpportunity={modalConfig.shareOpportunity || null}
+          shareUserId={modalConfig.shareUserId || null}
+          onShareInApp={modalConfig.onShareInApp || null}
         />
 
         {/* Brief Form Modal - REMOVED (simplified to swipe-to-apply) */}
@@ -6166,6 +6661,24 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)", // Light gray for artist
     fontWeight: "400",
+  },
+  upNextPreview: {
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: "hsl(0, 0%, 20%)",
+  },
+  upNextLabel: {
+    fontSize: 10,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+    color: "hsl(0, 0%, 60%)",
+    marginBottom: 2,
+  },
+  upNextTrack: {
+    fontSize: 11,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
   },
   audioControls: {
     flexDirection: "row",

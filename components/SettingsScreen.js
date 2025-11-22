@@ -42,7 +42,7 @@ export default function SettingsScreen({
     pushNotifications: true,
     emailNotifications: true,
     gigReminders: true,
-    messageNotifications: true,
+    messageNotifications: false, // Default to false - opt-in for message notifications
     communityUpdates: false,
   });
 
@@ -66,7 +66,8 @@ export default function SettingsScreen({
           showEmail: userProfile?.show_email ?? true,
           showPhone: userProfile?.show_phone ?? false,
           pushNotifications: userSettings?.push_notifications ?? true,
-          messageNotifications: userSettings?.message_notifications ?? true,
+          // Default to false - messages should not trigger notifications unless user opts in
+          messageNotifications: userSettings?.message_notifications ?? false,
         }));
       } catch (error) {
         console.error("❌ Error loading settings:", error);
@@ -214,7 +215,7 @@ export default function SettingsScreen({
         {
           id: "messageNotifications",
           title: "Message Notifications",
-          subtitle: "Notifications for new messages",
+          subtitle: "Get notifications for new messages (opt-in)",
           icon: "chatbubble",
           type: "toggle",
           value: settings.messageNotifications,
