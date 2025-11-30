@@ -42,6 +42,15 @@ try {
 } catch (error) {
   console.warn("⚠️ Track player not available:", error.message);
 }
+
+// Import playback callbacks registry for remote controls
+let playbackCallbacks = null;
+try {
+  playbackCallbacks = require("./src/audio/playbackCallbacks");
+  console.log("✅ Playback callbacks module loaded");
+} catch (error) {
+  console.warn("⚠️ Playback callbacks not available:", error.message);
+}
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts, Font } from "expo-font";
 import * as Haptics from "expo-haptics";
@@ -669,6 +678,10 @@ export default function App() {
       progressListener = TrackPlayer.addEventListener(
         Event.PlaybackProgressUpdated,
         (data) => {
+          console.log("🎵 [APP] PlaybackProgressUpdated event:", {
+            position: data.position,
+            duration: data.duration,
+          });
           setGlobalAudioState((prev) => {
             if (!prev.currentTrack) return prev;
             return {
@@ -744,8 +757,65 @@ export default function App() {
       return; // Exit early if listeners can't be registered
     }
 
+    // Poll for progress updates while playing (backup to event-based updates)
+    // This ensures UI updates even if PlaybackProgressUpdated events aren't firing
+    let pollCount = 0;
+    const progressInterval = setInterval(async () => {
+      try {
+        const currentState = globalAudioStateRef.current;
+        if (!currentState.isPlaying || !currentState.currentTrack) {
+          return; // Don't poll if not playing
+        }
+
+        // Use TrackPlayer directly to get position and duration
+        const position = await TrackPlayer.getPosition();
+        const duration = await TrackPlayer.getDuration();
+        const playerState = await TrackPlayer.getState();
+        const isPlaying = playerState === State.Playing;
+
+        // Log occasionally to verify polling is working (every 20 polls = ~5 seconds)
+        pollCount++;
+        if (pollCount % 20 === 0) {
+          console.log(`🎵 [APP] Progress poll - position: ${position.toFixed(2)}s, duration: ${duration.toFixed(2)}s, isPlaying: ${isPlaying}`);
+        }
+
+        // Only update if we got valid values and track is actually playing
+        if (isPlaying && duration > 0) {
+          const positionMillis = position * 1000;
+          const durationMillis = duration * 1000;
+          const progress = position / duration;
+
+          setGlobalAudioState((prev) => {
+            if (!prev.currentTrack) return prev;
+            
+            // Only update if values actually changed (avoid unnecessary re-renders)
+            if (
+              Math.abs(prev.positionMillis - positionMillis) < 100 && // Allow 100ms difference
+              Math.abs(prev.durationMillis - durationMillis) < 100
+            ) {
+              return prev;
+            }
+
+            return {
+              ...prev,
+              positionMillis,
+              durationMillis,
+              progress,
+              isPlaying: true, // Ensure playing state is set
+            };
+          });
+        }
+      } catch (error) {
+        // Log errors to help debug
+        if (error.message && !error.message.includes("not available")) {
+          console.warn("⚠️ [APP] Progress poll error:", error.message);
+        }
+      }
+    }, 250); // Update every 250ms for smoother progress bar
+
     return () => {
       console.log("🧹 [APP] Cleaning up TrackPlayer event listeners");
+      clearInterval(progressInterval);
       if (remotePlayListener?.remove) remotePlayListener.remove();
       if (remotePauseListener?.remove) remotePauseListener.remove();
       if (playbackStateListener?.remove) playbackStateListener.remove();
@@ -1686,6 +1756,9 @@ export default function App() {
 
   const seekGlobalAudio = async (seekAmount) => {
     try {
+      // Store in ref for background service access
+      seekGlobalAudioRef.current = seekGlobalAudio;
+      
       // iOS: Use ONLY track-player
       if (Platform.OS === "ios") {
         if (!trackPlayer || !globalAudioState.currentTrack) {
@@ -1757,6 +1830,8 @@ export default function App() {
   const resumeGlobalAudio = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // Store in ref for background service access
+      resumeGlobalAudioRef.current = resumeGlobalAudio;
 
       // iOS: Use TrackPlayer
       if (Platform.OS === "ios") {
@@ -2598,6 +2673,110 @@ export default function App() {
   useEffect(() => {
     playPreviousTrackRef.current = playPreviousTrack;
   }, [playPreviousTrack]);
+
+  // Register callbacks for remote controls (lock screen, Control Center)
+  // This connects the playback service to App.js audio control functions
+  useEffect(() => {
+    if (!playbackCallbacks || Platform.OS !== "ios") {
+      return; // Only needed on iOS where TrackPlayer handles remote controls
+    }
+
+    // Register callbacks that will be called by the playback service
+    // when remote controls are used
+    // Use refs to access latest functions to avoid stale closures
+    playbackCallbacks.register({
+      onPlay: async () => {
+        console.log("🎧 [CALLBACK] onPlay called from remote control");
+        // Remote play - just call resume, it will handle state checks
+        const resumeFn = resumeGlobalAudioRef.current;
+        if (resumeFn) {
+          await resumeFn();
+        } else {
+          console.warn("⚠️ [CALLBACK] resumeGlobalAudio not available");
+        }
+      },
+      onPause: async () => {
+        console.log("🎧 [CALLBACK] onPause called from remote control");
+        // Remote pause - just call pause, it will handle state checks
+        const pauseFn = pauseGlobalAudioRef.current;
+        if (pauseFn) {
+          await pauseFn();
+        } else {
+          console.warn("⚠️ [CALLBACK] pauseGlobalAudio not available");
+        }
+      },
+      onResume: async () => {
+        console.log("🎧 [CALLBACK] onResume called from remote control");
+        // Remote resume - just call resume, it will handle state checks
+        const resumeFn = resumeGlobalAudioRef.current;
+        if (resumeFn) {
+          await resumeFn();
+        } else {
+          console.warn("⚠️ [CALLBACK] resumeGlobalAudio not available");
+        }
+      },
+      onStop: async () => {
+        console.log("🎧 [CALLBACK] onStop called from remote control");
+        // Remote stop - just call stop, it will handle state checks
+        await stopGlobalAudio();
+      },
+      onNext: async () => {
+        console.log("🎧 [CALLBACK] onNext called from remote control");
+        // Remote next - play next track from queue
+        const nextFn = playNextTrackRef.current;
+        if (nextFn) {
+          await nextFn();
+        } else {
+          console.warn("⚠️ [CALLBACK] playNextTrack not available");
+        }
+      },
+      onPrevious: async () => {
+        console.log("🎧 [CALLBACK] onPrevious called from remote control");
+        // Remote previous - play previous track from queue
+        const prevFn = playPreviousTrackRef.current;
+        if (prevFn) {
+          await prevFn();
+        } else {
+          console.warn("⚠️ [CALLBACK] playPreviousTrack not available");
+        }
+      },
+      onSeek: async (positionMillis) => {
+        console.log(`🎧 [CALLBACK] onSeek called from remote control: ${positionMillis}ms`);
+        // Remote seek - seek to position (function handles state checks)
+        await seekToPosition(positionMillis);
+      },
+      onJumpForward: async () => {
+        console.log("🎧 [CALLBACK] onJumpForward called from remote control");
+        // Remote jump forward - seek forward 15 seconds
+        const seekFn = seekGlobalAudioRef.current;
+        if (seekFn) {
+          await seekFn(15000);
+        } else {
+          console.warn("⚠️ [CALLBACK] seekGlobalAudio not available");
+        }
+      },
+      onJumpBackward: async () => {
+        console.log("🎧 [CALLBACK] onJumpBackward called from remote control");
+        // Remote jump backward - seek backward 15 seconds
+        const seekFn = seekGlobalAudioRef.current;
+        if (seekFn) {
+          await seekFn(-15000);
+        } else {
+          console.warn("⚠️ [CALLBACK] seekGlobalAudio not available");
+        }
+      },
+    });
+
+    console.log("✅ [APP] Registered playback callbacks for remote controls");
+
+    // Cleanup: unregister callbacks when component unmounts
+    return () => {
+      if (playbackCallbacks) {
+        playbackCallbacks.unregister();
+        console.log("🧹 [APP] Unregistered playback callbacks");
+      }
+    };
+  }, []); // Empty deps - we use refs to access latest values
 
   // Share functionality
   const shareTrack = async () => {

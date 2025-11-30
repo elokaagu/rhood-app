@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS gigs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   
-  -- Foreign Keys
+  -- Foreign Keys a
   dj_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   opportunity_id UUID REFERENCES opportunities(id) ON DELETE SET NULL,
   venue_id UUID, -- Could link to venues table if you create one

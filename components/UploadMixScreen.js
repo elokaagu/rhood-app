@@ -521,36 +521,50 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             upsert: false,
           });
 
-      if (uploadError) {
-        console.error("❌ Upload error:", uploadError);
+        if (uploadError) {
+          console.error("❌ Upload error:", uploadError);
 
-        // Provide user-friendly error messages
-        if (
-          uploadError.message.includes("exceeded maximum size") ||
-          uploadError.message.includes("too large") ||
-          uploadError.message.includes("file size limit") ||
-          uploadError.message.includes("Object exceeded maximum size")
-        ) {
-          const fileSizeMB = (selectedFile.size / 1024 / 1024).toFixed(2);
-          throw new Error(
-            `File too large: ${fileSizeMB}MB.\n\n` +
-              `The storage bucket may have a lower limit configured.\n\n` +
-              `To fix this:\n` +
-              `1. Go to Supabase Dashboard > Storage > mixes bucket\n` +
-              `2. Click Settings and update "File size limit" to 5120 MB (5GB)\n` +
-              `3. Try uploading again\n\n` +
-              `Or check: database/check-and-fix-mixes-bucket-limit.sql`
-          );
-        } else if (uploadError.message.includes("quota")) {
-          throw new Error(
-            "Storage quota exceeded. Please delete some old mixes or contact support."
-          );
-        } else {
-          throw new Error(`Upload failed: ${uploadError.message}`);
+          // Provide user-friendly error messages
+          if (
+            uploadError.message.includes("exceeded maximum size") ||
+            uploadError.message.includes("too large") ||
+            uploadError.message.includes("file size limit") ||
+            uploadError.message.includes("Object exceeded maximum size")
+          ) {
+            const fileSizeMB = (selectedFile.size / 1024 / 1024).toFixed(2);
+            throw new Error(
+              `File too large: ${fileSizeMB}MB.\n\n` +
+                `The storage bucket may have a lower limit configured.\n\n` +
+                `To fix this:\n` +
+                `1. Go to Supabase Dashboard > Storage > mixes bucket\n` +
+                `2. Click Settings and update "File size limit" to 5120 MB (5GB)\n` +
+                `3. Try uploading again\n\n` +
+                `Or check: database/check-and-fix-mixes-bucket-limit.sql`
+            );
+          } else if (uploadError.message.includes("quota")) {
+            throw new Error(
+              "Storage quota exceeded. Please delete some old mixes or contact support."
+            );
+          } else {
+            throw new Error(`Upload failed: ${uploadError.message}`);
+          }
         }
+
+        console.log("✅ Audio file uploaded successfully:", uploadData.path);
+        setUploadProgress(40);
+
+        // Get public URL for audio file
+        const { data: url } = supabase.storage
+          .from("mixes")
+          .getPublicUrl(fileName);
+        urlData = url;
+      } else if (editingMix) {
+        // When editing without new file, use existing file URL
+        urlData = { publicUrl: editingMix.file_url };
+        setUploadProgress(40);
       }
 
-      setUploadProgress(40);
+      setUploadProgress(60);
 
       // Upload artwork if selected
       let artworkUrl = null;
@@ -662,7 +676,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       };
 
       // Only update file-related fields if a new file was selected
-      if (selectedFile) {
+      if (selectedFile && urlData) {
         updateData.file_name = selectedFile.name;
         updateData.file_url = urlData.publicUrl;
         updateData.file_size = selectedFile.size;
@@ -690,7 +704,11 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         mixRecord = data;
         dbError = error;
       } else {
-        // Create new mix
+        // Create new mix - selectedFile and urlData must exist for new mixes
+        if (!selectedFile || !urlData) {
+          throw new Error("File upload failed. Please try again.");
+        }
+        
         const { data, error } = await supabase
           .from("mixes")
           .insert({

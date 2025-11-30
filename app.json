@@ -110,7 +110,8 @@
       ],
       "./plugins/withFirebaseModularHeaders",
       "@react-native-firebase/app",
-      "expo-asset"
+      "expo-asset",
+      "expo-audio"
     ],
     "scheme": "rhoodapp",
     "owner": "elokaagu",
