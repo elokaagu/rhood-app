@@ -780,7 +780,7 @@ export default function App() {
         }
 
         // Only update if we got valid values and track is actually playing
-        if (isPlaying && duration > 0) {
+        if (isPlaying && duration > 0 && position >= 0) {
           const positionMillis = position * 1000;
           const durationMillis = duration * 1000;
           const progress = position / duration;
@@ -795,6 +795,10 @@ export default function App() {
             ) {
               return prev;
             }
+
+            // TrackPlayer automatically updates MPNowPlayingInfoCenter (lock screen)
+            // We just need to keep our in-app state in sync with TrackPlayer
+            // TrackPlayer is the single source of truth for position
 
             return {
               ...prev,
@@ -1732,9 +1736,11 @@ export default function App() {
         if (!trackPlayer || !globalAudioState.currentTrack) {
           return;
         }
+        // Call TrackPlayer - events will update state automatically
+        // This ensures lock screen and in-app stay in sync
         await trackPlayer.pause();
-        // Update state immediately to keep UI in sync
-        setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
+        // Don't update state here - let TrackPlayer events handle it
+        // This ensures single source of truth (TrackPlayer)
         return;
       }
 
@@ -1777,13 +1783,9 @@ export default function App() {
 
         await trackPlayer.seekTo(newPosition / 1000);
 
-        // Update state immediately
-        setGlobalAudioState((prev) => ({
-          ...prev,
-          positionMillis: newPosition,
-          progress:
-            state.duration > 0 ? newPosition / (state.duration * 1000) : 0,
-        }));
+        // Don't update state here - let TrackPlayer events handle it
+        // This ensures lock screen and in-app stay in sync
+        // TrackPlayer will fire PlaybackProgressUpdated or PlaybackState events
 
         console.log(
           `⏩ Seeked ${seekAmount > 0 ? "forward" : "backward"} to ${Math.floor(
@@ -1838,9 +1840,11 @@ export default function App() {
         if (!trackPlayer || !globalAudioState.currentTrack) {
           return;
         }
+        // Call TrackPlayer - events will update state automatically
+        // This ensures lock screen and in-app stay in sync
         await trackPlayer.resume();
-        // Update state immediately to keep UI in sync
-        setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
+        // Don't update state here - let TrackPlayer events handle it
+        // This ensures single source of truth (TrackPlayer)
         return;
       }
 
@@ -2044,12 +2048,9 @@ export default function App() {
         await trackPlayer.seekTo(seekPositionSeconds);
         console.log(`✅ Successfully seeked to ${clampedPosition}ms`);
 
-        // Update the global state to reflect the new position
-        setGlobalAudioState((prev) => ({
-          ...prev,
-          positionMillis: clampedPosition,
-          progress: clampedPosition / duration,
-        }));
+        // Don't update state here - let TrackPlayer events handle it
+        // This ensures lock screen and in-app stay in sync
+        // TrackPlayer will fire PlaybackProgressUpdated or PlaybackState events
         return;
       } catch (error) {
         console.warn("⚠️ Track player seek failed:", error);
