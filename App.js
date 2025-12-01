@@ -2693,12 +2693,19 @@ export default function App() {
           if (!prev.currentTrack) return prev;
           return { ...prev, isPlaying: true };
         });
-        // Then call the actual function
-        const resumeFn = resumeGlobalAudioRef.current;
-        if (resumeFn) {
-          await resumeFn();
-        } else {
-          console.warn("⚠️ [CALLBACK] resumeGlobalAudio not available");
+        // Call TrackPlayer directly for immediate control
+        try {
+          const TrackPlayerModule = require("react-native-track-player");
+          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
+          await TrackPlayerInstance.play();
+          console.log("✅ [CALLBACK] TrackPlayer.play() called directly");
+        } catch (error) {
+          console.error("❌ [CALLBACK] Error calling TrackPlayer.play():", error);
+          // Revert optimistic update on error
+          setGlobalAudioState((prev) => {
+            if (!prev.currentTrack) return prev;
+            return { ...prev, isPlaying: false };
+          });
         }
       },
       onPause: async () => {
@@ -2708,12 +2715,19 @@ export default function App() {
           if (!prev.currentTrack) return prev;
           return { ...prev, isPlaying: false };
         });
-        // Then call the actual function
-        const pauseFn = pauseGlobalAudioRef.current;
-        if (pauseFn) {
-          await pauseFn();
-        } else {
-          console.warn("⚠️ [CALLBACK] pauseGlobalAudio not available");
+        // Call TrackPlayer directly for immediate control
+        try {
+          const TrackPlayerModule = require("react-native-track-player");
+          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
+          await TrackPlayerInstance.pause();
+          console.log("✅ [CALLBACK] TrackPlayer.pause() called directly");
+        } catch (error) {
+          console.error("❌ [CALLBACK] Error calling TrackPlayer.pause():", error);
+          // Revert optimistic update on error
+          setGlobalAudioState((prev) => {
+            if (!prev.currentTrack) return prev;
+            return { ...prev, isPlaying: true };
+          });
         }
       },
       onResume: async () => {
@@ -2723,12 +2737,19 @@ export default function App() {
           if (!prev.currentTrack) return prev;
           return { ...prev, isPlaying: true };
         });
-        // Then call the actual function
-        const resumeFn = resumeGlobalAudioRef.current;
-        if (resumeFn) {
-          await resumeFn();
-        } else {
-          console.warn("⚠️ [CALLBACK] resumeGlobalAudio not available");
+        // Call TrackPlayer directly for immediate control
+        try {
+          const TrackPlayerModule = require("react-native-track-player");
+          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
+          await TrackPlayerInstance.play();
+          console.log("✅ [CALLBACK] TrackPlayer.play() called directly");
+        } catch (error) {
+          console.error("❌ [CALLBACK] Error calling TrackPlayer.play():", error);
+          // Revert optimistic update on error
+          setGlobalAudioState((prev) => {
+            if (!prev.currentTrack) return prev;
+            return { ...prev, isPlaying: false };
+          });
         }
       },
       onStop: async () => {
@@ -2758,38 +2779,38 @@ export default function App() {
       },
       onSeek: async (positionMillis) => {
         console.log(`🎧 [CALLBACK] onSeek called from remote control: ${positionMillis}ms`);
-        // Optimistic update for immediate UI feedback
-        setGlobalAudioState((prev) => {
-          if (!prev.currentTrack || !prev.durationMillis) return prev;
-          const clampedPosition = Math.max(0, Math.min(positionMillis, prev.durationMillis));
-          const progress = prev.durationMillis > 0 ? clampedPosition / prev.durationMillis : 0;
-          return {
-            ...prev,
-            positionMillis: clampedPosition,
-            progress,
-          };
-        });
-        // Then call the actual function
-        await seekToPosition(positionMillis);
+        // Call TrackPlayer directly for immediate control
+        try {
+          const TrackPlayerModule = require("react-native-track-player");
+          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
+          await TrackPlayerInstance.seekTo(positionMillis / 1000); // Convert to seconds
+          console.log(`✅ [CALLBACK] TrackPlayer.seekTo() called directly: ${positionMillis}ms`);
+        } catch (error) {
+          console.error("❌ [CALLBACK] Error calling TrackPlayer.seekTo():", error);
+        }
       },
       onJumpForward: async () => {
         console.log("🎧 [CALLBACK] onJumpForward called from remote control");
-        // Remote jump forward - seek forward 15 seconds
-        const seekFn = seekGlobalAudioRef.current;
-        if (seekFn) {
-          await seekFn(15000);
-        } else {
-          console.warn("⚠️ [CALLBACK] seekGlobalAudio not available");
+        // Call TrackPlayer directly for immediate control
+        try {
+          const TrackPlayerModule = require("react-native-track-player");
+          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
+          await TrackPlayerInstance.seekBy(15);
+          console.log("✅ [CALLBACK] TrackPlayer.seekBy(15) called directly");
+        } catch (error) {
+          console.error("❌ [CALLBACK] Error calling TrackPlayer.seekBy():", error);
         }
       },
       onJumpBackward: async () => {
         console.log("🎧 [CALLBACK] onJumpBackward called from remote control");
-        // Remote jump backward - seek backward 15 seconds
-        const seekFn = seekGlobalAudioRef.current;
-        if (seekFn) {
-          await seekFn(-15000);
-        } else {
-          console.warn("⚠️ [CALLBACK] seekGlobalAudio not available");
+        // Call TrackPlayer directly for immediate control
+        try {
+          const TrackPlayerModule = require("react-native-track-player");
+          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
+          await TrackPlayerInstance.seekBy(-15);
+          console.log("✅ [CALLBACK] TrackPlayer.seekBy(-15) called directly");
+        } catch (error) {
+          console.error("❌ [CALLBACK] Error calling TrackPlayer.seekBy():", error);
         }
       },
     });
