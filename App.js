@@ -2688,7 +2688,12 @@ export default function App() {
     playbackCallbacks.register({
       onPlay: async () => {
         console.log("🎧 [CALLBACK] onPlay called from remote control");
-        // Remote play - just call resume, it will handle state checks
+        // Optimistic update for immediate UI feedback
+        setGlobalAudioState((prev) => {
+          if (!prev.currentTrack) return prev;
+          return { ...prev, isPlaying: true };
+        });
+        // Then call the actual function
         const resumeFn = resumeGlobalAudioRef.current;
         if (resumeFn) {
           await resumeFn();
@@ -2698,7 +2703,12 @@ export default function App() {
       },
       onPause: async () => {
         console.log("🎧 [CALLBACK] onPause called from remote control");
-        // Remote pause - just call pause, it will handle state checks
+        // Optimistic update for immediate UI feedback
+        setGlobalAudioState((prev) => {
+          if (!prev.currentTrack) return prev;
+          return { ...prev, isPlaying: false };
+        });
+        // Then call the actual function
         const pauseFn = pauseGlobalAudioRef.current;
         if (pauseFn) {
           await pauseFn();
@@ -2708,7 +2718,12 @@ export default function App() {
       },
       onResume: async () => {
         console.log("🎧 [CALLBACK] onResume called from remote control");
-        // Remote resume - just call resume, it will handle state checks
+        // Optimistic update for immediate UI feedback
+        setGlobalAudioState((prev) => {
+          if (!prev.currentTrack) return prev;
+          return { ...prev, isPlaying: true };
+        });
+        // Then call the actual function
         const resumeFn = resumeGlobalAudioRef.current;
         if (resumeFn) {
           await resumeFn();
@@ -2743,7 +2758,18 @@ export default function App() {
       },
       onSeek: async (positionMillis) => {
         console.log(`🎧 [CALLBACK] onSeek called from remote control: ${positionMillis}ms`);
-        // Remote seek - seek to position (function handles state checks)
+        // Optimistic update for immediate UI feedback
+        setGlobalAudioState((prev) => {
+          if (!prev.currentTrack || !prev.durationMillis) return prev;
+          const clampedPosition = Math.max(0, Math.min(positionMillis, prev.durationMillis));
+          const progress = prev.durationMillis > 0 ? clampedPosition / prev.durationMillis : 0;
+          return {
+            ...prev,
+            positionMillis: clampedPosition,
+            progress,
+          };
+        });
+        // Then call the actual function
         await seekToPosition(positionMillis);
       },
       onJumpForward: async () => {
