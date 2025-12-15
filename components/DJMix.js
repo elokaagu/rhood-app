@@ -94,16 +94,26 @@ const DJMix = ({
 
   // Validate image URL and provide fallback
   const getImageSource = () => {
-    if (mix.image && typeof mix.image === "string" && mix.image.trim() !== "") {
-      // Check if it's a valid URL or matches upload pattern
-      if (mix.image.includes("supabase") || mix.image.startsWith("http")) {
-        return { uri: mix.image };
+    // Prefer artwork_url from mixes table, then image_url, then legacy image field
+    const candidateUrl =
+      (typeof mix.artwork_url === "string" && mix.artwork_url.trim()) ||
+      (typeof mix.image_url === "string" && mix.image_url.trim()) ||
+      (typeof mix.image === "string" && mix.image.trim()) ||
+      null;
+
+    if (candidateUrl) {
+      // Only accept plausible remote URLs (Supabase or http/https)
+      if (
+        candidateUrl.startsWith("http://") ||
+        candidateUrl.startsWith("https://") ||
+        candidateUrl.includes("supabase.co/storage")
+      ) {
+        return { uri: candidateUrl };
       }
     }
-    // Return fallback image
-    return {
-      uri: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
-    };
+
+    // Return branded fallback image if no valid artwork URL
+    return require("../assets/rhood_logo.webp");
   };
 
   useEffect(() => {
