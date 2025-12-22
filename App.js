@@ -5566,7 +5566,7 @@ export default function App() {
                       <Text style={styles.aboutDJName}>
                         {globalAudioState.currentTrack?.user_dj_name ||
                           globalAudioState.currentTrack?.artist ||
-                          "Unknown DJ"}
+                          "DJ"}
                       </Text>
                     </View>
                     <Ionicons

@@ -1600,7 +1600,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
               />
               <View style={styles.headerText}>
                 <Text style={styles.headerName}>
-                  {otherUser.dj_name || otherUser.full_name || "Unknown User"}
+                  {otherUser.dj_name || otherUser.full_name || otherUser.username || "DJ"}
                 </Text>
                 <Text style={styles.headerLocation}>
                   {otherUser.location ||

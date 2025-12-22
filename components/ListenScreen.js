@@ -329,9 +329,9 @@ export default function ListenScreen({
             duration: durationSeconds,
             durationMillis: durationSeconds ? durationSeconds * 1000 : null,
             description: mix.description || "No description available",
-            image:
-              mix.artwork_url ||
-              "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+            // Prioritize artwork_url, then image_url, then legacy image field, then null (let display components handle fallback)
+            artwork_url: mix.artwork_url || mix.image_url || mix.image || null,
+            image: mix.artwork_url || mix.image_url || mix.image || null,
             audioUrl: mix.file_url,
             plays: mix.plays || mix.play_count || 0,
             user: userProfile, // Include full user profile data
@@ -986,8 +986,8 @@ export default function ListenScreen({
                 <View style={styles.recommendationImageContainer}>
                   <Image
                     source={
-                      mix.image || mix.artwork_url
-                        ? { uri: mix.image || mix.artwork_url }
+                      mix.artwork_url || mix.image_url || mix.image
+                        ? { uri: mix.artwork_url || mix.image_url || mix.image }
                         : require("../assets/rhood_logo.webp")
                     }
                     style={styles.recommendationImage}
@@ -1074,8 +1074,8 @@ export default function ListenScreen({
                   <View style={styles.recommendationImageContainer}>
                     <Image
                       source={
-                        mix.image || mix.artwork_url
-                          ? { uri: mix.image || mix.artwork_url }
+                        mix.artwork_url || mix.image_url || mix.image
+                          ? { uri: mix.artwork_url || mix.image_url || mix.image }
                           : require("../assets/rhood_logo.webp")
                       }
                       style={styles.recommendationGridImage}
@@ -1122,8 +1122,8 @@ export default function ListenScreen({
                   <View style={styles.recommendationImageContainer}>
                     <Image
                       source={
-                        mix.image || mix.artwork_url
-                          ? { uri: mix.image || mix.artwork_url }
+                        mix.artwork_url || mix.image_url || mix.image
+                          ? { uri: mix.artwork_url || mix.image_url || mix.image }
                           : require("../assets/rhood_logo.webp")
                       }
                       style={styles.recommendationImage}

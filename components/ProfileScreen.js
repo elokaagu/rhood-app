@@ -299,9 +299,19 @@ export default function ProfileScreen({
           }
         }
 
+        // Build display name with better fallbacks
+        const getDisplayName = () => {
+          if (userProfile.dj_name) return userProfile.dj_name;
+          if (userProfile.full_name) return userProfile.full_name;
+          if (userProfile.username) {
+            return userProfile.username.charAt(0).toUpperCase() + userProfile.username.slice(1);
+          }
+          return "DJ";
+        };
+
         setProfile({
           id: userProfile.id,
-          name: userProfile.dj_name || userProfile.full_name || "Unknown DJ",
+          name: getDisplayName(),
           username: userProfile.username
             ? `@${userProfile.username}`
             : `@${(userProfile.dj_name || userProfile.full_name || "dj")

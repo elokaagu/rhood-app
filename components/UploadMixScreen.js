@@ -458,11 +458,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       let fileName = null;
       let urlData = null;
 
+      // Generate timestamp and random string for unique filenames (used for both audio and artwork)
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(6);
+
       // Only upload new file if one is selected (or if creating new mix)
       if (selectedFile) {
         // Create unique filename with random string to prevent conflicts
-        const timestamp = Date.now();
-        const randomStr = Math.random().toString(36).substring(6);
         const mixSlug = slugify(mixData.title || selectedFile.name);
         fileName = `${user.id}/audio/${timestamp}_${mixSlug}_${randomStr}.${fileExt}`;
 
@@ -582,7 +584,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             rawArtworkExt
               ?.toLowerCase()
               .replace(/[^a-z0-9]/g, "") || "jpg";
-          const mixSlug = slugify(mixData.title || selectedFile.name);
+          const mixSlug = slugify(mixData.title || selectedFile?.name || editingMix?.title || "mix");
           const artworkFileName = `${user.id}/artwork/${timestamp}_${mixSlug}_${randomStr}.${safeArtworkExt}`;
 
           console.log("🖼️ Uploading artwork:", selectedArtwork.name);
@@ -613,6 +615,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             contentType = selectedArtwork.mimeType || "image/jpeg";
           }
 
+          console.log("🖼️ Attempting to upload artwork to:", artworkFileName);
+          console.log("🖼️ Artwork data size:", artworkData.length, "bytes");
+          console.log("🖼️ Content type:", contentType);
+
           const { data: artworkUploadData, error: artworkUploadError } =
             await supabase.storage
               .from("mixes")
@@ -625,19 +631,36 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           if (artworkUploadError) {
             console.error(
               "❌ Artwork upload error:",
-              artworkUploadError.message
+              artworkUploadError
             );
-            // Continue without artwork rather than failing the entire upload
+            console.error("❌ Artwork upload error details:", {
+              message: artworkUploadError.message,
+              statusCode: artworkUploadError.statusCode,
+              error: artworkUploadError.error,
+            });
+            // Show error to user but continue without artwork
+            Alert.alert(
+              "Artwork Upload Failed",
+              `Failed to upload artwork: ${artworkUploadError.message}. The mix will be uploaded without artwork.`,
+              [{ text: "OK" }]
+            );
           } else {
             const { data: artworkUrlData } = supabase.storage
               .from("mixes")
               .getPublicUrl(artworkFileName);
             artworkUrl = artworkUrlData.publicUrl;
             console.log("✅ Artwork uploaded successfully:", artworkUrl);
+            console.log("✅ Artwork public URL:", artworkUrl);
           }
         } catch (artworkError) {
-          console.error("❌ Error processing artwork:", artworkError.message);
-          // Continue without artwork rather than failing the entire upload
+          console.error("❌ Error processing artwork:", artworkError);
+          console.error("❌ Error stack:", artworkError.stack);
+          // Show error to user but continue without artwork
+          Alert.alert(
+            "Artwork Processing Error",
+            `Failed to process artwork: ${artworkError.message}. The mix will be uploaded without artwork.`,
+            [{ text: "OK" }]
+          );
         }
       }
 
@@ -682,10 +705,18 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         updateData.file_size = selectedFile.size;
       }
 
-      // Only update artwork if a new one was selected
+      // Only update artwork if a new one was successfully uploaded
       if (artworkUrl) {
         updateData.artwork_url = artworkUrl;
         updateData.image_url = artworkUrl; // Sync to image_url column
+        console.log("✅ Artwork URL will be saved to database:", artworkUrl);
+      } else if (selectedArtwork) {
+        // If artwork was selected but upload failed, log warning
+        console.warn("⚠️ Artwork was selected but upload failed - mix will be saved without artwork");
+      } else if (editingMix && !selectedArtwork) {
+        // When editing without selecting new artwork, keep existing artwork
+        // Don't modify artwork_url in updateData
+        console.log("ℹ️ No new artwork selected - keeping existing artwork");
       }
 
       let mixRecord;

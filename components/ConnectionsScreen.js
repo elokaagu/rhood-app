@@ -1228,9 +1228,21 @@ export default function ConnectionsScreen({
           profileImage = null;
         }
 
+        // Build display name with better fallbacks
+        // Prefer dj_name, then full_name, then capitalize username, then just "DJ"
+        const getDisplayName = () => {
+          if (user.dj_name) return user.dj_name;
+          if (user.full_name) return user.full_name;
+          if (user.username) {
+            // Capitalize username nicely (e.g., "johndoe" -> "Johndoe")
+            return user.username.charAt(0).toUpperCase() + user.username.slice(1);
+          }
+          return "DJ"; // Simple fallback instead of "Unknown DJ"
+        };
+
         const formattedUser = {
           id: user.id,
-          name: user.dj_name || user.full_name || "Unknown DJ",
+          name: getDisplayName(),
           username: user.username
             ? `@${user.username}`
             : `@${(user.dj_name || user.full_name || "dj")
@@ -1372,13 +1384,14 @@ export default function ConnectionsScreen({
     // Debug: Log the connection data to see what's available
     console.log("🔍 Connection data for name:", connection);
 
-    // Return just the participant's name
+    // Return just the participant's name with better fallbacks
     const participantName =
       connection.name ||
       connection.dj_name ||
       connection.full_name ||
       connection.connected_user_name ||
-      "Unknown User";
+      connection.username ||
+      "DJ"; // Simple fallback instead of "Unknown User"
 
     console.log("🔍 Resolved name:", participantName);
     return participantName;

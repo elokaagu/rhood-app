@@ -152,7 +152,7 @@ export default function BrandGigsPortal({ user, onBack }) {
 
   const renderGig = (gig) => {
     // Handle both RPC format and direct query format
-    const djName = gig.dj_name || gig.user_profiles?.dj_name || "Unknown DJ";
+    const djName = gig.dj_name || gig.user_profiles?.dj_name || gig.user_profiles?.full_name || gig.user_profiles?.username || "DJ";
     const djImage = gig.dj_profile_image_url || gig.user_profiles?.profile_image_url;
     const canComplete = gig.status === "upcoming" || gig.status === "in_progress";
 
