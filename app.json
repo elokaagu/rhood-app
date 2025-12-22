@@ -44,7 +44,10 @@
           }
         ],
         "LSApplicationQueriesSchemes": [
-          "mailto"
+          "mailto",
+          "whatsapp",
+          "sms",
+          "instagram"
         ]
       }
     },
