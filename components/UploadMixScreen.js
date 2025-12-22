@@ -999,7 +999,7 @@ const formatDuration = (millis) => {
 
         {/* Artwork Picker */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Artwork (Optional)</Text>
+          <Text style={styles.sectionTitle}>Artwork *</Text>
           <TouchableOpacity
             style={styles.filePickerButton}
             onPress={pickArtworkImage}
@@ -1093,45 +1093,6 @@ const formatDuration = (millis) => {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <TouchableOpacity
-              style={styles.toggleRow}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setMixData((prev) => ({ ...prev, isPublic: !prev.isPublic }));
-              }}
-              disabled={uploading}
-            >
-              <View style={styles.toggleLeft}>
-                <Ionicons
-                  name={
-                    mixData.isPublic ? "globe-outline" : "lock-closed-outline"
-                  }
-                  size={20}
-                  color="white"
-                />
-                <Text style={styles.toggleLabel}>
-                  {mixData.isPublic ? "Public" : "Private"}
-                </Text>
-              </View>
-              <View
-                style={[styles.toggle, mixData.isPublic && styles.toggleActive]}
-              >
-                <View
-                  style={[
-                    styles.toggleThumb,
-                    mixData.isPublic && styles.toggleThumbActive,
-                  ]}
-                />
-              </View>
-            </TouchableOpacity>
-            <Text style={styles.toggleHint}>
-              {mixData.isPublic
-                ? "Everyone can see and play this mix"
-                : "Only you can see this mix"}
-            </Text>
           </View>
 
           {/* Set as Primary Mix Toggle */}
