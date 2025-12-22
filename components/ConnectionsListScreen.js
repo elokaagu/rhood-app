@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import { db } from "../lib/supabase";
+import { connectionsService } from "../lib/connectionsService";
 import {
   COLORS,
   TYPOGRAPHY,
@@ -40,32 +41,49 @@ export default function ConnectionsListScreen({ user, onBack, onNavigate }) {
       const connectionsData = await db.getUserConnections(user.id, "accepted");
       
       // Transform to get the connected user (not the current user)
-      const transformedConnections = connectionsData.map((conn) => {
-        // The getUserConnections function returns data with connected_user_id and connected_user_* fields
-        // Handle both RPC format and fallback format
-        const userId = conn.connected_user_id;
-        const djName = conn.connected_user_name || "Unknown";
-        const fullName = conn.connected_user_full_name || null;
-        const username = conn.connected_user_username || null;
-        const city = conn.connected_user_city || null;
-        const profileImage = conn.connected_user_image || null;
-        const statusMessage = conn.connected_user_status_message || null;
-        const genres = conn.connected_user_genres || [];
-        const isVerified = conn.connected_user_verified || false;
-        
-        return {
-          id: conn.id || userId,
-          userId: userId,
-          djName: djName,
-          fullName: fullName,
-          username: username,
-          city: city,
-          profileImage: profileImage,
-          statusMessage: statusMessage,
-          genres: genres,
-          isVerified: isVerified,
-        };
-      });
+      // Calculate mutual connections for each connection
+      const transformedConnections = await Promise.all(
+        connectionsData.map(async (conn) => {
+          // The getUserConnections function returns data with connected_user_id and connected_user_* fields
+          // Handle both RPC format and fallback format
+          const userId = conn.connected_user_id;
+          const djName = conn.connected_user_name || "Unknown";
+          const fullName = conn.connected_user_full_name || null;
+          const username = conn.connected_user_username || null;
+          const city = conn.connected_user_city || null;
+          const profileImage = conn.connected_user_image || null;
+          const statusMessage = conn.connected_user_status_message || null;
+          const genres = conn.connected_user_genres || [];
+          const isVerified = conn.connected_user_verified || false;
+          
+          // Calculate mutual connections
+          let mutualConnectionsCount = 0;
+          try {
+            const mutualConnections = await connectionsService.getMutualConnections(
+              user.id,
+              userId
+            );
+            mutualConnectionsCount = mutualConnections?.length || 0;
+          } catch (error) {
+            console.warn(`Failed to get mutual connections for ${userId}:`, error);
+            mutualConnectionsCount = 0;
+          }
+          
+          return {
+            id: conn.id || userId,
+            userId: userId,
+            djName: djName,
+            fullName: fullName,
+            username: username,
+            city: city,
+            profileImage: profileImage,
+            statusMessage: statusMessage,
+            genres: genres,
+            isVerified: isVerified,
+            mutualConnections: mutualConnectionsCount,
+          };
+        })
+      );
 
       setConnections(transformedConnections);
     } catch (error) {
@@ -219,6 +237,19 @@ export default function ConnectionsListScreen({ user, onBack, onNavigate }) {
                       />
                       <Text style={styles.metaText} numberOfLines={1}>
                         {connection.genres.slice(0, 2).join(", ")}
+                      </Text>
+                    </View>
+                  )}
+                  {connection.mutualConnections > 0 && (
+                    <View style={styles.metaItem}>
+                      <Ionicons
+                        name="people-outline"
+                        size={14}
+                        color={COLORS.textSecondary}
+                      />
+                      <Text style={styles.metaText}>
+                        {connection.mutualConnections}{" "}
+                        {connection.mutualConnections === 1 ? "mutual connection" : "mutual connections"}
                       </Text>
                     </View>
                   )}

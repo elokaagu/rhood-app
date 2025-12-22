@@ -384,6 +384,7 @@ export default function ProfileScreen({
   // Generate referral link
   const getReferralLink = () => {
     if (!inviteCode) return null;
+    // Keep the invite-code URL format; server should redirect to app page
     return `https://rhood.io/invite/${inviteCode}`;
   };
 
@@ -840,7 +841,9 @@ export default function ProfileScreen({
                 <View style={styles.audioInfo}>
                   <Text style={styles.audioTitle}>{profile.audioId.title}</Text>
                   <Text style={styles.audioDetails}>
-                    {profile.audioId.duration} • {profile.audioId.genre}
+                    {profile.audioId.duration 
+                      ? formatTime(formatDuration(profile.audioId.duration))
+                      : "0:00"} • {profile.audioId.genre || "Electronic"}
                   </Text>
                 </View>
                 <TouchableOpacity

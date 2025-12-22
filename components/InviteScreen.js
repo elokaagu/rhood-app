@@ -53,6 +53,7 @@ export default function InviteScreen({ user, onBack }) {
   // Generate referral link
   const getReferralLink = () => {
     if (!inviteCode) return null;
+    // Keep the invite-code URL format; server should redirect to app page
     return `https://rhood.io/invite/${inviteCode}`;
   };
 

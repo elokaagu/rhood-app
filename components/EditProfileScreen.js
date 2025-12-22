@@ -778,14 +778,14 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                       {currentPrimaryMix.title}
                     </Text>
                     <Text style={styles.audioIdDetails}>
-                      {currentPrimaryMix.genre} •{" "}
-                      {currentPrimaryMix.duration
+                      {currentPrimaryMix.genre || "Electronic"} •{" "}
+                      {currentPrimaryMix.duration && Number.isFinite(currentPrimaryMix.duration) && currentPrimaryMix.duration > 0
                         ? `${Math.floor(currentPrimaryMix.duration / 60)}:${(
-                            currentPrimaryMix.duration % 60
+                            Math.floor(currentPrimaryMix.duration % 60)
                           )
                             .toString()
                             .padStart(2, "0")}`
-                        : "Unknown duration"}
+                        : "0:00"}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -916,14 +916,14 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                   <View style={styles.mixInfo}>
                     <Text style={styles.mixTitle}>{mix.title}</Text>
                     <Text style={styles.mixDetails}>
-                      {mix.genre} •{" "}
-                      {mix.duration
+                      {mix.genre || "Electronic"} •{" "}
+                      {mix.duration && Number.isFinite(mix.duration) && mix.duration > 0
                         ? `${Math.floor(mix.duration / 60)}:${(
-                            mix.duration % 60
+                            Math.floor(mix.duration % 60)
                           )
                             .toString()
                             .padStart(2, "0")}`
-                        : "Unknown duration"}
+                        : "0:00"}
                     </Text>
                   </View>
                   {selectingMix ? (
