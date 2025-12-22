@@ -2710,6 +2710,14 @@ export default function App() {
           currentQueueIndex: 0,
         }));
         await playGlobalAudio(randomMix);
+      } else if (currentState.queue && currentState.queue.length > 0) {
+        // Fallback: loop back to the start of the existing queue
+        console.log("🎵 No random mix available, looping to start of queue");
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          currentQueueIndex: 0,
+        }));
+        await playGlobalAudio(currentState.queue[0]);
       } else {
         console.log("🎵 No mixes available for auto-queue, stopping playback");
         await stopGlobalAudio();

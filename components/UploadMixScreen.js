@@ -698,6 +698,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         is_public: mixData.isPublic,
       };
 
+      // Persist duration when known (seconds). If editing without new file, keep existing duration.
+      if (selectedFileDuration) {
+        updateData.duration = Math.round(selectedFileDuration / 1000);
+      } else if (editingMix?.duration) {
+        updateData.duration = editingMix.duration;
+      }
+
       // Only update file-related fields if a new file was selected
       if (selectedFile && urlData) {
         updateData.file_name = selectedFile.name;
@@ -752,7 +759,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             artwork_url: artworkUrl,
             play_count: 0,
             likes_count: 0,
-            duration: null,
+            duration:
+              selectedFileDuration && Number.isFinite(selectedFileDuration)
+                ? Math.round(selectedFileDuration / 1000)
+                : null,
           })
           .select()
           .single();
