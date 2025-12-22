@@ -43,20 +43,34 @@ const getAudioOptimization = (audioUrl) => {
 };
 
 const parseDurationString = (value) => {
+  if (value == null || value === undefined) return null;
+  
+  // Handle numeric values directly
+  if (typeof value === "number") {
+    if (Number.isFinite(value) && value > 0) {
+      return value;
+    }
+    return null;
+  }
+  
+  // Handle string values
   if (typeof value !== "string") return null;
+  
   const trimmed = value.trim();
-  if (!trimmed) return null;
+  if (!trimmed || trimmed === "0" || trimmed === "0:00") return null;
 
   const colonParts = trimmed.split(":").map((part) => part.trim());
   if (colonParts.length >= 2 && colonParts.length <= 3) {
     const numbers = colonParts.map((part) => Number(part));
-    if (numbers.every((part) => Number.isFinite(part))) {
+    if (numbers.every((num) => Number.isFinite(num) && num >= 0)) {
       if (numbers.length === 3) {
         const [hours, minutes, seconds] = numbers;
-        return hours * 3600 + minutes * 60 + seconds;
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+        return totalSeconds > 0 ? totalSeconds : null;
       }
       const [minutes, seconds] = numbers;
-      return minutes * 60 + seconds;
+      const totalSeconds = minutes * 60 + seconds;
+      return totalSeconds > 0 ? totalSeconds : null;
     }
   }
 
@@ -81,13 +95,17 @@ const extractDurationSeconds = (mix) => {
   ];
 
   for (const source of metadataSources) {
-    if (source == null) continue;
+    if (source == null || source === undefined) continue;
+    // Handle numeric values (including 0, but we'll filter that out later)
     if (typeof source === "number" && Number.isFinite(source) && source > 0) {
       return Math.round(source);
     }
-    const parsed = parseDurationString(String(source));
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return Math.round(parsed);
+    // Handle string values (including "0", "0:00", etc.)
+    if (typeof source === "string" && source.trim()) {
+      const parsed = parseDurationString(source);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return Math.round(parsed);
+      }
     }
   }
 
@@ -318,6 +336,17 @@ export default function ListenScreen({
           const durationSeconds = extractDurationSeconds(mix);
           const durationLabel = formatDurationLabel(durationSeconds);
 
+          // Debug logging for duration extraction
+          if (!durationSeconds || durationSeconds === 0) {
+            console.log(`⚠️ Mix "${mix.title}" has no duration:`, {
+              mixId: mix.id,
+              duration: mix.duration,
+              duration_seconds: mix.duration_seconds,
+              durationSeconds: mix.durationSeconds,
+              allMixFields: Object.keys(mix),
+            });
+          }
+
           const transformedMix = {
             id: mix.id,
             user_id: mix.user_id, // IMPORTANT: Include for ownership check
@@ -328,6 +357,7 @@ export default function ListenScreen({
             durationFormatted: durationLabel,
             durationLabel,
             duration: durationSeconds,
+            duration_seconds: durationSeconds, // Also include snake_case version
             durationMillis: durationSeconds ? durationSeconds * 1000 : null,
             description: mix.description || "No description available",
             // Prioritize artwork_url, then image_url, then legacy image field, then null (let display components handle fallback)
@@ -1059,7 +1089,7 @@ export default function ListenScreen({
 
   // Footer component for FlatList
   const renderRecommendations = () => {
-    const recommendedMixes = showAllRecommendations ? mixes : mixes.slice(0, 5);
+    const recommendedMixes = showAllRecommendations ? mixes : mixes.slice(0, 6);
     return (
       <View style={styles.recommendationsSection}>
         <View style={styles.recommendationsHeader}>
@@ -1071,7 +1101,7 @@ export default function ListenScreen({
               onPress={() => setShowAllRecommendations((prev) => !prev)}
             >
               <Text style={styles.viewAllText}>
-                {showAllRecommendations ? "Show Less" : "View All"}
+                {showAllRecommendations ? "Show Less" : "Show All"}
               </Text>
               <Ionicons
                 name={showAllRecommendations ? "chevron-up" : "chevron-forward"}
@@ -1081,114 +1111,59 @@ export default function ListenScreen({
             </TouchableOpacity>
           )}
         </View>
-        <Text style={styles.recommendationExplainer}>
-          Similar mixes
-        </Text>
-        {showAllRecommendations ? (
-          <View style={styles.recommendationsGrid}>
-            {recommendedMixes.map((mix) => {
-              const isPlaying = playingMixId === mix.id;
-              return (
-                <TouchableOpacity
-                  key={`rec-grid-${mix.id}`}
-                  style={styles.recommendationGridCard}
-                  onPress={() => handleMixPress(mix)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.recommendationImageContainer}>
-                    <Image
-                      source={
-                        mix.artwork_url || mix.image_url || mix.image
-                          ? { uri: mix.artwork_url || mix.image_url || mix.image }
-                          : require("../assets/rhood_logo.webp")
-                      }
-                      style={styles.recommendationGridImage}
-                      resizeMode="cover"
-                    />
-                    {isPlaying && (
-                      <View style={styles.recommendationPlayingOverlay}>
-                        <Ionicons
-                          name="play"
-                          size={24}
-                          color="hsl(75, 100%, 60%)"
-                        />
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.recommendationGridText}>
-                    <Text style={styles.recommendationTitle} numberOfLines={1}>
-                      {mix.title}
-                    </Text>
-                    <Text style={styles.recommendationArtist} numberOfLines={1}>
-                      {mix.artist || mix.user_dj_name || "Unknown"}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.recommendationsScroll}
-            contentContainerStyle={styles.recommendationsContent}
-          >
-            {recommendedMixes.map((mix) => {
-              const isPlaying = playingMixId === mix.id;
-              return (
-                <TouchableOpacity
-                  key={`rec-${mix.id}`}
-                  style={styles.recommendationCard}
-                  onPress={() => handleMixPress(mix)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.recommendationImageContainer}>
-                    <Image
-                      source={
-                        mix.artwork_url || mix.image_url || mix.image
-                          ? { uri: mix.artwork_url || mix.image_url || mix.image }
-                          : require("../assets/rhood_logo.webp")
-                      }
-                      style={styles.recommendationImage}
-                      resizeMode="cover"
-                    />
-                    {isPlaying && (
-                      <View style={styles.recommendationPlayingOverlay}>
-                        <Ionicons
-                          name="play"
-                          size={24}
-                          color="hsl(75, 100%, 60%)"
-                        />
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.recommendationInfo}>
-                    <Text style={styles.recommendationTitle} numberOfLines={1}>
-                      {mix.title}
-                    </Text>
-                    <Text style={styles.recommendationArtist} numberOfLines={1}>
-                      {mix.artist || mix.user_dj_name || "Unknown"}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-            {/* Partial next card indicator */}
-            {mixes.length > 5 && !showAllRecommendations && (
-              <View style={styles.partialCardIndicator}>
-                <View style={styles.partialCard}>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={24}
-                    color="hsl(75, 100%, 60%)"
+        <Text style={styles.recommendationExplainer}>Similar mixes</Text>
+        <View style={styles.popularList}>
+          {recommendedMixes.map((mix) => {
+            const isPlaying = playingMixId === mix.id;
+            return (
+              <TouchableOpacity
+                key={`rec-list-${mix.id}`}
+                style={styles.popularRow}
+                onPress={() => handleMixPress(mix)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.popularImageWrap}>
+                  <Image
+                    source={
+                      mix.artwork_url || mix.image_url || mix.image
+                        ? { uri: mix.artwork_url || mix.image_url || mix.image }
+                        : require("../assets/rhood_logo.webp")
+                    }
+                    style={styles.popularImage}
+                    resizeMode="cover"
                   />
-                  <Text style={styles.partialCardText}>More</Text>
+                  {isPlaying && (
+                    <View style={styles.recommendationPlayingOverlay}>
+                      <Ionicons
+                        name="play"
+                        size={20}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                    </View>
+                  )}
                 </View>
-              </View>
-            )}
-          </ScrollView>
-        )}
+                <View style={styles.popularInfo}>
+                  <Text style={styles.popularTitle} numberOfLines={1}>
+                    {mix.title}
+                  </Text>
+                  <Text style={styles.popularSubtitle} numberOfLines={1}>
+                    {mix.artist || mix.user_dj_name || "Unknown"}
+                  </Text>
+                  {mix.genre ? (
+                    <Text style={styles.popularMeta} numberOfLines={1}>
+                      {mix.genre}
+                    </Text>
+                  ) : null}
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color="hsl(0, 0%, 60%)"
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     );
   };
@@ -1979,6 +1954,48 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 6,
   },
+  // Popular releases style list (for More Like This)
+  popularList: {
+    marginTop: 8,
+  },
+  popularRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  popularImageWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  popularImage: {
+    width: "100%",
+    height: "100%",
+  },
+  popularInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  popularTitle: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  popularSubtitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 80%)",
+  },
+  popularMeta: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+  },
   partialCardIndicator: {
     width: 60,
     justifyContent: "center",
@@ -2006,12 +2023,12 @@ const styles = StyleSheet.create({
     gap: 32,
   },
   genreRow: {
-    backgroundColor: "hsl(0, 0%, 6%)",
+    backgroundColor: "transparent",
     borderRadius: 18,
     paddingVertical: 28,
     paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.08)",
+    borderWidth: 0,
+    borderColor: "transparent",
     marginHorizontal: 20,
   },
   genreRowHeader: {
@@ -2047,10 +2064,10 @@ const styles = StyleSheet.create({
   genreRowCard: {
     width: 180,
     height: 220,
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: "transparent",
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.08)",
+    borderWidth: 0,
+    borderColor: "transparent",
     overflow: "hidden",
     justifyContent: "flex-end",
   },

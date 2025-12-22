@@ -638,12 +638,14 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
               statusCode: artworkUploadError.statusCode,
               error: artworkUploadError.error,
             });
-            // Show error to user but continue without artwork
+            // Artwork is required - don't allow mix upload if artwork fails
             Alert.alert(
               "Artwork Upload Failed",
-              `Failed to upload artwork: ${artworkUploadError.message}. The mix will be uploaded without artwork.`,
+              `Failed to upload artwork: ${artworkUploadError.message}. Please try again or select a different image.`,
               [{ text: "OK" }]
             );
+            setUploading(false);
+            return; // Stop upload process
           } else {
             const { data: artworkUrlData } = supabase.storage
               .from("mixes")
@@ -651,16 +653,30 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             artworkUrl = artworkUrlData.publicUrl;
             console.log("✅ Artwork uploaded successfully:", artworkUrl);
             console.log("✅ Artwork public URL:", artworkUrl);
+            
+            // Verify URL is valid
+            if (!artworkUrl || !artworkUrl.trim()) {
+              console.error("❌ Artwork URL is empty after upload");
+              Alert.alert(
+                "Artwork Upload Error",
+                "Artwork was uploaded but the URL is invalid. Please try again.",
+                [{ text: "OK" }]
+              );
+              setUploading(false);
+              return;
+            }
           }
         } catch (artworkError) {
           console.error("❌ Error processing artwork:", artworkError);
           console.error("❌ Error stack:", artworkError.stack);
-          // Show error to user but continue without artwork
+          // Artwork is required - don't allow mix upload if artwork processing fails
           Alert.alert(
             "Artwork Processing Error",
-            `Failed to process artwork: ${artworkError.message}. The mix will be uploaded without artwork.`,
+            `Failed to process artwork: ${artworkError.message}. Please try again or select a different image.`,
             [{ text: "OK" }]
           );
+          setUploading(false);
+          return; // Stop upload process
         }
       }
 
@@ -747,6 +763,27 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           throw new Error("File upload failed. Please try again.");
         }
         
+        // Ensure artwork_url is set from updateData if available, otherwise use artworkUrl
+        const finalArtworkUrl = updateData.artwork_url || artworkUrl;
+        
+        console.log("💾 Saving mix to database with artwork:", {
+          artworkUrl: finalArtworkUrl,
+          hasArtwork: !!finalArtworkUrl,
+          updateDataArtwork: updateData.artwork_url,
+          directArtworkUrl: artworkUrl,
+        });
+        
+        if (!finalArtworkUrl) {
+          console.error("❌ CRITICAL: No artwork URL available for new mix!");
+          Alert.alert(
+            "Artwork Required",
+            "Artwork is required but was not uploaded successfully. Please try again.",
+            [{ text: "OK" }]
+          );
+          setUploading(false);
+          return;
+        }
+        
         const { data, error } = await supabase
           .from("mixes")
           .insert({
@@ -756,7 +793,8 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             file_name: selectedFile.name,
             file_url: urlData.publicUrl,
             file_size: selectedFile.size,
-            artwork_url: artworkUrl,
+            artwork_url: finalArtworkUrl,
+            image_url: finalArtworkUrl, // Sync to image_url column
             play_count: 0,
             likes_count: 0,
             duration:
@@ -924,6 +962,7 @@ const formatDuration = (millis) => {
                   ) : (
                     <View style={[styles.mixSelectorImage, styles.mixSelectorPlaceholder]}>
                       <Ionicons name="musical-note" size={32} color="hsl(75, 100%, 60%)" />
+                      <Text style={styles.mixSelectorNoArtworkLabel}>No artwork</Text>
                     </View>
                   )}
                   <Text style={styles.mixSelectorTitle} numberOfLines={1}>
@@ -1009,7 +1048,27 @@ const formatDuration = (millis) => {
 
         {/* Artwork Picker */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Artwork *</Text>
+          <Text style={styles.sectionTitle}>
+            {editingMix ? "Artwork" : "Artwork *"}
+          </Text>
+          {editingMix && (
+            <Text style={styles.sectionSubtitle}>
+              {editingMix.artwork_url || editingMix.image_url
+                ? "Select new artwork to replace the current image, or leave empty to keep existing"
+                : "Add artwork to your mix (recommended)"}
+            </Text>
+          )}
+          {/* Show existing artwork preview when editing */}
+          {editingMix && (editingMix.artwork_url || editingMix.image_url) && !selectedArtwork && (
+            <View style={styles.existingArtworkPreview}>
+              <Image
+                source={{ uri: editingMix.artwork_url || editingMix.image_url }}
+                style={styles.existingArtworkImage}
+                resizeMode="cover"
+              />
+              <Text style={styles.existingArtworkLabel}>Current artwork</Text>
+            </View>
+          )}
           <TouchableOpacity
             style={styles.filePickerButton}
             onPress={pickArtworkImage}
@@ -1029,7 +1088,9 @@ const formatDuration = (millis) => {
               </View>
             ) : (
               <Text style={styles.filePickerText}>
-                Tap to select artwork from photos
+                {editingMix && (editingMix.artwork_url || editingMix.image_url)
+                  ? "Tap to change artwork"
+                  : "Tap to select artwork from photos"}
               </Text>
             )}
           </TouchableOpacity>
@@ -1155,7 +1216,7 @@ const formatDuration = (millis) => {
             uploading && styles.uploadButtonDisabled,
           ]}
           onPress={uploadMix}
-          disabled={uploading || !selectedFile}
+          disabled={uploading || (!editingMix && !selectedFile)}
         >
           <LinearGradient
             colors={
@@ -1422,6 +1483,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontFamily: "Helvetica Neue",
   },
+  existingArtworkPreview: {
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  existingArtworkImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    marginBottom: 8,
+  },
+  existingArtworkLabel: {
+    color: "hsl(0, 0%, 60%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+  },
   mixSelectorScroll: {
     marginHorizontal: -20,
     paddingHorizontal: 20,
@@ -1443,6 +1520,12 @@ const styles = StyleSheet.create({
   mixSelectorPlaceholder: {
     justifyContent: "center",
     alignItems: "center",
+  },
+  mixSelectorNoArtworkLabel: {
+    color: "hsl(0, 0%, 60%)",
+    fontSize: 11,
+    marginTop: 4,
+    fontFamily: "Helvetica Neue",
   },
   mixSelectorTitle: {
     color: "white",

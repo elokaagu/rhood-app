@@ -14,7 +14,7 @@ BEGIN
     up.id as mutual_user_id,
     up.full_name as mutual_user_name,
     up.dj_name as mutual_user_dj_name,
-    up.profile_image_url as mutual_user_profile_image
+up.profile_image_url as mutual_user_profile_image
   FROM connections c1
   JOIN connections c2 ON (
     -- Find the mutual user: someone connected to both user1 and user2

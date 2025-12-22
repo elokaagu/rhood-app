@@ -77,6 +77,70 @@ export default function UserProfileView({
     return 0;
   };
 
+  const parseDurationString = (str) => {
+    if (typeof str !== "string") return null;
+    const parts = str.split(":").map((p) => Number(p));
+    if (parts.some((n) => !Number.isFinite(n) || n < 0)) return null;
+    if (parts.length === 3) {
+      const [h, m, s] = parts;
+      return h * 3600 + m * 60 + s;
+    }
+    if (parts.length === 2) {
+      const [m, s] = parts;
+      return m * 60 + s;
+    }
+    if (parts.length === 1) {
+      return parts[0];
+    }
+    return null;
+  };
+
+  const extractDurationSeconds = (mix) => {
+    if (!mix) return null;
+    const durationSecondsCandidates = [
+      mix.durationSeconds,
+      mix.duration_seconds,
+      mix.duration,
+      mix.metadata?.duration,
+      mix.metadata?.duration_seconds,
+      mix.audio_metadata?.duration,
+      mix.audio_metadata?.duration_seconds,
+      mix.audioMetadata?.duration,
+      mix.audioMetadata?.duration_seconds,
+    ];
+
+    for (const cand of durationSecondsCandidates) {
+      const secs = parseDurationSeconds(cand);
+      if (secs && Number.isFinite(secs) && secs > 0) return secs;
+    }
+
+    const durationMillisCandidates = [
+      mix.durationMillis,
+      mix.duration_millis,
+      mix.metadata?.durationMillis,
+      mix.metadata?.duration_millis,
+      mix.audio_metadata?.durationMillis,
+      mix.audio_metadata?.duration_millis,
+      mix.audioMetadata?.durationMillis,
+      mix.audioMetadata?.duration_millis,
+    ];
+    for (const cand of durationMillisCandidates) {
+      if (Number.isFinite(cand) && cand > 0) return Math.round(cand / 1000);
+    }
+
+    const formattedCandidates = [
+      mix.duration_formatted,
+      mix.durationFormatted,
+      mix.durationLabel,
+    ];
+    for (const cand of formattedCandidates) {
+      const secs = parseDurationString(cand);
+      if (secs && Number.isFinite(secs) && secs > 0) return secs;
+    }
+
+    return null;
+  };
+
   const formatSecondsToLabel = (seconds) => {
     const safeSeconds = Math.max(0, Math.floor(seconds));
     const minutes = Math.floor(safeSeconds / 60);
@@ -230,7 +294,7 @@ export default function UserProfileView({
             .single();
 
           if (!mixError && mixData) {
-            const durationSeconds = parseDurationSeconds(mixData.duration);
+            const durationSeconds = extractDurationSeconds(mixData);
             primaryMix = {
               ...mixData,
               duration: durationSeconds,

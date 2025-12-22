@@ -13,60 +13,42 @@ module.exports = async function() {
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
     console.log("🎧 [SERVICE] ⚠️⚠️⚠️ RemotePlay event received (lock screen play) ⚠️⚠️⚠️");
     
-    // Try to use App.js callback first (for queue management)
-    const callbackUsed = await playbackCallbacks.call("onResume");
-    console.log(`🎧 [SERVICE] Callback used: ${callbackUsed}`);
-    
-    // If no callback, fall back to TrackPlayer directly
-    if (!callbackUsed) {
-      console.log("🎧 [SERVICE] No callback available, using TrackPlayer.play() directly");
-      await TrackPlayer.play();
-      console.log("🎧 [SERVICE] TrackPlayer.play() completed");
-    }
+    // Use App.js callback (queue/state sync)
+    await playbackCallbacks.call("onResume");
+    // Always ensure native player starts
+    await TrackPlayer.play();
+    console.log("🎧 [SERVICE] TrackPlayer.play() completed");
   });
 
   // Remote Pause - Pause playback
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
     console.log("🎧 [SERVICE] ⚠️⚠️⚠️ RemotePause event received (lock screen pause) ⚠️⚠️⚠️");
     
-    // Try to use App.js callback first (for state management)
-    const callbackUsed = await playbackCallbacks.call("onPause");
-    console.log(`🎧 [SERVICE] Callback used: ${callbackUsed}`);
-    
-    // If no callback, fall back to TrackPlayer directly
-    if (!callbackUsed) {
-      console.log("🎧 [SERVICE] No callback available, using TrackPlayer.pause() directly");
-      await TrackPlayer.pause();
-      console.log("🎧 [SERVICE] TrackPlayer.pause() completed");
-    }
+    // Use App.js callback (state sync)
+    await playbackCallbacks.call("onPause");
+    // Always ensure native player pauses
+    await TrackPlayer.pause();
+    console.log("🎧 [SERVICE] TrackPlayer.pause() completed");
   });
 
   // Remote Stop - Stop playback
   TrackPlayer.addEventListener(Event.RemoteStop, async () => {
     console.log("🎧 [SERVICE] RemoteStop event received");
     
-    // Try to use App.js callback first
-    const callbackUsed = await playbackCallbacks.call("onStop");
-    
-    // If no callback, fall back to TrackPlayer directly
-    if (!callbackUsed) {
-      await TrackPlayer.stop();
-      console.log("🎧 [SERVICE] Used TrackPlayer.stop() directly");
-    }
+    await playbackCallbacks.call("onStop");
+    // Always ensure native player stops
+    await TrackPlayer.stop();
+    console.log("🎧 [SERVICE] Used TrackPlayer.stop() directly");
   });
 
   // Remote Seek - Seek to position
   TrackPlayer.addEventListener(Event.RemoteSeek, async ({ position }) => {
     console.log(`🎧 [SERVICE] RemoteSeek event received: ${position}s`);
     
-    // Try to use App.js callback first (for state sync)
-    const callbackUsed = await playbackCallbacks.call("onSeek", position * 1000); // Convert to milliseconds
-    
-    // If no callback, fall back to TrackPlayer directly
-    if (!callbackUsed) {
-      await TrackPlayer.seekTo(position);
-      console.log("🎧 [SERVICE] Used TrackPlayer.seekTo() directly");
-    }
+    await playbackCallbacks.call("onSeek", position * 1000); // Convert to milliseconds
+    // Always ensure native player seeks
+    await TrackPlayer.seekTo(position);
+    console.log("🎧 [SERVICE] Used TrackPlayer.seekTo() directly");
   });
 
   // Remote Next - Play next track in queue
@@ -115,28 +97,20 @@ module.exports = async function() {
   TrackPlayer.addEventListener(Event.RemoteJumpForward, async () => {
     console.log("🎧 [SERVICE] RemoteJumpForward event received");
     
-    // Try to use App.js callback first
-    const callbackUsed = await playbackCallbacks.call("onJumpForward");
-    
-    // If no callback, fall back to TrackPlayer directly
-    if (!callbackUsed) {
-      await TrackPlayer.seekBy(15);
-      console.log("🎧 [SERVICE] Used TrackPlayer.seekBy(15) directly");
-    }
+    await playbackCallbacks.call("onJumpForward");
+    // Always ensure native player seeks
+    await TrackPlayer.seekBy(15);
+    console.log("🎧 [SERVICE] Used TrackPlayer.seekBy(15) directly");
   });
 
   // Remote Jump Backward - Seek backward 15 seconds
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, async () => {
     console.log("🎧 [SERVICE] RemoteJumpBackward event received");
     
-    // Try to use App.js callback first
-    const callbackUsed = await playbackCallbacks.call("onJumpBackward");
-    
-    // If no callback, fall back to TrackPlayer directly
-    if (!callbackUsed) {
-      await TrackPlayer.seekBy(-15);
-      console.log("🎧 [SERVICE] Used TrackPlayer.seekBy(-15) directly");
-    }
+    await playbackCallbacks.call("onJumpBackward");
+    // Always ensure native player seeks
+    await TrackPlayer.seekBy(-15);
+    console.log("🎧 [SERVICE] Used TrackPlayer.seekBy(-15) directly");
   });
 
   // Playback Queue Ended - Track finished playing

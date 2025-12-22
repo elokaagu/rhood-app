@@ -6945,11 +6945,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12, // Compact vertical padding
     paddingHorizontal: 16,
     zIndex: 1001, // Higher than tab bar
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 0 }, // No downward shadow to avoid overlap
-    shadowOpacity: 0.15, // Subtle shadow
-    shadowRadius: 4, // Minimal shadow radius
-    elevation: 4, // Reduced elevation for Android
+    // Remove shadow to avoid overlapping bottom tab
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
     borderWidth: 0, // Remove border for cleaner look
     minHeight: 70, // Compact height
   },
