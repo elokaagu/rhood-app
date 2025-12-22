@@ -357,7 +357,6 @@ export default function App() {
           if (gestureState.dy > 100) {
             // Swipe down - close player
             setShowFullScreenPlayer(false);
-            Vibration.vibrate(50);
           }
         }
       },
