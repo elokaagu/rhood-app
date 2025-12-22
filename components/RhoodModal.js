@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Modal,
   StyleSheet,
   Dimensions,
@@ -443,7 +444,7 @@ const RhoodModal = ({
         );
       } else {
         // Legacy share message generation
-        shareMessage = `🎧 ${title}\n\n`;
+        shareMessage = `${title}\n\n`;
 
         if (eventDetails) {
           if (eventDetails.description) {
@@ -451,14 +452,14 @@ const RhoodModal = ({
           }
 
           const details = [];
-          if (eventDetails.date) details.push(`📅 Date: ${eventDetails.date}`);
-          if (eventDetails.time) details.push(`⏰ Time: ${eventDetails.time}`);
+          if (eventDetails.date) details.push(`Date: ${eventDetails.date}`);
+          if (eventDetails.time) details.push(`Time: ${eventDetails.time}`);
           if (eventDetails.location)
-            details.push(`📍 Location: ${eventDetails.location}`);
+            details.push(`Location: ${eventDetails.location}`);
           if (eventDetails.compensation)
-            details.push(`💰 Compensation: ${eventDetails.compensation}`);
+            details.push(`Compensation: ${eventDetails.compensation}`);
           if (eventDetails.distanceFormatted)
-            details.push(`📏 Distance: ${eventDetails.distanceFormatted}`);
+            details.push(`Distance: ${eventDetails.distanceFormatted}`);
 
           if (details.length > 0) {
             shareMessage += details.join("\n") + "\n\n";
@@ -467,7 +468,7 @@ const RhoodModal = ({
           shareMessage += `${message}\n\n`;
         }
 
-        shareMessage += `Check it out on R/HOOD! 🎵`;
+        shareMessage += `Check it out on R/HOOD.`;
       }
 
       await Share.share({

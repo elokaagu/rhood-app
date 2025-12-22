@@ -31,7 +31,7 @@ export default function PrivacyPolicyScreen({ onBack }) {
         {/* Title Section */}
         <View style={styles.titleSection}>
           <Text style={styles.appName}>R/HOOD Privacy Policy</Text>
-          <Text style={styles.effectiveDate}>Effective Date: October 10, 2025</Text>
+          <Text style={styles.effectiveDate}>Effective Date: January 1, 2026</Text>
           <Text style={styles.introText}>
             R/HOOD ("we," "our," "us") values your privacy. This Privacy Policy explains how we collect, use, share, and protect your personal information when you use our website, mobile app, and related services (collectively, the "Platform").
           </Text>

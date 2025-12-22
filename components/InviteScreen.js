@@ -60,7 +60,7 @@ export default function InviteScreen({ user, onBack }) {
   // Generate referral share message
   const getReferralShareMessage = () => {
     if (!inviteCode) return "";
-    return `🎧 Join R/HOOD - The DJ Community!\n\n🎁 Use my invite code when you sign up: ${inviteCode}\n\nYou'll help me earn credits and I'll help you get started! 🎵\n\n📱 Download R/HOOD app: https://rhood.io/download`;
+    return `Join R/HOOD - The DJ Community\n\nUse my invite code when you sign up: ${inviteCode}\n\nYou'll help me earn credits and I'll help you get started.\n\nDownload R/HOOD app: https://rhood.io/download`;
   };
 
   // Copy invite code
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     padding: 20,
-    paddingBottom: 120,
+    paddingBottom: 200, // Increased to account for audio player (120px position + ~70px height + spacing)
   },
   inviteCodeCard: {
     backgroundColor: "hsl(0, 0%, 8%)",

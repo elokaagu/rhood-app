@@ -174,6 +174,7 @@ export default function ProfileScreen({
 
       // Load user's achievements, credits, connections count, invite code, and referral stats
       let achievements = [];
+      let achievementsStats = { earnedCount: 0, totalCount: 0 };
       let creditsValue = Number(userProfile.credits ?? 0);
       let connections = 0;
       let userInviteCode = null;
@@ -206,6 +207,12 @@ export default function ProfileScreen({
           const earnedIds = new Set(
             userAchievements.map((ua) => ua.achievement_id)
           );
+
+          // Calculate total stats from ALL achievements
+          achievementsStats.totalCount = allAchievements.length;
+          achievementsStats.earnedCount = allAchievements.filter((achievement) =>
+            earnedIds.has(achievement.id)
+          ).length;
 
           // Show first 4 achievements on profile, but keep all for the list page
           achievements = allAchievements.slice(0, 4).map((achievement) => ({
@@ -336,6 +343,7 @@ export default function ProfileScreen({
             userProfile.join_date || userProfile.created_at || "Unknown",
           recentGigs: recentGigs,
           achievements: achievements,
+          achievementsStats: achievementsStats,
         });
         console.log("✅ Profile loaded from database");
         console.log(
@@ -605,9 +613,9 @@ export default function ProfileScreen({
       return null;
     }
 
-    // Count earned achievements
-    const earnedCount = profile.achievements.filter((a) => a.earned).length;
-    const totalCount = profile.achievements.length;
+    // Use stats from all achievements, not just the first 4 displayed
+    const earnedCount = profile.achievementsStats?.earnedCount || profile.achievements.filter((a) => a.earned).length;
+    const totalCount = profile.achievementsStats?.totalCount || profile.achievements.length;
 
     return (
       <TouchableOpacity

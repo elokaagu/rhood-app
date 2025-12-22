@@ -426,7 +426,7 @@ export default function SettingsScreen({
 
         {/* App Version */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>R/HOOD v1.0.0</Text>
+          <Text style={styles.versionText}>R/HOOD</Text>
           <Text style={styles.versionSubtext}>Made with ❤️ for DJs</Text>
         </View>
       </ScrollView>

@@ -31,7 +31,7 @@ export default function TermsOfServiceScreen({ onBack }) {
         {/* Title Section */}
         <View style={styles.titleSection}>
           <Text style={styles.appName}>R/HOOD Terms of Service</Text>
-          <Text style={styles.effectiveDate}>Effective Date: October 10, 2025</Text>
+          <Text style={styles.effectiveDate}>Effective Date: January 1, 2026</Text>
           <Text style={styles.website}>Website: www.rhood.io</Text>
         </View>
 

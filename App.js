@@ -725,23 +725,8 @@ export default function App() {
         async (data) => {
           console.log("🎵 [APP] Queue ended event, playing next track");
           try {
-            // Get next track from queue
-            const nextTrack = getNextTrack();
-            if (nextTrack) {
-              console.log("🎵 [APP] Playing next track:", nextTrack.title);
-              await playNextTrack();
-            } else {
-              console.log("🎵 [APP] No more tracks in queue");
-              // Optionally, if repeat all is enabled, restart from beginning
-              const currentState = globalAudioStateRef.current;
-              if (currentState.repeatMode === "all" && currentState.queue.length > 0) {
-                setGlobalAudioState((prev) => ({
-                  ...prev,
-                  currentQueueIndex: -1,
-                }));
-                await playNextTrack();
-              }
-            }
+            // Get next track from queue (or auto-queue random mix if empty)
+            await playNextTrack();
           } catch (error) {
             console.error("⚠️ [APP] Error playing next track after queue ended:", error);
           }
@@ -1522,9 +1507,9 @@ export default function App() {
 
             // Get current queue state
             setGlobalAudioState((prev) => {
-              // Play next track if available
-              setTimeout(() => {
-                playNextTrack();
+              // Play next track if available (or auto-queue random mix)
+              setTimeout(async () => {
+                await playNextTrack();
               }, 100); // Small delay to ensure state is updated
 
               return {
@@ -2564,12 +2549,78 @@ export default function App() {
     return shuffled;
   };
 
+  // Get a random mix from database for auto-queue
+  const getRandomMix = async () => {
+    try {
+      const { supabase } = await import("./lib/supabase");
+      const currentTrack = globalAudioStateRef.current.currentTrack;
+      
+      // Get a random mix, excluding the current one
+      let query = supabase
+        .from("mixes")
+        .select(`
+          *,
+          user_profiles (
+            id,
+            dj_name,
+            full_name,
+            profile_image_url
+          )
+        `)
+        .eq("is_public", true)
+        .limit(100); // Get a batch to choose from
+      
+      // Exclude current track if available
+      if (currentTrack?.id) {
+        query = query.neq("id", currentTrack.id);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error("Error fetching random mix:", error);
+        return null;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log("No mixes available for auto-queue");
+        return null;
+      }
+      
+      // Pick a random mix from the results
+      const randomMix = data[Math.floor(Math.random() * data.length)];
+      
+      // Transform to track format
+      const userProfile = randomMix.user_profiles;
+      const artistName = userProfile?.dj_name || userProfile?.full_name || "Unknown Artist";
+      
+      return {
+        id: randomMix.id,
+        title: randomMix.title,
+        artist: artistName,
+        user_dj_name: artistName,
+        genre: randomMix.genre || "Electronic",
+        image: randomMix.artwork_url || randomMix.image_url || randomMix.image,
+        audioUrl: randomMix.file_url,
+        duration: randomMix.duration,
+        durationSeconds: randomMix.duration,
+        user_id: randomMix.user_id,
+      };
+    } catch (error) {
+      console.error("Error in getRandomMix:", error);
+      return null;
+    }
+  };
+
   const getNextTrack = () => {
     // Use ref to get latest state (not stale closure)
     const currentState = globalAudioStateRef.current;
     const { queue, currentQueueIndex, repeatMode, isShuffled } = currentState;
 
-    if (queue.length === 0) return null;
+    if (queue.length === 0) {
+      // Queue is empty - will be handled by async auto-queue
+      return null;
+    }
 
     // Handle repeat one mode
     if (repeatMode === "one" && currentState.currentTrack) {
@@ -2591,8 +2642,8 @@ export default function App() {
       if (repeatMode === "all") {
         // Already handled above
       } else {
-        console.log("🎵 End of queue reached");
-        return null;
+        console.log("🎵 End of queue reached - will auto-queue random mix");
+        return null; // Will trigger auto-queue
       }
     }
 
@@ -2639,6 +2690,7 @@ export default function App() {
     // Use ref to get latest state, not closure
     const currentState = globalAudioStateRef.current;
     const nextTrack = getNextTrack();
+    
     if (nextTrack) {
       setGlobalAudioState((prev) => ({
         ...prev,
@@ -2646,7 +2698,23 @@ export default function App() {
       }));
       await playGlobalAudio(nextTrack);
     } else {
-      await stopGlobalAudio();
+      // Queue is empty - try to auto-queue a random mix
+      console.log("🎵 Queue empty, fetching random mix for auto-queue");
+      const randomMix = await getRandomMix();
+      
+      if (randomMix) {
+        console.log("🎵 Auto-queuing random mix:", randomMix.title);
+        // Add to queue and play
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          queue: [randomMix],
+          currentQueueIndex: 0,
+        }));
+        await playGlobalAudio(randomMix);
+      } else {
+        console.log("🎵 No mixes available for auto-queue, stopping playback");
+        await stopGlobalAudio();
+      }
     }
   };
 
@@ -3184,7 +3252,7 @@ export default function App() {
           type: "success",
           title: "Application Sent!",
           message: `Your application for ${opportunity.title} has been sent successfully. You have ${updatedRemaining} applications remaining today.${boostMessage}`,
-          primaryButtonText: canBoost ? "Boost Application" : "OK",
+          primaryButtonText: canBoost ? "Boost" : "OK",
           secondaryButtonText: canBoost ? "Skip" : undefined,
           onPrimaryPress: canBoost && applicationId
             ? async () => {
@@ -3876,7 +3944,7 @@ export default function App() {
     }
   };
 
-  // Set up real-time subscriptions for notifications
+  // Set up real-time subscriptions for notifications and opportunities
   useEffect(() => {
     if (!user) return;
 
@@ -3937,10 +4005,43 @@ export default function App() {
       )
       .subscribe();
 
+    // Subscribe to new opportunities (real-time updates)
+    const opportunitiesChannel = supabase
+      .channel("opportunities-updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "opportunities",
+          filter: "is_active=eq.true",
+        },
+        (payload) => {
+          console.log("🎯 New opportunity added:", payload.new);
+          // Refresh opportunities when a new one is added
+          fetchOpportunities();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "opportunities",
+        },
+        (payload) => {
+          console.log("🎯 Opportunity updated:", payload.new);
+          // Refresh opportunities when one is updated (e.g., status change)
+          fetchOpportunities();
+        }
+      )
+      .subscribe();
+
     return () => {
-      console.log("🔔 Cleaning up notification subscriptions");
+      console.log("🔔 Cleaning up real-time subscriptions");
       supabase.removeChannel(notificationChannel);
       supabase.removeChannel(messageChannel);
+      supabase.removeChannel(opportunitiesChannel);
     };
   }, [user]);
 
@@ -6838,10 +6939,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     zIndex: 1001, // Higher than tab bar
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 16,
+    shadowOffset: { width: 0, height: 0 }, // No downward shadow to avoid overlap
+    shadowOpacity: 0.15, // Subtle shadow
+    shadowRadius: 4, // Minimal shadow radius
+    elevation: 4, // Reduced elevation for Android
     borderWidth: 0, // Remove border for cleaner look
     minHeight: 70, // Compact height
   },

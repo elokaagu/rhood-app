@@ -129,6 +129,23 @@ export default function ConnectionsScreen({
     try {
       setPopularDJsLoading(true);
       
+      // Helper function to check if an email belongs to a brand account
+      const isBrandAccount = (email) => {
+        if (!email || typeof email !== "string") return false;
+        const emailLower = email.toLowerCase();
+        const brandPatterns = [
+          /^team@/i,
+          /^support@/i,
+          /^info@/i,
+          /^admin@/i,
+          /^contact@/i,
+          /^hello@/i,
+          /^noreply@/i,
+          /^no-reply@/i,
+        ];
+        return brandPatterns.some(pattern => pattern.test(emailLower));
+      };
+
       // Get popular DJs based on recent activity, credits, and mix uploads
       const { data: popularUsers, error } = await supabase
         .from('user_profiles')
@@ -140,29 +157,34 @@ export default function ConnectionsScreen({
           genres,
           credits,
           gigs_completed,
-          created_at
+          created_at,
+          email
         `)
         .not('dj_name', 'is', null)
         .order('credits', { ascending: false })
         .order('gigs_completed', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(15); // Get more to account for filtering
 
       if (error) {
         console.error("Error loading popular DJs:", error);
         // Fallback: get recent DJs
         const { data: recentUsers } = await supabase
           .from('user_profiles')
-          .select('id, dj_name, profile_image_url, city, genres')
+          .select('id, dj_name, profile_image_url, city, genres, email')
           .not('dj_name', 'is', null)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(15);
         
-        setPopularDJs(recentUsers || []);
+        // Filter out brand accounts
+        const filteredRecent = (recentUsers || []).filter(user => !isBrandAccount(user.email));
+        setPopularDJs(filteredRecent.slice(0, 10));
         return;
       }
 
-      setPopularDJs(popularUsers || []);
+      // Filter out brand accounts
+      const filteredPopular = (popularUsers || []).filter(user => !isBrandAccount(user.email));
+      setPopularDJs(filteredPopular.slice(0, 10));
     } catch (error) {
       console.error("Error loading popular DJs:", error);
       setPopularDJs([]);

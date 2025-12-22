@@ -294,6 +294,35 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       );
       return;
     }
+    
+    // If there's only one mix, show options to delete or upload another
+    if (userMixes.length === 1 && currentPrimaryMix) {
+      Alert.alert(
+        "Change Audio ID",
+        "You can delete your current Audio ID or upload a new mix.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete Audio ID",
+            style: "destructive",
+            onPress: handleDeleteAudioId,
+          },
+          {
+            text: "Upload New Mix",
+            onPress: () => {
+              // Navigate to upload screen - this will be handled by parent component
+              Alert.alert(
+                "Upload Mix",
+                "Go to the Listen screen to upload a new mix, then come back here to set it as your Audio ID.",
+                [{ text: "OK" }]
+              );
+            },
+          },
+        ]
+      );
+      return;
+    }
+    
     setShowMixSelection(true);
   };
 
@@ -312,6 +341,25 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     } catch (error) {
       console.error("❌ Error setting primary mix:", error);
       Alert.alert("Error", "Failed to update Audio ID. Please try again.");
+    } finally {
+      setSelectingMix(false);
+    }
+  };
+
+  const handleDeleteAudioId = async () => {
+    try {
+      setSelectingMix(true);
+
+      // Remove primary mix by setting it to null
+      await db.setPrimaryMix(user.id, null);
+
+      // Update local state
+      setCurrentPrimaryMix(null);
+
+      Alert.alert("Success!", "Your Audio ID has been removed.");
+    } catch (error) {
+      console.error("❌ Error removing primary mix:", error);
+      Alert.alert("Error", "Failed to remove Audio ID. Please try again.");
     } finally {
       setSelectingMix(false);
     }
@@ -940,6 +988,35 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                   )}
                 </TouchableOpacity>
               ))}
+              {userMixes.length === 1 && currentPrimaryMix && (
+                <TouchableOpacity
+                  style={[styles.mixItem, styles.deleteMixItem]}
+                  onPress={() => {
+                    setShowMixSelection(false);
+                    handleDeleteAudioId();
+                  }}
+                  disabled={selectingMix}
+                >
+                  <View style={styles.mixInfo}>
+                    <Text style={styles.deleteMixText}>Remove Audio ID</Text>
+                    <Text style={styles.deleteMixSubtext}>
+                      Delete your current Audio ID
+                    </Text>
+                  </View>
+                  {selectingMix ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="hsl(0, 100%, 50%)"
+                    />
+                  ) : (
+                    <Ionicons
+                      name="trash-outline"
+                      size={20}
+                      color="hsl(0, 100%, 50%)"
+                    />
+                  )}
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -969,7 +1046,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollViewContent: {
-    paddingBottom: 100, // Extra padding to prevent content from being hidden behind bottom navigation
+    paddingBottom: 200, // Extra padding to prevent content from being hidden behind bottom navigation and audio player
   },
   header: {
     flexDirection: "row",
@@ -1329,6 +1406,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   mixDetails: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 60%)",
+  },
+  deleteMixItem: {
+    borderTopWidth: 1,
+    borderTopColor: "hsl(0, 0%, 15%)",
+    marginTop: 8,
+  },
+  deleteMixText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "hsl(0, 100%, 50%)",
+    marginBottom: 4,
+  },
+  deleteMixSubtext: {
     fontSize: 14,
     color: "hsl(0, 0%, 60%)",
   },

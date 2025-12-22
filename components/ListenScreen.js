@@ -202,6 +202,7 @@ export default function ListenScreen({
   const [likeLoadingMap, setLikeLoadingMap] = useState({});
   const [recommendedMixes, setRecommendedMixes] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [hasUserMixes, setHasUserMixes] = useState(false);
 
   // Fetch mixes from Supabase
   const fetchMixes = async () => {
@@ -364,6 +365,9 @@ export default function ListenScreen({
           console.log(`🎵 Mix ${transformedMix.id} (${transformedMix.title}):`);
           console.log(`   📁 Audio URL: ${transformedMix.audioUrl}`);
           console.log(`   🖼️ Artwork URL: ${transformedMix.image}`);
+          console.log(`   🖼️ Artwork URL (raw): ${mix.artwork_url}`);
+          console.log(`   🖼️ Image URL (raw): ${mix.image_url}`);
+          console.log(`   🖼️ Image (raw): ${mix.image}`);
           console.log(`   👤 Artist: ${transformedMix.artist}`);
 
           return transformedMix;
@@ -414,6 +418,26 @@ export default function ListenScreen({
     if (user?.id) {
       loadRecommendedMixes();
     }
+  }, [user?.id]);
+
+  // Check if user has uploaded mixes
+  useEffect(() => {
+    const checkUserMixes = async () => {
+      if (!user?.id) {
+        setHasUserMixes(false);
+        return;
+      }
+
+      try {
+        const hasMixes = await db.hasUserUploadedMixes(user.id);
+        setHasUserMixes(hasMixes);
+      } catch (error) {
+        console.error("Error checking user mixes:", error);
+        setHasUserMixes(false);
+      }
+    };
+
+    checkUserMixes();
   }, [user?.id]);
 
   useEffect(() => {
@@ -1281,14 +1305,18 @@ export default function ListenScreen({
         <View style={styles.uploadCard}>
           <Text style={styles.uploadTitle}>Share Your Mix</Text>
           <Text style={styles.uploadDescription}>
-            Upload your own DJ mix and connect with the community
+            {hasUserMixes
+              ? "Update your mix or upload a new one"
+              : "Upload your own DJ mix and connect with the community"}
           </Text>
           <TouchableOpacity
             style={styles.uploadButton}
             onPress={handleUploadMix}
             activeOpacity={0.8}
           >
-            <Text style={styles.uploadButtonText}>Upload Mix</Text>
+            <Text style={styles.uploadButtonText}>
+              {hasUserMixes ? "Manage Mixes" : "Upload Mix"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

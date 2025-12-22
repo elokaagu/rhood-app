@@ -890,6 +890,8 @@ export default function UserProfileView({
       {/* Share Profile Modal */}
       {showShareModal && (
         <RhoodModal
+          visible={showShareModal}
+          onClose={() => setShowShareModal(false)}
           type="info"
           title="Share Profile"
           message={`Share ${
@@ -899,7 +901,6 @@ export default function UserProfileView({
           secondaryButtonText="Cancel"
           onPrimaryPress={handleCopyLink}
           onSecondaryPress={() => setShowShareModal(false)}
-          onBackdropPress={() => setShowShareModal(false)}
         />
       )}
 

@@ -102,13 +102,19 @@ const DJMix = ({
       null;
 
     if (candidateUrl) {
-      // Only accept plausible remote URLs (Supabase or http/https)
+      const trimmedUrl = candidateUrl.trim();
+      
+      // Very lenient validation - accept any string that looks like a URL
+      // React Native Image will handle invalid URLs gracefully
       if (
-        candidateUrl.startsWith("http://") ||
-        candidateUrl.startsWith("https://") ||
-        candidateUrl.includes("supabase.co/storage")
+        trimmedUrl.length > 0 &&
+        (trimmedUrl.startsWith("http://") ||
+         trimmedUrl.startsWith("https://") ||
+         trimmedUrl.includes("supabase") ||
+         trimmedUrl.includes("storage") ||
+         trimmedUrl.includes("://"))
       ) {
-        return { uri: candidateUrl };
+        return { uri: trimmedUrl };
       }
     }
 
@@ -310,13 +316,23 @@ const DJMix = ({
                 source={getImageSource()}
                 style={styles.albumArt}
                 resizeMode="cover"
-                onError={() => {
+                onError={(error) => {
                   setImageError(true);
-                  console.log(`❌ Failed to load image: ${mix.image}`);
+                  const imageSource = getImageSource();
+                  const imageUrl = imageSource?.uri || "fallback";
+                  console.log(`❌ Failed to load image for "${mix.title}":`, {
+                    attemptedUrl: imageUrl,
+                    artwork_url: mix.artwork_url,
+                    image_url: mix.image_url,
+                    image: mix.image,
+                    error: error.nativeEvent?.error || "Unknown error",
+                  });
                 }}
                 onLoad={() => {
                   setImageError(false);
-                  console.log(`✅ Successfully loaded image: ${mix.image}`);
+                  const imageSource = getImageSource();
+                  const imageUrl = imageSource?.uri || "fallback";
+                  console.log(`✅ Successfully loaded image for "${mix.title}": ${imageUrl}`);
                 }}
               />
             ) : (
