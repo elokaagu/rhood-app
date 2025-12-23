@@ -11,3 +11,4 @@ CREATE INDEX IF NOT EXISTS idx_messages_metadata ON messages USING GIN(metadata)
 -- Add comment for documentation
 COMMENT ON COLUMN messages.metadata IS 'Structured data for special message types (e.g., opportunity cards, rich content)';
 
+

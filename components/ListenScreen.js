@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SkeletonMix } from "./Skeleton";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
+import { getRecommendedMixes } from "../lib/mixRecommendations";
 
 // Audio optimization utilities for handling large files
 const getAudioOptimization = (audioUrl) => {
@@ -407,7 +408,6 @@ export default function ListenScreen({
     
     try {
       setRecommendationsLoading(true);
-      const { getRecommendedMixes } = require("../lib/mixRecommendations");
       const recommendations = await getRecommendedMixes(user.id, 10);
       setRecommendedMixes(recommendations || []);
     } catch (error) {
@@ -859,8 +859,182 @@ export default function ListenScreen({
     </>
   );
 
-  // Things You May Like component
-  const renderThingsYouMayLike = () => {
+  // Trending / Most Popular section
+  const renderTrending = () => {
+    if (trendingMixes.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Ionicons
+              name="flame"
+              size={18}
+              color="hsl(75, 100%, 60%)"
+            />
+            <Text style={styles.sectionTitle}>TRENDING</Text>
+          </View>
+        </View>
+        <Text style={styles.sectionSubtitle}>
+          Who's hottest on the platform right now
+        </Text>
+        <View style={styles.popularList}>
+          {trendingMixes.map((mix) => {
+            const isPlaying = playingMixId === mix.id;
+            return (
+              <TouchableOpacity
+                key={`trending-${mix.id}`}
+                style={styles.popularRow}
+                onPress={() => handleMixPress(mix)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.popularImageWrap}>
+                  <Image
+                    source={
+                      mix.artwork_url || mix.image_url || mix.image
+                        ? { uri: mix.artwork_url || mix.image_url || mix.image }
+                        : require("../assets/rhood_logo.webp")
+                    }
+                    style={styles.popularImage}
+                    resizeMode="cover"
+                  />
+                  {isPlaying && (
+                    <View style={styles.recommendationPlayingOverlay}>
+                      <Ionicons
+                        name="play"
+                        size={20}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.popularInfo}>
+                  <Text style={styles.popularTitle} numberOfLines={1}>
+                    {mix.title}
+                  </Text>
+                  <Text style={styles.popularSubtitle} numberOfLines={1}>
+                    {mix.artist || mix.user_dj_name || "Unknown"}
+                  </Text>
+                  <View style={styles.popularMetaRow}>
+                    {mix.durationFormatted && (
+                      <Text style={styles.popularMeta}>
+                        {mix.durationFormatted}
+                      </Text>
+                    )}
+                    {mix.genre && (
+                      <>
+                        {mix.durationFormatted && (
+                          <Text style={styles.popularMeta}> • </Text>
+                        )}
+                        <Text style={styles.popularMeta}>{mix.genre}</Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color="hsl(0, 0%, 60%)"
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  // Your Likes section
+  const renderYourLikes = () => {
+    if (!user?.id || userLikedMixes.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Ionicons
+              name="heart"
+              size={18}
+              color="hsl(75, 100%, 60%)"
+            />
+            <Text style={styles.sectionTitle}>YOUR LIKES</Text>
+          </View>
+        </View>
+        <Text style={styles.sectionSubtitle}>
+          Mixes you've already liked
+        </Text>
+        <View style={styles.popularList}>
+          {userLikedMixes.map((mix) => {
+            const isPlaying = playingMixId === mix.id;
+            return (
+              <TouchableOpacity
+                key={`liked-${mix.id}`}
+                style={styles.popularRow}
+                onPress={() => handleMixPress(mix)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.popularImageWrap}>
+                  <Image
+                    source={
+                      mix.artwork_url || mix.image_url || mix.image
+                        ? { uri: mix.artwork_url || mix.image_url || mix.image }
+                        : require("../assets/rhood_logo.webp")
+                    }
+                    style={styles.popularImage}
+                    resizeMode="cover"
+                  />
+                  {isPlaying && (
+                    <View style={styles.recommendationPlayingOverlay}>
+                      <Ionicons
+                        name="play"
+                        size={20}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.popularInfo}>
+                  <Text style={styles.popularTitle} numberOfLines={1}>
+                    {mix.title}
+                  </Text>
+                  <Text style={styles.popularSubtitle} numberOfLines={1}>
+                    {mix.artist || mix.user_dj_name || "Unknown"}
+                  </Text>
+                  <View style={styles.popularMetaRow}>
+                    {mix.durationFormatted && (
+                      <Text style={styles.popularMeta}>
+                        {mix.durationFormatted}
+                      </Text>
+                    )}
+                    {mix.genre && (
+                      <>
+                        {mix.durationFormatted && (
+                          <Text style={styles.popularMeta}> • </Text>
+                        )}
+                        <Text style={styles.popularMeta}>{mix.genre}</Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color="hsl(0, 0%, 60%)"
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  // You May Like section (recommendations)
+  const renderYouMayLike = () => {
     if (recommendedMixes.length === 0) {
       return null;
     }
@@ -875,12 +1049,12 @@ export default function ListenScreen({
               color="hsl(75, 100%, 60%)"
             />
             <Text style={styles.recommendationsTitle}>
-              Things You May Like
+              YOU MAY LIKE
             </Text>
           </View>
         </View>
         <Text style={styles.recommendationExplainer}>
-          Personalized for you
+          Recommendations based on your likes and connections
         </Text>
         <ScrollView
           horizontal
@@ -949,15 +1123,6 @@ export default function ListenScreen({
 
   const renderFooter = () => (
     <>
-      {/* Trending / Most Popular */}
-      {renderTrending()}
-
-      {/* Your Likes */}
-      {renderYourLikes()}
-
-      {/* You May Like */}
-      {renderYouMayLike()}
-
       {/* Upload CTA */}
       <View style={styles.uploadSection}>
         <View style={styles.uploadCard}>
