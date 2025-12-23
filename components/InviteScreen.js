@@ -101,19 +101,55 @@ export default function InviteScreen({ user, onBack }) {
       Alert.alert("Error", "Invite code not available");
       return;
     }
-    const url = `whatsapp://send?text=${encodeURIComponent(message)}`;
+
     try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) {
-        await Linking.openURL(url);
-      } else {
-        // Fallback to web WhatsApp
-        const webUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        await Linking.openURL(webUrl);
+      // Try WhatsApp app URL scheme first
+      const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
+      const canOpenWhatsApp = await Linking.canOpenURL(whatsappUrl);
+      
+      if (canOpenWhatsApp) {
+        try {
+          await Linking.openURL(whatsappUrl);
+          return; // Success, exit early
+        } catch (openError) {
+          console.log("WhatsApp app URL failed, trying web fallback:", openError);
+          // Continue to web fallback
+        }
+      }
+
+      // Fallback to web WhatsApp (works in browser)
+      const webUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      try {
+        const canOpenWeb = await Linking.canOpenURL(webUrl);
+        if (canOpenWeb) {
+          await Linking.openURL(webUrl);
+          return; // Success
+        }
+      } catch (webError) {
+        console.log("Web WhatsApp URL failed:", webError);
+      }
+
+      // Final fallback: Use native share sheet
+      // This will show WhatsApp if installed, or other sharing options
+      const shareResult = await Share.share({
+        message: message,
+        title: "Invite a DJ to R/HOOD",
+      });
+
+      if (shareResult.action === Share.sharedAction) {
+        // User successfully shared
+        return;
+      } else if (shareResult.action === Share.dismissedAction) {
+        // User dismissed the share sheet
+        return;
       }
     } catch (error) {
       console.error("Error sharing via WhatsApp:", error);
-      Alert.alert("Error", "Could not open WhatsApp");
+      // If all methods fail, show a helpful error message
+      Alert.alert(
+        "Share Error",
+        "Could not open WhatsApp. Please make sure WhatsApp is installed, or use the 'More' option to share via other apps."
+      );
     }
   };
 

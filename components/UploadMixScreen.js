@@ -953,18 +953,20 @@ const formatDuration = (millis) => {
                   onPress={() => handleSelectMixToEdit(mix)}
                   activeOpacity={0.7}
                 >
-                  {mix.artwork_url || mix.image_url ? (
-                    <Image
-                      source={{ uri: mix.artwork_url || mix.image_url }}
-                      style={styles.mixSelectorImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={[styles.mixSelectorImage, styles.mixSelectorPlaceholder]}>
-                      <Ionicons name="musical-note" size={32} color="hsl(75, 100%, 60%)" />
-                      <Text style={styles.mixSelectorNoArtworkLabel}>No artwork</Text>
-                    </View>
-                  )}
+                  <View style={styles.mixSelectorImageContainer}>
+                    {mix.artwork_url || mix.image_url ? (
+                      <Image
+                        source={{ uri: mix.artwork_url || mix.image_url }}
+                        style={styles.mixSelectorImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[styles.mixSelectorImage, styles.mixSelectorPlaceholder]}>
+                        <Ionicons name="musical-note" size={32} color="hsl(75, 100%, 60%)" />
+                        <Text style={styles.mixSelectorNoArtworkLabel}>No artwork</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.mixSelectorTitle} numberOfLines={1}>
                     {mix.title}
                   </Text>
@@ -1512,9 +1514,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
   },
-  mixSelectorImage: {
+  mixSelectorImageContainer: {
     width: "100%",
     height: 140,
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  mixSelectorImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
     backgroundColor: "hsl(0, 0%, 12%)",
   },
   mixSelectorPlaceholder: {

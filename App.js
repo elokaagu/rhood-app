@@ -1343,13 +1343,33 @@ export default function App() {
           );
         }
 
+        // Try multiple sources for audio URL
         const audioUrl =
-          typeof track.audioUrl === "string"
-            ? track.audioUrl
-            : track.audioUrl?.uri || track.audioUrl;
+          (typeof track.audioUrl === "string" && track.audioUrl.trim()
+            ? track.audioUrl.trim()
+            : null) ||
+          track.audioUrl?.uri ||
+          (typeof track.file_url === "string" && track.file_url.trim()
+            ? track.file_url.trim()
+            : null) ||
+          track.audio_url ||
+          null;
 
         if (!audioUrl) {
-          throw new Error("Audio URL is missing");
+          console.error("❌ No audio URL found in track:", {
+            id: track.id,
+            title: track.title,
+            audioUrl: track.audioUrl,
+            file_url: track.file_url,
+            audio_url: track.audio_url,
+          });
+          throw new Error("Audio URL is missing. Please check that the mix has a valid audio file.");
+        }
+
+        // Validate URL format
+        if (!audioUrl.startsWith("http://") && !audioUrl.startsWith("https://") && !audioUrl.startsWith("file://")) {
+          console.error("❌ Invalid audio URL format:", audioUrl);
+          throw new Error("Invalid audio URL format. The audio file URL must be a valid HTTP/HTTPS or file URL.");
         }
 
         // CRITICAL: playTrack() internally calls setupPlayer() which:
@@ -1360,18 +1380,39 @@ export default function App() {
         console.log(
           "📱 Starting playback via TrackPlayer - setupPlayer() will be called by playTrack()"
         );
-
-        await trackPlayer.playTrack({
+        console.log("🎵 TrackPlayer track data:", {
           id: track.id || `track-${Date.now()}`,
           url: audioUrl,
           title: track.title || "R/HOOD Mix",
           artist: track.artist || "Unknown Artist",
-          artwork: track.image || null, // Must be https, square, ≥1024px recommended
-          duration: track.durationMillis
-            ? track.durationMillis / 1000
-            : undefined,
-          genre: track.genre || "Electronic",
+          hasArtwork: !!track.image,
         });
+
+        try {
+          await trackPlayer.playTrack({
+            id: track.id || `track-${Date.now()}`,
+            url: audioUrl,
+            title: track.title || "R/HOOD Mix",
+            artist: track.artist || "Unknown Artist",
+            artwork: track.image || null, // Must be https, square, ≥1024px recommended
+            duration: track.durationMillis
+              ? track.durationMillis / 1000
+              : undefined,
+            genre: track.genre || "Electronic",
+          });
+        } catch (playTrackError) {
+          console.error("❌ TrackPlayer.playTrack() failed:", playTrackError);
+          console.error("❌ TrackPlayer error details:", {
+            message: playTrackError.message,
+            code: playTrackError.code,
+            name: playTrackError.name,
+            stack: playTrackError.stack,
+            audioUrl: audioUrl,
+          });
+          throw new Error(
+            `Failed to start playback: ${playTrackError.message || "Unknown error"}. Please check that the audio file exists and is accessible.`
+          );
+        }
 
         // Update state immediately - track-player will update via events
         setGlobalAudioState((prev) => {
@@ -1426,10 +1467,42 @@ export default function App() {
       // Create and load new sound using expo-av
       let sound;
 
+      // Try multiple sources for audio URL (Android)
+      const audioUrlForAndroid =
+        (typeof track.audioUrl === "string" && track.audioUrl.trim()
+          ? track.audioUrl.trim()
+          : null) ||
+        (typeof track.file_url === "string" && track.file_url.trim()
+          ? track.file_url.trim()
+          : null) ||
+        track.audio_url ||
+        null;
+
+      if (!audioUrlForAndroid) {
+        console.error("❌ No audio URL found in track (Android):", {
+          id: track.id,
+          title: track.title,
+          audioUrl: track.audioUrl,
+          file_url: track.file_url,
+          audio_url: track.audio_url,
+        });
+        throw new Error("Audio URL is missing. Please check that the mix has a valid audio file.");
+      }
+
+      // Validate URL format
+      if (
+        !audioUrlForAndroid.startsWith("http://") &&
+        !audioUrlForAndroid.startsWith("https://") &&
+        !audioUrlForAndroid.startsWith("file://")
+      ) {
+        console.error("❌ Invalid audio URL format (Android):", audioUrlForAndroid);
+        throw new Error("Invalid audio URL format. The audio file URL must be a valid HTTP/HTTPS or file URL.");
+      }
+
       // Determine audio source
       const audioSource =
-        typeof track.audioUrl === "string"
-          ? { uri: track.audioUrl }
+        typeof audioUrlForAndroid === "string"
+          ? { uri: audioUrlForAndroid }
           : track.audioUrl;
 
       // Load audio with streaming support for large files
@@ -1700,12 +1773,28 @@ export default function App() {
 
       console.log("🎉 Global audio started successfully:", track.title);
     } catch (error) {
-      console.log("❌ Error playing global audio:", error);
+      console.error("❌ Error playing global audio:", error);
+      console.error("❌ Error details:", {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        trackId: track.id,
+        trackTitle: track.title,
+        audioUrl: track.audioUrl || track.file_url || track.audio_url || "missing",
+      });
       setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
-      Alert.alert(
-        "Audio Error",
-        `Failed to play ${track.title}. Please try again.`
-      );
+      
+      // Provide more helpful error message
+      const errorMessage = error.message || "Unknown error occurred";
+      const userFriendlyMessage = errorMessage.includes("Audio URL is missing")
+        ? "This mix doesn't have an audio file. Please contact the artist or try another mix."
+        : errorMessage.includes("Invalid audio URL")
+        ? "The audio file URL is invalid. Please try again or contact support."
+        : errorMessage.includes("Failed to start playback")
+        ? errorMessage
+        : `Failed to play "${track.title || "this mix"}". ${errorMessage}`;
+      
+      Alert.alert("Audio Error", userFriendlyMessage);
     }
   };
 

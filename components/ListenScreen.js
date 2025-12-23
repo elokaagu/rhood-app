@@ -199,6 +199,7 @@ export default function ListenScreen({
   const [mixes, setMixes] = useState([]);
   const [playingMixId, setPlayingMixId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedGenre, setSelectedGenre] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -512,6 +513,17 @@ export default function ListenScreen({
       .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   }, [mixes, likedMixIds, user?.id]);
 
+  // Get unique genres from mixes
+  const availableGenres = React.useMemo(() => {
+    const genreSet = new Set();
+    mixes.forEach((mix) => {
+      if (mix.genre && mix.genre.trim()) {
+        genreSet.add(mix.genre.trim());
+      }
+    });
+    return Array.from(genreSet).sort();
+  }, [mixes]);
+
   // Filter mixes for search
   const filteredMixes = React.useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -552,8 +564,31 @@ export default function ListenScreen({
       // Currently playing this mix - pause it
       onPauseAudio();
     } else {
+      // Ensure mix has audioUrl before playing
+      // If mix doesn't have audioUrl, try to get it from file_url
+      const normalizedMix = {
+        ...mix,
+        audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
+      };
+
+      // Validate that we have an audio URL
+      if (!normalizedMix.audioUrl) {
+        Alert.alert(
+          "Audio Error",
+          `"${mix.title || "This mix"}" doesn't have an audio file. Please contact the artist or try another mix.`
+        );
+        console.error("❌ Mix missing audio URL:", {
+          id: mix.id,
+          title: mix.title,
+          audioUrl: mix.audioUrl,
+          file_url: mix.file_url,
+          audio_url: mix.audio_url,
+        });
+        return;
+      }
+
       // Play this mix
-      onPlayAudio(mix);
+      onPlayAudio(normalizedMix);
     }
   };
 
@@ -840,7 +875,13 @@ export default function ListenScreen({
             placeholder="Search mixes, artists, or genres..."
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              // Clear genre selection when typing
+              if (text.trim() && selectedGenre) {
+                setSelectedGenre(null);
+              }
+            }}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -856,6 +897,52 @@ export default function ListenScreen({
           )}
         </View>
       </View>
+
+      {/* Genre Chips */}
+      {availableGenres.length > 0 && (
+        <View style={styles.genreFilterContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.genreFilterContent}
+          >
+            {availableGenres.map((genre) => {
+              const isActive = selectedGenre === genre;
+              return (
+                <TouchableOpacity
+                  key={genre}
+                  style={[
+                    styles.genreChip,
+                    isActive && styles.genreChipActive,
+                  ]}
+                  onPress={() => {
+                    HapticPatterns.itemPress();
+                    if (selectedGenre === genre) {
+                      // Deselect if already selected
+                      setSelectedGenre(null);
+                      setSearchQuery("");
+                    } else {
+                      // Select genre and set search query
+                      setSelectedGenre(genre);
+                      setSearchQuery(genre);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.genreChipText,
+                      isActive && styles.genreChipTextActive,
+                    ]}
+                  >
+                    {genre}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
     </>
   );
 
@@ -1090,28 +1177,34 @@ export default function ListenScreen({
                       />
                     </View>
                   )}
-                </View>
-                <View style={styles.recommendationInfo}>
-                  <Text
-                    style={styles.recommendationTitle}
-                    numberOfLines={1}
-                  >
-                    {mix.title}
-                  </Text>
-                  <Text
-                    style={styles.recommendationArtist}
-                    numberOfLines={1}
-                  >
-                    {mix.artist || mix.user_dj_name || "Unknown"}
-                  </Text>
-                  {mix.genre && (
+                  {/* Dark gradient overlay at bottom for text visibility */}
+                  <LinearGradient
+                    colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.95)"]}
+                    style={styles.recommendationGradientOverlay}
+                  />
+                  {/* Text overlay */}
+                  <View style={styles.recommendationInfo}>
                     <Text
-                      style={styles.recommendationGenre}
+                      style={styles.recommendationTitle}
                       numberOfLines={1}
                     >
-                      {mix.genre}
+                      {mix.title}
                     </Text>
-                  )}
+                    <Text
+                      style={styles.recommendationArtist}
+                      numberOfLines={1}
+                    >
+                      {mix.artist || mix.user_dj_name || "Unknown"}
+                    </Text>
+                    {mix.genre && (
+                      <Text
+                        style={styles.recommendationGenre}
+                        numberOfLines={1}
+                      >
+                        {mix.genre}
+                      </Text>
+                    )}
+                  </View>
                 </View>
               </TouchableOpacity>
             );
@@ -1654,10 +1747,12 @@ const styles = StyleSheet.create({
   // Genre Filter Styles
   genreFilterContainer: {
     marginBottom: 16,
+    marginTop: 8,
   },
   genreFilterContent: {
     paddingHorizontal: 20,
     gap: 8,
+    paddingRight: 20,
   },
   genreChip: {
     backgroundColor: "hsl(0, 0%, 12%)", // Slightly lighter background
@@ -1744,6 +1839,7 @@ const styles = StyleSheet.create({
   },
   recommendationCard: {
     width: 160,
+    height: 200,
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 12,
     overflow: "hidden",
@@ -1753,9 +1849,15 @@ const styles = StyleSheet.create({
   recommendationImageContainer: {
     position: "relative",
     width: "100%",
-    height: 160,
+    height: "100%",
+    flex: 1,
   },
   recommendationImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: "100%",
     height: "100%",
     backgroundColor: "hsl(0, 0%, 12%)",
@@ -1769,10 +1871,23 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 2,
+  },
+  recommendationGradientOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "50%",
   },
   recommendationInfo: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     padding: 12,
     gap: 4,
+    zIndex: 1,
   },
   recommendationTitle: {
     fontSize: 14,
