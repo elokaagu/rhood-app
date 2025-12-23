@@ -17,7 +17,7 @@ import ProgressiveImage from "./ProgressiveImage";
 import { db } from "../lib/supabase";
 import { SkeletonProfile } from "./Skeleton";
 import RhoodModal from "./RhoodModal";
-import * as Haptics from "expo-haptics";
+import { HapticPatterns } from "../lib/haptics";
 import backgroundAudioService from "../lib/backgroundAudioService";
 
 export default function UserProfileView({
@@ -335,8 +335,8 @@ export default function UserProfileView({
     "this user";
 
   const handleConnect = async () => {
+    HapticPatterns.buttonPress();
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Debug: Log profile data
       console.log("🔍 Profile data:", profile);
@@ -394,7 +394,7 @@ export default function UserProfileView({
 
   const cancelConnectionRequest = async (displayName) => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      HapticPatterns.buttonPress();
       setIsCancellingConnection(true);
       if (!connectionId) {
         throw new Error("No pending request found to cancel");
@@ -411,7 +411,7 @@ export default function UserProfileView({
       setConnectionModalType("info");
       setShowConnectionModal(true);
 
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      HapticPatterns.buttonPress();
 
       await checkConnectionStatus();
     } catch (error) {
@@ -454,6 +454,7 @@ export default function UserProfileView({
   };
 
   const handleMessage = () => {
+    HapticPatterns.buttonPress();
     if (onNavigate) {
       onNavigate("messages", { isGroupChat: false, djId: userId });
     }
@@ -466,6 +467,7 @@ export default function UserProfileView({
   };
 
   const handleShareProfile = () => {
+    HapticPatterns.share();
     setShowShareModal(true);
   };
 
@@ -480,7 +482,7 @@ export default function UserProfileView({
   // Audio playback handlers
   const handleAudioIdPlay = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      HapticPatterns.primaryButtonPress();
 
       // Check if this audio ID is currently playing
       const isCurrentlyPlaying =
@@ -531,7 +533,7 @@ export default function UserProfileView({
 
   const handlePrimaryMixPlay = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      HapticPatterns.primaryButtonPress();
 
       if (primaryMixSoundRef.current) {
         if (isPlayingPrimaryMix) {

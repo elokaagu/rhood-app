@@ -14,7 +14,7 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
+import { HapticPatterns } from "../lib/haptics";
 import { Audio } from "expo-av";
 import { supabase, db } from "../lib/supabase";
 import { track, AnalyticsEvents } from "../lib/analytics";
@@ -147,7 +147,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
 
   const pickAudioFile = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      HapticPatterns.buttonPress();
 
       if (!DocumentPicker) {
         setShowDevBuildModal(true);
@@ -275,7 +275,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
 
   const pickArtworkImage = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      HapticPatterns.buttonPress();
 
       if (!ImagePicker) {
         Alert.alert(
@@ -337,7 +337,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         }
 
         setSelectedArtwork(imageFile);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        HapticPatterns.success();
       }
     } catch (error) {
       console.error("Error picking artwork:", error.message);
@@ -398,7 +398,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     try {
       setUploading(true);
       setUploadProgress(0);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      HapticPatterns.primaryButtonPress();
 
       // Validate and process file only if a new file is selected
       if (selectedFile) {
@@ -848,7 +848,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         }
       }
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      HapticPatterns.success();
 
       // Track mix upload
       await track(AnalyticsEvents.MIX_UPLOADED, {
@@ -884,7 +884,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       );
     } catch (error) {
       console.error("Error uploading mix:", error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      HapticPatterns.error();
       Alert.alert(
         "Upload Failed",
         error.message || "Failed to upload mix. Please try again."
@@ -1145,7 +1145,7 @@ const formatDuration = (millis) => {
                     mixData.genre === genre && styles.genreChipSelected,
                   ]}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    HapticPatterns.buttonPress();
                     setMixData((prev) => ({
                       ...prev,
                       genre: prev.genre === genre ? "" : genre,
@@ -1171,7 +1171,7 @@ const formatDuration = (millis) => {
             <TouchableOpacity
               style={styles.toggleRow}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                HapticPatterns.buttonPress();
                 setMixData((prev) => ({
                   ...prev,
                   setAsPrimary: !prev.setAsPrimary,

@@ -12,6 +12,7 @@ import {
   PanResponder,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { HapticPatterns } from "../lib/haptics";
 
 const { width } = Dimensions.get("window");
 
@@ -396,6 +397,7 @@ const DJMix = ({
               activeOpacity={0.7}
               onPress={() => {
                 if (onLikePress && !likeDisabled) {
+                  HapticPatterns.like();
                   onLikePress();
                 }
               }}
@@ -419,7 +421,10 @@ const DJMix = ({
             <TouchableOpacity
               style={styles.optionsButton}
               activeOpacity={0.7}
-              onPress={() => setShowOptionsMenu(true)}
+              onPress={() => {
+                HapticPatterns.buttonPress();
+                setShowOptionsMenu(true);
+              }}
             >
               <Ionicons
                 name="ellipsis-horizontal"

@@ -18,7 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
-import * as Haptics from "expo-haptics";
+import { HapticPatterns } from "../lib/haptics";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase, db } from "../lib/supabase";
 import { SkeletonList } from "./Skeleton";
@@ -505,6 +505,7 @@ export default function ConnectionsScreen({
   };
 
   const handleRefresh = async () => {
+    HapticPatterns.pullToRefresh();
     setRefreshing(true);
     await loadUserAndConnections();
     setRefreshing(false);
@@ -700,6 +701,7 @@ export default function ConnectionsScreen({
   };
 
   const handleConnectionPress = (connection) => {
+    HapticPatterns.buttonPress();
     // Check if we're in share mode
     const routeParams = route?.params || {};
     if (routeParams.shareMode && routeParams.onShareSelect) {
@@ -732,6 +734,7 @@ export default function ConnectionsScreen({
   };
 
   const handleViewProfile = async (connection) => {
+    HapticPatterns.itemPress();
     try {
       // Navigate to profile view
       if (onNavigate) {
@@ -744,9 +747,9 @@ export default function ConnectionsScreen({
   };
 
   const handleConnect = async (connection) => {
+    HapticPatterns.buttonPress();
     try {
       setDiscoverLoading(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Debug: Log connection data
       console.log("🔍 Connection data:", connection);
@@ -867,7 +870,7 @@ export default function ConnectionsScreen({
       if (!connection) return;
 
       try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        HapticPatterns.delete();
         const deletionKey = connection.connectionId || connection.id;
         setIsDeletingConnectionId(deletionKey);
         setConnectionModalPrimaryText("Removing...");
@@ -951,7 +954,7 @@ export default function ConnectionsScreen({
     (connection) => {
       if (!connection) return;
 
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      HapticPatterns.buttonPress();
       setSelectedConnection(connection);
       const displayName = getUserName(connection);
 

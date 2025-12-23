@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,19 +8,14 @@ import {
   Alert,
   TextInput,
   RefreshControl,
-  FlatList,
   Modal,
-  Animated,
   Image,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import DJMix from "./DJMix";
-import AnimatedListItem from "./AnimatedListItem";
 import { SkeletonMix } from "./Skeleton";
-import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 import { supabase, db } from "../lib/supabase";
+import { HapticPatterns } from "../lib/haptics";
 
 // Audio optimization utilities for handling large files
 const getAudioOptimization = (audioUrl) => {
@@ -199,22 +194,13 @@ export default function ListenScreen({
   onClearQueue,
   onNavigate,
   user,
-  onShuffleAll,
-  onShuffleByGenre,
-  onShuffleBasedOnLikes,
 }) {
   const [mixes, setMixes] = useState([]);
   const [playingMixId, setPlayingMixId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedGenre, setSelectedGenre] = useState("All");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMoreData, setHasMoreData] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [showAllRecommendations, setShowAllRecommendations] = useState(false);
-  const [expandedGenres, setExpandedGenres] = useState({});
   const [likedMixIds, setLikedMixIds] = useState(() => new Set());
   const [mixLikeCounts, setMixLikeCounts] = useState({});
   const [likeLoadingMap, setLikeLoadingMap] = useState({});
@@ -412,12 +398,6 @@ export default function ListenScreen({
     } finally {
       setLoading(false);
 
-      // Fade in content after loading
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
     }
   };
 
@@ -509,66 +489,47 @@ export default function ListenScreen({
     fetchUserLikedMixes();
   }, [user?.id]);
 
-  // Get unique genres for filter
-  const genreCountsMap = mixes.reduce((acc, mix) => {
-    const genreKey =
-      typeof mix.genre === "string" && mix.genre.trim().length > 0
-        ? mix.genre
-        : "Other";
-    if (!acc.has(genreKey)) {
-      acc.set(genreKey, {
-        count: 0,
-        normalized: normalizeSearchValue(genreKey) || "other",
-      });
-    }
-    acc.get(genreKey).count += 1;
-    return acc;
-  }, new Map());
+  // Calculate trending mixes (ordered by likes + plays)
+  const trendingMixes = React.useMemo(() => {
+    return [...mixes]
+      .map((mix) => {
+        const likes = mixLikeCounts[mix.id] ?? mix.likeCount ?? 0;
+        const plays = mix.plays ?? mix.play_count ?? 0;
+        // Weighted score: likes are worth more than plays
+        const score = likes * 2 + plays;
+        return { ...mix, trendingScore: score };
+      })
+      .filter((mix) => mix.trendingScore > 0)
+      .sort((a, b) => b.trendingScore - a.trendingScore)
+      .slice(0, 20); // Top 20 trending
+  }, [mixes, mixLikeCounts]);
 
-  const genres = [
-    "All",
-    "Recently Added",
-    ...Array.from(genreCountsMap.keys()),
-  ];
+  // Get user's liked mixes
+  const userLikedMixes = React.useMemo(() => {
+    if (!user?.id || likedMixIds.size === 0) return [];
+    return mixes
+      .filter((mix) => likedMixIds.has(mix.id))
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  }, [mixes, likedMixIds, user?.id]);
 
-  // Generate search suggestions
-
-  // Filter mixes
-  const filteredMixes = mixes.filter((mix) => {
+  // Filter mixes for search
+  const filteredMixes = React.useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    
     const normalizedQuery = normalizeSearchValue(searchQuery);
     const queryTokens = normalizedQuery
       .split(/\s+/)
       .map((token) => token.trim())
       .filter(Boolean);
 
-    const matchesSearch =
-      queryTokens.length === 0 ||
-      (mix.searchIndex &&
-        queryTokens.every((token) => mix.searchIndex.includes(token)));
-
-    let matchesFilter = true;
-
-    if (selectedGenre === "All") {
-      matchesFilter = true;
-    } else if (selectedGenre === "Recently Added") {
-      // Sort by creation date (most recent first)
-      matchesFilter = true;
-    } else {
-      matchesFilter = mix.genre === selectedGenre;
-    }
-
-    return matchesSearch && matchesFilter;
-  });
-
-  // Sort filtered mixes based on selected filter
-  const sortedMixes = [...filteredMixes].sort((a, b) => {
-    if (selectedGenre === "Recently Added") {
-      // Sort by creation date (most recent first)
-      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-    }
-    // Default sort by creation date
-    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-  });
+    return mixes.filter((mix) => {
+      const matchesSearch =
+        queryTokens.length === 0 ||
+        (mix.searchIndex &&
+          queryTokens.every((token) => mix.searchIndex.includes(token)));
+      return matchesSearch;
+    });
+  }, [mixes, searchQuery]);
 
   // Sync local playing state with global audio state
   useEffect(() => {
@@ -586,6 +547,7 @@ export default function ListenScreen({
 
   // Handle play/pause when user interacts with mix
   const handleMixPress = (mix) => {
+    HapticPatterns.playPause();
     if (playingMixId === mix.id) {
       // Currently playing this mix - pause it
       onPauseAudio();
@@ -596,6 +558,7 @@ export default function ListenScreen({
   };
 
   const handleArtistPress = (artistName, userId) => {
+    HapticPatterns.itemPress();
     if (!userId) {
       Alert.alert("Error", "Unable to find artist profile");
       return;
@@ -606,44 +569,15 @@ export default function ListenScreen({
   };
 
   const handleUploadMix = () => {
+    HapticPatterns.buttonPress();
     setShowUploadModal(true);
   };
 
   const handleRefresh = async () => {
+    HapticPatterns.pullToRefresh();
     setRefreshing(true);
-    fadeAnim.setValue(0); // Reset fade animation
     await fetchMixes();
     setRefreshing(false);
-  };
-
-  // Load more mixes for infinite scroll
-  const loadMoreMixes = async () => {
-    if (loadingMore || !hasMoreData) return;
-
-    try {
-      setLoadingMore(true);
-      const nextPage = currentPage + 1;
-
-      // Simulate API call with pagination
-      const { data: newMixes, error } = await supabase
-        .from("mixes")
-        .select("*")
-        .range((nextPage - 1) * 10, nextPage * 10 - 1)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      if (newMixes && newMixes.length > 0) {
-        setMixes((prev) => [...prev, ...newMixes]);
-        setCurrentPage(nextPage);
-      } else {
-        setHasMoreData(false);
-      }
-    } catch (error) {
-      console.error("Error loading more mixes:", error);
-    } finally {
-      setLoadingMore(false);
-    }
   };
 
   const handleDeleteMix = async (mix) => {
@@ -710,9 +644,6 @@ export default function ListenScreen({
     }
   };
 
-  const handleGenreFilter = (genre) => {
-    setSelectedGenre(genre);
-  };
 
   const handleAddToQueue = (mix) => {
     if (onAddToQueue) {
@@ -739,6 +670,8 @@ export default function ListenScreen({
       );
       return;
     }
+
+    HapticPatterns.like();
 
     setLikeLoadingMap((prev) => ({
       ...prev,
@@ -923,79 +856,6 @@ export default function ListenScreen({
           )}
         </View>
       </View>
-
-      {/* Shuffle Options */}
-      <View style={styles.shuffleContainer}>
-        <TouchableOpacity
-          style={styles.shuffleButton}
-          onPress={() => onShuffleAll && onShuffleAll(mixes)}
-        >
-          <Ionicons name="shuffle" size={18} color="hsl(75, 100%, 60%)" />
-          <Text style={styles.shuffleButtonText}>Shuffle All</Text>
-        </TouchableOpacity>
-        {selectedGenre !== "All" && selectedGenre !== "Recently Added" && (
-          <TouchableOpacity
-            style={styles.shuffleButton}
-            onPress={() => onShuffleByGenre && onShuffleByGenre(mixes, selectedGenre)}
-          >
-            <Ionicons name="musical-notes" size={18} color="hsl(75, 100%, 60%)" />
-            <Text style={styles.shuffleButtonText}>Shuffle {selectedGenre}</Text>
-          </TouchableOpacity>
-        )}
-        {likedMixIds.size > 0 && (
-          <TouchableOpacity
-            style={styles.shuffleButton}
-            onPress={() => onShuffleBasedOnLikes && onShuffleBasedOnLikes(mixes, Array.from(likedMixIds))}
-          >
-            <Ionicons name="heart" size={18} color="hsl(75, 100%, 60%)" />
-            <Text style={styles.shuffleButtonText}>Based on Likes</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Genre Filter Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.genreFilterContainer}
-        contentContainerStyle={styles.genreFilterContent}
-      >
-        {genres.map((genre) => (
-          <TouchableOpacity
-            key={genre}
-            style={[
-              styles.genreChip,
-              selectedGenre === genre && styles.genreChipActive,
-            ]}
-            onPress={() => {
-              handleGenreFilter(genre);
-              if (
-                genre !== "All" &&
-                genre !== "Recently Added" &&
-                genreCountsMap.has(genre)
-              ) {
-                const normalized =
-                  genreCountsMap.get(genre)?.normalized ||
-                  normalizeSearchValue(genre);
-                setExpandedGenres((prev) => ({
-                  ...prev,
-                  [normalized]: true,
-                }));
-              }
-            }}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.genreChipText,
-                selectedGenre === genre && styles.genreChipTextActive,
-              ]}
-            >
-              {genre}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
     </>
   );
 
@@ -1087,193 +947,16 @@ export default function ListenScreen({
     );
   };
 
-  // Footer component for FlatList
-  const renderRecommendations = () => {
-    const recommendedMixes = showAllRecommendations ? mixes : mixes.slice(0, 6);
-    return (
-      <View style={styles.recommendationsSection}>
-        <View style={styles.recommendationsHeader}>
-          <Text style={styles.recommendationsTitle}>More Like This</Text>
-          {mixes.length > 5 && (
-            <TouchableOpacity
-              style={styles.viewAllButton}
-              activeOpacity={0.7}
-              onPress={() => setShowAllRecommendations((prev) => !prev)}
-            >
-              <Text style={styles.viewAllText}>
-                {showAllRecommendations ? "Show Less" : "Show All"}
-              </Text>
-              <Ionicons
-                name={showAllRecommendations ? "chevron-up" : "chevron-forward"}
-                size={16}
-                color="hsl(75, 100%, 60%)"
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-        <Text style={styles.recommendationExplainer}>Similar mixes</Text>
-        <View style={styles.popularList}>
-          {recommendedMixes.map((mix) => {
-            const isPlaying = playingMixId === mix.id;
-            return (
-              <TouchableOpacity
-                key={`rec-list-${mix.id}`}
-                style={styles.popularRow}
-                onPress={() => handleMixPress(mix)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.popularImageWrap}>
-                  <Image
-                    source={
-                      mix.artwork_url || mix.image_url || mix.image
-                        ? { uri: mix.artwork_url || mix.image_url || mix.image }
-                        : require("../assets/rhood_logo.webp")
-                    }
-                    style={styles.popularImage}
-                    resizeMode="cover"
-                  />
-                  {isPlaying && (
-                    <View style={styles.recommendationPlayingOverlay}>
-                      <Ionicons
-                        name="play"
-                        size={20}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                    </View>
-                  )}
-                </View>
-                <View style={styles.popularInfo}>
-                  <Text style={styles.popularTitle} numberOfLines={1}>
-                    {mix.title}
-                  </Text>
-                  <Text style={styles.popularSubtitle} numberOfLines={1}>
-                    {mix.artist || mix.user_dj_name || "Unknown"}
-                  </Text>
-                  {mix.genre ? (
-                    <Text style={styles.popularMeta} numberOfLines={1}>
-                      {mix.genre}
-                    </Text>
-                  ) : null}
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color="hsl(0, 0%, 60%)"
-                />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    );
-  };
-
   const renderFooter = () => (
     <>
-      {/* Smart Recommendations */}
-      {renderRecommendations()}
+      {/* Trending / Most Popular */}
+      {renderTrending()}
 
-      {/* Things You May Like */}
-      {renderThingsYouMayLike()}
+      {/* Your Likes */}
+      {renderYourLikes()}
 
-      {/* Genre Rows */}
-      <View style={styles.genreRowsSection}>
-        {Array.from(
-          mixes.reduce((acc, mix) => {
-            const genreKey =
-              typeof mix.genre === "string" && mix.genre.trim().length > 0
-                ? mix.genre
-                : "Other";
-            const normalizedGenre = normalizeSearchValue(genreKey) || "other";
-            if (!acc.has(normalizedGenre)) {
-              acc.set(normalizedGenre, {
-                displayName: genreKey,
-                mixes: [],
-              });
-            }
-            acc.get(normalizedGenre).mixes.push(mix);
-            return acc;
-          }, new Map())
-        ).map(([normalizedGenre, genreData]) => {
-          const { displayName, mixes: genreMixes } = genreData;
-          const isExpanded = !!expandedGenres[normalizedGenre];
-          const visibleMixes = isExpanded
-            ? genreMixes
-            : genreMixes.slice(0, 10);
-
-          return (
-            <View key={`genre-row-${normalizedGenre}`} style={styles.genreRow}>
-              <View style={styles.genreRowHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.genreRowTitle}>{displayName}</Text>
-                  <Text style={styles.genreRowExplainer}>
-                    Explore {displayName.toLowerCase()} mixes
-                  </Text>
-                </View>
-                {genreMixes.length > 10 && (
-                  <TouchableOpacity
-                    style={styles.genreRowToggle}
-                    onPress={() =>
-                      setExpandedGenres((prev) => ({
-                        ...prev,
-                        [normalizedGenre]: !prev[normalizedGenre],
-                      }))
-                    }
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.genreRowToggleText}>
-                      {isExpanded ? "Show Less" : "View All"}
-                    </Text>
-                    <Ionicons
-                      name={isExpanded ? "chevron-up" : "chevron-forward"}
-                      size={14}
-                      color="hsl(75, 100%, 60%)"
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.genreRowContent}
-              >
-                {visibleMixes.map((mix) => (
-                  <TouchableOpacity
-                    key={`genre-row-mix-${mix.id}`}
-                    style={styles.genreRowCard}
-                    onPress={() => handleMixPress(mix)}
-                    activeOpacity={0.8}
-                  >
-                    <Image
-                      source={{ uri: mix.image }}
-                      style={styles.genreRowImage}
-                      resizeMode="cover"
-                    />
-                    <LinearGradient
-                      colors={[
-                        "transparent",
-                        "rgba(0, 0, 0, 0.35)",
-                        "rgba(0, 0, 0, 0.8)",
-                      ]}
-                      style={styles.genreRowGradient}
-                      pointerEvents="none"
-                    />
-                    <View style={styles.genreRowTextOverlay}>
-                      <Text style={styles.genreRowMixTitle} numberOfLines={1}>
-                        {mix.title}
-                      </Text>
-                      <Text style={styles.genreRowMixArtist} numberOfLines={1}>
-                        {mix.artist}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          );
-        })}
-      </View>
+      {/* You May Like */}
+      {renderYouMayLike()}
 
       {/* Upload CTA */}
       <View style={styles.uploadSection}>
@@ -1301,102 +984,100 @@ export default function ListenScreen({
     </>
   );
 
-  const renderListFooter = () => (
-    <>
-      {renderFooter()}
-      {loadingMore && (
-        <View style={styles.loadingMoreContainer}>
-          <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
-          <Text style={styles.loadingMoreText}>Loading more mixes...</Text>
+
+  // Render search results if searching
+  const renderSearchResults = () => {
+    if (!searchQuery.trim()) return null;
+
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>SEARCH RESULTS</Text>
         </View>
-      )}
-    </>
-  );
+        {filteredMixes.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons
+              name="search"
+              size={48}
+              color="hsl(0, 0%, 30%)"
+            />
+            <Text style={styles.emptyStateTitle}>No results found</Text>
+            <Text style={styles.emptyStateSubtitle}>
+              No mixes match "{searchQuery}". Try a different search term.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.popularList}>
+            {filteredMixes.map((mix) => {
+              const isPlaying = playingMixId === mix.id;
+              return (
+                <TouchableOpacity
+                  key={`search-${mix.id}`}
+                  style={styles.popularRow}
+                  onPress={() => handleMixPress(mix)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.popularImageWrap}>
+                    <Image
+                      source={
+                        mix.artwork_url || mix.image_url || mix.image
+                          ? { uri: mix.artwork_url || mix.image_url || mix.image }
+                          : require("../assets/rhood_logo.webp")
+                      }
+                      style={styles.popularImage}
+                      resizeMode="cover"
+                    />
+                    {isPlaying && (
+                      <View style={styles.recommendationPlayingOverlay}>
+                        <Ionicons
+                          name="play"
+                          size={20}
+                          color="hsl(75, 100%, 60%)"
+                        />
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.popularInfo}>
+                    <Text style={styles.popularTitle} numberOfLines={1}>
+                      {mix.title}
+                    </Text>
+                    <Text style={styles.popularSubtitle} numberOfLines={1}>
+                      {mix.artist || mix.user_dj_name || "Unknown"}
+                    </Text>
+                    <View style={styles.popularMetaRow}>
+                      {mix.durationFormatted && (
+                        <Text style={styles.popularMeta}>
+                          {mix.durationFormatted}
+                        </Text>
+                      )}
+                      {mix.genre && (
+                        <>
+                          {mix.durationFormatted && (
+                            <Text style={styles.popularMeta}> • </Text>
+                          )}
+                          <Text style={styles.popularMeta}>{mix.genre}</Text>
+                        </>
+                      )}
+                    </View>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color="hsl(0, 0%, 60%)"
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={loading ? [] : sortedMixes}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item: mix, index }) => {
-          const rawLikeCount =
-            mixLikeCounts[mix.id] ?? mix.likeCount ?? mix.likes ?? 0;
-          const normalizedLikeCount =
-            Number.isFinite(Number(rawLikeCount)) && Number(rawLikeCount) >= 0
-              ? Number(rawLikeCount)
-              : 0;
-          const isLiked = likedMixIds.has(mix.id);
-          const likeDisabled = !!likeLoadingMap[mix.id];
-
-          return (
-            <AnimatedListItem index={index} delay={80}>
-              <DJMix
-                mix={{ ...mix, trackNumber: index + 1 }}
-                isPlaying={playingMixId === mix.id}
-                isLoading={
-                  globalAudioState.isLoading && playingMixId === mix.id
-                }
-                onPlayPause={() => handleMixPress(mix)}
-                onArtistPress={handleArtistPress}
-                onDelete={handleDeleteMix}
-                onAddToQueue={handleAddToQueue}
-                currentUserId={user?.id}
-                progress={
-                  playingMixId === mix.id ? globalAudioState.progress : 0
-                }
-                isLiked={isLiked}
-                likeCount={normalizedLikeCount}
-                onLikePress={() => handleToggleLike(mix)}
-                likeDisabled={likeDisabled}
-              />
-            </AnimatedListItem>
-          );
-        }}
-        ListHeaderComponent={renderHeader}
-        ListFooterComponent={renderListFooter}
-        onEndReached={loadMoreMixes}
-        onEndReachedThreshold={0.5}
-        keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={() => {
-          if (loading) {
-            return (
-              <View style={styles.skeletonContainer}>
-                <SkeletonMix />
-                <SkeletonMix />
-                <SkeletonMix />
-                <SkeletonMix />
-                <SkeletonMix />
-              </View>
-            );
-          }
-
-          return (
-            <View style={styles.emptyState}>
-              <Ionicons
-                name="musical-notes"
-                size={48}
-                color="hsl(0, 0%, 30%)"
-              />
-              <Text style={styles.emptyStateTitle}>No mixes found</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                {searchQuery.trim()
-                  ? `No results for "${searchQuery}". Try a different search term or genre filter.`
-                  : "No mixes available. Try adjusting your filters or upload your own mix!"}
-              </Text>
-              {!searchQuery.trim() && (
-                <TouchableOpacity
-                  style={styles.emptyStateButton}
-                  onPress={handleUploadMix}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.emptyStateButtonText}>
-                    Upload Your First Mix
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          );
-        }}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1404,18 +1085,33 @@ export default function ListenScreen({
             tintColor="hsl(75, 100%, 60%)"
           />
         }
-        showsVerticalScrollIndicator={false}
-        removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
-        initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
-        maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
-        windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
-        getItemLayout={(data, index) => ({
-          length: 80, // Approximate height of each DJMix item
-          offset: 80 * index,
-          index,
-        })}
-        contentContainerStyle={styles.flatListContent}
-      />
+        contentContainerStyle={styles.scrollContent}
+      >
+        {renderHeader()}
+        
+        {loading ? (
+          <View style={styles.skeletonContainer}>
+            <SkeletonMix />
+            <SkeletonMix />
+            <SkeletonMix />
+            <SkeletonMix />
+            <SkeletonMix />
+          </View>
+        ) : (
+          <>
+            {searchQuery.trim() ? (
+              renderSearchResults()
+            ) : (
+              <>
+                {renderTrending()}
+                {renderYourLikes()}
+                {renderYouMayLike()}
+              </>
+            )}
+            {renderFooter()}
+          </>
+        )}
+      </ScrollView>
 
       {/* Upload Mix Modal - R/HOOD Themed */}
       <Modal
@@ -1499,6 +1195,41 @@ const styles = StyleSheet.create({
   },
   flatListContent: {
     flexGrow: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 160,
+  },
+  section: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    marginBottom: 8,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: "TS Block Bold",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  popularMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
   },
   uploadSection: {
     padding: 16,
@@ -1604,19 +1335,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 85%)", // Changed from green to light gray
-  },
-  // Loading More Styles
-  loadingMoreContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 20,
-    gap: 8,
-  },
-  loadingMoreText: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
   },
   // Modal Styles - R/HOOD Theme
   modalOverlay: {

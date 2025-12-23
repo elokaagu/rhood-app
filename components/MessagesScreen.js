@@ -29,6 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase, db } from "../lib/supabase";
 import { multimediaService } from "../lib/multimediaService";
 import ProgressiveImage from "./ProgressiveImage";
+import OpportunityMessageCard from "./OpportunityMessageCard";
 import { Audio, Video } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import * as WebBrowser from "expo-web-browser";
@@ -637,6 +638,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
           mediaSize: msg.media_size,
           mediaMimeType: msg.media_mime_type,
           thumbnailUrl: msg.thumbnail_url,
+          metadata: msg.metadata || null, // Include metadata for opportunity cards
+          opportunity: msg.metadata?.opportunity || null, // Extract opportunity data
           fileExtension: msg.file_extension,
           urls: extractUrls(msg.content || ""),
           recordType: "direct",
@@ -1686,7 +1689,17 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   onLongPress={() => handleMessageLongPress(message)}
                   delayLongPress={250}
                 >
-                  {message.messageType !== "text" && message.mediaUrl ? (
+                  {message.messageType === "opportunity" && message.opportunity ? (
+                    <OpportunityMessageCard
+                      opportunity={message.opportunity}
+                      isOwn={message.isOwn}
+                      onPress={(opp) => {
+                        // Navigate to opportunities screen
+                        // Note: MessagesScreen uses route prop, navigation handled by parent
+                        console.log("Opportunity card pressed:", opp);
+                      }}
+                    />
+                  ) : message.messageType !== "text" && message.mediaUrl ? (
                     <View style={styles.mediaContent}>
                       {message.messageType === "image" && (
                         <TouchableOpacity
@@ -1906,8 +1919,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
                         )}
                     </View>
                   ) : null}
-                  {renderMessageText(message)}
-                  {renderLinkPreviews(message)}
+                  {message.messageType !== "opportunity" && renderMessageText(message)}
+                  {message.messageType !== "opportunity" && renderLinkPreviews(message)}
                   <Text
                     style={[
                       styles.messageTime,

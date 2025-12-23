@@ -18,6 +18,110 @@ import * as ImagePicker from "expo-image-picker";
 import { db, supabase } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 
+// Duration extraction utilities (same as ListenScreen)
+const parseDurationString = (value) => {
+  if (value == null || value === undefined) return null;
+  
+  if (typeof value === "number") {
+    if (Number.isFinite(value) && value > 0) {
+      return value;
+    }
+    return null;
+  }
+  
+  if (typeof value !== "string") return null;
+  
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "0" || trimmed === "0:00") return null;
+
+  const colonParts = trimmed.split(":").map((part) => part.trim());
+  if (colonParts.length >= 2 && colonParts.length <= 3) {
+    const numbers = colonParts.map((part) => Number(part));
+    if (numbers.every((num) => Number.isFinite(num) && num >= 0)) {
+      if (numbers.length === 3) {
+        const [hours, minutes, seconds] = numbers;
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+        return totalSeconds > 0 ? totalSeconds : null;
+      }
+      const [minutes, seconds] = numbers;
+      const totalSeconds = minutes * 60 + seconds;
+      return totalSeconds > 0 ? totalSeconds : null;
+    }
+  }
+
+  const asNumber = Number(trimmed);
+  return Number.isFinite(asNumber) && asNumber > 0 ? asNumber : null;
+};
+
+const extractDurationSeconds = (mix) => {
+  if (!mix || typeof mix !== "object") return null;
+
+  const metadataSources = [
+    mix.duration,
+    mix.duration_seconds,
+    mix.durationSeconds,
+    mix.duration_secs,
+    mix.metadata?.duration,
+    mix.metadata?.duration_seconds,
+    mix.audio_metadata?.duration,
+    mix.audio_metadata?.duration_seconds,
+    mix.audioMetadata?.duration,
+    mix.audioMetadata?.duration_seconds,
+  ];
+
+  for (const source of metadataSources) {
+    if (source == null || source === undefined) continue;
+    if (typeof source === "number" && Number.isFinite(source) && source > 0) {
+      return Math.round(source);
+    }
+    if (typeof source === "string" && source.trim()) {
+      const parsed = parseDurationString(source);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return Math.round(parsed);
+      }
+    }
+  }
+
+  const millisecondSources = [
+    mix.duration_millis,
+    mix.durationMillis,
+    mix.duration_ms,
+    mix.metadata?.duration_millis,
+    mix.metadata?.durationMillis,
+    mix.audio_metadata?.duration_millis,
+    mix.audio_metadata?.durationMillis,
+    mix.audioMetadata?.duration_millis,
+    mix.audioMetadata?.durationMillis,
+  ];
+
+  for (const source of millisecondSources) {
+    if (source == null) continue;
+    const numeric = Number(source);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return Math.round(numeric / 1000);
+    }
+  }
+
+  if (typeof mix.duration_formatted === "string") {
+    const parsed = parseDurationString(mix.duration_formatted);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.round(parsed);
+    }
+  }
+
+  return null;
+};
+
+const formatDurationLabel = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "0:00";
+  }
+  const totalSeconds = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+};
+
 export default function EditProfileScreen({ user, onSave, onCancel }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -110,11 +214,22 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         // Load user's mixes for Audio ID selection
         try {
           const mixes = await db.getUserMixes(user.id);
-          setUserMixes(mixes);
+          
+          // Extract and normalize duration for each mix
+          const mixesWithDuration = mixes.map((mix) => {
+            const durationSeconds = extractDurationSeconds(mix);
+            return {
+              ...mix,
+              duration: durationSeconds,
+              durationFormatted: formatDurationLabel(durationSeconds),
+            };
+          });
+          
+          setUserMixes(mixesWithDuration);
 
           // Set current primary mix if exists
           if (userProfile.primary_mix_id) {
-            const primaryMix = mixes.find(
+            const primaryMix = mixesWithDuration.find(
               (mix) => mix.id === userProfile.primary_mix_id
             );
             setCurrentPrimaryMix(primaryMix || null);
@@ -827,13 +942,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                     </Text>
                     <Text style={styles.audioIdDetails}>
                       {currentPrimaryMix.genre || "Electronic"} •{" "}
-                      {currentPrimaryMix.duration && Number.isFinite(currentPrimaryMix.duration) && currentPrimaryMix.duration > 0
-                        ? `${Math.floor(currentPrimaryMix.duration / 60)}:${(
-                            Math.floor(currentPrimaryMix.duration % 60)
-                          )
-                            .toString()
-                            .padStart(2, "0")}`
-                        : "0:00"}
+                      {currentPrimaryMix.durationFormatted || 
+                       (currentPrimaryMix.duration && Number.isFinite(currentPrimaryMix.duration) && currentPrimaryMix.duration > 0
+                        ? formatDurationLabel(currentPrimaryMix.duration)
+                        : "0:00")}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -965,13 +1077,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                     <Text style={styles.mixTitle}>{mix.title}</Text>
                     <Text style={styles.mixDetails}>
                       {mix.genre || "Electronic"} •{" "}
-                      {mix.duration && Number.isFinite(mix.duration) && mix.duration > 0
-                        ? `${Math.floor(mix.duration / 60)}:${(
-                            Math.floor(mix.duration % 60)
-                          )
-                            .toString()
-                            .padStart(2, "0")}`
-                        : "0:00"}
+                      {mix.durationFormatted || 
+                       (mix.duration && Number.isFinite(mix.duration) && mix.duration > 0
+                        ? formatDurationLabel(mix.duration)
+                        : "0:00")}
                     </Text>
                   </View>
                   {selectingMix ? (

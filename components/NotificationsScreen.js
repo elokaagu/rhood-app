@@ -16,6 +16,7 @@ import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import RhoodModal from "./RhoodModal";
 import { supabase, db } from "../lib/supabase";
+import { HapticPatterns } from "../lib/haptics";
 
 // Helper function to format relative time
 const formatRelativeTime = (timestamp) => {
@@ -57,6 +58,7 @@ export default function NotificationsScreen({
   const [showConnectionPrompt, setShowConnectionPrompt] = useState(false);
   const [activeConnectionNotification, setActiveConnectionNotification] =
     useState(null);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [notificationPreferences, setNotificationPreferences] = useState({
     pushNotifications: true,
     messageNotifications: true,
@@ -293,6 +295,8 @@ export default function NotificationsScreen({
   };
 
   const handleNotificationPress = async (notification) => {
+    HapticPatterns.itemPress();
+    
     if (notification.type === "connection") {
       setActiveConnectionNotification(notification);
       setShowConnectionPrompt(true);
@@ -341,10 +345,12 @@ export default function NotificationsScreen({
   };
 
   const handleMarkAsRead = async (notificationId) => {
+    HapticPatterns.buttonPress();
     await markNotificationAsRead(notificationId);
   };
 
   const handleDismiss = async (notificationId) => {
+    HapticPatterns.delete();
     try {
       const { error } = await supabase
         .from("notifications")
@@ -376,6 +382,7 @@ export default function NotificationsScreen({
     actionProcessing[notificationId];
 
   const handleAcceptConnection = async (notification) => {
+    HapticPatterns.success();
     try {
       console.log("🔗 Accepting connection for notification:", notification);
 
@@ -441,6 +448,7 @@ export default function NotificationsScreen({
   };
 
   const handleDeclineConnection = async (notification) => {
+    HapticPatterns.buttonPress();
     try {
       console.log("🚫 Declining connection for notification:", notification);
 
@@ -513,6 +521,7 @@ export default function NotificationsScreen({
   };
 
   const markAllAsRead = async () => {
+    HapticPatterns.buttonPress();
     try {
       if (!currentUser) return;
 
@@ -540,11 +549,19 @@ export default function NotificationsScreen({
     }
   };
 
+  const handleClearAllPress = () => {
+    if (notifications.length === 0) return;
+    HapticPatterns.buttonPress();
+    setShowClearAllModal(true);
+  };
+
   const clearAllNotifications = async () => {
+    HapticPatterns.delete();
     try {
       if (!currentUser) return;
 
       setLoading(true);
+      setShowClearAllModal(false);
 
       const { error } = await supabase
         .from("notifications")
@@ -567,6 +584,7 @@ export default function NotificationsScreen({
   };
 
   const handleRefresh = async () => {
+    HapticPatterns.pullToRefresh();
     setRefreshing(true);
     await loadUserAndNotifications();
     setRefreshing(false);
@@ -656,7 +674,7 @@ export default function NotificationsScreen({
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerActionButton}
-              onPress={clearAllNotifications}
+              onPress={handleClearAllPress}
               disabled={loading || notifications.length === 0}
             >
               <Ionicons
@@ -874,6 +892,19 @@ export default function NotificationsScreen({
           </View>
         </View>
       </Modal>
+
+      {/* Clear All Confirmation Modal */}
+      <RhoodModal
+        visible={showClearAllModal}
+        onClose={() => setShowClearAllModal(false)}
+        title="Clear All Notifications"
+        message="Are you sure you want to delete all notifications? This action cannot be undone."
+        primaryButtonText="Clear All"
+        secondaryButtonText="Cancel"
+        onPrimaryPress={clearAllNotifications}
+        onSecondaryPress={() => setShowClearAllModal(false)}
+        type="warning"
+      />
     </View>
   );
 }

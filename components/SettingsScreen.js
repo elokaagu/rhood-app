@@ -25,6 +25,7 @@ import {
   registerForPushNotifications,
   unregisterPushNotifications,
 } from "../lib/pushNotifications";
+import { HapticPatterns } from "../lib/haptics";
 
 export default function SettingsScreen({
   user,
@@ -83,6 +84,7 @@ export default function SettingsScreen({
 
   // Simple toggle handler - immediate state update with background save
   const handleToggle = async (key, value) => {
+    HapticPatterns.toggle();
     console.log(`🔘 Toggle ${key} to ${value}`);
 
     // Update state immediately for instant feedback
@@ -300,6 +302,7 @@ export default function SettingsScreen({
 
   const renderSettingItem = (item) => {
     const handlePress = () => {
+      HapticPatterns.buttonPress();
       if (item.type === "navigate" && item.action) {
         item.action();
       } else if (item.type === "link" && item.url) {

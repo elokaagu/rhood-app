@@ -3409,12 +3409,29 @@ export default function App() {
         receiverId
       );
 
-      // Send the message
+      // Prepare opportunity metadata
+      const opportunityMetadata = {
+        type: "opportunity",
+        opportunity: {
+          id: opportunity.id,
+          title: opportunity.title,
+          description: opportunity.description,
+          date: opportunity.date,
+          time: opportunity.time,
+          location: opportunity.location,
+          compensation: opportunity.compensation,
+          distanceFormatted: opportunity.distanceFormatted,
+          genre: opportunity.genre,
+        },
+      };
+
+      // Send the message with opportunity metadata
       const { error } = await supabase.from("messages").insert({
         thread_id: threadId,
         sender_id: user.id,
-        content: shareMessage,
-        message_type: "text",
+        content: shareMessage, // Keep text content for fallback
+        message_type: "opportunity", // New message type for opportunities
+        metadata: opportunityMetadata, // Store structured opportunity data
       });
 
       if (error) throw error;
