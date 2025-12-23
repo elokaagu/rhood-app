@@ -3580,15 +3580,23 @@ export default function App() {
   const formatOpportunityDate = (dateValue) => {
     if (!dateValue) return "TBD";
     try {
-      const parsedDate = new Date(dateValue);
-      if (Number.isNaN(parsedDate.getTime())) {
+      const date = new Date(dateValue);
+      if (Number.isNaN(date.getTime())) {
         return "TBD";
       }
-      return new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }).format(parsedDate);
+      
+      const day = date.getDate();
+      const month = date.toLocaleDateString("en-GB", { month: "long" });
+      const year = date.getFullYear();
+      
+      // Add ordinal suffix
+      const getOrdinalSuffix = (n) => {
+        const s = ["th", "st", "nd", "rd"];
+        const v = n % 100;
+        return s[(v - 20) % 10] || s[v] || s[0];
+      };
+      
+      return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
     } catch (error) {
       console.warn("Unable to format opportunity date:", error);
       return "TBD";

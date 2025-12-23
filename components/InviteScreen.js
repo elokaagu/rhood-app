@@ -94,82 +94,37 @@ export default function InviteScreen({ user, onBack }) {
     }
   };
 
-  // Share via WhatsApp
-  const handleShareWhatsApp = async () => {
+  // Share via Email
+  const handleShareEmail = async () => {
     const message = getReferralShareMessage();
-    if (!message) {
+    const link = getReferralLink();
+    if (!message || !link) {
       Alert.alert("Error", "Invite code not available");
       return;
     }
-
+    
+    const subject = "Join R/HOOD - The DJ Community";
+    const body = `${message}\n\n${link}`;
+    const url = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
     try {
-      // Try WhatsApp app URL scheme first
-      const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
-      const canOpenWhatsApp = await Linking.canOpenURL(whatsappUrl);
-      
-      if (canOpenWhatsApp) {
-        try {
-          await Linking.openURL(whatsappUrl);
-          return; // Success, exit early
-        } catch (openError) {
-          console.log("WhatsApp app URL failed, trying web fallback:", openError);
-          // Continue to web fallback
-        }
-      }
-
-      // Fallback to web WhatsApp (works in browser)
-      const webUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-      try {
-        const canOpenWeb = await Linking.canOpenURL(webUrl);
-        if (canOpenWeb) {
-          await Linking.openURL(webUrl);
-          return; // Success
-        }
-      } catch (webError) {
-        console.log("Web WhatsApp URL failed:", webError);
-      }
-
-      // Final fallback: Use native share sheet
-      // This will show WhatsApp if installed, or other sharing options
-      const shareResult = await Share.share({
-        message: message,
-        title: "Invite a DJ to R/HOOD",
-      });
-
-      if (shareResult.action === Share.sharedAction) {
-        // User successfully shared
-        return;
-      } else if (shareResult.action === Share.dismissedAction) {
-        // User dismissed the share sheet
-        return;
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback to native share if email app not available
+        await Share.share({
+          message: body,
+          title: subject,
+        });
       }
     } catch (error) {
-      console.error("Error sharing via WhatsApp:", error);
-      // If all methods fail, show a helpful error message
-      Alert.alert(
-        "Share Error",
-        "Could not open WhatsApp. Please make sure WhatsApp is installed, or use the 'More' option to share via other apps."
-      );
-    }
-  };
-
-  // Share via Instagram DM
-  const handleShareInstagram = async () => {
-    const message = getReferralShareMessage();
-    if (!message) {
-      Alert.alert("Error", "Invite code not available");
-      return;
-    }
-    // Instagram doesn't support direct message sharing via URL scheme
-    // Use native share sheet instead
-    try {
+      console.error("Error sharing via Email:", error);
+      // Fallback to native share
       await Share.share({
-        message: message,
-        title: "Invite a DJ to R/HOOD",
+        message: body,
+        title: subject,
       });
-    } catch (error) {
-      console.error("Error sharing via Instagram:", error);
-      Alert.alert("Error", "Could not share");
     }
   };
 
@@ -282,24 +237,17 @@ export default function InviteScreen({ user, onBack }) {
           <View style={styles.shareButtonsRow}>
             <TouchableOpacity
               style={styles.shareButton}
-              onPress={handleShareWhatsApp}
-            >
-              <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
-              <Text style={styles.shareButtonText}>WhatsApp</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.shareButton}
-              onPress={handleShareInstagram}
-            >
-              <Ionicons name="logo-instagram" size={24} color="#E4405F" />
-              <Text style={styles.shareButtonText}>IG DM</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.shareButton}
               onPress={handleShareSMS}
             >
               <Ionicons name="chatbubble" size={24} color="hsl(75, 100%, 60%)" />
               <Text style={styles.shareButtonText}>SMS</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.shareButton}
+              onPress={handleShareEmail}
+            >
+              <Ionicons name="mail" size={24} color="hsl(75, 100%, 60%)" />
+              <Text style={styles.shareButtonText}>Email</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.shareButton}
@@ -309,6 +257,9 @@ export default function InviteScreen({ user, onBack }) {
               <Text style={styles.shareButtonText}>More</Text>
             </TouchableOpacity>
           </View>
+          <Text style={styles.shareOptionsHint}>
+            Use "More" to share via WhatsApp, Instagram, or other apps
+          </Text>
         </View>
 
         {/* Referral Stats */}
@@ -506,6 +457,14 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "hsl(0, 0%, 70%)",
     textAlign: "center",
+  },
+  shareOptionsHint: {
+    fontSize: 11,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 50%)",
+    marginTop: 12,
+    textAlign: "center",
+    fontStyle: "italic",
   },
   referralStatsCard: {
     backgroundColor: "hsl(0, 0%, 8%)",

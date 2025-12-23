@@ -954,18 +954,18 @@ const formatDuration = (millis) => {
                   activeOpacity={0.7}
                 >
                   <View style={styles.mixSelectorImageContainer}>
-                    {mix.artwork_url || mix.image_url ? (
-                      <Image
-                        source={{ uri: mix.artwork_url || mix.image_url }}
-                        style={styles.mixSelectorImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={[styles.mixSelectorImage, styles.mixSelectorPlaceholder]}>
-                        <Ionicons name="musical-note" size={32} color="hsl(75, 100%, 60%)" />
+                  {mix.artwork_url || mix.image_url ? (
+                    <Image
+                      source={{ uri: mix.artwork_url || mix.image_url }}
+                      style={styles.mixSelectorImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.mixSelectorImage, styles.mixSelectorPlaceholder]}>
+                      <Ionicons name="musical-note" size={32} color="hsl(75, 100%, 60%)" />
                         <Text style={styles.mixSelectorNoArtworkLabel}>No artwork</Text>
-                      </View>
-                    )}
+                    </View>
+                  )}
                   </View>
                   <Text style={styles.mixSelectorTitle} numberOfLines={1}>
                     {mix.title}

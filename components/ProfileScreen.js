@@ -223,11 +223,34 @@ export default function ProfileScreen({
       try {
         const gigsData = await db.getUserGigs(user.id);
         if (gigsData && gigsData.length > 0) {
+          const formatDateWithOrdinal = (dateString) => {
+            if (!dateString) return "TBD";
+            try {
+              const date = new Date(dateString);
+              if (Number.isNaN(date.getTime())) return "TBD";
+              
+              const day = date.getDate();
+              const month = date.toLocaleDateString("en-GB", { month: "long" });
+              const year = date.getFullYear();
+              
+              // Add ordinal suffix
+              const getOrdinalSuffix = (n) => {
+                const s = ["th", "st", "nd", "rd"];
+                const v = n % 100;
+                return s[(v - 20) % 10] || s[v] || s[0];
+              };
+              
+              return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
+            } catch (error) {
+              return "TBD";
+            }
+          };
+          
           recentGigs = gigsData.slice(0, 5).map((gig) => ({
             id: gig.id,
             name: gig.name,
             venue: gig.venue,
-            date: gig.event_date,
+            date: formatDateWithOrdinal(gig.event_date),
             price: gig.payment ? `£${gig.payment.toFixed(0)}` : "£0",
             rating: gig.dj_rating || 0,
           }));

@@ -155,11 +155,26 @@ export default function AIMatchmakingScreen({ userId, onNavigate }) {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+    if (!dateString) return "TBD";
+    try {
+      const date = new Date(dateString);
+      if (Number.isNaN(date.getTime())) return "TBD";
+      
+      const day = date.getDate();
+      const month = date.toLocaleDateString("en-GB", { month: "long" });
+      const year = date.getFullYear();
+      
+      // Add ordinal suffix
+      const getOrdinalSuffix = (n) => {
+        const s = ["th", "st", "nd", "rd"];
+        const v = n % 100;
+        return s[(v - 20) % 10] || s[v] || s[0];
+      };
+      
+      return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
+    } catch (error) {
+      return "TBD";
+    }
   };
 
   const getMatchScoreColor = (score) => {
