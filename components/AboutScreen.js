@@ -18,6 +18,7 @@ import {
   RADIUS,
   sharedStyles,
 } from "../lib/sharedStyles";
+import { HapticPatterns } from "../lib/haptics";
 
 export default function AboutScreen({ onBack }) {
   const handleOpenLink = (url) => {
@@ -84,7 +85,13 @@ export default function AboutScreen({ onBack }) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            HapticPatterns.backButton();
+            onBack();
+          }}
+        >
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>About</Text>

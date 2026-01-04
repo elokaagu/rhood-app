@@ -24,6 +24,7 @@ import {
 } from "../lib/sharedStyles";
 import { supabase, db } from "../lib/supabase";
 import * as Haptics from "expo-haptics";
+import { HapticPatterns } from "../lib/haptics";
 import { getAssistantReply } from "../lib/aiChat";
 import { track, AnalyticsEvents } from "../lib/analytics";
 
@@ -549,7 +550,13 @@ Thank you!`;
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            HapticPatterns.backButton();
+            onBack();
+          }}
+        >
           <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerContent}>

@@ -22,6 +22,7 @@ import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import { SkeletonProfile, SkeletonMix } from "./Skeleton";
 import { generateGenreWaveform } from "../lib/audioWaveform";
+import { HapticPatterns } from "../lib/haptics";
 
 // Default profile structure - all data comes from database
 const defaultProfile = {
@@ -498,6 +499,7 @@ export default function ProfileScreen({
     }
     try {
       await Clipboard.setStringAsync(link);
+      HapticPatterns.success();
       Alert.alert("Copied!", "Referral link copied to clipboard");
     } catch (error) {
       console.error("Failed to copy link:", error);

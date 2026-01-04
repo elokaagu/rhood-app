@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { db } from "../lib/supabase";
+import { HapticPatterns } from "../lib/haptics";
 
 export default function InviteScreen({ user, onBack }) {
   const [inviteCode, setInviteCode] = useState(null);
@@ -71,6 +72,7 @@ export default function InviteScreen({ user, onBack }) {
     }
     try {
       await Clipboard.setStringAsync(inviteCode);
+      HapticPatterns.success();
       Alert.alert("Copied!", "Invite code copied to clipboard");
     } catch (error) {
       console.error("Failed to copy:", error);
@@ -87,6 +89,7 @@ export default function InviteScreen({ user, onBack }) {
     }
     try {
       await Clipboard.setStringAsync(link);
+      HapticPatterns.success();
       Alert.alert("Copied!", "Referral link copied to clipboard");
     } catch (error) {
       console.error("Failed to copy link:", error);
@@ -166,7 +169,13 @@ export default function InviteScreen({ user, onBack }) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            HapticPatterns.backButton();
+            onBack();
+          }}
+        >
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Invite a DJ</Text>

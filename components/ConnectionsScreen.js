@@ -1955,7 +1955,7 @@ export default function ConnectionsScreen({
             ) : (
               <Animated.View style={{ opacity: discoverFadeAnim }}>
                 {/* Popular DJs - Trending DJs */}
-                {popularDJs.length > 0 && (
+                {popularDJs.length > 0 && !searchQuery.trim() && (
                   <View style={styles.recommendationsSection}>
                     <View style={styles.recommendationsHeader}>
                       <Ionicons

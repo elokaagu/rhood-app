@@ -569,8 +569,14 @@ export default function ListenScreen({
       const normalizedMix = {
         ...mix,
         audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
+        // Ensure file_url is also set for backward compatibility
+        file_url: mix.file_url || mix.audioUrl || mix.audio_url || null,
         // Ensure image is set from artwork_url, image_url, or image field
         image: mix.artwork_url || mix.image_url || mix.image || null,
+        // Ensure artist is set
+        artist: mix.artist || "Unknown Artist",
+        // Ensure title is set
+        title: mix.title || "Untitled Mix",
       };
 
       // Validate that we have an audio URL

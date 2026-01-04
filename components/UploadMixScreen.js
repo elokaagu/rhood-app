@@ -935,7 +935,10 @@ const formatDuration = (millis) => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={onBack}
+            onPress={() => {
+              HapticPatterns.backButton();
+              onBack();
+            }}
             style={styles.backButton}
             disabled={uploading}
           >

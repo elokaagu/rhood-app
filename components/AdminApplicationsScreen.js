@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
+import { HapticPatterns } from "../lib/haptics";
 import ProgressiveImage from "./ProgressiveImage";
 import { sendApplicationStatusNotification } from "../lib/notificationService";
 
@@ -305,7 +306,10 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => onNavigate && onNavigate("back")}
+          onPress={() => {
+            HapticPatterns.backButton();
+            onNavigate && onNavigate("back");
+          }}
         >
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>

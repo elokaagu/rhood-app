@@ -19,6 +19,7 @@ import {
   SPACING,
   RADIUS,
 } from "../lib/sharedStyles";
+import { HapticPatterns } from "../lib/haptics";
 
 export default function BrandGigsPortal({ user, onBack }) {
   const [gigs, setGigs] = useState([]);
@@ -260,7 +261,13 @@ export default function BrandGigsPortal({ user, onBack }) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              HapticPatterns.backButton();
+              onBack();
+            }}
+          >
             <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Gigs</Text>

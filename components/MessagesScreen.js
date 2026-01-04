@@ -28,8 +28,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase, db } from "../lib/supabase";
 import { multimediaService } from "../lib/multimediaService";
+import { HapticPatterns } from "../lib/haptics";
 import ProgressiveImage from "./ProgressiveImage";
 import OpportunityMessageCard from "./OpportunityMessageCard";
+import RhoodModal from "./RhoodModal";
 import { Audio, Video } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import * as WebBrowser from "expo-web-browser";
@@ -110,6 +112,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [fullscreenVideo, setFullscreenVideo] = useState(null);
+  const [selectedOpportunity, setSelectedOpportunity] = useState(null);
+  const [showOpportunityModal, setShowOpportunityModal] = useState(false);
   const [playingAudioId, setPlayingAudioId] = useState(null);
   const [audioProgress, setAudioProgress] = useState({});
   const [audioDurations, setAudioDurations] = useState({});
@@ -121,6 +125,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const channelRef = useRef(null);
   const audioSoundsRef = useRef({});
   const linkPreviewCacheRef = useRef({});
+  const durationExtractionInProgressRef = useRef(new Set());
 
   const fetchLinkPreview = useCallback(async (rawUrl) => {
     if (!rawUrl) return null;
@@ -920,6 +925,84 @@ const MessagesScreen = ({ user, navigation, route }) => {
     });
   }, [messages, fetchLinkPreview]);
 
+  // Extract duration for audio/video messages when they load
+  useEffect(() => {
+    if (!messages.length) return;
+
+    const extractDurationsForMessages = async () => {
+      // Get current durations to check which messages need duration
+      setAudioDurations((currentDurations) => {
+        const messagesNeedingDuration = messages.filter(
+          (msg) =>
+            (msg.messageType === "audio" || msg.messageType === "video") &&
+            msg.mediaUrl &&
+            !currentDurations[msg.id] &&
+            !durationExtractionInProgressRef.current.has(msg.id)
+        );
+
+        if (messagesNeedingDuration.length === 0) {
+          return currentDurations;
+        }
+
+        console.log(
+          `📊 Extracting duration for ${messagesNeedingDuration.length} media messages`
+        );
+
+        // Extract duration for each message asynchronously
+        messagesNeedingDuration.forEach((message) => {
+          // Mark as in progress
+          durationExtractionInProgressRef.current.add(message.id);
+
+          // Extract duration asynchronously
+          (async () => {
+            try {
+              if (Audio?.Sound?.createAsync) {
+                const { sound } = await Audio.Sound.createAsync(
+                  { uri: message.mediaUrl },
+                  { shouldPlay: false }
+                );
+                const status = await sound.getStatusAsync();
+                await sound.unloadAsync();
+                if (status.isLoaded && status.durationMillis) {
+                  setAudioDurations((prev) => {
+                    // Only update if not already set
+                    if (prev[message.id]) {
+                      durationExtractionInProgressRef.current.delete(message.id);
+                      return prev;
+                    }
+                    durationExtractionInProgressRef.current.delete(message.id);
+                    return {
+                      ...prev,
+                      [message.id]: status.durationMillis,
+                    };
+                  });
+                  console.log(
+                    `✅ Extracted duration for message ${message.id}: ${status.durationMillis}ms`
+                  );
+                } else {
+                  durationExtractionInProgressRef.current.delete(message.id);
+                }
+              } else {
+                durationExtractionInProgressRef.current.delete(message.id);
+              }
+            } catch (error) {
+              console.warn(
+                `⚠️ Unable to extract duration for message ${message.id}:`,
+                error
+              );
+              durationExtractionInProgressRef.current.delete(message.id);
+              // Continue with other messages
+            }
+          })();
+        });
+
+        return currentDurations;
+      });
+    };
+
+    extractDurationsForMessages();
+  }, [messages]);
+
   const selectAndUploadMedia = useCallback(async (pickerFn, label) => {
     try {
       setUploadingMedia(true);
@@ -942,6 +1025,29 @@ const MessagesScreen = ({ user, navigation, route }) => {
       const uploadResult = await multimediaService.uploadToStorage(picked);
       const normalizedType = picked.type === "document" ? "file" : picked.type;
 
+      // Extract duration for audio/video files immediately after upload
+      let durationMillis = null;
+      if ((normalizedType === "audio" || normalizedType === "video") && Audio?.Sound?.createAsync) {
+        try {
+          const fileUri = uploadResult.url || picked.uri || picked.fileCopyUri;
+          if (fileUri) {
+            const { sound } = await Audio.Sound.createAsync(
+              { uri: fileUri },
+              { shouldPlay: false }
+            );
+            const status = await sound.getStatusAsync();
+            await sound.unloadAsync();
+            if (status.isLoaded && status.durationMillis) {
+              durationMillis = status.durationMillis;
+              console.log(`✅ Extracted ${normalizedType} duration: ${durationMillis}ms`);
+            }
+          }
+        } catch (durationError) {
+          console.warn("⚠️ Unable to extract media duration immediately:", durationError);
+          // Duration will be extracted when message is loaded
+        }
+      }
+
       setSelectedMedia({
         type: normalizedType,
         url: uploadResult.url,
@@ -954,6 +1060,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           picked.extension ||
           picked.filename?.split(".").pop()?.toLowerCase() ||
           null,
+        duration: durationMillis, // Store duration if extracted
       });
 
       setShowMediaPicker(false);
@@ -1561,7 +1668,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              HapticPatterns.backButton();
+              navigation.goBack();
+            }}
           >
             <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
@@ -1585,7 +1695,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              HapticPatterns.backButton();
+              navigation.goBack();
+            }}
           >
             <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
@@ -1694,9 +1807,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
                       opportunity={message.opportunity}
                       isOwn={message.isOwn}
                       onPress={(opp) => {
-                        // Navigate to opportunities screen
-                        // Note: MessagesScreen uses route prop, navigation handled by parent
-                        console.log("Opportunity card pressed:", opp);
+                        setSelectedOpportunity(opp);
+                        setShowOpportunityModal(true);
                       }}
                     />
                   ) : message.messageType !== "text" && message.mediaUrl ? (
@@ -1718,37 +1830,78 @@ const MessagesScreen = ({ user, navigation, route }) => {
                           onPress={() => handleVideoPlay(message.mediaUrl)}
                           activeOpacity={0.9}
                         >
-                          <View style={styles.messageVideo}>
-                            {message.thumbnailUrl ? (
+                          {message.thumbnailUrl ? (
+                            <View style={styles.messageVideo}>
                               <Image
                                 source={{ uri: message.thumbnailUrl }}
                                 style={styles.messageVideoThumbnail}
                                 resizeMode="cover"
                               />
-                            ) : (
-                              <View style={styles.videoPlaceholder}>
-                                <Ionicons
-                                  name="play-circle"
-                                  size={64}
-                                  color="hsl(75, 100%, 60%)"
-                                />
-                                {message.mediaFilename && (
-                                  <Text style={styles.videoPlaceholderText}>
-                                    {message.mediaFilename}
-                                  </Text>
-                                )}
-                              </View>
-                            )}
-                            <View style={styles.videoPlayOverlay}>
-                              <View style={styles.videoPlayButton}>
-                                <Ionicons
-                                  name="play"
-                                  size={32}
-                                  color="hsl(0, 0%, 100%)"
-                                />
+                              <View style={styles.videoPlayOverlay}>
+                                <View style={styles.videoPlayButton}>
+                                  <Ionicons
+                                    name="play"
+                                    size={32}
+                                    color="hsl(0, 0%, 100%)"
+                                  />
+                                </View>
                               </View>
                             </View>
-                          </View>
+                          ) : (
+                            <View
+                              style={[
+                                styles.messageVideoFile,
+                                message.isOwn && styles.ownMessageVideoFile,
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.videoFileIconContainer,
+                                  message.isOwn && styles.ownVideoFileIconContainer,
+                                ]}
+                              >
+                                <Ionicons
+                                  name="videocam"
+                                  size={32}
+                                  color={
+                                    message.isOwn
+                                      ? "hsl(0, 0%, 0%)"
+                                      : "hsl(75, 100%, 60%)"
+                                  }
+                                />
+                              </View>
+                              <View style={styles.videoFileInfo}>
+                                <Text
+                                  style={[
+                                    styles.videoFileName,
+                                    message.isOwn && styles.ownVideoFileName,
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {message.mediaFilename || "Video"}
+                                </Text>
+                                <View style={styles.videoFileMeta}>
+                                  <Ionicons
+                                    name="play-circle"
+                                    size={16}
+                                    color={
+                                      message.isOwn
+                                        ? "hsl(0, 0%, 40%)"
+                                        : "hsl(75, 85%, 70%)"
+                                    }
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.videoFileMetaText,
+                                      message.isOwn && styles.ownVideoFileMetaText,
+                                    ]}
+                                  >
+                                    Tap to play
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          )}
                         </TouchableOpacity>
                       )}
                       {message.messageType === "audio" && (
@@ -1917,9 +2070,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
                             />
                           </TouchableOpacity>
                         )}
+                      {/* Render text content if it exists */}
+                      {message.content && message.content.trim() && (
+                        <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 }}>
+                          {renderMessageText(message)}
+                        </View>
+                      )}
                     </View>
-                  ) : null}
-                  {message.messageType !== "opportunity" && renderMessageText(message)}
+                  ) : (
+                    renderMessageText(message)
+                  )}
                   {message.messageType !== "opportunity" && renderLinkPreviews(message)}
                   <Text
                     style={[
@@ -2193,6 +2353,31 @@ const MessagesScreen = ({ user, navigation, route }) => {
           </View>
         )}
       </Animated.View>
+
+      {/* Opportunity Details Modal */}
+      <RhoodModal
+        visible={showOpportunityModal}
+        onClose={() => {
+          setShowOpportunityModal(false);
+          setSelectedOpportunity(null);
+        }}
+        type="info"
+        title={selectedOpportunity?.title || "DJ Opportunity"}
+        message={selectedOpportunity?.description || ""}
+        eventDetails={
+          selectedOpportunity
+            ? {
+                date: selectedOpportunity.date,
+                time: selectedOpportunity.time,
+                compensation: selectedOpportunity.compensation,
+                location: selectedOpportunity.location,
+                description: selectedOpportunity.description,
+              }
+            : null
+        }
+        primaryButtonText="Close"
+        showCloseButton={true}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -2699,21 +2884,58 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  videoPlaceholder: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
+  messageVideoFile: {
+    flexDirection: "row",
     alignItems: "center",
     backgroundColor: "hsl(0, 0%, 15%)",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     borderRadius: 12,
+    marginBottom: 4,
+    minWidth: 200,
+    maxWidth: 280,
   },
-  videoPlaceholderText: {
-    color: "hsl(75, 100%, 60%)",
+  ownMessageVideoFile: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+  },
+  videoFileIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 20%)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  ownVideoFileIconContainer: {
+    backgroundColor: "hsl(0, 0%, 100%)",
+  },
+  videoFileInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  videoFileName: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  ownVideoFileName: {
+    color: "hsl(0, 0%, 0%)",
+  },
+  videoFileMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  videoFileMetaText: {
+    color: "hsl(75, 85%, 70%)",
     fontSize: 12,
     fontFamily: "Helvetica Neue",
-    marginTop: 8,
-    paddingHorizontal: 8,
-    textAlign: "center",
+  },
+  ownVideoFileMetaText: {
+    color: "hsl(0, 0%, 40%)",
   },
   videoPlayOverlay: {
     position: "absolute",

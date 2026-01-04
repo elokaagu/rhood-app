@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import { db } from "../lib/supabase";
+import { HapticPatterns } from "../lib/haptics";
 import { connectionsService } from "../lib/connectionsService";
 import {
   COLORS,
@@ -110,7 +111,13 @@ export default function ConnectionsListScreen({ user, onBack, onNavigate }) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              HapticPatterns.backButton();
+              onBack();
+            }}
+          >
             <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Connections</Text>
