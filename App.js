@@ -1348,42 +1348,38 @@ export default function App() {
 
       setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
 
-      // iOS: Use ONLY react-native-track-player for native lock screen controls
-      if (Platform.OS === "ios") {
-        if (!trackPlayer) {
-          throw new Error(
-            "react-native-track-player is required on iOS. Please rebuild the app with native dependencies."
-          );
-        }
+      // Try multiple sources for audio URL (validate once for all platforms)
+      const audioUrl =
+        (typeof track.audioUrl === "string" && track.audioUrl.trim()
+          ? track.audioUrl.trim()
+          : null) ||
+        track.audioUrl?.uri ||
+        (typeof track.file_url === "string" && track.file_url.trim()
+          ? track.file_url.trim()
+          : null) ||
+        track.audio_url ||
+        null;
 
-        // Try multiple sources for audio URL
-        const audioUrl =
-          (typeof track.audioUrl === "string" && track.audioUrl.trim()
-            ? track.audioUrl.trim()
-            : null) ||
-          track.audioUrl?.uri ||
-          (typeof track.file_url === "string" && track.file_url.trim()
-            ? track.file_url.trim()
-            : null) ||
-          track.audio_url ||
-          null;
+      if (!audioUrl) {
+        console.error("❌ No audio URL found in track:", {
+          id: track.id,
+          title: track.title,
+          audioUrl: track.audioUrl,
+          file_url: track.file_url,
+          audio_url: track.audio_url,
+        });
+        throw new Error("Audio URL is missing. Please check that the mix has a valid audio file.");
+      }
 
-        if (!audioUrl) {
-          console.error("❌ No audio URL found in track:", {
-            id: track.id,
-            title: track.title,
-            audioUrl: track.audioUrl,
-            file_url: track.file_url,
-            audio_url: track.audio_url,
-          });
-          throw new Error("Audio URL is missing. Please check that the mix has a valid audio file.");
-        }
+      // Validate URL format
+      if (!audioUrl.startsWith("http://") && !audioUrl.startsWith("https://") && !audioUrl.startsWith("file://")) {
+        console.error("❌ Invalid audio URL format:", audioUrl);
+        throw new Error("Invalid audio URL format. The audio file URL must be a valid HTTP/HTTPS or file URL.");
+      }
 
-        // Validate URL format
-        if (!audioUrl.startsWith("http://") && !audioUrl.startsWith("https://") && !audioUrl.startsWith("file://")) {
-          console.error("❌ Invalid audio URL format:", audioUrl);
-          throw new Error("Invalid audio URL format. The audio file URL must be a valid HTTP/HTTPS or file URL.");
-        }
+      // iOS: Use react-native-track-player for native lock screen controls
+      // Fall back to expo-av if TrackPlayer is not available (e.g., Expo Go)
+      if (Platform.OS === "ios" && trackPlayer) {
 
         // CRITICAL: playTrack() internally calls setupPlayer() which:
         // 1. Triggers the service function to register event listeners
@@ -1461,7 +1457,10 @@ export default function App() {
         return; // iOS playback is now handled entirely by track-player
       }
 
-      // Android: Continue using expo-av
+      // Android or iOS fallback: Continue using expo-av
+      if (Platform.OS === "ios" && !trackPlayer) {
+        console.warn("⚠️ TrackPlayer not available on iOS, using expo-av fallback");
+      }
       // Stop current audio if playing
       if (globalAudioRef.current) {
         await globalAudioRef.current.unloadAsync();
@@ -1480,42 +1479,11 @@ export default function App() {
       // Create and load new sound using expo-av
       let sound;
 
-      // Try multiple sources for audio URL (Android)
-      const audioUrlForAndroid =
-        (typeof track.audioUrl === "string" && track.audioUrl.trim()
-          ? track.audioUrl.trim()
-          : null) ||
-        (typeof track.file_url === "string" && track.file_url.trim()
-          ? track.file_url.trim()
-          : null) ||
-        track.audio_url ||
-        null;
-
-      if (!audioUrlForAndroid) {
-        console.error("❌ No audio URL found in track (Android):", {
-          id: track.id,
-          title: track.title,
-          audioUrl: track.audioUrl,
-          file_url: track.file_url,
-          audio_url: track.audio_url,
-        });
-        throw new Error("Audio URL is missing. Please check that the mix has a valid audio file.");
-      }
-
-      // Validate URL format
-      if (
-        !audioUrlForAndroid.startsWith("http://") &&
-        !audioUrlForAndroid.startsWith("https://") &&
-        !audioUrlForAndroid.startsWith("file://")
-      ) {
-        console.error("❌ Invalid audio URL format (Android):", audioUrlForAndroid);
-        throw new Error("Invalid audio URL format. The audio file URL must be a valid HTTP/HTTPS or file URL.");
-      }
-
+      // Use the already-validated audioUrl
       // Determine audio source
       const audioSource =
-        typeof audioUrlForAndroid === "string"
-          ? { uri: audioUrlForAndroid }
+        typeof audioUrl === "string"
+          ? { uri: audioUrl }
           : track.audioUrl;
 
       // Load audio with streaming support for large files
@@ -1799,6 +1767,13 @@ export default function App() {
       
       // Provide more helpful error message
       const errorMessage = error.message || "Unknown error occurred";
+      
+      // Don't show errors for TrackPlayer unavailability - we fall back to expo-av
+      if (errorMessage.includes("react-native-track-player is not available")) {
+        console.warn("⚠️ TrackPlayer not available, but this should have been handled by fallback");
+        return; // Silently return - fallback should have handled it
+      }
+      
       const userFriendlyMessage = errorMessage.includes("Audio URL is missing")
         ? "This mix doesn't have an audio file. Please contact the artist or try another mix."
         : errorMessage.includes("Invalid audio URL")
