@@ -15,7 +15,15 @@ import App from "./App";
 try {
   const TrackPlayer = require("react-native-track-player");
   if (TrackPlayer?.registerPlaybackService) {
-    TrackPlayer.registerPlaybackService(() => require("./src/audio/playbackService"));
+    TrackPlayer.registerPlaybackService(() => {
+      try {
+        return require("./src/audio/playbackService");
+      } catch (error) {
+        console.warn("Failed to load playback service:", error.message);
+        // Return a no-op function if service can't be loaded
+        return async function() {};
+      }
+    });
   }
 } catch (error) {
   console.warn("TrackPlayer service registration failed:", error.message);

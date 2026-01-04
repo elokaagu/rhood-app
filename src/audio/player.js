@@ -56,11 +56,6 @@ export async function setupPlayer() {
       // Jump intervals in seconds
       forwardJumpInterval: 15,
       backwardJumpInterval: 15,
-      // Android specific options
-      android: {
-        // Continue playback when app is killed
-        appKilledPlaybackBehavior: 'continue-playback',
-      },
     });
     optionsUpdated = true;
     console.log('✅ TrackPlayer options updated');

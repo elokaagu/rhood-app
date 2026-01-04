@@ -3,10 +3,34 @@
 // This service runs in the background and handles remote control events
 // (lock screen, Control Center, Bluetooth headsets, etc.)
 
-const TrackPlayer = require('react-native-track-player').default || require('react-native-track-player');
-const { Event } = require('react-native-track-player');
-
 module.exports = async function() {
+  // Defensively require TrackPlayer inside the function to avoid build-time errors
+  // This function is called by TrackPlayer at runtime, not during bundling
+  let TrackPlayer;
+  let Event;
+  
+  try {
+    // Dynamic require - bundler should not analyze this statically
+    const moduleName = 'react-native-track-player';
+    const trackPlayerModule = require(moduleName);
+    
+    if (!trackPlayerModule) {
+      console.warn('⚠️ [SERVICE] TrackPlayer module not available');
+      return;
+    }
+    
+    TrackPlayer = trackPlayerModule.default || trackPlayerModule;
+    Event = trackPlayerModule.Event;
+    
+    if (!TrackPlayer || !Event) {
+      console.warn('⚠️ [SERVICE] TrackPlayer not available');
+      return;
+    }
+  } catch (error) {
+    console.warn('⚠️ [SERVICE] Failed to load TrackPlayer:', error.message);
+    return;
+  }
+
   console.log('🎧 [SERVICE] Playback service starting...');
 
   // Remote Play - Resume playback
