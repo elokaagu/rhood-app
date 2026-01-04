@@ -10,9 +10,10 @@ module.exports = async function() {
   let Event;
   
   try {
-    // Dynamic require - bundler should not analyze this statically
-    const moduleName = 'react-native-track-player';
-    const trackPlayerModule = require(moduleName);
+    // Use eval to prevent Metro from statically analyzing this require
+    // This is safe because the function only runs at runtime when TrackPlayer calls it
+    // eslint-disable-next-line no-eval
+    const trackPlayerModule = eval('require')('react-native-track-player');
     
     if (!trackPlayerModule) {
       console.warn('⚠️ [SERVICE] TrackPlayer module not available');
