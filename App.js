@@ -1026,20 +1026,37 @@ export default function App() {
   // Setup global audio configuration for background playback
   const setupGlobalAudio = async () => {
     try {
+      // Register TrackPlayer service for iOS (moved from index.js to avoid Metro bundling issues)
+      if (Platform.OS === "ios") {
+        try {
+          // Use eval to prevent Metro from statically analyzing this require
+          // eslint-disable-next-line no-eval
+          const TrackPlayer = eval('require')('react-native-track-player');
+          if (TrackPlayer && TrackPlayer.registerPlaybackService) {
+            TrackPlayer.registerPlaybackService(() => {
+              // eslint-disable-next-line no-eval
+              return eval('require')('./src/audio/playbackService');
+            });
+            console.log("✅ TrackPlayer service registered");
+          }
+        } catch (error) {
+          console.warn("⚠️ TrackPlayer service registration failed:", error.message);
+        }
+      }
+
       // NOTE: On iOS, react-native-track-player is initialized lazily when audio actually plays
       // via playTrack() -> setupPlayer(). This ensures proper timing:
-      // 1. Service is registered at app startup (index.js)
+      // 1. Service is registered here (App.js after initialization)
       // 2. Player is initialized when first track plays
       // 3. Service function runs and registers handlers
       // 4. Capabilities are set via updateOptions()
-      // Early initialization here could cause timing issues with service registration
 
       if (Platform.OS === "ios" && trackPlayer) {
         console.log(
           "📱 iOS: Track player will be initialized when first audio plays"
         );
         console.log(
-          "📱 iOS: Service is already registered at app startup (index.js)"
+          "📱 iOS: Service registered in App.js"
         );
       }
 
