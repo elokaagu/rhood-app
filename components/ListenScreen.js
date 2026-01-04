@@ -564,11 +564,13 @@ export default function ListenScreen({
       // Currently playing this mix - pause it
       onPauseAudio();
     } else {
-      // Ensure mix has audioUrl before playing
+      // Ensure mix has audioUrl and image before playing
       // If mix doesn't have audioUrl, try to get it from file_url
       const normalizedMix = {
         ...mix,
         audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
+        // Ensure image is set from artwork_url, image_url, or image field
+        image: mix.artwork_url || mix.image_url || mix.image || null,
       };
 
       // Validate that we have an audio URL

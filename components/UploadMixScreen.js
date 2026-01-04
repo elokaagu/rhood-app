@@ -732,6 +732,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       if (artworkUrl) {
         updateData.artwork_url = artworkUrl;
         updateData.image_url = artworkUrl; // Sync to image_url column
+        updateData.image = artworkUrl; // Also set image field for compatibility
         console.log("✅ Artwork URL will be saved to database:", artworkUrl);
       } else if (selectedArtwork) {
         // If artwork was selected but upload failed, log warning
@@ -795,6 +796,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             file_size: selectedFile.size,
             artwork_url: finalArtworkUrl,
             image_url: finalArtworkUrl, // Sync to image_url column
+            image: finalArtworkUrl, // Also set image field for compatibility
             play_count: 0,
             likes_count: 0,
             duration:
