@@ -90,6 +90,8 @@ import AchievementsListScreen from "./components/AchievementsListScreen";
 import InviteScreen from "./components/InviteScreen";
 import AdminApplicationsScreen from "./components/AdminApplicationsScreen";
 import BrandGigsPortal from "./components/BrandGigsPortal";
+import TrendingMixesScreen from "./components/TrendingMixesScreen";
+import YourLikesScreen from "./components/YourLikesScreen";
 // Push notifications - gracefully handle Expo Go limitations
 import {
   registerForPushNotifications,
@@ -4670,6 +4672,28 @@ export default function App() {
             onShuffleAll={shuffleAllMixes}
             onShuffleByGenre={shuffleByGenre}
             onShuffleBasedOnLikes={shuffleBasedOnLikes}
+          />
+        );
+
+      case "trending-mixes":
+        return (
+          <TrendingMixesScreen
+            globalAudioState={globalAudioState}
+            onPlayAudio={playGlobalAudio}
+            onPauseAudio={pauseGlobalAudio}
+            onBack={() => setCurrentScreen("listen")}
+            user={user}
+          />
+        );
+
+      case "your-likes":
+        return (
+          <YourLikesScreen
+            globalAudioState={globalAudioState}
+            onPlayAudio={playGlobalAudio}
+            onPauseAudio={pauseGlobalAudio}
+            onBack={() => setCurrentScreen("listen")}
+            user={user}
           />
         );
 

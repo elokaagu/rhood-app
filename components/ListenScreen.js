@@ -956,7 +956,16 @@ export default function ListenScreen({
 
     return (
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
+        <TouchableOpacity
+          style={styles.sectionHeader}
+          onPress={() => {
+            HapticPatterns.itemPress();
+            if (onNavigate) {
+              onNavigate("trending-mixes");
+            }
+          }}
+          activeOpacity={0.7}
+        >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Ionicons
               name="flame"
@@ -965,7 +974,12 @@ export default function ListenScreen({
             />
             <Text style={styles.sectionTitle}>TRENDING</Text>
           </View>
-        </View>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color="hsl(0, 0%, 60%)"
+          />
+        </TouchableOpacity>
         <Text style={styles.sectionSubtitle}>
           Who's hottest on the platform right now
         </Text>
@@ -1043,7 +1057,16 @@ export default function ListenScreen({
 
     return (
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
+        <TouchableOpacity
+          style={styles.sectionHeader}
+          onPress={() => {
+            HapticPatterns.itemPress();
+            if (onNavigate) {
+              onNavigate("your-likes");
+            }
+          }}
+          activeOpacity={0.7}
+        >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <Ionicons
               name="heart"
@@ -1052,7 +1075,12 @@ export default function ListenScreen({
               />
             <Text style={styles.sectionTitle}>YOUR LIKES</Text>
         </View>
-        </View>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color="hsl(0, 0%, 60%)"
+          />
+        </TouchableOpacity>
         <Text style={styles.sectionSubtitle}>
           Mixes you've already liked
         </Text>
