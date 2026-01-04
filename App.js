@@ -473,6 +473,10 @@ export default function App() {
     setShowModal(true);
   };
 
+  const hideCustomModal = () => {
+    setShowModal(false);
+  };
+
   const [djProfile, setDjProfile] = useState({
     djName: "",
     firstName: "",
