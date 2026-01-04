@@ -1355,7 +1355,7 @@ export default function App() {
       setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
 
       // Try multiple sources for audio URL (validate once for all platforms)
-      const audioUrl =
+        const audioUrl =
         (typeof track.audioUrl === "string" && track.audioUrl.trim()
           ? track.audioUrl.trim()
           : null) ||
@@ -1366,7 +1366,7 @@ export default function App() {
         track.audio_url ||
         null;
 
-      if (!audioUrl) {
+        if (!audioUrl) {
         console.error("❌ No audio URL found in track:", {
           id: track.id,
           title: track.title,
@@ -1375,7 +1375,7 @@ export default function App() {
           audio_url: track.audio_url,
         });
         throw new Error("Audio URL is missing. Please check that the mix has a valid audio file.");
-      }
+        }
 
       // Validate URL format
       if (!audioUrl.startsWith("http://") && !audioUrl.startsWith("https://") && !audioUrl.startsWith("file://")) {

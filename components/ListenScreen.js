@@ -564,32 +564,16 @@ export default function ListenScreen({
       // Currently playing this mix - pause it
       onPauseAudio();
     } else {
-      // Ensure mix has audioUrl and image before playing
-      // If mix doesn't have audioUrl, try to get it from file_url
       const normalizedMix = {
         ...mix,
         audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
-        // Ensure image is set from artwork_url, image_url, or image field
         image: mix.artwork_url || mix.image_url || mix.image || null,
       };
 
-      // Validate that we have an audio URL
       if (!normalizedMix.audioUrl) {
-        Alert.alert(
-          "Audio Error",
-          `"${mix.title || "This mix"}" doesn't have an audio file. Please contact the artist or try another mix.`
-        );
-        console.error("❌ Mix missing audio URL:", {
-          id: mix.id,
-          title: mix.title,
-          audioUrl: mix.audioUrl,
-          file_url: mix.file_url,
-          audio_url: mix.audio_url,
-        });
         return;
       }
 
-      // Play this mix
       onPlayAudio(normalizedMix);
     }
   };
