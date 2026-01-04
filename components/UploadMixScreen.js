@@ -729,18 +729,29 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       }
 
       // Only update artwork if a new one was successfully uploaded
+      // IMPORTANT: Always sync all three image fields (artwork_url, image_url, image) to ensure
+      // portal and mobile app stay in sync. The portal should also update all three fields when
+      // updating artwork from the web interface.
       if (artworkUrl) {
         updateData.artwork_url = artworkUrl;
         updateData.image_url = artworkUrl; // Sync to image_url column
         updateData.image = artworkUrl; // Also set image field for compatibility
-        console.log("✅ Artwork URL will be saved to database:", artworkUrl);
+        console.log("✅ Artwork URL will be saved to database (synced across all fields):", artworkUrl);
       } else if (selectedArtwork) {
         // If artwork was selected but upload failed, log warning
         console.warn("⚠️ Artwork was selected but upload failed - mix will be saved without artwork");
       } else if (editingMix && !selectedArtwork) {
-        // When editing without selecting new artwork, keep existing artwork
-        // Don't modify artwork_url in updateData
-        console.log("ℹ️ No new artwork selected - keeping existing artwork");
+        // When editing without selecting new artwork, sync existing artwork across all fields
+        // This ensures portal and mobile app stay in sync
+        const existingArtwork = editingMix.artwork_url || editingMix.image_url || editingMix.image;
+        if (existingArtwork) {
+          updateData.artwork_url = existingArtwork;
+          updateData.image_url = existingArtwork;
+          updateData.image = existingArtwork;
+          console.log("ℹ️ Syncing existing artwork across all fields:", existingArtwork);
+        } else {
+          console.log("ℹ️ No artwork to sync - mix has no existing artwork");
+        }
       }
 
       let mixRecord;

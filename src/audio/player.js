@@ -71,7 +71,7 @@ export async function addTrack(track) {
   if (!TrackPlayer) {
     throw new Error('react-native-track-player is not available');
   }
-  
+
   await setupPlayer();
 
   const trackObject = {
@@ -96,7 +96,7 @@ export async function playTrack(track) {
   if (!TrackPlayer) {
     throw new Error('react-native-track-player is not available');
   }
-  
+
   await setupPlayer();
   
   // Reset the queue
