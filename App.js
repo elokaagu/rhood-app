@@ -44,13 +44,7 @@ try {
 }
 
 // Import playback callbacks registry for remote controls
-let playbackCallbacks = null;
-try {
-  playbackCallbacks = require("./src/audio/playbackCallbacks");
-  console.log("✅ Playback callbacks module loaded");
-} catch (error) {
-  console.warn("⚠️ Playback callbacks not available:", error.message);
-}
+// Removed playbackCallbacks - TrackPlayer events handle everything
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts, Font } from "expo-font";
 import * as Haptics from "expo-haptics";
@@ -725,7 +719,7 @@ export default function App() {
           console.log("🎵 [APP] Queue ended event, playing next track");
           try {
             // Get next track from queue (or auto-queue random mix if empty)
-            await playNextTrack();
+              await playNextTrack();
           } catch (error) {
             console.error("⚠️ [APP] Error playing next track after queue ended:", error);
           }
@@ -1389,17 +1383,17 @@ export default function App() {
         });
 
         try {
-          await trackPlayer.playTrack({
-            id: track.id || `track-${Date.now()}`,
-            url: audioUrl,
-            title: track.title || "R/HOOD Mix",
-            artist: track.artist || "Unknown Artist",
-            artwork: track.image || null, // Must be https, square, ≥1024px recommended
-            duration: track.durationMillis
-              ? track.durationMillis / 1000
-              : undefined,
-            genre: track.genre || "Electronic",
-          });
+        await trackPlayer.playTrack({
+          id: track.id || `track-${Date.now()}`,
+          url: audioUrl,
+          title: track.title || "R/HOOD Mix",
+          artist: track.artist || "Unknown Artist",
+          artwork: track.image || null, // Must be https, square, ≥1024px recommended
+          duration: track.durationMillis
+            ? track.durationMillis / 1000
+            : undefined,
+          genre: track.genre || "Electronic",
+        });
         } catch (playTrackError) {
           console.error("❌ TrackPlayer.playTrack() failed:", playTrackError);
           console.error("❌ TrackPlayer error details:", {
@@ -2809,7 +2803,7 @@ export default function App() {
         await playGlobalAudio(currentState.queue[0]);
       } else {
         console.log("🎵 No mixes available for auto-queue, stopping playback");
-        await stopGlobalAudio();
+      await stopGlobalAudio();
       }
     }
   };
@@ -2839,17 +2833,17 @@ export default function App() {
     playPreviousTrackRef.current = playPreviousTrack;
   }, [playPreviousTrack]);
 
-  // Register callbacks for remote controls (lock screen, Control Center)
-  // This connects the playback service to App.js audio control functions
+  // TrackPlayer events are handled in the useEffect above
+  // The playback service directly controls TrackPlayer
+  // No callbacks needed - TrackPlayer is the single source of truth
   useEffect(() => {
-    if (!playbackCallbacks || Platform.OS !== "ios") {
-      return; // Only needed on iOS where TrackPlayer handles remote controls
-    }
+    // This effect is no longer needed - TrackPlayer events handle everything
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
 
-    // Register callbacks that will be called by the playback service
-    // when remote controls are used
-    // Use refs to access latest functions to avoid stale closures
-    playbackCallbacks.register({
+  // TrackPlayer events handle remote controls - no callbacks needed
       onPlay: async () => {
         console.log("🎧 [CALLBACK] onPlay called from remote control");
         // Optimistic update for immediate UI feedback
@@ -2978,17 +2972,7 @@ export default function App() {
         }
       },
     });
-
-    console.log("✅ [APP] Registered playback callbacks for remote controls");
-
-    // Cleanup: unregister callbacks when component unmounts
-    return () => {
-      if (playbackCallbacks) {
-        playbackCallbacks.unregister();
-        console.log("🧹 [APP] Unregistered playback callbacks");
-      }
-    };
-  }, []); // Empty deps - we use refs to access latest values
+  */
 
   // Share functionality
   const shareTrack = async () => {

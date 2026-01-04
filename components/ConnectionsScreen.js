@@ -46,6 +46,8 @@ export default function ConnectionsScreen({
   const [discoverUsers, setDiscoverUsers] = useState([]);
   const [popularDJs, setPopularDJs] = useState([]);
   const [popularDJsLoading, setPopularDJsLoading] = useState(false);
+  const [nearbyDJs, setNearbyDJs] = useState([]);
+  const [nearbyDJsLoading, setNearbyDJsLoading] = useState(false);
   const [connectionsFadeAnim] = useState(new Animated.Value(0));
   const [discoverFadeAnim] = useState(new Animated.Value(0));
   const [hasLoadedConnections, setHasLoadedConnections] = useState(false);
@@ -145,7 +147,7 @@ export default function ConnectionsScreen({
         ];
         return brandPatterns.some(pattern => pattern.test(emailLower));
       };
-
+      
       // Get popular DJs based on recent activity, credits, and mix uploads
       const { data: popularUsers, error } = await supabase
         .from('user_profiles')
@@ -193,6 +195,103 @@ export default function ConnectionsScreen({
     }
   };
 
+  // Load nearby DJs based on user's city
+  const loadNearbyDJs = async () => {
+    try {
+      setNearbyDJsLoading(true);
+
+      // Get current user
+      const { supabase } = await import("../lib/supabase");
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      if (!currentUser) {
+        console.log("❌ No current user found for nearby DJs");
+        setNearbyDJs([]);
+        return;
+      }
+
+      // Get user's profile to find their city
+      const userProfile = await db.getUserProfile(currentUser.id);
+      if (!userProfile || !userProfile.city) {
+        console.log("❌ User has no city set, skipping nearby DJs");
+        setNearbyDJs([]);
+        return;
+      }
+
+      // Helper function to check if an email belongs to a brand account
+      const isBrandAccount = (email) => {
+        if (!email || typeof email !== "string") return false;
+        const emailLower = email.toLowerCase();
+        const brandPatterns = [
+          /^team@/i,
+          /^support@/i,
+          /^info@/i,
+          /^admin@/i,
+          /^contact@/i,
+          /^hello@/i,
+          /^noreply@/i,
+          /^no-reply@/i,
+        ];
+        return brandPatterns.some(pattern => pattern.test(emailLower));
+      };
+
+      // Get existing connections to exclude
+      const existingConnections = await db.getUserConnections(
+        currentUser.id,
+        null // Get all connections regardless of status
+      );
+      const connectedUserIds = new Set(
+        existingConnections.map((conn) => conn.connected_user_id)
+      );
+
+      // Query users in the same city (case-insensitive)
+      const { data: nearbyUsers, error } = await supabase
+        .from('user_profiles')
+        .select(`
+          id,
+          dj_name,
+          profile_image_url,
+          city,
+          genres,
+          credits,
+          gigs_completed,
+          created_at,
+          email,
+          full_name,
+          username,
+          is_verified
+        `)
+        .not('dj_name', 'is', null)
+        .neq('id', currentUser.id) // Exclude current user
+        .ilike('city', userProfile.city) // Case-insensitive match
+        .order('credits', { ascending: false })
+        .order('gigs_completed', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(15); // Get more to account for filtering
+
+      if (error) {
+        console.error("Error loading nearby DJs:", error);
+        setNearbyDJs([]);
+        return;
+      }
+
+      // Filter out brand accounts and already connected users
+      const filteredNearby = (nearbyUsers || [])
+        .filter(user => !isBrandAccount(user.email))
+        .filter(user => !connectedUserIds.has(user.id))
+        .slice(0, 10);
+
+      setNearbyDJs(filteredNearby);
+    } catch (error) {
+      console.error("Error loading nearby DJs:", error);
+      setNearbyDJs([]);
+    } finally {
+      setNearbyDJsLoading(false);
+    }
+  };
+
   // Load user and discover data on mount
   useEffect(() => {
     const initializeData = async () => {
@@ -201,6 +300,8 @@ export default function ConnectionsScreen({
       await loadDiscoverDJs();
       // Load popular DJs
       await loadPopularDJs();
+      // Load nearby DJs
+      await loadNearbyDJs();
       // Check R/HOOD membership
       await checkRhoodMembership();
     };
@@ -611,6 +712,7 @@ export default function ConnectionsScreen({
             console.log("🔗 Connection change detected:", payload);
             loadUserAndConnections({ showLoader: false });
             loadDiscoverDJs();
+            loadNearbyDJs();
           }
         }
       )
@@ -917,6 +1019,9 @@ export default function ConnectionsScreen({
         });
         prevConnectionStatusesRef.current.delete(connection.id);
 
+        // Reload nearby DJs since this user is now available again
+        await loadNearbyDJs();
+
         const displayName = getUserName(connection);
         setConnectionModalType("success");
         setConnectionMessage(
@@ -1111,6 +1216,7 @@ export default function ConnectionsScreen({
 
       await loadUserAndConnections({ showLoader: false });
       await loadDiscoverDJs();
+      await loadNearbyDJs();
     } catch (error) {
       console.error("Error accepting connection request:", error);
       Alert.alert(
@@ -1151,6 +1257,7 @@ export default function ConnectionsScreen({
 
       await loadUserAndConnections({ showLoader: false });
       await loadDiscoverDJs();
+      await loadNearbyDJs();
 
       setConnectionMessage(
         `Connection request from ${displayName} has been declined.`
@@ -1871,6 +1978,90 @@ export default function ConnectionsScreen({
                           key={dj.id}
                           style={styles.recommendationCard}
                           onPress={() => {
+                            if (onNavigate) {
+                              onNavigate("user-profile", { userId: dj.id, djName: dj.dj_name });
+                            }
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <View style={styles.recommendationImageContainer}>
+                            <ProgressiveImage
+                              source={
+                                dj.profile_image_url
+                                  ? { uri: dj.profile_image_url }
+                                  : null
+                              }
+                              style={styles.recommendationImage}
+                              placeholder={
+                                <View style={[styles.recommendationImage, { backgroundColor: "hsl(0, 0%, 12%)", justifyContent: "center", alignItems: "center" }]}>
+                                  <Ionicons name="person" size={40} color="hsl(75, 100%, 60%)" />
+                                </View>
+                              }
+                            />
+                            {/* Dark gradient overlay at bottom for text visibility */}
+                            <LinearGradient
+                              colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.95)"]}
+                              style={styles.recommendationGradient}
+                            />
+                            {/* Text overlay */}
+                            <View style={styles.recommendationInfo}>
+                              <Text
+                                style={styles.recommendationTitle}
+                                numberOfLines={1}
+                              >
+                                {dj.dj_name || "DJ"}
+                              </Text>
+                              {dj.city && (
+                                <Text
+                                  style={styles.recommendationArtist}
+                                  numberOfLines={1}
+                                >
+                                  {dj.city}
+                                </Text>
+                              )}
+                              {dj.genres && dj.genres.length > 0 && (
+                                <Text
+                                  style={styles.recommendationGenre}
+                                  numberOfLines={1}
+                                >
+                                  {dj.genres.slice(0, 2).join(", ")}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    {/* Divider line */}
+                    <View style={styles.recommendationsDivider} />
+                  </View>
+                )}
+
+                {/* DJs Near You - Based on City */}
+                {nearbyDJs.length > 0 && (
+                  <View style={styles.recommendationsSection}>
+                    <View style={styles.recommendationsHeader}>
+                      <Ionicons
+                        name="location"
+                        size={18}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                      <Text style={styles.recommendationsTitle}>
+                        DJs Near You
+                      </Text>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.recommendationsScroll}
+                      contentContainerStyle={styles.recommendationsContent}
+                    >
+                      {nearbyDJs.map((dj) => (
+                        <TouchableOpacity
+                          key={dj.id}
+                          style={styles.recommendationCard}
+                          onPress={() => {
+                            HapticPatterns.itemPress();
                             if (onNavigate) {
                               onNavigate("user-profile", { userId: dj.id, djName: dj.dj_name });
                             }

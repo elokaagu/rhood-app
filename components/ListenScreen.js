@@ -99,8 +99,8 @@ const extractDurationSeconds = (mix) => {
     // Handle string values (including "0", "0:00", etc.)
     if (typeof source === "string" && source.trim()) {
       const parsed = parseDurationString(source);
-      if (Number.isFinite(parsed) && parsed > 0) {
-        return Math.round(parsed);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.round(parsed);
       }
     }
   }
@@ -535,12 +535,12 @@ export default function ListenScreen({
       .filter(Boolean);
 
     return mixes.filter((mix) => {
-      const matchesSearch =
-        queryTokens.length === 0 ||
-        (mix.searchIndex &&
-          queryTokens.every((token) => mix.searchIndex.includes(token)));
+    const matchesSearch =
+      queryTokens.length === 0 ||
+      (mix.searchIndex &&
+        queryTokens.every((token) => mix.searchIndex.includes(token)));
       return matchesSearch;
-    });
+  });
   }, [mixes, searchQuery]);
 
   // Sync local playing state with global audio state
@@ -901,21 +901,21 @@ export default function ListenScreen({
       {/* Genre Chips */}
       {availableGenres.length > 0 && (
         <View style={styles.genreFilterContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.genreFilterContent}
-          >
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.genreFilterContent}
+      >
             {availableGenres.map((genre) => {
               const isActive = selectedGenre === genre;
               return (
-                <TouchableOpacity
-                  key={genre}
-                  style={[
-                    styles.genreChip,
+          <TouchableOpacity
+            key={genre}
+            style={[
+              styles.genreChip,
                     isActive && styles.genreChipActive,
-                  ]}
-                  onPress={() => {
+            ]}
+            onPress={() => {
                     HapticPatterns.itemPress();
                     if (selectedGenre === genre) {
                       // Deselect if already selected
@@ -925,22 +925,22 @@ export default function ListenScreen({
                       // Select genre and set search query
                       setSelectedGenre(genre);
                       setSearchQuery(genre);
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.genreChipText,
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.genreChipText,
                       isActive && styles.genreChipTextActive,
-                    ]}
-                  >
-                    {genre}
-                  </Text>
-                </TouchableOpacity>
+              ]}
+            >
+              {genre}
+            </Text>
+          </TouchableOpacity>
               );
             })}
-          </ScrollView>
+      </ScrollView>
         </View>
       )}
     </>
@@ -1008,8 +1008,8 @@ export default function ListenScreen({
                     {mix.durationFormatted && (
                       <Text style={styles.popularMeta}>
                         {mix.durationFormatted}
-                      </Text>
-                    )}
+                    </Text>
+                  )}
                     {mix.genre && (
                       <>
                         {mix.durationFormatted && (
@@ -1018,7 +1018,7 @@ export default function ListenScreen({
                         <Text style={styles.popularMeta}>{mix.genre}</Text>
                       </>
                     )}
-                  </View>
+                </View>
                 </View>
                 <Ionicons
                   name="chevron-forward"
@@ -1043,54 +1043,54 @@ export default function ListenScreen({
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Ionicons
+              <Ionicons
               name="heart"
               size={18}
-              color="hsl(75, 100%, 60%)"
-            />
+                color="hsl(75, 100%, 60%)"
+              />
             <Text style={styles.sectionTitle}>YOUR LIKES</Text>
-          </View>
+        </View>
         </View>
         <Text style={styles.sectionSubtitle}>
           Mixes you've already liked
         </Text>
         <View style={styles.popularList}>
           {userLikedMixes.map((mix) => {
-            const isPlaying = playingMixId === mix.id;
-            return (
-              <TouchableOpacity
+              const isPlaying = playingMixId === mix.id;
+              return (
+                <TouchableOpacity
                 key={`liked-${mix.id}`}
                 style={styles.popularRow}
-                onPress={() => handleMixPress(mix)}
-                activeOpacity={0.8}
-              >
+                  onPress={() => handleMixPress(mix)}
+                  activeOpacity={0.8}
+                >
                 <View style={styles.popularImageWrap}>
-                  <Image
-                    source={
+                    <Image
+                      source={
                       mix.artwork_url || mix.image_url || mix.image
                         ? { uri: mix.artwork_url || mix.image_url || mix.image }
-                        : require("../assets/rhood_logo.webp")
-                    }
+                          : require("../assets/rhood_logo.webp")
+                      }
                     style={styles.popularImage}
-                    resizeMode="cover"
-                  />
-                  {isPlaying && (
-                    <View style={styles.recommendationPlayingOverlay}>
-                      <Ionicons
-                        name="play"
+                      resizeMode="cover"
+                    />
+                    {isPlaying && (
+                      <View style={styles.recommendationPlayingOverlay}>
+                        <Ionicons
+                          name="play"
                         size={20}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                    </View>
-                  )}
-                </View>
+                          color="hsl(75, 100%, 60%)"
+                        />
+                      </View>
+                    )}
+                  </View>
                 <View style={styles.popularInfo}>
                   <Text style={styles.popularTitle} numberOfLines={1}>
-                    {mix.title}
-                  </Text>
+                      {mix.title}
+                    </Text>
                   <Text style={styles.popularSubtitle} numberOfLines={1}>
-                    {mix.artist || mix.user_dj_name || "Unknown"}
-                  </Text>
+                      {mix.artist || mix.user_dj_name || "Unknown"}
+                    </Text>
                   <View style={styles.popularMetaRow}>
                     {mix.durationFormatted && (
                       <Text style={styles.popularMeta}>
@@ -1112,10 +1112,10 @@ export default function ListenScreen({
                   size={18}
                   color="hsl(0, 0%, 60%)"
                 />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
       </View>
     );
   };
@@ -1143,40 +1143,40 @@ export default function ListenScreen({
         <Text style={styles.recommendationExplainer}>
           Recommendations based on your likes and connections
         </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.recommendationsScroll}
-          contentContainerStyle={styles.recommendationsContent}
-        >
-          {recommendedMixes.map((mix) => {
-            const isPlaying = playingMixId === mix.id;
-            return (
-              <TouchableOpacity
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.recommendationsScroll}
+            contentContainerStyle={styles.recommendationsContent}
+          >
+            {recommendedMixes.map((mix) => {
+              const isPlaying = playingMixId === mix.id;
+              return (
+                <TouchableOpacity
                 key={mix.id}
-                style={styles.recommendationCard}
-                onPress={() => handleMixPress(mix)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.recommendationImageContainer}>
-                  <Image
-                    source={
+                  style={styles.recommendationCard}
+                  onPress={() => handleMixPress(mix)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.recommendationImageContainer}>
+                    <Image
+                      source={
                       mix.artwork_url || mix.image_url || mix.image
                         ? { uri: mix.artwork_url || mix.image_url || mix.image }
-                        : require("../assets/rhood_logo.webp")
-                    }
-                    style={styles.recommendationImage}
-                    resizeMode="cover"
-                  />
-                  {isPlaying && (
-                    <View style={styles.recommendationPlayingOverlay}>
-                      <Ionicons
-                        name="play"
-                        size={24}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                    </View>
-                  )}
+                          : require("../assets/rhood_logo.webp")
+                      }
+                      style={styles.recommendationImage}
+                      resizeMode="cover"
+                    />
+                    {isPlaying && (
+                      <View style={styles.recommendationPlayingOverlay}>
+                        <Ionicons
+                          name="play"
+                          size={24}
+                          color="hsl(75, 100%, 60%)"
+                        />
+                      </View>
+                    )}
                   {/* Dark gradient overlay at bottom for text visibility */}
                   <LinearGradient
                     colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.95)"]}
@@ -1205,11 +1205,11 @@ export default function ListenScreen({
                       </Text>
                     )}
                   </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
       </View>
     );
   };
@@ -1247,22 +1247,22 @@ export default function ListenScreen({
   const renderSearchResults = () => {
     if (!searchQuery.trim()) return null;
 
-    return (
+          return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>SEARCH RESULTS</Text>
-        </View>
+              </View>
         {filteredMixes.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons
+            <View style={styles.emptyState}>
+              <Ionicons
               name="search"
-              size={48}
-              color="hsl(0, 0%, 30%)"
-            />
+                size={48}
+                color="hsl(0, 0%, 30%)"
+              />
             <Text style={styles.emptyStateTitle}>No results found</Text>
-            <Text style={styles.emptyStateSubtitle}>
+              <Text style={styles.emptyStateSubtitle}>
               No mixes match "{searchQuery}". Try a different search term.
-            </Text>
+              </Text>
           </View>
         ) : (
           <View style={styles.popularList}>
@@ -1298,7 +1298,7 @@ export default function ListenScreen({
                   <View style={styles.popularInfo}>
                     <Text style={styles.popularTitle} numberOfLines={1}>
                       {mix.title}
-                    </Text>
+                  </Text>
                     <Text style={styles.popularSubtitle} numberOfLines={1}>
                       {mix.artist || mix.user_dj_name || "Unknown"}
                     </Text>
@@ -1327,9 +1327,9 @@ export default function ListenScreen({
               );
             })}
           </View>
-        )}
-      </View>
-    );
+              )}
+            </View>
+          );
   };
 
   return (

@@ -44,17 +44,17 @@ export default function ConnectionsListScreen({ user, onBack, onNavigate }) {
       // Calculate mutual connections for each connection
       const transformedConnections = await Promise.all(
         connectionsData.map(async (conn) => {
-          // The getUserConnections function returns data with connected_user_id and connected_user_* fields
-          // Handle both RPC format and fallback format
-          const userId = conn.connected_user_id;
-          const djName = conn.connected_user_name || "Unknown";
-          const fullName = conn.connected_user_full_name || null;
-          const username = conn.connected_user_username || null;
-          const city = conn.connected_user_city || null;
-          const profileImage = conn.connected_user_image || null;
-          const statusMessage = conn.connected_user_status_message || null;
-          const genres = conn.connected_user_genres || [];
-          const isVerified = conn.connected_user_verified || false;
+        // The getUserConnections function returns data with connected_user_id and connected_user_* fields
+        // Handle both RPC format and fallback format
+        const userId = conn.connected_user_id;
+        const djName = conn.connected_user_name || "Unknown";
+        const fullName = conn.connected_user_full_name || null;
+        const username = conn.connected_user_username || null;
+        const city = conn.connected_user_city || null;
+        const profileImage = conn.connected_user_image || null;
+        const statusMessage = conn.connected_user_status_message || null;
+        const genres = conn.connected_user_genres || [];
+        const isVerified = conn.connected_user_verified || false;
           
           // Calculate mutual connections
           let mutualConnectionsCount = 0;
@@ -68,20 +68,20 @@ export default function ConnectionsListScreen({ user, onBack, onNavigate }) {
             console.warn(`Failed to get mutual connections for ${userId}:`, error);
             mutualConnectionsCount = 0;
           }
-          
-          return {
-            id: conn.id || userId,
-            userId: userId,
-            djName: djName,
-            fullName: fullName,
-            username: username,
-            city: city,
-            profileImage: profileImage,
-            statusMessage: statusMessage,
-            genres: genres,
-            isVerified: isVerified,
+        
+        return {
+          id: conn.id || userId,
+          userId: userId,
+          djName: djName,
+          fullName: fullName,
+          username: username,
+          city: city,
+          profileImage: profileImage,
+          statusMessage: statusMessage,
+          genres: genres,
+          isVerified: isVerified,
             mutualConnections: mutualConnectionsCount,
-          };
+        };
         })
       );
 

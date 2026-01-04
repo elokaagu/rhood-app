@@ -529,11 +529,11 @@ export default function ProfileScreen({
       }
 
       // Fallback to web WhatsApp (works in browser)
-      const webUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        const webUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
       try {
         const canOpenWeb = await Linking.canOpenURL(webUrl);
         if (canOpenWeb) {
-          await Linking.openURL(webUrl);
+        await Linking.openURL(webUrl);
           return; // Success
         }
       } catch (webError) {
