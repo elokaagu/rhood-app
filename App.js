@@ -556,10 +556,12 @@ export default function App() {
     let Event;
 
     try {
-      TrackPlayer =
-        require("react-native-track-player").default ||
-        require("react-native-track-player");
-      ({ State, Event } = require("react-native-track-player"));
+      // Use eval to prevent Metro from statically analyzing these requires
+      // eslint-disable-next-line no-eval
+      const rntp = eval('require')('react-native-track-player');
+      TrackPlayer = rntp.default || rntp;
+      State = rntp.State;
+      Event = rntp.Event;
 
       if (!TrackPlayer || !TrackPlayer.addEventListener) {
         console.warn(
@@ -2861,135 +2863,7 @@ export default function App() {
   }, []);
 
   // TrackPlayer events handle remote controls - no callbacks needed
-      onPlay: async () => {
-        console.log("🎧 [CALLBACK] onPlay called from remote control");
-        // Optimistic update for immediate UI feedback
-        setGlobalAudioState((prev) => {
-          if (!prev.currentTrack) return prev;
-          return { ...prev, isPlaying: true };
-        });
-        // Call TrackPlayer directly for immediate control
-        try {
-          const TrackPlayerModule = require("react-native-track-player");
-          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
-          await TrackPlayerInstance.play();
-          console.log("✅ [CALLBACK] TrackPlayer.play() called directly");
-        } catch (error) {
-          console.error("❌ [CALLBACK] Error calling TrackPlayer.play():", error);
-          // Revert optimistic update on error
-          setGlobalAudioState((prev) => {
-            if (!prev.currentTrack) return prev;
-            return { ...prev, isPlaying: false };
-          });
-        }
-      },
-      onPause: async () => {
-        console.log("🎧 [CALLBACK] onPause called from remote control");
-        // Optimistic update for immediate UI feedback
-        setGlobalAudioState((prev) => {
-          if (!prev.currentTrack) return prev;
-          return { ...prev, isPlaying: false };
-        });
-        // Call TrackPlayer directly for immediate control
-        try {
-          const TrackPlayerModule = require("react-native-track-player");
-          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
-          await TrackPlayerInstance.pause();
-          console.log("✅ [CALLBACK] TrackPlayer.pause() called directly");
-        } catch (error) {
-          console.error("❌ [CALLBACK] Error calling TrackPlayer.pause():", error);
-          // Revert optimistic update on error
-          setGlobalAudioState((prev) => {
-            if (!prev.currentTrack) return prev;
-            return { ...prev, isPlaying: true };
-          });
-        }
-      },
-      onResume: async () => {
-        console.log("🎧 [CALLBACK] onResume called from remote control");
-        // Optimistic update for immediate UI feedback
-        setGlobalAudioState((prev) => {
-          if (!prev.currentTrack) return prev;
-          return { ...prev, isPlaying: true };
-        });
-        // Call TrackPlayer directly for immediate control
-        try {
-          const TrackPlayerModule = require("react-native-track-player");
-          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
-          await TrackPlayerInstance.play();
-          console.log("✅ [CALLBACK] TrackPlayer.play() called directly");
-        } catch (error) {
-          console.error("❌ [CALLBACK] Error calling TrackPlayer.play():", error);
-          // Revert optimistic update on error
-          setGlobalAudioState((prev) => {
-            if (!prev.currentTrack) return prev;
-            return { ...prev, isPlaying: false };
-          });
-        }
-      },
-      onStop: async () => {
-        console.log("🎧 [CALLBACK] onStop called from remote control");
-        // Remote stop - just call stop, it will handle state checks
-        await stopGlobalAudio();
-      },
-      onNext: async () => {
-        console.log("🎧 [CALLBACK] onNext called from remote control");
-        // Remote next - play next track from queue
-        const nextFn = playNextTrackRef.current;
-        if (nextFn) {
-          await nextFn();
-        } else {
-          console.warn("⚠️ [CALLBACK] playNextTrack not available");
-        }
-      },
-      onPrevious: async () => {
-        console.log("🎧 [CALLBACK] onPrevious called from remote control");
-        // Remote previous - play previous track from queue
-        const prevFn = playPreviousTrackRef.current;
-        if (prevFn) {
-          await prevFn();
-        } else {
-          console.warn("⚠️ [CALLBACK] playPreviousTrack not available");
-        }
-      },
-      onSeek: async (positionMillis) => {
-        console.log(`🎧 [CALLBACK] onSeek called from remote control: ${positionMillis}ms`);
-        // Call TrackPlayer directly for immediate control
-        try {
-          const TrackPlayerModule = require("react-native-track-player");
-          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
-          await TrackPlayerInstance.seekTo(positionMillis / 1000); // Convert to seconds
-          console.log(`✅ [CALLBACK] TrackPlayer.seekTo() called directly: ${positionMillis}ms`);
-        } catch (error) {
-          console.error("❌ [CALLBACK] Error calling TrackPlayer.seekTo():", error);
-        }
-      },
-      onJumpForward: async () => {
-        console.log("🎧 [CALLBACK] onJumpForward called from remote control");
-        // Call TrackPlayer directly for immediate control
-        try {
-          const TrackPlayerModule = require("react-native-track-player");
-          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
-          await TrackPlayerInstance.seekBy(15);
-          console.log("✅ [CALLBACK] TrackPlayer.seekBy(15) called directly");
-        } catch (error) {
-          console.error("❌ [CALLBACK] Error calling TrackPlayer.seekBy():", error);
-        }
-      },
-      onJumpBackward: async () => {
-        console.log("🎧 [CALLBACK] onJumpBackward called from remote control");
-        // Call TrackPlayer directly for immediate control
-        try {
-          const TrackPlayerModule = require("react-native-track-player");
-          const TrackPlayerInstance = TrackPlayerModule.default || TrackPlayerModule;
-          await TrackPlayerInstance.seekBy(-15);
-          console.log("✅ [CALLBACK] TrackPlayer.seekBy(-15) called directly");
-        } catch (error) {
-          console.error("❌ [CALLBACK] Error calling TrackPlayer.seekBy():", error);
-        }
-      },
-    });
-  */
+  // Old callback code removed - TrackPlayer service handles everything
 
   // Share functionality
   const shareTrack = async () => {
@@ -5308,8 +5182,9 @@ export default function App() {
                           globalAudioState.currentTrack
                         ) {
                           try {
-                            // Import TrackPlayer and State directly
-                            const TrackPlayerModule = require("react-native-track-player");
+                            // Use eval to prevent Metro from analyzing this require
+                            // eslint-disable-next-line no-eval
+                            const TrackPlayerModule = eval('require')('react-native-track-player');
                             const TrackPlayerInstance =
                               TrackPlayerModule.default || TrackPlayerModule;
                             const TrackPlayerState = TrackPlayerModule.State;
@@ -5607,8 +5482,9 @@ export default function App() {
                           globalAudioState.currentTrack
                         ) {
                           try {
-                            // Import TrackPlayer and State directly
-                            const TrackPlayerModule = require("react-native-track-player");
+                            // Use eval to prevent Metro from analyzing this require
+                            // eslint-disable-next-line no-eval
+                            const TrackPlayerModule = eval('require')('react-native-track-player');
                             const TrackPlayerInstance =
                               TrackPlayerModule.default || TrackPlayerModule;
                             const TrackPlayerState = TrackPlayerModule.State;

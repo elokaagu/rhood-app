@@ -6,7 +6,9 @@ let Capability = null;
 let State = null;
 
 try {
-  const trackPlayerModule = require('react-native-track-player');
+  // Use eval to prevent Metro from statically analyzing this require
+  // eslint-disable-next-line no-eval
+  const trackPlayerModule = eval('require')('react-native-track-player');
   TrackPlayer = trackPlayerModule.default || trackPlayerModule;
   Capability = trackPlayerModule.Capability;
   State = trackPlayerModule.State;
