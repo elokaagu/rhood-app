@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   RefreshControl,
   Modal,
   Image,
+  Animated,
+  Platform,
+  ActionSheetIOS,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -209,6 +212,9 @@ export default function ListenScreen({
   const [recommendedMixes, setRecommendedMixes] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [hasUserMixes, setHasUserMixes] = useState(false);
+  
+  // Fade-in animation for content
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Fetch mixes from Supabase
   const fetchMixes = async () => {
@@ -543,9 +549,9 @@ export default function ListenScreen({
   });
   }, [mixes, searchQuery]);
 
-  // Sync local playing state with global audio state
+  // Sync playingMixId with globalAudioState (check both currentTrack and isPlaying)
   useEffect(() => {
-    if (globalAudioState.currentTrack) {
+    if (globalAudioState.currentTrack && globalAudioState.isPlaying) {
       const currentMix = mixes.find(
         (mix) => mix.id === globalAudioState.currentTrack.id
       );
@@ -555,15 +561,34 @@ export default function ListenScreen({
     } else {
       setPlayingMixId(null);
     }
-  }, [globalAudioState.currentTrack, mixes]);
+  }, [globalAudioState.currentTrack, globalAudioState.isPlaying, mixes]);
+  
+  // Fade-in animation when content loads
+  useEffect(() => {
+    if (!loading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      fadeAnim.setValue(0);
+    }
+  }, [loading]);
 
   // Handle play/pause when user interacts with mix
   const handleMixPress = (mix) => {
     HapticPatterns.playPause();
-    if (playingMixId === mix.id) {
+    const isCurrentlyPlaying = playingMixId === mix.id && globalAudioState.isPlaying;
+    
+    if (isCurrentlyPlaying) {
       // Currently playing this mix - pause it
       onPauseAudio();
+    } else if (playingMixId === mix.id && !globalAudioState.isPlaying) {
+      // This mix is loaded but paused - resume it
+      onResumeAudio();
     } else {
+      // Play new mix
       const normalizedMix = {
         ...mix,
         audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
@@ -575,6 +600,72 @@ export default function ListenScreen({
       }
 
       onPlayAudio(normalizedMix);
+    }
+  };
+
+  // Handle long press to show mix options
+  const handleMixLongPress = (mix) => {
+    HapticPatterns.itemPress();
+    const normalizedMix = {
+      ...mix,
+      audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
+      image: mix.artwork_url || mix.image_url || mix.image || null,
+    };
+
+    if (!normalizedMix.audioUrl) {
+      return;
+    }
+
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Cancel", "Add to Queue", "Play Next"],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            // Add to Queue
+            if (onAddToQueue) {
+              onAddToQueue(normalizedMix);
+              HapticPatterns.success();
+            }
+          } else if (buttonIndex === 2) {
+            // Play Next
+            if (onPlayNext) {
+              onPlayNext(normalizedMix);
+              HapticPatterns.success();
+            }
+          }
+        }
+      );
+    } else {
+      // Android
+      Alert.alert(
+        mix.title || "Mix",
+        "Choose an option",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Add to Queue",
+            onPress: () => {
+              if (onAddToQueue) {
+                onAddToQueue(normalizedMix);
+                HapticPatterns.success();
+              }
+            },
+          },
+          {
+            text: "Play Next",
+            onPress: () => {
+              if (onPlayNext) {
+                onPlayNext(normalizedMix);
+                HapticPatterns.success();
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
     }
   };
 
@@ -969,12 +1060,14 @@ export default function ListenScreen({
         </Text>
         <View style={styles.popularList}>
           {trendingMixes.map((mix) => {
-            const isPlaying = playingMixId === mix.id;
+            const isPlaying = playingMixId === mix.id && globalAudioState.isPlaying;
             return (
               <TouchableOpacity
                 key={`trending-${mix.id}`}
                 style={styles.popularRow}
                 onPress={() => handleMixPress(mix)}
+                onLongPress={() => handleMixLongPress(mix)}
+                delayLongPress={500}
                 activeOpacity={0.8}
               >
                 <View style={styles.popularImageWrap}>
@@ -1076,6 +1169,8 @@ export default function ListenScreen({
                 key={`liked-${mix.id}`}
                 style={styles.popularRow}
                   onPress={() => handleMixPress(mix)}
+                  onLongPress={() => handleMixLongPress(mix)}
+                  delayLongPress={500}
                   activeOpacity={0.8}
                 >
                 <View style={styles.popularImageWrap}>
@@ -1167,9 +1262,11 @@ export default function ListenScreen({
               const isPlaying = playingMixId === mix.id;
               return (
                 <TouchableOpacity
-                key={mix.id}
+                  key={mix.id}
                   style={styles.recommendationCard}
                   onPress={() => handleMixPress(mix)}
+                  onLongPress={() => handleMixLongPress(mix)}
+                  delayLongPress={500}
                   activeOpacity={0.8}
                 >
                   <View style={styles.recommendationImageContainer}>
@@ -1287,6 +1384,8 @@ export default function ListenScreen({
                   key={`search-${mix.id}`}
                   style={styles.popularRow}
                   onPress={() => handleMixPress(mix)}
+                  onLongPress={() => handleMixLongPress(mix)}
+                  delayLongPress={500}
                   activeOpacity={0.8}
                 >
                   <View style={styles.popularImageWrap}>
@@ -1370,7 +1469,7 @@ export default function ListenScreen({
             <SkeletonMix />
           </View>
         ) : (
-          <>
+          <Animated.View style={{ opacity: fadeAnim }}>
             {searchQuery.trim() ? (
               renderSearchResults()
             ) : (
@@ -1381,7 +1480,7 @@ export default function ListenScreen({
               </>
             )}
             {renderFooter()}
-          </>
+          </Animated.View>
         )}
       </ScrollView>
 

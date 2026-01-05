@@ -436,6 +436,10 @@ export default function App() {
 
   // Global audio instance reference for cleanup
   const globalAudioRef = useRef(null);
+  
+  // Guards to prevent duplicate calls
+  const isPlayingAudioRef = useRef(false);
+  const trackFinishedRef = useRef(false);
 
   // Refs to store latest functions/state for background service callbacks
   // This ensures callbacks always access the latest versions, not stale closures
@@ -562,9 +566,22 @@ export default function App() {
     let Event;
 
     try {
-      // Use eval to prevent Metro from statically analyzing these requires
-      // eslint-disable-next-line no-eval
-      const rntp = eval('require')('react-native-track-player');
+      // Try to get TrackPlayer module - use try-catch to handle Expo Go gracefully
+      let rntp;
+      try {
+        // Use eval to prevent Metro from statically analyzing these requires
+        // eslint-disable-next-line no-eval
+        rntp = eval('require')('react-native-track-player');
+      } catch (requireError) {
+        // TrackPlayer not available (e.g., Expo Go) - this is expected
+        if (requireError.message?.includes("Property 'require' doesn't exist") || 
+            requireError.message?.includes("react-native-track-player")) {
+          // Silently return - TrackPlayer is not available in this environment
+          return;
+        }
+        throw requireError; // Re-throw unexpected errors
+      }
+      
       TrackPlayer = rntp.default || rntp;
       State = rntp.State;
       Event = rntp.Event;
@@ -576,7 +593,10 @@ export default function App() {
         return;
       }
     } catch (error) {
-      console.warn("⚠️ [APP] Failed to load TrackPlayer:", error.message);
+      // Only log if it's not the expected "require doesn't exist" error
+      if (!error.message?.includes("Property 'require' doesn't exist")) {
+        console.warn("⚠️ [APP] Failed to load TrackPlayer:", error.message);
+      }
       return;
     }
 
@@ -695,7 +715,7 @@ export default function App() {
         }
       );
 
-      // Listen to track changes
+      // Listen to track changes (from lock screen next/previous)
       trackChangedListener = TrackPlayer.addEventListener(
         Event.PlaybackTrackChanged,
         async (data) => {
@@ -1037,18 +1057,42 @@ export default function App() {
       // Register TrackPlayer service for iOS (moved from index.js to avoid Metro bundling issues)
       if (Platform.OS === "ios") {
         try {
-          // Use eval to prevent Metro from statically analyzing this require
-          // eslint-disable-next-line no-eval
-          const TrackPlayer = eval('require')('react-native-track-player');
+          // Try to get TrackPlayer module - use try-catch to handle Expo Go gracefully
+          let TrackPlayer;
+          try {
+            // Use eval to prevent Metro from statically analyzing this require
+            // eslint-disable-next-line no-eval
+            TrackPlayer = eval('require')('react-native-track-player');
+          } catch (requireError) {
+            // TrackPlayer not available (e.g., Expo Go) - this is expected
+            if (requireError.message?.includes("Property 'require' doesn't exist") || 
+                requireError.message?.includes("react-native-track-player")) {
+              // Silently return - TrackPlayer is not available in this environment
+              return;
+            }
+            throw requireError; // Re-throw unexpected errors
+          }
+          
           if (TrackPlayer && TrackPlayer.registerPlaybackService) {
             TrackPlayer.registerPlaybackService(() => {
-              // eslint-disable-next-line no-eval
-              return eval('require')('./src/audio/playbackService');
+              try {
+                // eslint-disable-next-line no-eval
+                return eval('require')('./src/audio/playbackService');
+              } catch (serviceError) {
+                // Service not available - return empty function
+                if (serviceError.message?.includes("Property 'require' doesn't exist")) {
+                  return async function() {}; // Return empty service function
+                }
+                throw serviceError;
+              }
             });
             console.log("✅ TrackPlayer service registered");
           }
         } catch (error) {
-          console.warn("⚠️ TrackPlayer service registration failed:", error.message);
+          // Only log if it's not the expected "require doesn't exist" error
+          if (!error.message?.includes("Property 'require' doesn't exist")) {
+            console.warn("⚠️ TrackPlayer service registration failed:", error.message);
+          }
         }
       }
 
@@ -1337,7 +1381,14 @@ export default function App() {
 
   // Global audio control functions
   const playGlobalAudio = async (track) => {
+    // Prevent duplicate calls
+    if (isPlayingAudioRef.current) {
+      console.log("⚠️ playGlobalAudio already in progress, ignoring duplicate call");
+      return;
+    }
+    
     try {
+      isPlayingAudioRef.current = true;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       console.log("🎵 playGlobalAudio called with track:", {
         id: track.id,
@@ -1353,6 +1404,7 @@ export default function App() {
       });
 
       setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
+      trackFinishedRef.current = false; // Reset finished flag when starting new track
 
       // Try multiple sources for audio URL (validate once for all platforms)
         const audioUrl =
@@ -1404,64 +1456,57 @@ export default function App() {
         });
 
         try {
-        await trackPlayer.playTrack({
-          id: track.id || `track-${Date.now()}`,
-          url: audioUrl,
-          title: track.title || "R/HOOD Mix",
-          artist: track.artist || "Unknown Artist",
-          artwork: track.image || null, // Must be https, square, ≥1024px recommended
-          duration: track.durationMillis
-            ? track.durationMillis / 1000
-            : undefined,
-          genre: track.genre || "Electronic",
-        });
-        } catch (playTrackError) {
-          console.error("❌ TrackPlayer.playTrack() failed:", playTrackError);
-          console.error("❌ TrackPlayer error details:", {
-            message: playTrackError.message,
-            code: playTrackError.code,
-            name: playTrackError.name,
-            stack: playTrackError.stack,
-            audioUrl: audioUrl,
+          await trackPlayer.playTrack({
+            id: track.id || `track-${Date.now()}`,
+            url: audioUrl,
+            title: track.title || "R/HOOD Mix",
+            artist: track.artist || "Unknown Artist",
+            artwork: track.image || null, // Must be https, square, ≥1024px recommended
+            duration: track.durationMillis
+              ? track.durationMillis / 1000
+              : undefined,
+            genre: track.genre || "Electronic",
           });
-          throw new Error(
-            `Failed to start playback: ${playTrackError.message || "Unknown error"}. Please check that the audio file exists and is accessible.`
+
+          // Update state immediately - track-player will update via events
+          setGlobalAudioState((prev) => {
+            const newQueue = [...prev.queue];
+            const existingIndex = newQueue.findIndex((t) => t.id === track.id);
+            const newIndex = existingIndex >= 0 ? existingIndex : newQueue.length;
+
+            if (existingIndex === -1) {
+              newQueue.push(track);
+            }
+
+            return {
+              ...prev,
+              sound: null, // track-player handles the sound, not expo-av
+              isPlaying: true, // Assume playing after playTrack() call
+              currentTrack: {
+                ...track,
+                user_id: track.user_id || track.user?.id,
+                user_image: track.user_image || track.user?.profile_image_url,
+                user_dj_name: track.user_dj_name || track.user?.dj_name,
+                user_bio: track.user_bio || track.user?.bio,
+              },
+              isLoading: false,
+              queue: newQueue,
+              currentQueueIndex: newIndex,
+              // Duration and position will be updated via track-player events
+            };
+          });
+
+          console.log(
+            "✅ iOS: Track playing via track-player with native controls"
           );
+          return; // iOS playback is now handled entirely by track-player
+        } catch (playTrackError) {
+          console.warn("⚠️ TrackPlayer.playTrack() failed, falling back to expo-av:", playTrackError.message);
+          // Don't throw - fall through to expo-av fallback below
         }
-
-        // Update state immediately - track-player will update via events
-        setGlobalAudioState((prev) => {
-          const newQueue = [...prev.queue];
-          const existingIndex = newQueue.findIndex((t) => t.id === track.id);
-          const newIndex = existingIndex >= 0 ? existingIndex : newQueue.length;
-
-          if (existingIndex === -1) {
-            newQueue.push(track);
-          }
-
-          return {
-            ...prev,
-            sound: null, // track-player handles the sound, not expo-av
-            isPlaying: true, // Assume playing after playTrack() call
-            currentTrack: {
-              ...track,
-              user_id: track.user_id || track.user?.id,
-              user_image: track.user_image || track.user?.profile_image_url,
-              user_dj_name: track.user_dj_name || track.user?.dj_name,
-              user_bio: track.user_bio || track.user?.bio,
-            },
-            isLoading: false,
-            queue: newQueue,
-            currentQueueIndex: newIndex,
-            // Duration and position will be updated via track-player events
-          };
-        });
-
-        console.log(
-          "✅ iOS: Track playing via track-player with native controls"
-        );
-        return; // iOS playback is now handled entirely by track-player
       }
+
+      // If TrackPlayer failed or is not available, use expo-av fallback
 
       // Android or iOS fallback: Continue using expo-av
       if (Platform.OS === "ios" && !trackPlayer) {
@@ -1561,7 +1606,8 @@ export default function App() {
               !isScrubbing && // Don't trigger during scrubbing
               !status.isPlaying); // Only if actually stopped playing
 
-          if (hasFinished) {
+          if (hasFinished && !trackFinishedRef.current) {
+            trackFinishedRef.current = true; // Mark as finished to prevent duplicate calls
             console.log("🎵 Track finished, checking for next track in queue");
 
             // Get current queue state
@@ -1777,6 +1823,7 @@ export default function App() {
       // Don't show errors for TrackPlayer unavailability - we fall back to expo-av
       if (errorMessage.includes("react-native-track-player is not available")) {
         console.warn("⚠️ TrackPlayer not available, but this should have been handled by fallback");
+        isPlayingAudioRef.current = false;
         return; // Silently return - fallback should have handled it
       }
       
@@ -1789,6 +1836,8 @@ export default function App() {
         : `Failed to play "${track.title || "this mix"}". ${errorMessage}`;
       
       Alert.alert("Audio Error", userFriendlyMessage);
+    } finally {
+      isPlayingAudioRef.current = false;
     }
   };
 
@@ -1798,29 +1847,38 @@ export default function App() {
       // Store in ref for background service access
       pauseGlobalAudioRef.current = pauseGlobalAudio;
 
-      // iOS: Use TrackPlayer
+      // iOS: Try TrackPlayer first, fall back to expo-av
       if (Platform.OS === "ios") {
-        if (!trackPlayer || !globalAudioState.currentTrack) {
-          return;
+        if (trackPlayer && globalAudioState.currentTrack && typeof trackPlayer.pause === "function") {
+          try {
+            // Call TrackPlayer - events will update state automatically
+            // This ensures lock screen and in-app stay in sync
+            await trackPlayer.pause();
+            // Don't update state here - let TrackPlayer events handle it
+            // This ensures single source of truth (TrackPlayer)
+            return;
+          } catch (trackPlayerError) {
+            // TrackPlayer not available or failed - fall through to expo-av
+            if (!trackPlayerError.message?.includes("react-native-track-player is not available")) {
+              console.warn("⚠️ TrackPlayer pause failed, falling back to expo-av:", trackPlayerError.message);
+            }
+            // Fall through to expo-av
+          }
         }
-        // Call TrackPlayer - events will update state automatically
-        // This ensures lock screen and in-app stay in sync
-        await trackPlayer.pause();
-        // Don't update state here - let TrackPlayer events handle it
-        // This ensures single source of truth (TrackPlayer)
-        return;
       }
 
-      // Android: Use expo-av
+      // Android or iOS fallback: Use expo-av
       if (globalAudioRef.current) {
         await globalAudioRef.current.pauseAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
         // Update lock screen notification
-        lockScreenControls.updatePlaybackState(
-          false,
-          globalAudioState.positionMillis || 0,
-          globalAudioState.durationMillis || 0
-        );
+        if (Platform.OS === "android") {
+          lockScreenControls.updatePlaybackState(
+            false,
+            globalAudioState.positionMillis || 0,
+            globalAudioState.durationMillis || 0
+          );
+        }
       }
     } catch (error) {
       console.log("❌ Error pausing audio:", error);
@@ -1832,37 +1890,40 @@ export default function App() {
       // Store in ref for background service access
       seekGlobalAudioRef.current = seekGlobalAudio;
       
-      // iOS: Use ONLY track-player
+      // iOS: Try TrackPlayer first, fall back to expo-av
       if (Platform.OS === "ios") {
-        if (!trackPlayer || !globalAudioState.currentTrack) {
-          console.warn(
-            "⚠️ Cannot seek: track-player not available or no track"
-          );
-          return;
+        if (trackPlayer && globalAudioState.currentTrack && typeof trackPlayer.getPlaybackState === "function" && typeof trackPlayer.seekTo === "function") {
+          try {
+            const state = await trackPlayer.getPlaybackState();
+            const currentPosition = state.position * 1000;
+            const newPosition = Math.max(
+              0,
+              Math.min(state.duration * 1000, currentPosition + seekAmount)
+            );
+
+            await trackPlayer.seekTo(newPosition / 1000);
+
+            // Don't update state here - let TrackPlayer events handle it
+            // This ensures lock screen and in-app stay in sync
+            // TrackPlayer will fire PlaybackProgressUpdated or PlaybackState events
+
+            console.log(
+              `⏩ Seeked ${seekAmount > 0 ? "forward" : "backward"} to ${Math.floor(
+                newPosition / 1000
+              )}s directly via track-player`
+            );
+            return;
+          } catch (trackPlayerError) {
+            // TrackPlayer not available or failed - fall through to expo-av
+            if (!trackPlayerError.message?.includes("react-native-track-player is not available")) {
+              console.warn("⚠️ TrackPlayer seek failed, falling back to expo-av:", trackPlayerError.message);
+            }
+            // Fall through to expo-av
+          }
         }
-
-        const state = await trackPlayer.getPlaybackState();
-        const currentPosition = state.position * 1000;
-        const newPosition = Math.max(
-          0,
-          Math.min(state.duration * 1000, currentPosition + seekAmount)
-        );
-
-        await trackPlayer.seekTo(newPosition / 1000);
-
-        // Don't update state here - let TrackPlayer events handle it
-        // This ensures lock screen and in-app stay in sync
-        // TrackPlayer will fire PlaybackProgressUpdated or PlaybackState events
-
-        console.log(
-          `⏩ Seeked ${seekAmount > 0 ? "forward" : "backward"} to ${Math.floor(
-            newPosition / 1000
-          )}s directly via track-player`
-        );
-        return;
       }
 
-      // Android: Use expo-av
+      // Android or iOS fallback: Use expo-av
       if (globalAudioRef.current && globalAudioState.durationMillis) {
         const currentPosition = globalAudioState.positionMillis || 0;
         const newPosition = Math.max(
@@ -1879,17 +1940,21 @@ export default function App() {
           positionMillis: newPosition,
         }));
         // Update lock screen notification
-        lockScreenControls.updatePlaybackState(
-          globalAudioState.isPlaying,
-          newPosition,
-          globalAudioState.durationMillis
-        );
+        if (Platform.OS === "android") {
+          lockScreenControls.updatePlaybackState(
+            globalAudioState.isPlaying,
+            newPosition,
+            globalAudioState.durationMillis
+          );
+        }
 
         console.log(
           `⏩ Seeked ${seekAmount > 0 ? "forward" : "backward"} to ${Math.floor(
             newPosition / 1000
           )}s`
         );
+      } else if (!globalAudioState.durationMillis) {
+        console.warn("⚠️ Cannot seek - no duration available");
       }
     } catch (error) {
       console.log("❌ Error seeking audio:", error);
@@ -1902,29 +1967,38 @@ export default function App() {
       // Store in ref for background service access
       resumeGlobalAudioRef.current = resumeGlobalAudio;
 
-      // iOS: Use TrackPlayer
+      // iOS: Try TrackPlayer first, fall back to expo-av
       if (Platform.OS === "ios") {
-        if (!trackPlayer || !globalAudioState.currentTrack) {
-          return;
+        if (trackPlayer && globalAudioState.currentTrack && typeof trackPlayer.resume === "function") {
+          try {
+            // Call TrackPlayer - events will update state automatically
+            // This ensures lock screen and in-app stay in sync
+            await trackPlayer.resume();
+            // Don't update state here - let TrackPlayer events handle it
+            // This ensures single source of truth (TrackPlayer)
+            return;
+          } catch (trackPlayerError) {
+            // TrackPlayer not available or failed - fall through to expo-av
+            if (!trackPlayerError.message?.includes("react-native-track-player is not available")) {
+              console.warn("⚠️ TrackPlayer resume failed, falling back to expo-av:", trackPlayerError.message);
+            }
+            // Fall through to expo-av
+          }
         }
-        // Call TrackPlayer - events will update state automatically
-        // This ensures lock screen and in-app stay in sync
-        await trackPlayer.resume();
-        // Don't update state here - let TrackPlayer events handle it
-        // This ensures single source of truth (TrackPlayer)
-        return;
       }
 
-      // Android: Use expo-av
+      // Android or iOS fallback: Use expo-av
       if (globalAudioRef.current) {
         await globalAudioRef.current.playAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
         // Update lock screen notification
-        lockScreenControls.updatePlaybackState(
-          true,
-          globalAudioState.positionMillis || 0,
-          globalAudioState.durationMillis || 0
-        );
+        if (Platform.OS === "android") {
+          lockScreenControls.updatePlaybackState(
+            true,
+            globalAudioState.positionMillis || 0,
+            globalAudioState.durationMillis || 0
+          );
+        }
       }
     } catch (error) {
       console.log("❌ Error resuming audio:", error);
@@ -2087,40 +2161,40 @@ export default function App() {
       return;
     }
 
-    // iOS: Use track-player
+    // iOS: Try TrackPlayer first, fall back to expo-av
     if (Platform.OS === "ios" && trackPlayer && globalAudioState.currentTrack) {
       try {
         const state = await trackPlayer.getPlaybackState();
         const duration = state.duration * 1000; // Convert to milliseconds
 
         if (duration <= 0) {
-          console.warn("⚠️ Cannot seek - no duration available");
+          console.warn("⚠️ Cannot seek - no duration available from TrackPlayer");
+          // Fall through to expo-av
+        } else {
+          // Ensure position doesn't exceed duration
+          const maxSeekPosition = duration - 100; // Leave 100ms buffer
+          const clampedPosition = Math.min(positionMillis, maxSeekPosition);
+          const seekPositionSeconds = clampedPosition / 1000;
+
+          // Check if we're already close to this position to avoid unnecessary seeks
+          const currentPosition = state.position * 1000;
+          const positionDiff = Math.abs(clampedPosition - currentPosition);
+
+          if (positionDiff < 200) {
+            console.log(`⏭️ Skipping seek - already close to target position`);
+            return;
+          }
+
+          await trackPlayer.seekTo(seekPositionSeconds);
+          console.log(`✅ Successfully seeked to ${clampedPosition}ms`);
+
+          // Don't update state here - let TrackPlayer events handle it
+          // This ensures lock screen and in-app stay in sync
+          // TrackPlayer will fire PlaybackProgressUpdated or PlaybackState events
           return;
         }
-
-        // Ensure position doesn't exceed duration
-        const maxSeekPosition = duration - 100; // Leave 100ms buffer
-        const clampedPosition = Math.min(positionMillis, maxSeekPosition);
-        const seekPositionSeconds = clampedPosition / 1000;
-
-        // Check if we're already close to this position to avoid unnecessary seeks
-        const currentPosition = state.position * 1000;
-        const positionDiff = Math.abs(clampedPosition - currentPosition);
-
-        if (positionDiff < 200) {
-          console.log(`⏭️ Skipping seek - already close to target position`);
-          return;
-        }
-
-        await trackPlayer.seekTo(seekPositionSeconds);
-        console.log(`✅ Successfully seeked to ${clampedPosition}ms`);
-
-        // Don't update state here - let TrackPlayer events handle it
-        // This ensures lock screen and in-app stay in sync
-        // TrackPlayer will fire PlaybackProgressUpdated or PlaybackState events
-        return;
       } catch (error) {
-        console.warn("⚠️ Track player seek failed:", error);
+        console.warn("⚠️ Track player seek failed, falling back to expo-av:", error.message);
         // Fall through to expo-av
       }
     }
@@ -2200,8 +2274,21 @@ export default function App() {
   const handleProgressBarPress = async (event) => {
     event.stopPropagation();
 
+    // Get duration from state or audio ref
+    let durationMillis = globalAudioState.durationMillis;
+    if (durationMillis <= 0 && globalAudioRef.current) {
+      try {
+        const status = await globalAudioRef.current.getStatusAsync();
+        if (status.isLoaded && status.durationMillis > 0) {
+          durationMillis = status.durationMillis;
+        }
+      } catch (error) {
+        console.warn("⚠️ Could not get audio duration:", error);
+      }
+    }
+
     // Check if audio is ready
-    if (globalAudioState.durationMillis <= 0 || globalAudioState.isLoading) {
+    if (durationMillis <= 0 || globalAudioState.isLoading) {
       console.warn("⚠️ Cannot scrub - audio not ready");
       return;
     }
@@ -2216,7 +2303,7 @@ export default function App() {
     const percentage = Math.max(0, Math.min(1, locationX / progressBarWidth));
 
     // Seek to the position immediately
-    const newPosition = percentage * globalAudioState.durationMillis;
+    const newPosition = percentage * durationMillis;
     await seekToPosition(newPosition);
 
     // Provide haptic feedback
@@ -2277,12 +2364,22 @@ export default function App() {
         onStartShouldSetPanResponderCapture: () => captureTouches,
         onMoveShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponderCapture: () => captureTouches,
-        onPanResponderGrant: (evt) => {
+        onPanResponderGrant: async (evt) => {
+          // Get duration from state or audio ref
+          let durationMillis = globalAudioState.durationMillis;
+          if (durationMillis <= 0 && globalAudioRef.current) {
+            try {
+              const status = await globalAudioRef.current.getStatusAsync();
+              if (status.isLoaded && status.durationMillis > 0) {
+                durationMillis = status.durationMillis;
+              }
+            } catch (error) {
+              // Ignore error, will check again below
+            }
+          }
+
           // Check if audio is ready
-          if (
-            globalAudioState.durationMillis <= 0 ||
-            globalAudioState.isLoading
-          ) {
+          if (durationMillis <= 0 || globalAudioState.isLoading) {
             return;
           }
 
@@ -2301,7 +2398,7 @@ export default function App() {
 
           // Seek immediately for tap
           if (enableImmediateSeek) {
-            const newPosition = percentage * globalAudioState.durationMillis;
+            const newPosition = percentage * durationMillis;
             seekToPosition(newPosition);
           }
 
@@ -2309,11 +2406,11 @@ export default function App() {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         },
         onPanResponderMove: (_, gestureState) => {
+          // Get duration from state (use current state for move events)
+          const durationMillis = globalAudioState.durationMillis;
+          
           // Check if audio is ready
-          if (
-            globalAudioState.durationMillis <= 0 ||
-            globalAudioState.isLoading
-          ) {
+          if (durationMillis <= 0 || globalAudioState.isLoading) {
             return;
           }
 
@@ -2329,7 +2426,7 @@ export default function App() {
 
           // Use throttled seek for smooth dragging
           if (enableThrottledSeek) {
-            const newPosition = percentage * globalAudioState.durationMillis;
+            const newPosition = percentage * durationMillis;
             throttledSeek(newPosition);
           }
         },
@@ -2724,7 +2821,7 @@ export default function App() {
       if (repeatMode === "all") {
         // Already handled above
       } else {
-        console.log("🎵 End of queue reached - will auto-queue random mix");
+        // Only log once to reduce spam - the actual auto-queue will log when it happens
         return null; // Will trigger auto-queue
       }
     }
@@ -4683,6 +4780,8 @@ export default function App() {
             onPauseAudio={pauseGlobalAudio}
             onBack={() => setCurrentScreen("listen")}
             user={user}
+            onAddToQueue={addToQueue}
+            onPlayNext={playNextTrack}
           />
         );
 
@@ -4694,6 +4793,8 @@ export default function App() {
             onPauseAudio={pauseGlobalAudio}
             onBack={() => setCurrentScreen("listen")}
             user={user}
+            onAddToQueue={addToQueue}
+            onPlayNext={playNextTrack}
           />
         );
 
@@ -5178,39 +5279,34 @@ export default function App() {
                       try {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-                        // iOS: Control track-player directly using native TrackPlayer
+                        // iOS: Try TrackPlayer first, fall back to expo-av
                         if (
                           Platform.OS === "ios" &&
                           trackPlayer &&
-                          globalAudioState.currentTrack
+                          globalAudioState.currentTrack &&
+                          typeof trackPlayer.getPlaybackState === "function"
                         ) {
                           try {
-                            // Use eval to prevent Metro from analyzing this require
-                            // eslint-disable-next-line no-eval
-                            const TrackPlayerModule = eval('require')('react-native-track-player');
-                            const TrackPlayerInstance =
-                              TrackPlayerModule.default || TrackPlayerModule;
-                            const TrackPlayerState = TrackPlayerModule.State;
-
-                            // Get actual playback state from native player
-                            const currentState =
-                              await TrackPlayerInstance.getState();
-                            const isCurrentlyPlaying =
-                              currentState === TrackPlayerState.Playing;
+                            // Use the trackPlayer wrapper which handles availability
+                            const state = await trackPlayer.getPlaybackState();
+                            const isCurrentlyPlaying = state.isPlaying;
 
                             console.log(
                               "🎵 Mini player - controlling playback:",
                               {
-                                currentState,
                                 isCurrentlyPlaying,
                                 willBe: !isCurrentlyPlaying,
                               }
                             );
 
-                            // Use native TrackPlayer methods directly
+                            // Use trackPlayer wrapper methods
                             if (isCurrentlyPlaying) {
-                              await TrackPlayerInstance.pause();
-                              console.log("✅ Paused via native TrackPlayer");
+                              if (typeof trackPlayer.pause === "function") {
+                                await trackPlayer.pause();
+                                console.log("✅ Paused via TrackPlayer");
+                              } else {
+                                await pauseGlobalAudio();
+                              }
 
                               // Update state
                               setGlobalAudioState((prev) => ({
@@ -5218,10 +5314,12 @@ export default function App() {
                                 isPlaying: false,
                               }));
                             } else {
-                              await TrackPlayerInstance.play();
-                              console.log(
-                                "✅ Started/resumed via native TrackPlayer"
-                              );
+                              if (typeof trackPlayer.resume === "function") {
+                                await trackPlayer.resume();
+                                console.log("✅ Started/resumed via TrackPlayer");
+                              } else {
+                                await resumeGlobalAudio();
+                              }
 
                               // Update state
                               setGlobalAudioState((prev) => ({
@@ -5233,24 +5331,29 @@ export default function App() {
                             // Re-verify after a moment
                             setTimeout(async () => {
                               try {
-                                const verifiedState =
-                                  await TrackPlayerInstance.getState();
-                                const verifiedPlaying =
-                                  verifiedState === TrackPlayerState.Playing;
+                                const verifiedState = await trackPlayer.getPlaybackState();
+                                const verifiedPlaying = verifiedState.isPlaying;
                                 setGlobalAudioState((prev) => ({
                                   ...prev,
                                   isPlaying: verifiedPlaying,
                                 }));
-                                console.log(
-                                  "✅ Verified state:",
-                                  verifiedPlaying
-                                );
+                                console.log("✅ Verified state:", verifiedPlaying);
                               } catch (err) {
                                 console.warn("⚠️ Could not verify state:", err);
                               }
                             }, 300);
                           } catch (error) {
-                            console.error("❌ Track-player error:", error);
+                            // TrackPlayer not available - fall back to expo-av
+                            const errorMessage = error?.message || String(error) || "";
+                            const isExpectedError = 
+                              errorMessage.includes("react-native-track-player is not available") ||
+                              errorMessage.includes("Property 'require' doesn't exist") ||
+                              (errorMessage.includes("Property") && errorMessage.includes("require") && errorMessage.includes("doesn't exist")) ||
+                              (errorMessage.includes("require") && errorMessage.includes("doesn't exist"));
+                            
+                            if (!isExpectedError) {
+                              console.warn("⚠️ Track-player error, using fallback:", errorMessage);
+                            }
                             // Fallback to global functions
                             if (globalAudioState.isPlaying) {
                               await pauseGlobalAudio();
@@ -5259,7 +5362,7 @@ export default function App() {
                             }
                           }
                         } else {
-                          // Android: Use React state
+                          // Android or TrackPlayer not available: Use expo-av
                           if (globalAudioState.isPlaying) {
                             await pauseGlobalAudio();
                           } else {
@@ -5478,39 +5581,34 @@ export default function App() {
                       try {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-                        // iOS: Control track-player directly using native TrackPlayer
+                        // iOS: Try TrackPlayer first, fall back to expo-av
                         if (
                           Platform.OS === "ios" &&
                           trackPlayer &&
-                          globalAudioState.currentTrack
+                          globalAudioState.currentTrack &&
+                          typeof trackPlayer.getPlaybackState === "function"
                         ) {
                           try {
-                            // Use eval to prevent Metro from analyzing this require
-                            // eslint-disable-next-line no-eval
-                            const TrackPlayerModule = eval('require')('react-native-track-player');
-                            const TrackPlayerInstance =
-                              TrackPlayerModule.default || TrackPlayerModule;
-                            const TrackPlayerState = TrackPlayerModule.State;
-
-                            // Get actual playback state from native player
-                            const currentState =
-                              await TrackPlayerInstance.getState();
-                            const isCurrentlyPlaying =
-                              currentState === TrackPlayerState.Playing;
+                            // Use the trackPlayer wrapper which handles availability
+                            const state = await trackPlayer.getPlaybackState();
+                            const isCurrentlyPlaying = state.isPlaying;
 
                             console.log(
                               "🎵 Full screen - controlling playback:",
                               {
-                                currentState,
                                 isCurrentlyPlaying,
                                 willBe: !isCurrentlyPlaying,
                               }
                             );
 
-                            // Use native TrackPlayer methods directly
+                            // Use trackPlayer wrapper methods
                             if (isCurrentlyPlaying) {
-                              await TrackPlayerInstance.pause();
-                              console.log("✅ Paused via native TrackPlayer");
+                              if (typeof trackPlayer.pause === "function") {
+                                await trackPlayer.pause();
+                                console.log("✅ Paused via TrackPlayer");
+                              } else {
+                                await pauseGlobalAudio();
+                              }
 
                               // Update state
                               setGlobalAudioState((prev) => ({
@@ -5518,10 +5616,12 @@ export default function App() {
                                 isPlaying: false,
                               }));
                             } else {
-                              await TrackPlayerInstance.play();
-                              console.log(
-                                "✅ Started/resumed via native TrackPlayer"
-                              );
+                              if (typeof trackPlayer.resume === "function") {
+                                await trackPlayer.resume();
+                                console.log("✅ Started/resumed via TrackPlayer");
+                              } else {
+                                await resumeGlobalAudio();
+                              }
 
                               // Update state
                               setGlobalAudioState((prev) => ({
@@ -5533,36 +5633,38 @@ export default function App() {
                             // Re-verify after a moment
                             setTimeout(async () => {
                               try {
-                                const verifiedState =
-                                  await TrackPlayerInstance.getState();
-                                const verifiedPlaying =
-                                  verifiedState === TrackPlayerState.Playing;
+                                const verifiedState = await trackPlayer.getPlaybackState();
+                                const verifiedPlaying = verifiedState.isPlaying;
                                 setGlobalAudioState((prev) => ({
                                   ...prev,
                                   isPlaying: verifiedPlaying,
                                 }));
-                                console.log(
-                                  "✅ Verified state:",
-                                  verifiedPlaying
-                                );
+                                console.log("✅ Verified state:", verifiedPlaying);
                               } catch (err) {
                                 console.warn("⚠️ Could not verify state:", err);
                               }
                             }, 300);
                           } catch (error) {
-                            console.error(
-                              "❌ TrackPlayer control error:",
-                              error
-                            );
-                            // Fallback to wrapper functions
+                            // TrackPlayer not available - fall back to expo-av
+                            const errorMessage = error?.message || String(error) || "";
+                            const isExpectedError = 
+                              errorMessage.includes("react-native-track-player is not available") ||
+                              errorMessage.includes("Property 'require' doesn't exist") ||
+                              (errorMessage.includes("Property") && errorMessage.includes("require") && errorMessage.includes("doesn't exist")) ||
+                              (errorMessage.includes("require") && errorMessage.includes("doesn't exist"));
+                            
+                            if (!isExpectedError) {
+                              console.warn("⚠️ TrackPlayer control error, using fallback:", errorMessage);
+                            }
+                            // Fallback to expo-av functions
                             if (globalAudioState.isPlaying) {
-                              await trackPlayer.pause();
+                              await pauseGlobalAudio();
                             } else {
-                              await trackPlayer.resume();
+                              await resumeGlobalAudio();
                             }
                           }
                         } else {
-                          // Android: Use React state
+                          // Android or TrackPlayer not available: Use expo-av
                           if (globalAudioState.isPlaying) {
                             await pauseGlobalAudio();
                           } else {
@@ -5570,7 +5672,16 @@ export default function App() {
                           }
                         }
                       } catch (error) {
-                        console.error("❌ Play/pause error:", error);
+                        // Only log unexpected errors, not TrackPlayer unavailability
+                        const errorMessage = error?.message || String(error) || "";
+                        const isExpectedError = 
+                          errorMessage.includes("react-native-track-player is not available") ||
+                          errorMessage.includes("Property 'require' doesn't exist") ||
+                          (errorMessage.includes("Property") && errorMessage.includes("require") && errorMessage.includes("doesn't exist"));
+                        
+                        if (!isExpectedError) {
+                          console.error("❌ Play/pause error:", error);
+                        }
                       }
                     }}
                     activeOpacity={0.8}

@@ -8,6 +8,9 @@ import {
   Image,
   RefreshControl,
   ActivityIndicator,
+  Platform,
+  ActionSheetIOS,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
@@ -72,6 +75,8 @@ export default function TrendingMixesScreen({
   onPauseAudio,
   onBack,
   user,
+  onAddToQueue,
+  onPlayNext,
 }) {
   const [mixes, setMixes] = useState([]);
   const [playingMixId, setPlayingMixId] = useState(null);
@@ -242,6 +247,71 @@ export default function TrendingMixesScreen({
     }
   };
 
+  const handleMixLongPress = (mix) => {
+    HapticPatterns.itemPress();
+    const normalizedMix = {
+      ...mix,
+      audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
+      image: mix.artwork_url || mix.image_url || mix.image || null,
+    };
+
+    if (!normalizedMix.audioUrl) {
+      return;
+    }
+
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Cancel", "Add to Queue", "Play Next"],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            // Add to Queue
+            if (onAddToQueue) {
+              onAddToQueue(normalizedMix);
+              HapticPatterns.success();
+            }
+          } else if (buttonIndex === 2) {
+            // Play Next
+            if (onPlayNext) {
+              onPlayNext(normalizedMix);
+              HapticPatterns.success();
+            }
+          }
+        }
+      );
+    } else {
+      // Android
+      Alert.alert(
+        mix.title || "Mix",
+        "Choose an option",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Add to Queue",
+            onPress: () => {
+              if (onAddToQueue) {
+                onAddToQueue(normalizedMix);
+                HapticPatterns.success();
+              }
+            },
+          },
+          {
+            text: "Play Next",
+            onPress: () => {
+              if (onPlayNext) {
+                onPlayNext(normalizedMix);
+                HapticPatterns.success();
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -310,6 +380,8 @@ export default function TrendingMixesScreen({
                     key={`trending-${mix.id}`}
                     style={styles.popularRow}
                     onPress={() => handleMixPress(mix)}
+                    onLongPress={() => handleMixLongPress(mix)}
+                    delayLongPress={500}
                     activeOpacity={0.8}
                   >
                     <View style={styles.popularImageWrap}>
