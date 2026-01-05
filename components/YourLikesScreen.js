@@ -105,14 +105,16 @@ export default function YourLikesScreen({
         data.map(async (mix) => {
           let latestArtistName = null;
 
+          let userProfile = null;
           if (mix.user_id) {
             const { data: profile } = await supabase
               .from("user_profiles")
-              .select("dj_name, first_name, last_name")
+              .select("dj_name, first_name, last_name, profile_image_url, bio")
               .eq("id", mix.user_id)
               .single();
 
             if (profile) {
+              userProfile = profile;
               latestArtistName =
                 profile.dj_name ||
                 `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
@@ -144,6 +146,10 @@ export default function YourLikesScreen({
             audioUrl: mix.file_url,
             plays: mix.plays || mix.play_count || 0,
             created_at: mix.created_at || null,
+            user: userProfile, // Include full user profile for DJ image
+            user_image: userProfile?.profile_image_url,
+            user_dj_name: userProfile?.dj_name,
+            user_bio: userProfile?.bio,
           };
         })
       );
@@ -232,6 +238,11 @@ export default function YourLikesScreen({
         ...mix,
         audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
         image: mix.artwork_url || mix.image_url || mix.image || null,
+        user_id: mix.user_id || mix.user?.id,
+        user_image: mix.user_image || mix.user?.profile_image_url,
+        user_dj_name: mix.user_dj_name || mix.user?.dj_name,
+        user_bio: mix.user_bio || mix.user?.bio,
+        user: mix.user,
       };
 
       if (!normalizedMix.audioUrl) {
@@ -248,6 +259,11 @@ export default function YourLikesScreen({
       ...mix,
       audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
       image: mix.artwork_url || mix.image_url || mix.image || null,
+      user_id: mix.user_id || mix.user?.id,
+      user_image: mix.user_image || mix.user?.profile_image_url,
+      user_dj_name: mix.user_dj_name || mix.user?.dj_name,
+      user_bio: mix.user_bio || mix.user?.bio,
+      user: mix.user,
     };
 
     if (!normalizedMix.audioUrl) {

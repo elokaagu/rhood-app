@@ -588,11 +588,16 @@ export default function ListenScreen({
       // This mix is loaded but paused - resume it
       onResumeAudio();
     } else {
-      // Play new mix
+      // Play new mix - include user profile data for DJ image
       const normalizedMix = {
         ...mix,
         audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
         image: mix.artwork_url || mix.image_url || mix.image || null,
+        user_id: mix.user_id || mix.user?.id,
+        user_image: mix.user_image || mix.user?.profile_image_url,
+        user_dj_name: mix.user_dj_name || mix.user?.dj_name,
+        user_bio: mix.user_bio || mix.user?.bio,
+        user: mix.user, // Include full user object if available
       };
 
       if (!normalizedMix.audioUrl) {
@@ -610,6 +615,11 @@ export default function ListenScreen({
       ...mix,
       audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
       image: mix.artwork_url || mix.image_url || mix.image || null,
+      user_id: mix.user_id || mix.user?.id,
+      user_image: mix.user_image || mix.user?.profile_image_url,
+      user_dj_name: mix.user_dj_name || mix.user?.dj_name,
+      user_bio: mix.user_bio || mix.user?.bio,
+      user: mix.user,
     };
 
     if (!normalizedMix.audioUrl) {

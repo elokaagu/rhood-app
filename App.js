@@ -1758,6 +1758,8 @@ export default function App() {
 
       // Set up lock screen controls callbacks (Android only)
       if (Platform.OS === "android") {
+        // Ensure lock screen controls are initialized
+        await lockScreenControls.initialize();
         lockScreenControls.setCallbacks({
           onPlayPause: async () => {
             try {
