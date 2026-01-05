@@ -87,16 +87,40 @@ export async function addTrack(track) {
 
   await setupPlayer();
 
+  // Ensure artwork URL is valid (must be HTTPS for iOS lock screen)
+  let artworkUrl = track.artwork;
+  if (artworkUrl && typeof artworkUrl === 'string') {
+    // Convert HTTP to HTTPS if needed (iOS requires HTTPS for artwork)
+    if (artworkUrl.startsWith('http://')) {
+      artworkUrl = artworkUrl.replace('http://', 'https://');
+    }
+    // Remove undefined if empty string
+    if (!artworkUrl.trim()) {
+      artworkUrl = undefined;
+    }
+  } else {
+    artworkUrl = undefined;
+  }
+
   const trackObject = {
     id: track.id || String(Date.now()),
     url: track.url,
-    title: track.title || 'Unknown Title',
+    title: track.title || 'R/HOOD Mix',
     artist: track.artist || 'Unknown Artist',
-    artwork: track.artwork || undefined,
+    artwork: artworkUrl,
     duration: track.duration || undefined,
-    album: track.album || undefined,
-    genre: track.genre || undefined,
+    album: track.album || track.genre || 'R/HOOD',
+    genre: track.genre || 'Electronic',
   };
+
+  console.log('📱 Adding track to TrackPlayer:', {
+    id: trackObject.id,
+    title: trackObject.title,
+    artist: trackObject.artist,
+    hasArtwork: !!trackObject.artwork,
+    artwork: trackObject.artwork,
+    duration: trackObject.duration,
+  });
 
   await TrackPlayer.add(trackObject);
   console.log('✅ Track added to queue:', trackObject.title);
@@ -133,16 +157,42 @@ export async function addTracks(tracks) {
 
   await setupPlayer();
 
-  const trackObjects = tracks.map(track => ({
-    id: track.id || String(Date.now() + Math.random()),
-    url: track.url,
-    title: track.title || 'Unknown Title',
-    artist: track.artist || 'Unknown Artist',
-    artwork: track.artwork || undefined,
-    duration: track.duration || undefined,
-    album: track.album || undefined,
-    genre: track.genre || undefined,
-  }));
+  const trackObjects = tracks.map((track, index) => {
+    // Ensure artwork URL is valid (must be HTTPS for iOS lock screen)
+    let artworkUrl = track.artwork;
+    if (artworkUrl && typeof artworkUrl === 'string') {
+      // Convert HTTP to HTTPS if needed (iOS requires HTTPS for artwork)
+      if (artworkUrl.startsWith('http://')) {
+        artworkUrl = artworkUrl.replace('http://', 'https://');
+      }
+      // Remove undefined if empty string
+      if (!artworkUrl.trim()) {
+        artworkUrl = undefined;
+      }
+    } else {
+      artworkUrl = undefined;
+    }
+
+    return {
+      id: track.id || String(Date.now() + index),
+      url: track.url,
+      title: track.title || 'R/HOOD Mix',
+      artist: track.artist || 'Unknown Artist',
+      artwork: artworkUrl,
+      duration: track.duration || undefined,
+      album: track.album || track.genre || 'R/HOOD',
+      genre: track.genre || 'Electronic',
+    };
+  });
+
+  console.log(`📱 Adding ${trackObjects.length} tracks to TrackPlayer queue`);
+  trackObjects.forEach((track, index) => {
+    console.log(`  Track ${index + 1}:`, {
+      title: track.title,
+      artist: track.artist,
+      hasArtwork: !!track.artwork,
+    });
+  });
 
   await TrackPlayer.add(trackObjects);
   console.log(`✅ Added ${trackObjects.length} tracks to queue`);
@@ -175,6 +225,24 @@ export async function playTracks(tracks, startIndex = 0) {
   
   // Start playing
   await TrackPlayer.play();
+  
+  // Verify the current track metadata
+  try {
+    const currentTrackIndex = await TrackPlayer.getCurrentTrack();
+    if (currentTrackIndex !== null) {
+      const currentTrack = await TrackPlayer.getTrack(currentTrackIndex);
+      console.log('📱 Current track metadata on lock screen:', {
+        title: currentTrack?.title,
+        artist: currentTrack?.artist,
+        hasArtwork: !!currentTrack?.artwork,
+        artwork: currentTrack?.artwork,
+        duration: currentTrack?.duration,
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️ Could not verify current track metadata:', error);
+  }
+  
   console.log(`✅ Started playing track ${startIndex + 1} of ${tracks.length}: ${tracks[startIndex].title}`);
 }
 

@@ -1488,15 +1488,44 @@ export default function App() {
           });
 
           // Prepare all tracks for TrackPlayer queue (after state update)
-          const tracksForPlayer = newQueue.map((t) => ({
-            id: t.id || `track-${Date.now()}-${Math.random()}`,
-            url: t.audioUrl || t.file_url || t.audio_url || "",
-            title: t.title || "R/HOOD Mix",
-            artist: t.artist || "Unknown Artist",
-            artwork: t.image || t.artwork_url || t.image_url || null,
-            duration: t.durationMillis ? t.durationMillis / 1000 : undefined,
-            genre: t.genre || "Electronic",
-          }));
+          const tracksForPlayer = newQueue.map((t) => {
+            // Get artwork URL - prioritize image fields
+            let artworkUrl = t.image || t.artwork_url || t.image_url || null;
+            
+            // Ensure artwork is HTTPS (iOS requires HTTPS for lock screen artwork)
+            if (artworkUrl && typeof artworkUrl === 'string') {
+              if (artworkUrl.startsWith('http://')) {
+                artworkUrl = artworkUrl.replace('http://', 'https://');
+              }
+              // Remove if empty
+              if (!artworkUrl.trim()) {
+                artworkUrl = null;
+              }
+            } else {
+              artworkUrl = null;
+            }
+
+            return {
+              id: t.id || `track-${Date.now()}-${Math.random()}`,
+              url: t.audioUrl || t.file_url || t.audio_url || "",
+              title: t.title || "R/HOOD Mix",
+              artist: t.artist || "Unknown Artist",
+              artwork: artworkUrl,
+              duration: t.durationMillis ? t.durationMillis / 1000 : undefined,
+              genre: t.genre || "Electronic",
+            };
+          });
+          
+          console.log('📱 Preparing tracks for TrackPlayer:', {
+            trackCount: tracksForPlayer.length,
+            currentTrackIndex: newIndex,
+            currentTrack: tracksForPlayer[newIndex] ? {
+              title: tracksForPlayer[newIndex].title,
+              artist: tracksForPlayer[newIndex].artist,
+              hasArtwork: !!tracksForPlayer[newIndex].artwork,
+              artwork: tracksForPlayer[newIndex].artwork,
+            } : null,
+          });
 
           // Add all tracks to TrackPlayer queue and start playing
           await trackPlayer.playTracks(tracksForPlayer, newIndex);
