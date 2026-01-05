@@ -34,33 +34,46 @@ export async function setupPlayer() {
   }
 
   if (!optionsUpdated) {
+    // Configure all available capabilities for full lock screen control
+    const capabilities = [
+      Capability.Play,
+      Capability.Pause,
+      Capability.Stop,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
+      Capability.SeekTo,
+      Capability.JumpForward,
+      Capability.JumpBackward,
+    ];
+
+    // Compact capabilities for Android notification (limited space)
+    const compactCapabilities = [
+      Capability.Play,
+      Capability.Pause,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
+    ];
+
     await TrackPlayer.updateOptions({
-      // Media controls capabilities
-      capabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.Stop,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-        Capability.SeekTo,
-        Capability.JumpForward,
-        Capability.JumpBackward,
-      ],
-      // Capabilities that will show up when the notification is in the compact form on Android
-      compactCapabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-      ],
-      // iOS specific options
-      iosCategory: 'playback',
-      // Jump intervals in seconds
+      // Full capabilities for lock screen and Control Center
+      capabilities,
+      // Compact capabilities for Android notification
+      compactCapabilities,
+      // iOS specific options - CRITICAL for lock screen controls
+      iosCategory: 'playback', // Allows background audio and remote controls
+      // Jump intervals in seconds (for skip forward/backward)
       forwardJumpInterval: 15,
       backwardJumpInterval: 15,
+      // Android notification options
+      android: {
+        // Show notification on lock screen
+        alwaysShowNotification: true,
+        // Notification icon (uses app icon if not specified)
+      },
     });
     optionsUpdated = true;
-    console.log('✅ TrackPlayer options updated');
+    console.log('✅ TrackPlayer options updated with full lock screen capabilities');
+    console.log('📱 Capabilities:', capabilities.map(c => c).join(', '));
   }
 }
 
@@ -108,6 +121,61 @@ export async function playTrack(track) {
   // Start playing
   await TrackPlayer.play();
   console.log('✅ Track started playing:', track.title);
+}
+
+/**
+ * Add multiple tracks to the queue
+ */
+export async function addTracks(tracks) {
+  if (!TrackPlayer) {
+    throw new Error('react-native-track-player is not available');
+  }
+
+  await setupPlayer();
+
+  const trackObjects = tracks.map(track => ({
+    id: track.id || String(Date.now() + Math.random()),
+    url: track.url,
+    title: track.title || 'Unknown Title',
+    artist: track.artist || 'Unknown Artist',
+    artwork: track.artwork || undefined,
+    duration: track.duration || undefined,
+    album: track.album || undefined,
+    genre: track.genre || undefined,
+  }));
+
+  await TrackPlayer.add(trackObjects);
+  console.log(`✅ Added ${trackObjects.length} tracks to queue`);
+}
+
+/**
+ * Replace queue with multiple tracks and start playing the first one
+ */
+export async function playTracks(tracks, startIndex = 0) {
+  if (!TrackPlayer) {
+    throw new Error('react-native-track-player is not available');
+  }
+
+  if (!tracks || tracks.length === 0) {
+    throw new Error('No tracks provided');
+  }
+
+  await setupPlayer();
+  
+  // Reset the queue
+  await TrackPlayer.reset();
+  
+  // Add all tracks
+  await addTracks(tracks);
+  
+  // Skip to the starting track if not the first one
+  if (startIndex > 0 && startIndex < tracks.length) {
+    await TrackPlayer.skip(startIndex);
+  }
+  
+  // Start playing
+  await TrackPlayer.play();
+  console.log(`✅ Started playing track ${startIndex + 1} of ${tracks.length}: ${tracks[startIndex].title}`);
 }
 
 /**

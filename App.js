@@ -1456,23 +1456,14 @@ export default function App() {
         });
 
         try {
-          await trackPlayer.playTrack({
-            id: track.id || `track-${Date.now()}`,
-            url: audioUrl,
-            title: track.title || "R/HOOD Mix",
-            artist: track.artist || "Unknown Artist",
-            artwork: track.image || null, // Must be https, square, ≥1024px recommended
-            duration: track.durationMillis
-              ? track.durationMillis / 1000
-              : undefined,
-            genre: track.genre || "Electronic",
-          });
-
-          // Update state immediately - track-player will update via events
+          // Get current queue and update it
+          let newQueue;
+          let newIndex;
+          
           setGlobalAudioState((prev) => {
-            const newQueue = [...prev.queue];
+            newQueue = [...prev.queue];
             const existingIndex = newQueue.findIndex((t) => t.id === track.id);
-            const newIndex = existingIndex >= 0 ? existingIndex : newQueue.length;
+            newIndex = existingIndex >= 0 ? existingIndex : newQueue.length;
 
             if (existingIndex === -1) {
               newQueue.push(track);
@@ -1496,8 +1487,22 @@ export default function App() {
             };
           });
 
+          // Prepare all tracks for TrackPlayer queue (after state update)
+          const tracksForPlayer = newQueue.map((t) => ({
+            id: t.id || `track-${Date.now()}-${Math.random()}`,
+            url: t.audioUrl || t.file_url || t.audio_url || "",
+            title: t.title || "R/HOOD Mix",
+            artist: t.artist || "Unknown Artist",
+            artwork: t.image || t.artwork_url || t.image_url || null,
+            duration: t.durationMillis ? t.durationMillis / 1000 : undefined,
+            genre: t.genre || "Electronic",
+          }));
+
+          // Add all tracks to TrackPlayer queue and start playing
+          await trackPlayer.playTracks(tracksForPlayer, newIndex);
+
           console.log(
-            "✅ iOS: Track playing via track-player with native controls"
+            "✅ iOS: Track playing via track-player with full queue sync for lock screen controls"
           );
           return; // iOS playback is now handled entirely by track-player
         } catch (playTrackError) {
