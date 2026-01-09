@@ -15,7 +15,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
-import ProgressiveImage from "./ProgressiveImage";
 
 export default function PlaylistDetailScreen({
   globalAudioState,
