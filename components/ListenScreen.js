@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Animated,
   Platform,
   ActionSheetIOS,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -212,6 +213,11 @@ export default function ListenScreen({
   const [recommendedMixes, setRecommendedMixes] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [hasUserMixes, setHasUserMixes] = useState(false);
+  const [playlists, setPlaylists] = useState([]);
+  const [showSaveToPlaylistModal, setShowSaveToPlaylistModal] = useState(false);
+  const [selectedMixForPlaylist, setSelectedMixForPlaylist] = useState(null);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   
   // Fade-in animation for content
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -629,7 +635,7 @@ export default function ListenScreen({
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ["Cancel", "Add to Queue", "Play Next"],
+          options: ["Cancel", "Add to Queue", "Play Next", "Save to Playlist"],
           cancelButtonIndex: 0,
         },
         (buttonIndex) => {
@@ -645,6 +651,9 @@ export default function ListenScreen({
               onPlayNext(normalizedMix);
               HapticPatterns.success();
             }
+          } else if (buttonIndex === 3) {
+            // Save to Playlist
+            handleSaveToPlaylist(normalizedMix);
           }
         }
       );
@@ -673,6 +682,12 @@ export default function ListenScreen({
               }
             },
           },
+          {
+            text: "Save to Playlist",
+            onPress: () => {
+              handleSaveToPlaylist(normalizedMix);
+            },
+          },
         ],
         { cancelable: true }
       );
@@ -694,6 +709,180 @@ export default function ListenScreen({
     HapticPatterns.buttonPress();
     setShowUploadModal(true);
   };
+
+  // Fetch user's playlists
+  const fetchPlaylists = useCallback(async () => {
+    if (!user?.id) {
+      setPlaylists([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("playlists")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        // If table doesn't exist, that's okay - we'll create it on first use
+        if (error.code === "42P01" || error.code === "PGRST205") {
+          console.log("Playlists table doesn't exist yet");
+          setPlaylists([]);
+          return;
+        }
+        console.error("❌ Error fetching playlists:", error);
+        setPlaylists([]);
+        return;
+      }
+
+      // Get mix counts for each playlist
+      const playlistsWithCounts = await Promise.all(
+        (data || []).map(async (playlist) => {
+          try {
+            const { count, error: countError } = await supabase
+              .from("playlist_mixes")
+              .select("*", { count: "exact", head: true })
+              .eq("playlist_id", playlist.id);
+
+            if (countError) {
+              console.warn("Error getting mix count for playlist:", countError);
+              return { ...playlist, mixCount: 0 };
+            }
+
+            return { ...playlist, mixCount: count || 0 };
+          } catch (err) {
+            console.warn("Error getting mix count:", err);
+            return { ...playlist, mixCount: 0 };
+          }
+        })
+      );
+
+      setPlaylists(playlistsWithCounts);
+    } catch (error) {
+      console.error("❌ Error fetching playlists:", error);
+      setPlaylists([]);
+    }
+  }, [user?.id]);
+
+  // Save mix to playlist
+  const handleSaveToPlaylist = useCallback((mix) => {
+    if (!user?.id) {
+      Alert.alert("Sign In Required", "You need to be signed in to save mixes to playlists.");
+      return;
+    }
+    setSelectedMixForPlaylist(mix);
+    setShowSaveToPlaylistModal(true);
+    fetchPlaylists();
+  }, [user?.id, fetchPlaylists]);
+
+  // Create new playlist
+  const handleCreatePlaylist = useCallback(async () => {
+    if (!newPlaylistName.trim()) {
+      Alert.alert("Error", "Please enter a playlist name");
+      return;
+    }
+
+    if (!user?.id) {
+      Alert.alert("Error", "You must be signed in to create playlists");
+      return;
+    }
+
+    try {
+      setCreatingPlaylist(true);
+      const { data, error } = await supabase
+        .from("playlists")
+        .insert({
+          user_id: user.id,
+          name: newPlaylistName.trim(),
+          description: null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // If table doesn't exist, show helpful error
+        if (error.code === "42P01" || error.code === "PGRST205") {
+          Alert.alert(
+            "Database Setup Required",
+            "The playlists feature requires database setup. Please contact support."
+          );
+          return;
+        }
+        throw error;
+      }
+
+      // Add mix to the newly created playlist
+      if (selectedMixForPlaylist?.id && data?.id) {
+        await handleAddMixToPlaylist(data.id, selectedMixForPlaylist.id);
+      }
+
+      setNewPlaylistName("");
+      setShowSaveToPlaylistModal(false);
+      setSelectedMixForPlaylist(null);
+      fetchPlaylists();
+      HapticPatterns.success();
+      Alert.alert("Success", `"${newPlaylistName.trim()}" created and mix added!`);
+    } catch (error) {
+      console.error("❌ Error creating playlist:", error);
+      Alert.alert("Error", "Failed to create playlist. Please try again.");
+    } finally {
+      setCreatingPlaylist(false);
+    }
+  }, [newPlaylistName, user?.id, selectedMixForPlaylist, fetchPlaylists]);
+
+  // Add mix to existing playlist
+  const handleAddMixToPlaylist = useCallback(async (playlistId, mixId) => {
+    try {
+      const { error } = await supabase
+        .from("playlist_mixes")
+        .insert({
+          playlist_id: playlistId,
+          mix_id: mixId,
+        });
+
+      if (error) {
+        // If duplicate, that's okay
+        if (error.code === "23505") {
+          return; // Already in playlist
+        }
+        // If table doesn't exist, show helpful error
+        if (error.code === "42P01" || error.code === "PGRST205") {
+          Alert.alert(
+            "Database Setup Required",
+            "The playlists feature requires database setup. Please contact support."
+          );
+          return;
+        }
+        throw error;
+      }
+
+      HapticPatterns.success();
+    } catch (error) {
+      console.error("❌ Error adding mix to playlist:", error);
+      throw error;
+    }
+  }, []);
+
+  // Add mix to existing playlist handler
+  const handleSelectPlaylist = useCallback(async (playlist) => {
+    if (!selectedMixForPlaylist?.id) return;
+
+    try {
+      await handleAddMixToPlaylist(playlist.id, selectedMixForPlaylist.id);
+      setShowSaveToPlaylistModal(false);
+      setSelectedMixForPlaylist(null);
+      fetchPlaylists();
+      Alert.alert("Success", `Added to "${playlist.name}"`);
+    } catch (error) {
+      Alert.alert("Error", "Failed to add mix to playlist. Please try again.");
+    }
+  }, [selectedMixForPlaylist, handleAddMixToPlaylist, fetchPlaylists]);
+
+  // Fetch playlists on mount and when user changes
+  useEffect(() => {
+    fetchPlaylists();
+  }, [fetchPlaylists]);
 
   const handleRefresh = async () => {
     HapticPatterns.pullToRefresh();
@@ -1381,6 +1570,67 @@ export default function ListenScreen({
     );
   };
 
+  // Playlists section
+  const renderPlaylists = () => {
+    if (!user?.id || playlists.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Ionicons
+              name="musical-notes"
+              size={18}
+              color="hsl(75, 100%, 60%)"
+            />
+            <Text style={styles.sectionTitle}>YOUR PLAYLISTS</Text>
+          </View>
+        </View>
+        <Text style={styles.sectionSubtitle}>
+          Your saved collections of mixes
+        </Text>
+        <View style={styles.playlistsList}>
+          {playlists.map((playlist) => (
+            <TouchableOpacity
+              key={playlist.id}
+              style={styles.playlistRow}
+              onPress={() => {
+                HapticPatterns.itemPress();
+                if (onNavigate) {
+                  onNavigate("playlist-detail", { playlistId: playlist.id, playlistName: playlist.name });
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={styles.playlistIconContainer}>
+                <Ionicons
+                  name="musical-notes"
+                  size={24}
+                  color="hsl(75, 100%, 60%)"
+                />
+              </View>
+              <View style={styles.playlistInfo}>
+                <Text style={styles.playlistName} numberOfLines={1}>
+                  {playlist.name}
+                </Text>
+                <Text style={styles.playlistMeta}>
+                  {playlist.mixCount || 0} {playlist.mixCount === 1 ? "mix" : "mixes"}
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color="hsl(0, 0%, 60%)"
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
   const renderFooter = () => (
     <>
       {/* Upload CTA */}
@@ -1545,6 +1795,7 @@ export default function ListenScreen({
               renderSearchResults()
             ) : (
               <>
+                {renderPlaylists()}
                 {renderTrending()}
                 {renderYourLikes()}
                 {renderYouMayLike()}
@@ -1602,6 +1853,136 @@ export default function ListenScreen({
                 </LinearGradient>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Save to Playlist Modal */}
+      <Modal
+        visible={showSaveToPlaylistModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowSaveToPlaylistModal(false);
+          setSelectedMixForPlaylist(null);
+          setNewPlaylistName("");
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.playlistModalContent}>
+            <View style={styles.playlistModalHeader}>
+              <Text style={styles.playlistModalTitle}>Save to Playlist</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowSaveToPlaylistModal(false);
+                  setSelectedMixForPlaylist(null);
+                  setNewPlaylistName("");
+                }}
+                style={styles.playlistModalClose}
+              >
+                <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedMixForPlaylist && (
+              <View style={styles.playlistMixPreview}>
+                <Image
+                  source={
+                    selectedMixForPlaylist.artwork_url ||
+                    selectedMixForPlaylist.image_url ||
+                    selectedMixForPlaylist.image
+                      ? {
+                          uri:
+                            selectedMixForPlaylist.artwork_url ||
+                            selectedMixForPlaylist.image_url ||
+                            selectedMixForPlaylist.image,
+                        }
+                      : require("../assets/rhood_logo.webp")
+                  }
+                  style={styles.playlistMixPreviewImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.playlistMixPreviewInfo}>
+                  <Text style={styles.playlistMixPreviewTitle} numberOfLines={1}>
+                    {selectedMixForPlaylist.title}
+                  </Text>
+                  <Text style={styles.playlistMixPreviewArtist} numberOfLines={1}>
+                    {selectedMixForPlaylist.artist ||
+                      selectedMixForPlaylist.user_dj_name ||
+                      "Unknown"}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <ScrollView style={styles.playlistModalScroll}>
+              {/* Create New Playlist */}
+              <View style={styles.createPlaylistSection}>
+                <Text style={styles.createPlaylistTitle}>Create New Playlist</Text>
+                <View style={styles.createPlaylistInputContainer}>
+                  <TextInput
+                    style={styles.createPlaylistInput}
+                    placeholder="Playlist name"
+                    placeholderTextColor="hsl(0, 0%, 50%)"
+                    value={newPlaylistName}
+                    onChangeText={setNewPlaylistName}
+                    maxLength={50}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.createPlaylistButton,
+                      (!newPlaylistName.trim() || creatingPlaylist) &&
+                        styles.createPlaylistButtonDisabled,
+                    ]}
+                    onPress={handleCreatePlaylist}
+                    disabled={!newPlaylistName.trim() || creatingPlaylist}
+                    activeOpacity={0.8}
+                  >
+                    {creatingPlaylist ? (
+                      <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
+                    ) : (
+                      <Text style={styles.createPlaylistButtonText}>Create</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Existing Playlists */}
+              {playlists.length > 0 && (
+                <View style={styles.existingPlaylistsSection}>
+                  <Text style={styles.existingPlaylistsTitle}>Add to Existing Playlist</Text>
+                  {playlists.map((playlist) => (
+                    <TouchableOpacity
+                      key={playlist.id}
+                      style={styles.existingPlaylistItem}
+                      onPress={() => handleSelectPlaylist(playlist)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.existingPlaylistIcon}>
+                        <Ionicons
+                          name="musical-notes"
+                          size={20}
+                          color="hsl(75, 100%, 60%)"
+                        />
+                      </View>
+                      <View style={styles.existingPlaylistInfo}>
+                        <Text style={styles.existingPlaylistName} numberOfLines={1}>
+                          {playlist.name}
+                        </Text>
+                        <Text style={styles.existingPlaylistMeta}>
+                          {playlist.mixCount || 0} {playlist.mixCount === 1 ? "mix" : "mixes"}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color="hsl(0, 0%, 60%)"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -2306,5 +2687,182 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 60%)",
     marginTop: 4,
     lineHeight: 16,
+  },
+  // Playlist Styles
+  playlistsList: {
+    marginTop: 8,
+  },
+  playlistRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  playlistIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  playlistInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  playlistName: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  playlistMeta: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+  },
+  // Save to Playlist Modal Styles
+  playlistModalContent: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "80%",
+    paddingBottom: 20,
+  },
+  playlistModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  playlistModalTitle: {
+    fontSize: 20,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "bold",
+  },
+  playlistModalClose: {
+    padding: 4,
+  },
+  playlistMixPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  playlistMixPreviewImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  playlistMixPreviewInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  playlistMixPreviewTitle: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  playlistMixPreviewArtist: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+  },
+  playlistModalScroll: {
+    maxHeight: 400,
+  },
+  createPlaylistSection: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  createPlaylistTitle: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 12,
+  },
+  createPlaylistInputContainer: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
+  createPlaylistInput: {
+    flex: 1,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+  },
+  createPlaylistButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    minWidth: 80,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  createPlaylistButtonDisabled: {
+    opacity: 0.5,
+  },
+  createPlaylistButtonText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+  },
+  existingPlaylistsSection: {
+    padding: 20,
+  },
+  existingPlaylistsTitle: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 12,
+  },
+  existingPlaylistItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  existingPlaylistIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  existingPlaylistInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  existingPlaylistName: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+    color: "hsl(0, 0%, 100%)",
+  },
+  existingPlaylistMeta: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
   },
 });

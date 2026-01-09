@@ -140,6 +140,17 @@ export default function OnboardingForm({
         if (djProfile.soundcloud && !isValidSoundCloud(djProfile.soundcloud)) {
           newErrors.soundcloud = "Please enter a valid SoundCloud URL";
         }
+        if (djProfile.tiktok && !isValidTikTok(djProfile.tiktok)) {
+          newErrors.tiktok = "Please enter a valid TikTok handle or URL";
+        }
+        if (djProfile.youtube && !isValidYouTube(djProfile.youtube)) {
+          newErrors.youtube = "Please enter a valid YouTube URL";
+        }
+        break;
+      case 5:
+        if (!djProfile.profile_image_url && !profileImage) {
+          newErrors.profile_image = "Profile picture is required";
+        }
         break;
     }
 
@@ -162,6 +173,18 @@ export default function OnboardingForm({
     const soundcloudRegex =
       /^https?:\/\/(www\.)?soundcloud\.com\/[a-zA-Z0-9._-]+\/?$/;
     return soundcloudRegex.test(url);
+  };
+
+  const isValidTikTok = (handle) => {
+    const tiktokRegex =
+      /^@?[a-zA-Z0-9._]+$|^https?:\/\/(www\.)?(vm\.)?tiktok\.com\/@?[a-zA-Z0-9._]+\/?$/;
+    return tiktokRegex.test(handle);
+  };
+
+  const isValidYouTube = (url) => {
+    const youtubeRegex =
+      /^https?:\/\/(www\.)?(youtube\.com\/(channel\/|user\/|c\/|@)?|youtu\.be\/)[a-zA-Z0-9._-]+\/?$/;
+    return youtubeRegex.test(url);
   };
 
   const nextStep = () => {
@@ -627,6 +650,84 @@ export default function OnboardingForm({
           )}
         </View>
 
+        <View style={styles.inputGroup}>
+          <View style={styles.inputLabelContainer}>
+            <Text style={styles.label}>TikTok</Text>
+            <Text style={styles.optionalLabel}>Optional</Text>
+          </View>
+          <TextInput
+            style={[styles.socialInput, errors.tiktok && styles.inputError]}
+            placeholder="yourhandle"
+            placeholderTextColor="hsl(0, 0%, 50%)"
+            value={djProfile.tiktok}
+            onChangeText={(text) => {
+              // Auto-prepend TikTok URL if user just enters handle
+              let processedText = text;
+              if (text && !text.startsWith("http") && !text.startsWith("@")) {
+                processedText = `https://www.tiktok.com/@${text}`;
+              } else if (text && text.startsWith("@")) {
+                processedText = `https://www.tiktok.com/${text}`;
+              }
+              setDjProfile((prev) => ({ ...prev, tiktok: processedText }));
+              if (errors.tiktok) {
+                setErrors((prev) => ({ ...prev, tiktok: null }));
+              }
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {djProfile.tiktok && (
+            <Text style={styles.formatHint}>
+              {isValidTikTok(djProfile.tiktok)
+                ? "✓ Valid format"
+                : "⚠ Check format"}
+            </Text>
+          )}
+          {errors.tiktok && (
+            <Text style={styles.errorText}>{errors.tiktok}</Text>
+          )}
+        </View>
+
+        <View style={styles.inputGroup}>
+          <View style={styles.inputLabelContainer}>
+            <Text style={styles.label}>YouTube</Text>
+            <Text style={styles.optionalLabel}>Optional</Text>
+          </View>
+          <TextInput
+            style={[styles.socialInput, errors.youtube && styles.inputError]}
+            placeholder="youtube.com/@yourchannel"
+            placeholderTextColor="hsl(0, 0%, 50%)"
+            value={djProfile.youtube}
+            onChangeText={(text) => {
+              // Auto-prepend YouTube URL if user just enters handle
+              let processedText = text;
+              if (text && !text.startsWith("http") && !text.startsWith("@") && !text.startsWith("youtube.com") && !text.startsWith("youtu.be")) {
+                processedText = `https://www.youtube.com/@${text}`;
+              } else if (text && text.startsWith("@")) {
+                processedText = `https://www.youtube.com/${text}`;
+              } else if (text && !text.startsWith("http") && (text.startsWith("youtube.com") || text.startsWith("youtu.be"))) {
+                processedText = `https://${text}`;
+              }
+              setDjProfile((prev) => ({ ...prev, youtube: processedText }));
+              if (errors.youtube) {
+                setErrors((prev) => ({ ...prev, youtube: null }));
+              }
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {djProfile.youtube && (
+            <Text style={styles.formatHint}>
+              {isValidYouTube(djProfile.youtube)
+                ? "✓ Valid format"
+                : "⚠ Check format"}
+            </Text>
+          )}
+          {errors.youtube && (
+            <Text style={styles.errorText}>{errors.youtube}</Text>
+          )}
+        </View>
+
         <View style={styles.skipContainer}>
           <Text style={styles.skipText}>
             You can always add these later in your profile settings
@@ -648,7 +749,7 @@ export default function OnboardingForm({
     >
       <Text style={styles.stepTitle}>Profile Picture</Text>
       <Text style={styles.stepSubtitle}>
-        Add a photo to personalize your profile (optional)
+        Add a photo to personalize your profile (required)
       </Text>
 
       <View style={styles.profileImageCard}>
@@ -694,8 +795,11 @@ export default function OnboardingForm({
           <Text style={styles.hintText}>
             {profileImage
               ? "Great! Your profile picture is ready."
-              : "You can add a profile picture now or skip this step and add one later."}
+              : "Please add a profile picture to continue."}
           </Text>
+          {errors.profile_image && (
+            <Text style={styles.errorText}>{errors.profile_image}</Text>
+          )}
         </View>
       </View>
     </Animated.View>

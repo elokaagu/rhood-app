@@ -26,11 +26,13 @@ import {
   Share,
   ActionSheetIOS,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase, db } from "../lib/supabase";
 import { multimediaService } from "../lib/multimediaService";
 import { HapticPatterns } from "../lib/haptics";
+import * as Haptics from "expo-haptics";
 import ProgressiveImage from "./ProgressiveImage";
 import OpportunityMessageCard from "./OpportunityMessageCard";
 import RhoodModal from "./RhoodModal";
@@ -111,7 +113,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [threadId, setThreadId] = useState(null);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
-  const [selectedMedia, setSelectedMedia] = useState(null);
+  const [selectedMedia, setSelectedMedia] = useState([]);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [fullscreenVideo, setFullscreenVideo] = useState(null);
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
@@ -120,6 +122,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [audioProgress, setAudioProgress] = useState({});
   const [audioDurations, setAudioDurations] = useState({});
   const [messageLinkPreviews, setMessageLinkPreviews] = useState({});
+  const [selectedMessageForOptions, setSelectedMessageForOptions] = useState(null);
+  const [showMessageOptionsModal, setShowMessageOptionsModal] = useState(false);
+  const [replyingToMessage, setReplyingToMessage] = useState(null);
 
   // Refs
   const scrollViewRef = useRef(null);
@@ -496,70 +501,94 @@ const MessagesScreen = ({ user, navigation, route }) => {
     [supabase]
   );
 
+  const handleCopyMessage = useCallback(async (message) => {
+    try {
+      const textToCopy = message.content || message.mediaUrl || "";
+      if (textToCopy) {
+        await Clipboard.setStringAsync(textToCopy);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("Copied", "Message copied to clipboard");
+      }
+    } catch (error) {
+      console.error("Error copying message:", error);
+      Alert.alert("Error", "Failed to copy message");
+    }
+  }, []);
+
+  const handleReplyToMessage = useCallback((message) => {
+    setReplyingToMessage(message);
+    setShowMessageOptionsModal(false);
+    // Focus on input (you may need to add a ref to TextInput)
+  }, []);
+
+  const handlePinMessage = useCallback(async (message) => {
+    try {
+      // TODO: Implement pin functionality in database
+      Alert.alert("Pin", "Pin functionality coming soon");
+      setShowMessageOptionsModal(false);
+    } catch (error) {
+      console.error("Error pinning message:", error);
+      Alert.alert("Error", "Failed to pin message");
+    }
+  }, []);
+
+  const handleDeleteForYou = useCallback(async (message) => {
+    try {
+      // Mark message as deleted for this user only
+      // This would require a deleted_for_users column or similar
+      Alert.alert(
+        "Delete for you",
+        "This message will be hidden from you but remain visible to others.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              // TODO: Implement delete for you in database
+              setMessages((prev) => prev.filter((m) => m.id !== message.id));
+              setShowMessageOptionsModal(false);
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error deleting message for you:", error);
+      Alert.alert("Error", "Failed to delete message");
+    }
+  }, []);
+
+  const handleUnsendMessage = useCallback(async (message) => {
+    if (!message.isOwn) {
+      Alert.alert("Error", "You can only unsend your own messages");
+      return;
+    }
+
+    Alert.alert(
+      "Unsend message?",
+      "This will remove the message for everyone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unsend",
+          style: "destructive",
+          onPress: async () => {
+            await handleDeleteMessage(message);
+            setShowMessageOptionsModal(false);
+          },
+        },
+      ]
+    );
+  }, [handleDeleteMessage]);
+
   const handleMessageLongPress = useCallback(
     (message) => {
       if (!message) return;
-
-      const promptDelete = () => {
-        Alert.alert(
-          "Delete message?",
-          "This will remove the message for everyone.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete",
-              style: "destructive",
-              onPress: () => handleDeleteMessage(message),
-            },
-          ]
-        );
-      };
-
-      if (Platform.OS === "ios") {
-        const options = message.isOwn
-          ? ["Cancel", "Forward", "Delete"]
-          : ["Cancel", "Forward"];
-        ActionSheetIOS.showActionSheetWithOptions(
-          {
-            options,
-            cancelButtonIndex: 0,
-            destructiveButtonIndex: message.isOwn ? 2 : undefined,
-          },
-          (buttonIndex) => {
-            if (buttonIndex === 0) return;
-            if (buttonIndex === 1) {
-              handleForwardMessage(message);
-              return;
-            }
-            if (buttonIndex === 2 && message.isOwn) {
-              promptDelete();
-            }
-          }
-        );
-      } else {
-        const buttons = [
-          {
-            text: "Forward",
-            onPress: () => handleForwardMessage(message),
-          },
-        ];
-
-        if (message.isOwn) {
-          buttons.push({
-            text: "Delete",
-            style: "destructive",
-            onPress: promptDelete,
-          });
-        }
-
-        buttons.push({ text: "Cancel", style: "cancel" });
-
-        Alert.alert("Message options", undefined, buttons, {
-          cancelable: true,
-        });
-      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setSelectedMessageForOptions(message);
+      setShowMessageOptionsModal(true);
     },
-    [handleForwardMessage, handleDeleteMessage]
+    []
   );
 
   // Load messages
@@ -1050,7 +1079,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
       }
 
-      setSelectedMedia({
+      const newMedia = {
         type: normalizedType,
         url: uploadResult.url,
         filename: uploadResult.filename || picked.filename,
@@ -1063,7 +1092,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
           picked.filename?.split(".").pop()?.toLowerCase() ||
           null,
         duration: durationMillis, // Store duration if extracted
-      });
+      };
+      
+      // Add to selected media array
+      setSelectedMedia((prev) => [...prev, newMedia]);
 
       setShowMediaPicker(false);
     } catch (error) {
@@ -1079,17 +1111,49 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   const handleImageUpload = useCallback(async () => {
     try {
-      await selectAndUploadMedia(() => multimediaService.pickImage(), "photo");
+      setUploadingMedia(true);
+      const pickedImages = await multimediaService.pickMultipleImages(10);
+
+      if (!pickedImages || pickedImages.length === 0) {
+        setUploadingMedia(false);
+        return;
+      }
+
+      // Upload all selected images
+      const uploadPromises = pickedImages.map((picked) =>
+        multimediaService.uploadToStorage(picked)
+      );
+      const uploadResults = await Promise.all(uploadPromises);
+
+      // Combine picked images with upload results
+      const uploadedMedia = pickedImages.map((picked, index) => {
+        const uploadResult = uploadResults[index];
+        return {
+          type: "image",
+          url: uploadResult.url,
+          filename: uploadResult.filename || picked.filename,
+          size: picked.size ?? uploadResult.size ?? 0,
+          mimeType: picked.mimeType ?? uploadResult.mimeType || "image/jpeg",
+          thumbnailUrl: uploadResult.thumbnailUrl || picked.thumbnail || null,
+          extension: uploadResult.fileExtension || "jpg",
+          width: picked.width,
+          height: picked.height,
+        };
+      });
+
+      // Add to existing selected media
+      setSelectedMedia((prev) => [...prev, ...uploadedMedia]);
+      setShowMediaPicker(false);
     } catch (error) {
       console.error("❌ Error in handleImageUpload:", error);
       Alert.alert(
         "Image Upload Error",
-        error.message || "Failed to pick image. Please try again."
+        error.message || "Failed to pick images. Please try again."
       );
+    } finally {
       setUploadingMedia(false);
-      setShowMediaPicker(false);
     }
-  }, [selectAndUploadMedia]);
+  }, []);
 
   const handleVideoUpload = useCallback(async () => {
     try {
@@ -1191,7 +1255,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
   }, [selectAndUploadMedia]);
 
   const clearSelectedMedia = useCallback(() => {
-    setSelectedMedia(null);
+    setSelectedMedia([]);
+  }, []);
+
+  const handleRemoveMedia = useCallback((index) => {
+    setSelectedMedia((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   // Format time helper for audio duration
@@ -1480,10 +1548,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   // Send message
   const sendMessage = useCallback(async () => {
-    if ((!newMessage.trim() && !selectedMedia) || sending) {
+    if ((!newMessage.trim() && selectedMedia.length === 0) || sending) {
       console.log("⚠️ Cannot send:", {
         hasMessage: !!newMessage.trim(),
-        hasMedia: !!selectedMedia,
+        hasMedia: selectedMedia.length > 0,
         sending,
       });
       return;
@@ -1496,7 +1564,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }
 
     const messageContent = newMessage.trim();
-    const mediaData = selectedMedia;
+    const mediaArray = [...selectedMedia]; // Copy array
     console.log("📤 Sending message:", {
       content: messageContent,
       chatType,
@@ -1505,11 +1573,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
       userId: user.id,
       isConnected,
       threadId,
-      hasMedia: !!mediaData,
+      mediaCount: mediaArray.length,
     });
 
     setNewMessage("");
-    setSelectedMedia(null);
+    setSelectedMedia([]);
     setSending(true);
 
     try {
@@ -1532,95 +1600,136 @@ const MessagesScreen = ({ user, navigation, route }) => {
           throw new Error("Failed to get thread ID");
         }
 
-        console.log("💾 Inserting message to database...");
-        const messageInsertData = {
-          thread_id: currentThreadId,
-          sender_id: user.id,
-          content: messageContent || "",
-          message_type: mediaData ? mediaData.type : "text",
-        };
+        console.log("💾 Inserting message(s) to database...");
+        
+        // If there's text content, send it as a separate message first
+        if (messageContent) {
+          const textMessageData = {
+            thread_id: currentThreadId,
+            sender_id: user.id,
+            content: messageContent,
+            message_type: "text",
+          };
 
-        if (mediaData) {
-          messageInsertData.media_url = mediaData.url;
-          messageInsertData.media_filename = mediaData.filename;
-          messageInsertData.media_size = mediaData.size;
-          messageInsertData.media_mime_type = mediaData.mimeType;
-          messageInsertData.thumbnail_url = mediaData.thumbnailUrl;
-          messageInsertData.file_extension = mediaData.extension;
+          const { error: textError } = await supabase
+            .from("messages")
+            .insert(textMessageData);
+
+          if (textError) {
+            console.error("❌ Error sending text message:", textError);
+          }
         }
 
-        const { data, error } = await supabase
-          .from("messages")
-          .insert(messageInsertData)
-          .select("*")
-          .single();
+        // Send each media file as a separate message
+        if (mediaArray.length > 0) {
+          const mediaMessages = mediaArray.map((mediaItem) => ({
+            thread_id: currentThreadId,
+            sender_id: user.id,
+            content: "",
+            message_type: mediaItem.type,
+            media_url: mediaItem.url,
+            media_filename: mediaItem.filename,
+            media_size: mediaItem.size,
+            media_mime_type: mediaItem.mimeType,
+            thumbnail_url: mediaItem.thumbnailUrl,
+            file_extension: mediaItem.extension,
+            duration: mediaItem.duration,
+          }));
 
-        if (error) {
-          console.error("❌ Error sending message:", error);
-          console.error("❌ Error details:", {
-            code: error.code,
-            message: error.message,
-            hint: error.hint,
-            details: error.details,
-          });
-          Alert.alert(
-            "Error",
-            `Failed to send message: ${error.message || "Unknown error"}`
-          );
-          setNewMessage(messageContent);
-          setSelectedMedia(mediaData);
-          setSending(false);
-          return;
+          const { data, error } = await supabase
+            .from("messages")
+            .insert(mediaMessages)
+            .select("*");
+
+          if (error) {
+            console.error("❌ Error sending media messages:", error);
+            console.error("❌ Error details:", {
+              code: error.code,
+              message: error.message,
+              hint: error.hint,
+              details: error.details,
+            });
+            Alert.alert(
+              "Error",
+              `Failed to send message: ${error.message || "Unknown error"}`
+            );
+            setNewMessage(messageContent);
+            setSelectedMedia(mediaArray);
+            setSending(false);
+            return;
+          }
+
+          console.log(`✅ ${mediaArray.length} media message(s) sent successfully`);
+        } else {
+          console.log("✅ Text message sent successfully");
         }
-
-        console.log("✅ Message sent successfully:", data.id);
 
         // Reload messages to ensure UI updates
         setTimeout(() => {
           loadMessages();
         }, 300);
       } else if (chatType === "group" && communityId) {
-        const groupMessageInsertData = {
-          community_id: communityId,
-          author_id: user.id,
-          content: messageContent || "",
-          message_type: mediaData ? mediaData.type : "text",
-        };
+        // If there's text content, send it as a separate message first
+        if (messageContent) {
+          const textMessageData = {
+            community_id: communityId,
+            author_id: user.id,
+            content: messageContent,
+            message_type: "text",
+          };
 
-        if (mediaData) {
-          groupMessageInsertData.media_url = mediaData.url;
-          groupMessageInsertData.media_filename = mediaData.filename;
-          groupMessageInsertData.media_size = mediaData.size;
-          groupMessageInsertData.media_mime_type = mediaData.mimeType;
-          groupMessageInsertData.thumbnail_url = mediaData.thumbnailUrl;
-          groupMessageInsertData.file_extension = mediaData.extension;
+          const { error: textError } = await supabase
+            .from("community_posts")
+            .insert(textMessageData);
+
+          if (textError) {
+            console.error("❌ Error sending text message:", textError);
+          }
         }
 
-        const { data, error } = await supabase
-          .from("community_posts")
-          .insert(groupMessageInsertData)
-          .select("*")
-          .single();
+        // Send each media file as a separate message
+        if (mediaArray.length > 0) {
+          const mediaMessages = mediaArray.map((mediaItem) => ({
+            community_id: communityId,
+            author_id: user.id,
+            content: "",
+            message_type: mediaItem.type,
+            media_url: mediaItem.url,
+            media_filename: mediaItem.filename,
+            media_size: mediaItem.size,
+            media_mime_type: mediaItem.mimeType,
+            thumbnail_url: mediaItem.thumbnailUrl,
+            file_extension: mediaItem.extension,
+            duration: mediaItem.duration,
+          }));
 
-        if (error) {
-          console.error("❌ Error sending group message:", error);
-          console.error("❌ Error details:", {
-            code: error.code,
-            message: error.message,
-            hint: error.hint,
-            details: error.details,
-          });
-          Alert.alert(
-            "Error",
-            `Failed to send message: ${error.message || "Unknown error"}`
-          );
-          setNewMessage(messageContent);
-          setSelectedMedia(mediaData);
-          setSending(false);
-          return;
+          const { data, error } = await supabase
+            .from("community_posts")
+            .insert(mediaMessages)
+            .select("*");
+
+          if (error) {
+            console.error("❌ Error sending group media messages:", error);
+            console.error("❌ Error details:", {
+              code: error.code,
+              message: error.message,
+              hint: error.hint,
+              details: error.details,
+            });
+            Alert.alert(
+              "Error",
+              `Failed to send message: ${error.message || "Unknown error"}`
+            );
+            setNewMessage(messageContent);
+            setSelectedMedia(mediaArray);
+            setSending(false);
+            return;
+          }
+
+          console.log(`✅ ${mediaArray.length} group media message(s) sent successfully`);
+        } else {
+          console.log("✅ Group text message sent successfully");
         }
-
-        console.log("✅ Group message sent:", data.id);
 
         // Reload messages to ensure UI updates
         setTimeout(() => {
@@ -1635,7 +1744,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         `Failed to send message: ${error.message || "Unknown error"}`
       );
       setNewMessage(messageContent);
-      setSelectedMedia(mediaData);
+      setSelectedMedia(mediaArray);
     } finally {
       setSending(false);
     }
@@ -2099,58 +2208,66 @@ const MessagesScreen = ({ user, navigation, route }) => {
           )}
         </ScrollView>
 
-        {selectedMedia && (
-          <View style={styles.mediaPreviewContainer}>
-            <View style={styles.mediaPreview}>
-              {selectedMedia.type === "image" && (
-                <Image
-                  source={{ uri: selectedMedia.url }}
-                  style={styles.mediaPreviewImage}
-                  resizeMode="cover"
-                />
-              )}
-              {selectedMedia.type === "video" && (
-                <View style={styles.mediaPreviewVideo}>
-                  <Ionicons
-                    name="videocam"
-                    size={24}
-                    color="hsl(75, 100%, 60%)"
-                  />
-                  <Text style={styles.mediaPreviewText}>Video</Text>
+        {selectedMedia.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.selectedMediaContainer}
+            contentContainerStyle={styles.selectedMediaContent}
+          >
+            {selectedMedia.map((media, index) => (
+              <View key={index} style={styles.mediaPreviewContainer}>
+                <View style={styles.mediaPreview}>
+                  {media.type === "image" && (
+                    <Image
+                      source={{ uri: media.url }}
+                      style={styles.mediaPreviewImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                  {media.type === "video" && (
+                    <View style={styles.mediaPreviewVideo}>
+                      <Ionicons
+                        name="videocam"
+                        size={24}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                      <Text style={styles.mediaPreviewText}>Video</Text>
+                    </View>
+                  )}
+                  {(media.type === "file" || media.type === "audio") && (
+                    <View style={styles.mediaPreviewFile}>
+                      <Ionicons
+                        name={
+                          media.type === "audio"
+                            ? "musical-notes"
+                            : multimediaService.getFileIcon(media.extension)
+                        }
+                        size={24}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                      <View>
+                        <Text style={styles.mediaPreviewText}>
+                          {media.filename || "Attachment"}
+                        </Text>
+                        {media.size ? (
+                          <Text style={styles.mediaPreviewMeta}>
+                            {multimediaService.formatFileSize(media.size)}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  )}
                 </View>
-              )}
-              {(selectedMedia.type === "file" ||
-                selectedMedia.type === "audio") && (
-                <View style={styles.mediaPreviewFile}>
-                  <Ionicons
-                    name={
-                      selectedMedia.type === "audio"
-                        ? "musical-notes"
-                        : multimediaService.getFileIcon(selectedMedia.extension)
-                    }
-                    size={24}
-                    color="hsl(75, 100%, 60%)"
-                  />
-                  <View>
-                    <Text style={styles.mediaPreviewText}>
-                      {selectedMedia.filename || "Attachment"}
-                    </Text>
-                    {selectedMedia.size ? (
-                      <Text style={styles.mediaPreviewMeta}>
-                        {multimediaService.formatFileSize(selectedMedia.size)}
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-              )}
-            </View>
-            <TouchableOpacity
-              onPress={clearSelectedMedia}
-              style={styles.removeMediaButton}
-            >
-              <Ionicons name="close" size={20} color="hsl(0, 0%, 100%)" />
-            </TouchableOpacity>
-          </View>
+                <TouchableOpacity
+                  onPress={() => handleRemoveMedia(index)}
+                  style={styles.removeMediaButton}
+                >
+                  <Ionicons name="close" size={20} color="hsl(0, 0%, 100%)" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
         )}
 
         {showMediaPicker && (
@@ -2314,6 +2431,24 @@ const MessagesScreen = ({ user, navigation, route }) => {
               { paddingBottom: bottomInputPadding },
             ]}
           >
+            {replyingToMessage && (
+              <View style={styles.replyIndicator}>
+                <View style={styles.replyIndicatorContent}>
+                  <View style={styles.replyIndicatorLeft}>
+                    <Ionicons name="arrow-undo" size={16} color="hsl(75, 100%, 60%)" />
+                    <Text style={styles.replyIndicatorText} numberOfLines={1}>
+                      Replying to {replyingToMessage.senderName || "message"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setReplyingToMessage(null)}
+                    style={styles.replyIndicatorClose}
+                  >
+                    <Ionicons name="close" size={18} color="hsl(0, 0%, 70%)" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
             <View style={styles.inputWrapper}>
               <TouchableOpacity
                 style={styles.attachButton}
@@ -2328,7 +2463,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
               </TouchableOpacity>
               <TextInput
                 style={styles.messageInput}
-                placeholder="Type a message..."
+                placeholder={replyingToMessage ? "Type a reply..." : "Type a message..."}
                 placeholderTextColor="hsl(0, 0%, 50%)"
                 value={newMessage}
                 onChangeText={setNewMessage}
@@ -2339,11 +2474,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
               <TouchableOpacity
                 style={[
                   styles.sendButton,
-                  ((!newMessage.trim() && !selectedMedia) || sending) &&
+                  ((!newMessage.trim() && selectedMedia.length === 0) || sending) &&
                     styles.sendButtonDisabled,
                 ]}
                 onPress={sendMessage}
-                disabled={(!newMessage.trim() && !selectedMedia) || sending}
+                disabled={(!newMessage.trim() && selectedMedia.length === 0) || sending}
               >
                 {sending ? (
                   <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
@@ -2355,6 +2490,106 @@ const MessagesScreen = ({ user, navigation, route }) => {
           </View>
         )}
       </Animated.View>
+
+      {/* Message Options Modal */}
+      <Modal
+        visible={showMessageOptionsModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMessageOptionsModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.messageOptionsOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMessageOptionsModal(false)}
+        >
+          <View style={styles.messageOptionsContainer}>
+            <View style={styles.messageOptionsContent}>
+              {selectedMessageForOptions && (
+                <>
+                  <TouchableOpacity
+                    style={styles.messageOption}
+                    onPress={() => {
+                      handleCopyMessage(selectedMessageForOptions);
+                      setShowMessageOptionsModal(false);
+                    }}
+                  >
+                    <Ionicons name="copy-outline" size={24} color="hsl(0, 0%, 100%)" />
+                    <Text style={styles.messageOptionText}>Copy</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.messageOption}
+                    onPress={() => {
+                      handleReplyToMessage(selectedMessageForOptions);
+                    }}
+                  >
+                    <Ionicons name="arrow-undo-outline" size={24} color="hsl(0, 0%, 100%)" />
+                    <Text style={styles.messageOptionText}>Reply</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.messageOption}
+                    onPress={() => {
+                      handleForwardMessage(selectedMessageForOptions);
+                      setShowMessageOptionsModal(false);
+                    }}
+                  >
+                    <Ionicons name="arrow-forward-outline" size={24} color="hsl(0, 0%, 100%)" />
+                    <Text style={styles.messageOptionText}>Forward</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.messageOption}
+                    onPress={() => {
+                      handlePinMessage(selectedMessageForOptions);
+                    }}
+                  >
+                    <Ionicons name="pin-outline" size={24} color="hsl(0, 0%, 100%)" />
+                    <Text style={styles.messageOptionText}>Pin</Text>
+                  </TouchableOpacity>
+
+                  {selectedMessageForOptions.isOwn && (
+                    <>
+                      <View style={styles.messageOptionDivider} />
+                      <TouchableOpacity
+                        style={[styles.messageOption, styles.messageOptionDestructive]}
+                        onPress={() => {
+                          handleUnsendMessage(selectedMessageForOptions);
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={24} color="hsl(0, 100%, 60%)" />
+                        <Text style={[styles.messageOptionText, styles.messageOptionTextDestructive]}>
+                          Unsend
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  <View style={styles.messageOptionDivider} />
+                  <TouchableOpacity
+                    style={[styles.messageOption, styles.messageOptionDestructive]}
+                    onPress={() => {
+                      handleDeleteForYou(selectedMessageForOptions);
+                    }}
+                  >
+                    <Ionicons name="eye-off-outline" size={24} color="hsl(0, 100%, 60%)" />
+                    <Text style={[styles.messageOptionText, styles.messageOptionTextDestructive]}>
+                      Delete for you
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+            <TouchableOpacity
+              style={styles.messageOptionsCancel}
+              onPress={() => setShowMessageOptionsModal(false)}
+            >
+              <Text style={styles.messageOptionsCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Opportunity Details Modal */}
       <RhoodModal
@@ -2651,6 +2886,33 @@ const styles = StyleSheet.create({
     borderTopWidth: 2,
     borderTopColor: "hsl(75, 100%, 60%)",
   },
+  replyIndicator: {
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderTopWidth: 1,
+    borderTopColor: "hsl(0, 0%, 20%)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  replyIndicatorContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  replyIndicatorLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  replyIndicatorText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    fontWeight: "500",
+  },
+  replyIndicatorClose: {
+    padding: 4,
+  },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -2732,46 +2994,51 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(75, 100%, 60%)",
   },
-  mediaPreviewContainer: {
+  selectedMediaContainer: {
     backgroundColor: "hsl(0, 0%, 8%)",
     borderTopWidth: 1,
     borderTopColor: "hsl(0, 0%, 20%)",
-    paddingHorizontal: 16,
     paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
+    maxHeight: 120,
+  },
+  selectedMediaContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  mediaPreviewContainer: {
+    position: "relative",
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "hsl(0, 0%, 12%)",
   },
   mediaPreview: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    width: "100%",
+    height: "100%",
   },
   mediaPreviewImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 12,
+    width: "100%",
+    height: "100%",
   },
   mediaPreviewVideo: {
-    flexDirection: "row",
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
     alignItems: "center",
     backgroundColor: "hsl(0, 0%, 15%)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginRight: 12,
   },
   mediaPreviewFile: {
-    flexDirection: "row",
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
     alignItems: "center",
     backgroundColor: "hsl(0, 0%, 15%)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginRight: 12,
-    maxWidth: 220,
+    padding: 8,
   },
   mediaPreviewText: {
+    fontSize: 10,
+    textAlign: "center",
     color: "hsl(0, 0%, 100%)",
     fontSize: 14,
     fontFamily: "Helvetica Neue",
@@ -2784,6 +3051,18 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   removeMediaButton: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "hsl(0, 0%, 0%)",
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 30%)",
+    zIndex: 10,
     backgroundColor: "hsl(0, 0%, 30%)",
     width: 32,
     height: 32,
@@ -3131,6 +3410,61 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: "center",
     alignItems: "center",
+  },
+  // Message Options Modal Styles
+  messageOptionsOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  messageOptionsContainer: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+    maxHeight: "80%",
+  },
+  messageOptionsContent: {
+    paddingVertical: 8,
+  },
+  messageOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 16,
+  },
+  messageOptionDestructive: {
+    // Destructive options styling handled by text color
+  },
+  messageOptionText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "500",
+  },
+  messageOptionTextDestructive: {
+    color: "hsl(0, 100%, 60%)",
+  },
+  messageOptionDivider: {
+    height: 1,
+    backgroundColor: "hsl(0, 0%, 20%)",
+    marginVertical: 4,
+    marginHorizontal: 20,
+  },
+  messageOptionsCancel: {
+    marginTop: 8,
+    marginHorizontal: 20,
+    paddingVertical: 16,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "hsl(0, 0%, 20%)",
+  },
+  messageOptionsCancelText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    fontWeight: "600",
   },
 });
 

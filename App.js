@@ -92,6 +92,7 @@ import AdminApplicationsScreen from "./components/AdminApplicationsScreen";
 import BrandGigsPortal from "./components/BrandGigsPortal";
 import TrendingMixesScreen from "./components/TrendingMixesScreen";
 import YourLikesScreen from "./components/YourLikesScreen";
+import PlaylistDetailScreen from "./components/PlaylistDetailScreen";
 // Push notifications - gracefully handle Expo Go limitations
 import {
   registerForPushNotifications,
@@ -368,6 +369,9 @@ export default function App() {
   const [currentOpportunityIndex, setCurrentOpportunityIndex] = useState(0);
   const [swipedOpportunities, setSwipedOpportunities] = useState([]);
   const [isLoadingOpportunities, setIsLoadingOpportunities] = useState(true);
+  const [showSwipeTutorial, setShowSwipeTutorial] = useState(false);
+  const [inAppNotification, setInAppNotification] = useState(null);
+  const inAppNotificationAnim = useRef(new Animated.Value(0)).current;
 
   // Brief form state - REMOVED (no longer needed for simplified swipe-to-apply)
   // But we still need selectedOpportunity for the details modal
@@ -841,6 +845,26 @@ export default function App() {
   // State to track network errors for daily stats refresh
   const [networkErrorCount, setNetworkErrorCount] = useState(0);
   const intervalRef = useRef(null); // To store the interval ID
+
+  // Check if swipe tutorial should be shown (first time user sees opportunities)
+  useEffect(() => {
+    const checkSwipeTutorial = async () => {
+      if (currentScreen === "opportunities" && user?.id && !isLoadingOpportunities && opportunities.length > 0) {
+        try {
+          const hasSeenTutorial = await AsyncStorage.getItem("hasSeenSwipeTutorial");
+          if (!hasSeenTutorial) {
+            // Small delay to ensure screen is fully rendered
+            setTimeout(() => {
+              setShowSwipeTutorial(true);
+            }, 500);
+          }
+        } catch (error) {
+          console.error("Error checking swipe tutorial:", error);
+        }
+      }
+    };
+    checkSwipeTutorial();
+  }, [currentScreen, user?.id, isLoadingOpportunities, opportunities.length]);
 
   // Refresh daily application stats when on opportunities screen
   useEffect(() => {
@@ -3440,6 +3464,16 @@ export default function App() {
     });
   };
 
+  const handleDismissSwipeTutorial = async () => {
+    try {
+      await AsyncStorage.setItem("hasSeenSwipeTutorial", "true");
+      setShowSwipeTutorial(false);
+    } catch (error) {
+      console.error("Error saving swipe tutorial state:", error);
+      setShowSwipeTutorial(false);
+    }
+  };
+
   const handleSwipeLeft = () => {
     // Pass on opportunity
     const currentOpportunity = opportunities[currentOpportunityIndex];
@@ -4381,8 +4415,40 @@ export default function App() {
         },
         (payload) => {
           console.log("🔔 New notification received:", payload.new);
+          const newNotification = payload.new;
+          
+          // Show in-app notification toast
+          setInAppNotification({
+            id: newNotification.id,
+            title: newNotification.title || "New Notification",
+            message: newNotification.message || newNotification.content || "",
+            type: newNotification.type || "info",
+          });
+          
+          // Animate in
+          Animated.spring(inAppNotificationAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 7,
+          }).start();
+          
+          // Auto-dismiss after 5 seconds
+          setTimeout(() => {
+            Animated.timing(inAppNotificationAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }).start(() => {
+              setInAppNotification(null);
+            });
+          }, 5000);
+          
           // Refresh notification counts when new notification arrives
           loadNotificationCounts();
+          
+          // Haptic feedback
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       )
       .on(
@@ -4535,6 +4601,8 @@ export default function App() {
           last_name: lastName,
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
+          tiktok: djProfile.tiktok || null,
+          youtube: djProfile.youtube || null,
           city: djProfile.city,
           genres: djProfile.genres,
           bio: `DJ from ${
@@ -4568,6 +4636,8 @@ export default function App() {
           last_name: lastName,
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
+          tiktok: djProfile.tiktok || null,
+          youtube: djProfile.youtube || null,
           city: djProfile.city,
           genres: djProfile.genres,
           bio: `DJ from ${
@@ -4828,6 +4898,82 @@ export default function App() {
                   </View>
                 )}
               </View>
+
+              {/* Swipe Tutorial Overlay */}
+              {showSwipeTutorial && (
+                <Modal
+                  transparent={true}
+                  visible={showSwipeTutorial}
+                  animationType="fade"
+                  onRequestClose={handleDismissSwipeTutorial}
+                >
+                  <View style={styles.tutorialOverlay}>
+                    <View style={styles.tutorialContent}>
+                      <View style={styles.tutorialHeader}>
+                        <Text style={styles.tutorialTitle}>How to Use</Text>
+                        <TouchableOpacity
+                          onPress={handleDismissSwipeTutorial}
+                          style={styles.tutorialCloseButton}
+                        >
+                          <Ionicons
+                            name="close"
+                            size={24}
+                            color="hsl(0, 0%, 100%)"
+                          />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.tutorialInstructions}>
+                        <View style={styles.tutorialInstructionRow}>
+                          <View style={styles.tutorialIconContainer}>
+                            <Ionicons
+                              name="arrow-forward"
+                              size={32}
+                              color="hsl(75, 100%, 60%)"
+                            />
+                          </View>
+                          <View style={styles.tutorialTextContainer}>
+                            <Text style={styles.tutorialInstructionTitle}>
+                              Swipe Right
+                            </Text>
+                            <Text style={styles.tutorialInstructionText}>
+                              To apply for an opportunity
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.tutorialInstructionRow}>
+                          <View style={styles.tutorialIconContainer}>
+                            <Ionicons
+                              name="arrow-back"
+                              size={32}
+                              color="hsl(0, 100%, 60%)"
+                            />
+                          </View>
+                          <View style={styles.tutorialTextContainer}>
+                            <Text style={styles.tutorialInstructionTitle}>
+                              Swipe Left
+                            </Text>
+                            <Text style={styles.tutorialInstructionText}>
+                              To dismiss and see the next opportunity
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.tutorialGotItButton}
+                        onPress={handleDismissSwipeTutorial}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.tutorialGotItButtonText}>
+                          Got It
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Modal>
+              )}
             </View>
           </View>
         );
@@ -5139,6 +5285,21 @@ export default function App() {
           />
         );
 
+      case "playlist-detail":
+        return (
+          <PlaylistDetailScreen
+            globalAudioState={globalAudioState}
+            onPlayAudio={playGlobalAudio}
+            onPauseAudio={pauseGlobalAudio}
+            onBack={() => setCurrentScreen("listen")}
+            user={user}
+            onAddToQueue={addToQueue}
+            onPlayNext={playNextTrack}
+            playlistId={screenParams.playlistId}
+            playlistName={screenParams.playlistName}
+          />
+        );
+
       case "notifications":
         return (
           <ScrollView style={styles.screen}>
@@ -5240,6 +5401,10 @@ export default function App() {
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.menuButton} onPress={openMenu}>
               <Ionicons name="menu" size={24} color="hsl(0, 0%, 100%)" />
+              <NotificationBadge
+                count={unreadNotificationCount}
+                style={styles.menuNotificationBadge}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -6288,6 +6453,81 @@ export default function App() {
           onSecondaryPress={() => setShowCompleteProfileModal(false)}
         />
 
+        {/* In-App Notification Toast */}
+        {inAppNotification && (
+          <Animated.View
+            style={[
+              styles.inAppNotificationContainer,
+              {
+                opacity: inAppNotificationAnim,
+                transform: [
+                  {
+                    translateY: inAppNotificationAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-100, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.inAppNotification}
+              activeOpacity={0.9}
+              onPress={() => {
+                Animated.timing(inAppNotificationAnim, {
+                  toValue: 0,
+                  duration: 300,
+                  useNativeDriver: true,
+                }).start(() => {
+                  setInAppNotification(null);
+                });
+                handleMenuNavigation("notifications");
+              }}
+            >
+              <View style={styles.inAppNotificationContent}>
+                <Ionicons
+                  name="notifications"
+                  size={20}
+                  color="hsl(75, 100%, 60%)"
+                  style={styles.inAppNotificationIcon}
+                />
+                <View style={styles.inAppNotificationTextContainer}>
+                  <Text style={styles.inAppNotificationTitle}>
+                    {inAppNotification.title}
+                  </Text>
+                  {inAppNotification.message && (
+                    <Text
+                      style={styles.inAppNotificationMessage}
+                      numberOfLines={2}
+                    >
+                      {inAppNotification.message}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    Animated.timing(inAppNotificationAnim, {
+                      toValue: 0,
+                      duration: 300,
+                      useNativeDriver: true,
+                    }).start(() => {
+                      setInAppNotification(null);
+                    });
+                  }}
+                  style={styles.inAppNotificationClose}
+                >
+                  <Ionicons
+                    name="close"
+                    size={18}
+                    color="hsl(0, 0%, 70%)"
+                  />
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {/* Black fade overlay for splash screen transition */}
         {showFadeOverlay && (
           <Animated.View
@@ -6870,6 +7110,10 @@ const styles = StyleSheet.create({
     top: -8,
     right: -10,
   },
+  menuNotificationBadge: {
+    top: -4,
+    right: -4,
+  },
   notificationBadgeText: {
     color: "#FFFFFF",
     fontSize: 11,
@@ -7263,6 +7507,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: "transparent",
+    position: "relative",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
@@ -8289,5 +8534,131 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     // marginLeft: 16,
     fontWeight: "bold",
+  },
+  // Swipe Tutorial Styles
+  tutorialOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  tutorialContent: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  tutorialHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  tutorialTitle: {
+    fontSize: 24,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "bold",
+  },
+  tutorialCloseButton: {
+    padding: 4,
+  },
+  tutorialInstructions: {
+    marginBottom: 24,
+  },
+  tutorialInstructionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  tutorialIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  tutorialTextContainer: {
+    flex: 1,
+  },
+  tutorialInstructionTitle: {
+    fontSize: 18,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  tutorialInstructionText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    lineHeight: 20,
+  },
+  tutorialGotItButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: "center",
+  },
+  tutorialGotItButtonText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "bold",
+    color: "hsl(0, 0%, 0%)",
+  },
+  // In-App Notification Toast Styles
+  inAppNotificationContainer: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    right: 20,
+    zIndex: 10000,
+    elevation: 10000,
+  },
+  inAppNotification: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  inAppNotificationContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  inAppNotificationIcon: {
+    marginRight: 12,
+  },
+  inAppNotificationTextContainer: {
+    flex: 1,
+    marginRight: 8,
+  },
+  inAppNotificationTitle: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  inAppNotificationMessage: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    lineHeight: 18,
+  },
+  inAppNotificationClose: {
+    padding: 4,
   },
 });

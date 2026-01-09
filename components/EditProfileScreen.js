@@ -135,6 +135,8 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     phone: "",
     instagram: "",
     soundcloud: "",
+    tiktok: "",
+    youtube: "",
     city: "",
     bio: "",
     status_message: "",
@@ -206,6 +208,8 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           phone: userProfile.phone || "",
           instagram: userProfile.instagram || "",
           soundcloud: userProfile.soundcloud || "",
+          tiktok: userProfile.tiktok || "",
+          youtube: userProfile.youtube || "",
           city: userProfile.city || "",
           bio: userProfile.bio || "",
           status_message: userProfile.status_message || "",
@@ -289,6 +293,12 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     if (profile.soundcloud && !isValidUrl(profile.soundcloud)) {
       newErrors.soundcloud = "Please enter a valid SoundCloud URL";
     }
+    if (profile.tiktok && !isValidUrl(profile.tiktok)) {
+      newErrors.tiktok = "Please enter a valid TikTok handle or URL";
+    }
+    if (profile.youtube && !isValidUrl(profile.youtube)) {
+      newErrors.youtube = "Please enter a valid YouTube URL";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -343,6 +353,14 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
       if (profile.soundcloud && profile.soundcloud.trim()) {
         updatedProfile.soundcloud = profile.soundcloud.trim();
+      }
+
+      if (profile.tiktok && profile.tiktok.trim()) {
+        updatedProfile.tiktok = profile.tiktok.trim();
+      }
+
+      if (profile.youtube && profile.youtube.trim()) {
+        updatedProfile.youtube = profile.youtube.trim();
       }
 
       if (profile.bio && profile.bio.trim()) {
@@ -1029,6 +1047,64 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               />
               {errors.soundcloud && (
                 <Text style={styles.errorText}>{errors.soundcloud}</Text>
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>TikTok</Text>
+              <TextInput
+                style={[styles.input, errors.tiktok && styles.inputError]}
+                value={profile.tiktok}
+                onChangeText={(text) => {
+                  // Auto-prepend TikTok URL if user just enters handle
+                  let processedText = text;
+                  if (text && !text.startsWith("http") && !text.startsWith("@")) {
+                    processedText = `https://www.tiktok.com/@${text}`;
+                  } else if (text && text.startsWith("@")) {
+                    processedText = `https://www.tiktok.com/${text}`;
+                  }
+                  setProfile((prev) => ({
+                    ...prev,
+                    tiktok: processedText,
+                  }));
+                }}
+                placeholder="yourhandle"
+                placeholderTextColor="hsl(0, 0%, 50%)"
+                keyboardType="url"
+                autoCapitalize="none"
+              />
+              {errors.tiktok && (
+                <Text style={styles.errorText}>{errors.tiktok}</Text>
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>YouTube</Text>
+              <TextInput
+                style={[styles.input, errors.youtube && styles.inputError]}
+                value={profile.youtube}
+                onChangeText={(text) => {
+                  // Auto-prepend YouTube URL if user just enters handle
+                  let processedText = text;
+                  if (text && !text.startsWith("http") && !text.startsWith("@") && !text.startsWith("youtube.com") && !text.startsWith("youtu.be")) {
+                    processedText = `https://www.youtube.com/@${text}`;
+                  } else if (text && text.startsWith("@")) {
+                    processedText = `https://www.youtube.com/${text}`;
+                  } else if (text && !text.startsWith("http") && (text.startsWith("youtube.com") || text.startsWith("youtu.be"))) {
+                    processedText = `https://${text}`;
+                  }
+                  setProfile((prev) => ({
+                    ...prev,
+                    youtube: processedText,
+                  }));
+                }}
+                placeholder="youtube.com/@yourchannel"
+                placeholderTextColor="hsl(0, 0%, 50%)"
+                keyboardType="url"
+                autoCapitalize="none"
+              />
+              {errors.youtube && (
+                <Text style={styles.errorText}>{errors.youtube}</Text>
               )}
             </View>
           </View>

@@ -2686,7 +2686,8 @@ const styles = StyleSheet.create({
   },
   searchWrapper: {
     position: "relative",
-    zIndex: 1000,
+    zIndex: 9999,
+    overflow: "visible",
   },
   searchContainer: {
     flexDirection: "row",
@@ -2725,10 +2726,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 20,
-    zIndex: 1001,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 9999,
+    zIndex: 9999,
   },
   suggestionItem: {
     flexDirection: "row",
