@@ -1478,6 +1478,41 @@ export default function App() {
             let userBio = track.user_bio || track.user?.bio;
             const userId = track.user_id || track.user?.id;
 
+            // Check if mix is liked in database (to sync with ListenScreen likes)
+            let isLiked = likedMixIds.has(track.id);
+            if (user?.id && track.id) {
+              // If not in likedMixIds, check database to ensure state is accurate
+              if (!isLiked) {
+                supabase
+                  .from("mix_likes")
+                  .select("mix_id")
+                  .eq("user_id", user.id)
+                  .eq("mix_id", track.id)
+                  .single()
+                  .then(({ data: likeData }) => {
+                    if (likeData) {
+                      // Mix is liked, update likedMixIds
+                      setLikedMixIds((prev) => {
+                        const updated = new Set(prev);
+                        updated.add(track.id);
+                        return updated;
+                      });
+                      // Update currentTrack isLiked state
+                      setGlobalAudioState((prev) => ({
+                        ...prev,
+                        currentTrack: {
+                          ...prev.currentTrack,
+                          isLiked: true,
+                        },
+                      }));
+                    }
+                  })
+                  .catch(() => {
+                    // Mix is not liked, which is fine
+                  });
+              }
+            }
+
             // Fetch user profile if image is missing (async, but don't block playback)
             if (!userImage && userId) {
               supabase
@@ -1517,7 +1552,7 @@ export default function App() {
                 user_image: userImage,
                 user_dj_name: userDjName,
                 user_bio: userBio,
-                isLiked: likedMixIds.has(track.id), // Sync with likedMixIds
+                isLiked: isLiked, // Sync with likedMixIds
               },
               isLoading: false,
               queue: newQueue,
@@ -1814,6 +1849,46 @@ export default function App() {
         let userBio = track.user_bio || track.user?.bio;
         const userId = track.user_id || track.user?.id;
 
+        // Check if mix is liked in database (to sync with ListenScreen likes)
+        let isLiked = likedMixIds.has(track.id);
+        if (user?.id && track.id) {
+          // If not in likedMixIds, check database to ensure state is accurate
+          if (!isLiked) {
+            supabase
+              .from("mix_likes")
+              .select("mix_id")
+              .eq("user_id", user.id)
+              .eq("mix_id", track.id)
+              .single()
+              .then(({ data: likeData }) => {
+                if (likeData) {
+                  // Mix is liked, update likedMixIds
+                  setLikedMixIds((prev) => {
+                    const updated = new Set(prev);
+                    updated.add(track.id);
+                    return updated;
+                  });
+                  // Update currentTrack isLiked state
+                  setGlobalAudioState((prev) => {
+                    if (prev.currentTrack?.id === track.id) {
+                      return {
+                        ...prev,
+                        currentTrack: {
+                          ...prev.currentTrack,
+                          isLiked: true,
+                        },
+                      };
+                    }
+                    return prev;
+                  });
+                }
+              })
+              .catch(() => {
+                // Mix is not liked, which is fine
+              });
+          }
+        }
+
         // If user_image is missing but we have user_id, fetch from database (async, don't block)
         if (!userImage && userId) {
           // Fetch in background and update state when ready
@@ -1855,7 +1930,7 @@ export default function App() {
           user_image: userImage,
           user_dj_name: userDjName,
           user_bio: userBio,
-          isLiked: likedMixIds.has(track.id), // Sync with likedMixIds
+          isLiked: isLiked, // Sync with likedMixIds
         };
 
         return {
