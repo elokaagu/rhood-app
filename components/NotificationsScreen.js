@@ -322,10 +322,16 @@ export default function NotificationsScreen({
 
   const markNotificationAsRead = async (notificationId) => {
     try {
+      if (!currentUser?.id) {
+        console.error("No current user found for marking notification as read");
+        return;
+      }
+
       const { error } = await supabase
         .from("notifications")
         .update({ is_read: true })
-        .eq("id", notificationId);
+        .eq("id", notificationId)
+        .eq("user_id", currentUser.id);
 
       if (error) throw error;
 
@@ -352,10 +358,16 @@ export default function NotificationsScreen({
   const handleDismiss = async (notificationId) => {
     HapticPatterns.delete();
     try {
+      if (!currentUser?.id) {
+        console.error("No current user found for dismissing notification");
+        return;
+      }
+
       const { error } = await supabase
         .from("notifications")
         .delete()
-        .eq("id", notificationId);
+        .eq("id", notificationId)
+        .eq("user_id", currentUser.id);
 
       if (error) throw error;
 

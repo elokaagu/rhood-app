@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { db, supabase } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 
@@ -123,6 +124,7 @@ const formatDurationLabel = (seconds) => {
 };
 
 export default function EditProfileScreen({ user, onSave, onCancel }) {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({
@@ -689,7 +691,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollViewContent}
       >
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
             <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
@@ -1162,7 +1164,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
   },

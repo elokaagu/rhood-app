@@ -36,6 +36,10 @@ export default function ConnectionsScreen({
   onPlayAudio, // Add audio playback handler
 }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimeoutRef = useRef(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [connections, setConnections] = useState([]);
@@ -1458,44 +1462,137 @@ export default function ConnectionsScreen({
 
     // Apply search filter
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(
-        (connection) =>
-          [
+        (connection) => {
+          // Search in all relevant fields
+          const searchableFields = [
             connection.name,
             connection.dj_name,
             connection.full_name,
             connection.username,
             connection.location,
+            connection.city,
             connection.statusMessage,
-          ]
-            .filter(Boolean)
-            .some((field) => field.toLowerCase().includes(query)) ||
-          connection.genres?.some((genre) =>
+          ].filter(Boolean);
+          
+          const matchesName = searchableFields.some((field) => 
+            field.toLowerCase().includes(query)
+          );
+          
+          const matchesGenre = connection.genres?.some((genre) => 
             genre.toLowerCase().includes(query)
-          )
+          );
+          
+          return matchesName || matchesGenre;
+        }
       );
     }
 
     return filtered;
   }, [connections, searchQuery]);
 
+  // Fetch search suggestions from database
+  const fetchSearchSuggestions = async (query) => {
+    if (!query.trim() || query.length < 2) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      const queryLower = query.toLowerCase().trim();
+
+      // Search for DJs by name, username, city, or genre
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("id, dj_name, full_name, username, city, genres, profile_image_url")
+        .or(`dj_name.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%,city.ilike.%${query}%`)
+        .not("dj_name", "is", null)
+        .limit(10);
+
+      if (error) {
+        console.error("Error fetching search suggestions:", error);
+        setSearchSuggestions([]);
+        return;
+      }
+
+      // Filter and format suggestions
+      const suggestions = (data || [])
+        .filter((user) => {
+          const name = (user.dj_name || user.full_name || user.username || "").toLowerCase();
+          const city = (user.city || "").toLowerCase();
+          const username = (user.username || "").toLowerCase();
+          return name.includes(queryLower) || city.includes(queryLower) || username.includes(queryLower);
+        })
+        .map((user) => ({
+          id: user.id,
+          name: user.dj_name || user.full_name || user.username || "DJ",
+          username: user.username,
+          city: user.city,
+          profileImage: user.profile_image_url,
+        }));
+
+      setSearchSuggestions(suggestions);
+      setShowSuggestions(suggestions.length > 0);
+    } catch (error) {
+      console.error("Error in fetchSearchSuggestions:", error);
+      setSearchSuggestions([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Debounced search suggestions
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (searchQuery.trim().length >= 2) {
+      searchTimeoutRef.current = setTimeout(() => {
+        fetchSearchSuggestions(searchQuery);
+      }, 300); // 300ms debounce
+    } else {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
   const filteredDiscoverUsers = useMemo(() => {
     if (!searchQuery.trim()) {
       return discoverUsers;
     }
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
     return discoverUsers.filter(
-      (user) =>
-        [
+      (user) => {
+        // Search in all relevant fields
+        const searchableFields = [
           user.name,
+          user.dj_name,
           user.username,
           user.location,
+          user.city,
           user.statusMessage,
-        ]
-          .filter(Boolean)
-          .some((field) => field.toLowerCase().includes(query)) ||
-        user.genres?.some((genre) => genre.toLowerCase().includes(query))
+        ].filter(Boolean);
+        
+        const matchesName = searchableFields.some((field) => 
+          field.toLowerCase().includes(query)
+        );
+        
+        const matchesGenre = user.genres?.some((genre) => 
+          genre.toLowerCase().includes(query)
+        );
+        
+        return matchesName || matchesGenre;
+      }
     );
   }, [discoverUsers, searchQuery]);
 
@@ -1754,28 +1851,92 @@ export default function ConnectionsScreen({
           </View>
 
           {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search connections..."
-              placeholderTextColor="hsl(0, 0%, 50%)"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery("")}
-                style={styles.clearButton}
-              >
-                <Ionicons
-                  name="close-circle"
-                  size={20}
-                  color="hsl(0, 0%, 50%)"
-                />
-              </TouchableOpacity>
+          <View style={styles.searchWrapper}>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={activeTab === "discover" ? "Search DJs..." : "Search connections..."}
+                placeholderTextColor="hsl(0, 0%, 50%)"
+                value={searchQuery}
+                onChangeText={(text) => {
+                  setSearchQuery(text);
+                  if (text.trim().length >= 2) {
+                    setShowSuggestions(true);
+                  } else {
+                    setShowSuggestions(false);
+                  }
+                }}
+                onFocus={() => {
+                  if (searchQuery.trim().length >= 2 && searchSuggestions.length > 0) {
+                    setShowSuggestions(true);
+                  }
+                }}
+                onBlur={() => {
+                  // Delay hiding suggestions to allow for tap events
+                  setTimeout(() => setShowSuggestions(false), 200);
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setSearchQuery("");
+                    setSearchSuggestions([]);
+                    setShowSuggestions(false);
+                  }}
+                  style={styles.clearButton}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color="hsl(0, 0%, 50%)"
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Search Suggestions Dropdown */}
+            {showSuggestions && searchSuggestions.length > 0 && activeTab === "discover" && (
+              <View style={styles.suggestionsContainer}>
+                {searchSuggestions.map((suggestion) => (
+                  <TouchableOpacity
+                    key={suggestion.id}
+                    style={styles.suggestionItem}
+                    onPress={() => {
+                      setSearchQuery(suggestion.name);
+                      setShowSuggestions(false);
+                      if (onNavigate) {
+                        onNavigate("user-profile", { userId: suggestion.id, djName: suggestion.name });
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    {suggestion.profileImage ? (
+                      <ProgressiveImage
+                        source={{ uri: suggestion.profileImage }}
+                        style={styles.suggestionImage}
+                      />
+                    ) : (
+                      <View style={[styles.suggestionImage, styles.suggestionImagePlaceholder]}>
+                        <Ionicons name="person" size={16} color="hsl(0, 0%, 50%)" />
+                      </View>
+                    )}
+                    <View style={styles.suggestionInfo}>
+                      <Text style={styles.suggestionName} numberOfLines={1}>
+                        {suggestion.name}
+                      </Text>
+                      {suggestion.city && (
+                        <Text style={styles.suggestionCity} numberOfLines={1}>
+                          {suggestion.city}
+                        </Text>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="hsl(0, 0%, 40%)" />
+                  </TouchableOpacity>
+                ))}
+              </View>
             )}
           </View>
         </View>
@@ -2523,6 +2684,10 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
     marginBottom: 16,
   },
+  searchWrapper: {
+    position: "relative",
+    zIndex: 10,
+  },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -2544,6 +2709,58 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+  },
+  suggestionsContainer: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    marginTop: 4,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+    maxHeight: 300,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  suggestionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+    gap: 12,
+  },
+  suggestionImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  suggestionImagePlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  suggestionInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  suggestionName: {
+    fontSize: 15,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+  },
+  suggestionCity: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
   },
   noResultsContainer: {
     alignItems: "center",

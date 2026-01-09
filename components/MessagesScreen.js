@@ -175,7 +175,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       if (contentType.startsWith("image/")) {
         return {
           url: targetUrl,
-          title: hostname || targetUrl,
+          title: hostname || targetUrl, 
           description: "",
           image: targetUrl,
           siteName: hostname || targetUrl,

@@ -3421,11 +3421,20 @@ export default function App() {
           type: "warning",
           title: "Upload Required",
           message: errorMessage,
-          primaryButtonText: "OK",
+          primaryButtonText: "Upload Mix",
           onPrimaryPress: () => {
+            setCurrentScreen("upload-mix");
+            hideCustomModal();
             setCurrentOpportunityIndex(currentOpportunityIndex + 1);
             setShowModal(false);
             setSelectedOpportunity(null);
+          },
+          secondaryButtonText: "OK",
+          onSecondaryPress: () => {
+            setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+            setShowModal(false);
+            setSelectedOpportunity(null);
+            hideCustomModal();
           },
         });
         return;

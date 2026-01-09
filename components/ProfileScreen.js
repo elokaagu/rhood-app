@@ -843,12 +843,14 @@ export default function ProfileScreen({
             <TouchableOpacity
               style={styles.headerButton}
               onPress={handleEditProfile}
+              activeOpacity={0.7}
             >
               <Ionicons
-                name="create-outline"
-                size={20}
-                color="hsl(0, 0%, 70%)"
+                name="create"
+                size={18}
+                color="hsl(75, 100%, 60%)"
               />
+              <Text style={styles.headerButtonText}>Edit</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -875,12 +877,14 @@ export default function ProfileScreen({
             <TouchableOpacity
               style={styles.headerButton}
               onPress={handleEditProfile}
+              activeOpacity={0.7}
             >
               <Ionicons
-                name="create-outline"
-                size={20}
-                color="hsl(0, 0%, 70%)"
+                name="create"
+                size={18}
+                color="hsl(75, 100%, 60%)"
               />
+              <Text style={styles.headerButtonText}>Edit</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1261,11 +1265,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerButton: {
-    padding: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
     backgroundColor: "hsl(0, 0%, 8%)",
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+    borderColor: "hsl(75, 100%, 60%)",
+  },
+  headerButtonText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
   },
   profileCard: {
     margin: 20,

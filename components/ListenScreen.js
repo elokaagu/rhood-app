@@ -1123,6 +1123,21 @@ export default function ListenScreen({
                     )}
                 </View>
                 </View>
+                <TouchableOpacity
+                  style={styles.likeButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleToggleLike(mix);
+                  }}
+                  activeOpacity={0.7}
+                  disabled={likeLoadingMap[mix.id]}
+                >
+                  <Ionicons
+                    name={likedMixIds.has(mix.id) ? "heart" : "heart-outline"}
+                    size={18}
+                    color={likedMixIds.has(mix.id) ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 60%)"}
+                  />
+                </TouchableOpacity>
                 <Ionicons
                   name="chevron-forward"
                   size={18}
@@ -1226,6 +1241,21 @@ export default function ListenScreen({
                     )}
                   </View>
                 </View>
+                <TouchableOpacity
+                  style={styles.likeButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleToggleLike(mix);
+                  }}
+                  activeOpacity={0.7}
+                  disabled={likeLoadingMap[mix.id]}
+                >
+                  <Ionicons
+                    name={likedMixIds.has(mix.id) ? "heart" : "heart-outline"}
+                    size={18}
+                    color={likedMixIds.has(mix.id) ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 60%)"}
+                  />
+                </TouchableOpacity>
                 <Ionicons
                   name="chevron-forward"
                   size={18}
@@ -1298,6 +1328,22 @@ export default function ListenScreen({
                         />
                       </View>
                     )}
+                    {/* Like button overlay */}
+                    <TouchableOpacity
+                      style={styles.recommendationLikeButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleToggleLike(mix);
+                      }}
+                      activeOpacity={0.7}
+                      disabled={likeLoadingMap[mix.id]}
+                    >
+                      <Ionicons
+                        name={likedMixIds.has(mix.id) ? "heart" : "heart-outline"}
+                        size={20}
+                        color={likedMixIds.has(mix.id) ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 100%)"}
+                      />
+                    </TouchableOpacity>
                   {/* Dark gradient overlay at bottom for text visibility */}
                   <LinearGradient
                     colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.95)"]}
@@ -1441,6 +1487,21 @@ export default function ListenScreen({
                       )}
                     </View>
                   </View>
+                  <TouchableOpacity
+                    style={styles.likeButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleToggleLike(mix);
+                    }}
+                    activeOpacity={0.7}
+                    disabled={likeLoadingMap[mix.id]}
+                  >
+                    <Ionicons
+                      name={likedMixIds.has(mix.id) ? "heart" : "heart-outline"}
+                      size={18}
+                      color={likedMixIds.has(mix.id) ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 60%)"}
+                    />
+                  </TouchableOpacity>
                   <Ionicons
                     name="chevron-forward"
                     size={18}
@@ -1450,9 +1511,9 @@ export default function ListenScreen({
               );
             })}
           </View>
-              )}
-            </View>
-          );
+        )}
+      </View>
+    );
   };
 
   return (
@@ -2116,6 +2177,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 60%)",
+  },
+  likeButton: {
+    padding: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recommendationLikeButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
   },
   partialCardIndicator: {
     width: 60,
