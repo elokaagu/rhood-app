@@ -1133,7 +1133,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           url: uploadResult.url,
           filename: uploadResult.filename || picked.filename,
           size: picked.size ?? uploadResult.size ?? 0,
-          mimeType: picked.mimeType ?? uploadResult.mimeType || "image/jpeg",
+          mimeType: (picked.mimeType ?? uploadResult.mimeType) || "image/jpeg",
           thumbnailUrl: uploadResult.thumbnailUrl || picked.thumbnail || null,
           extension: uploadResult.fileExtension || "jpg",
           width: picked.width,
