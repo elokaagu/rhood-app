@@ -7,6 +7,7 @@ const ProgressiveImage = ({
   placeholder = null,
   contentFit = "cover",
   transition = 300,
+  onError,
   ...props
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -22,8 +23,11 @@ const ProgressiveImage = ({
     }).start();
   };
 
-  const handleError = () => {
+  const handleError = (error) => {
     setHasError(true);
+    if (onError) {
+      onError(error);
+    }
   };
 
   const renderPlaceholder = () => {

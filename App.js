@@ -257,6 +257,9 @@ export default function App() {
     currentQueueIndex: -1, // Index of current track in queue
   });
 
+  // Like state
+  const [likedMixIds, setLikedMixIds] = useState(() => new Set());
+
   // Initialize notification setup for lock screen audio controls
   useEffect(() => {
     const initializeNotifications = async () => {
@@ -1469,16 +1472,52 @@ export default function App() {
               newQueue.push(track);
             }
 
+            // If user_image is missing but we have user_id, fetch from database
+            let userImage = track.user_image || track.user?.profile_image_url;
+            let userDjName = track.user_dj_name || track.user?.dj_name;
+            let userBio = track.user_bio || track.user?.bio;
+            const userId = track.user_id || track.user?.id;
+
+            // Fetch user profile if image is missing (async, but don't block playback)
+            if (!userImage && userId) {
+              supabase
+                .from("user_profiles")
+                .select("profile_image_url, dj_name, bio")
+                .eq("id", userId)
+                .single()
+                .then(({ data: userProfile }) => {
+                  if (userProfile) {
+                    setGlobalAudioState((prev) => ({
+                      ...prev,
+                      currentTrack: {
+                        ...prev.currentTrack,
+                        user_image: userProfile.profile_image_url || prev.currentTrack.user_image,
+                        user_dj_name: userProfile.dj_name || prev.currentTrack.user_dj_name,
+                        user_bio: userProfile.bio || prev.currentTrack.user_bio,
+                      },
+                    }));
+                    console.log("✅ Fetched user profile data for DJ image (iOS):", {
+                      hasImage: !!userProfile.profile_image_url,
+                      djName: userProfile.dj_name,
+                    });
+                  }
+                })
+                .catch((fetchError) => {
+                  console.warn("⚠️ Could not fetch user profile for DJ image (iOS):", fetchError);
+                });
+            }
+
             return {
               ...prev,
               sound: null, // track-player handles the sound, not expo-av
               isPlaying: true, // Assume playing after playTrack() call
               currentTrack: {
                 ...track,
-                user_id: track.user_id || track.user?.id,
-                user_image: track.user_image || track.user?.profile_image_url,
-                user_dj_name: track.user_dj_name || track.user?.dj_name,
-                user_bio: track.user_bio || track.user?.bio,
+                user_id: userId,
+                user_image: userImage,
+                user_dj_name: userDjName,
+                user_bio: userBio,
+                isLiked: likedMixIds.has(track.id), // Sync with likedMixIds
               },
               isLoading: false,
               queue: newQueue,
@@ -1770,13 +1809,53 @@ export default function App() {
         }
 
         // Transform track to ensure user data is available
+        let userImage = track.user_image || track.user?.profile_image_url;
+        let userDjName = track.user_dj_name || track.user?.dj_name;
+        let userBio = track.user_bio || track.user?.bio;
+        const userId = track.user_id || track.user?.id;
+
+        // If user_image is missing but we have user_id, fetch from database (async, don't block)
+        if (!userImage && userId) {
+          // Fetch in background and update state when ready
+          supabase
+            .from("user_profiles")
+            .select("profile_image_url, dj_name, bio")
+            .eq("id", userId)
+            .single()
+            .then(({ data: userProfile }) => {
+              if (userProfile) {
+                setGlobalAudioState((prev) => {
+                  if (prev.currentTrack?.id === track.id) {
+                    return {
+                      ...prev,
+                      currentTrack: {
+                        ...prev.currentTrack,
+                        user_image: userProfile.profile_image_url || prev.currentTrack.user_image,
+                        user_dj_name: userProfile.dj_name || prev.currentTrack.user_dj_name,
+                        user_bio: userProfile.bio || prev.currentTrack.user_bio,
+                      },
+                    };
+                  }
+                  return prev;
+                });
+                console.log("✅ Fetched user profile data for DJ image (Android):", {
+                  hasImage: !!userProfile.profile_image_url,
+                  djName: userProfile.dj_name,
+                });
+              }
+            })
+            .catch((fetchError) => {
+              console.warn("⚠️ Could not fetch user profile for DJ image (Android):", fetchError);
+            });
+        }
+
         const enhancedTrack = {
           ...track,
-          // If track has user object but not user_image, extract from user
-          user_id: track.user_id || track.user?.id,
-          user_image: track.user_image || track.user?.profile_image_url,
-          user_dj_name: track.user_dj_name || track.user?.dj_name,
-          user_bio: track.user_bio || track.user?.bio,
+          user_id: userId,
+          user_image: userImage,
+          user_dj_name: userDjName,
+          user_bio: userBio,
+          isLiked: likedMixIds.has(track.id), // Sync with likedMixIds
         };
 
         return {
@@ -2132,56 +2211,173 @@ export default function App() {
     });
   };
 
+  // Fetch user's liked mixes
+  const fetchUserLikedMixes = async () => {
+    if (!user?.id) {
+      setLikedMixIds(new Set());
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("mix_likes")
+        .select("mix_id")
+        .eq("user_id", user.id);
+
+      if (error) {
+        if (error.code === "42P01" || error.code === "PGRST205") {
+          console.warn("mix_likes table not found. Skipping liked mixes fetch.");
+          return;
+        }
+        console.error("❌ Error fetching liked mixes:", error);
+        return;
+      }
+
+      const likedSet = new Set(
+        (data || [])
+          .map((row) => row?.mix_id)
+          .filter((mixId) => mixId !== null && mixId !== undefined)
+      );
+
+      setLikedMixIds(likedSet);
+    } catch (error) {
+      console.error("❌ Unexpected error fetching liked mixes:", error);
+    }
+  };
+
   // Like/Unlike functionality
   const toggleLike = async () => {
-    if (!globalAudioState.currentTrack || !user) return;
+    if (!globalAudioState.currentTrack || !user) {
+      Alert.alert(
+        "Sign In Required",
+        "You need to be signed in to like a mix.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
 
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      const isLiked = globalAudioState.currentTrack.isLiked;
+      const mixId = globalAudioState.currentTrack.id;
+      const isCurrentlyLiked = likedMixIds.has(mixId);
 
       // Optimistically update UI
+      setLikedMixIds((prev) => {
+        const updated = new Set(prev);
+        if (isCurrentlyLiked) {
+          updated.delete(mixId);
+        } else {
+          updated.add(mixId);
+        }
+        return updated;
+      });
+
       setGlobalAudioState((prev) => ({
         ...prev,
         currentTrack: {
           ...prev.currentTrack,
-          isLiked: !isLiked,
+          isLiked: !isCurrentlyLiked,
         },
       }));
 
       // Update database
-      if (isLiked) {
-        // Unlike - decrement likes_count
+      if (isCurrentlyLiked) {
+        // Unlike - remove from mix_likes
         const { error } = await supabase
-          .from("mixes")
-          .update({
-            likes_count: globalAudioState.currentTrack.likes_count - 1,
-          })
-          .eq("id", globalAudioState.currentTrack.id);
+          .from("mix_likes")
+          .delete()
+          .eq("mix_id", mixId)
+          .eq("user_id", user.id);
 
-        if (error) throw error;
+        if (error) {
+          if (error.code === "42P01" || error.code === "PGRST205") {
+            Alert.alert(
+              "Feature Unavailable",
+              "Mix likes are not available right now. Please try again later."
+            );
+            // Revert optimistic update
+            setLikedMixIds((prev) => {
+              const updated = new Set(prev);
+              updated.add(mixId);
+              return updated;
+            });
+            return;
+          }
+          throw error;
+        }
+
+        // Award credits to mix creator (deduct)
+        if (globalAudioState.currentTrack.user_id && globalAudioState.currentTrack.user_id !== user.id) {
+          try {
+            await db.incrementUserCredits(globalAudioState.currentTrack.user_id, -10);
+          } catch (creditError) {
+            console.error("❌ Error rolling back credits:", creditError);
+          }
+        }
+
         console.log("👎 Unliked mix");
       } else {
-        // Like - increment likes_count
+        // Like - add to mix_likes
         const { error } = await supabase
-          .from("mixes")
-          .update({
-            likes_count: (globalAudioState.currentTrack.likes_count || 0) + 1,
-          })
-          .eq("id", globalAudioState.currentTrack.id);
+          .from("mix_likes")
+          .insert([{ mix_id: mixId, user_id: user.id }]);
 
-        if (error) throw error;
+        if (error) {
+          if (error.code === "23505") {
+            // Already liked, sync state
+            console.warn("Mix already liked. Syncing local state.");
+          } else if (error.code === "42P01" || error.code === "PGRST205") {
+            Alert.alert(
+              "Feature Unavailable",
+              "Mix likes are not available right now. Please try again later."
+            );
+            // Revert optimistic update
+            setLikedMixIds((prev) => {
+              const updated = new Set(prev);
+              updated.delete(mixId);
+              return updated;
+            });
+            return;
+          } else {
+            throw error;
+          }
+        } else {
+          // Award credits to mix creator
+          if (globalAudioState.currentTrack.user_id && globalAudioState.currentTrack.user_id !== user.id) {
+            try {
+              await db.incrementUserCredits(globalAudioState.currentTrack.user_id, 10);
+            } catch (creditError) {
+              console.error("❌ Error awarding credits:", creditError);
+            }
+          }
+        }
+
         console.log("❤️ Liked mix");
       }
     } catch (error) {
       console.error("❌ Error toggling like:", error);
+      Alert.alert(
+        "Error",
+        "We couldn't like this mix right now. Please try again."
+      );
       // Revert optimistic update
+      const mixId = globalAudioState.currentTrack.id;
+      const wasLiked = likedMixIds.has(mixId);
+      setLikedMixIds((prev) => {
+        const updated = new Set(prev);
+        if (wasLiked) {
+          updated.add(mixId);
+        } else {
+          updated.delete(mixId);
+        }
+        return updated;
+      });
       setGlobalAudioState((prev) => ({
         ...prev,
         currentTrack: {
           ...prev.currentTrack,
-          isLiked: !prev.currentTrack.isLiked,
+          isLiked: wasLiked,
         },
       }));
     }
@@ -4063,6 +4259,31 @@ export default function App() {
     }
   };
 
+  // Fetch user's liked mixes when user changes
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserLikedMixes();
+    } else {
+      setLikedMixIds(new Set());
+    }
+  }, [user?.id]);
+
+  // Sync isLiked state when currentTrack or likedMixIds changes
+  useEffect(() => {
+    if (globalAudioState.currentTrack) {
+      const isLiked = likedMixIds.has(globalAudioState.currentTrack.id);
+      if (globalAudioState.currentTrack.isLiked !== isLiked) {
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          currentTrack: {
+            ...prev.currentTrack,
+            isLiked: isLiked,
+          },
+        }));
+      }
+    }
+  }, [likedMixIds, globalAudioState.currentTrack?.id]);
+
   // Set up real-time subscriptions for notifications and opportunities
   useEffect(() => {
     if (!user) return;
@@ -5524,9 +5745,23 @@ export default function App() {
 
                 {/* Track Info */}
                 <View style={styles.fullScreenTrackInfo}>
-                  <Text style={styles.fullScreenTrackTitle}>
-                    {globalAudioState.currentTrack.title}
-                  </Text>
+                  <View style={styles.fullScreenTrackTitleRow}>
+                    <Text style={styles.fullScreenTrackTitle}>
+                      {globalAudioState.currentTrack.title}
+                    </Text>
+                    {/* Like Button */}
+                    <TouchableOpacity
+                      style={styles.fullScreenLikeButton}
+                      onPress={toggleLike}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={globalAudioState.currentTrack.isLiked ? "heart" : "heart-outline"}
+                        size={24}
+                        color={globalAudioState.currentTrack.isLiked ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"}
+                      />
+                    </TouchableOpacity>
+                  </View>
                   <TouchableOpacity
                     onPress={() => {
                       if (globalAudioState.currentTrack.user_id) {
@@ -5817,6 +6052,32 @@ export default function App() {
                             />
                           </View>
                         }
+                        onError={() => {
+                          // If image fails to load and we have user_id, try fetching from database
+                          const userId = globalAudioState.currentTrack?.user_id;
+                          if (userId && !globalAudioState.currentTrack?.user_image) {
+                            supabase
+                              .from("user_profiles")
+                              .select("profile_image_url")
+                              .eq("id", userId)
+                              .single()
+                              .then(({ data: userProfile }) => {
+                                if (userProfile?.profile_image_url) {
+                                  setGlobalAudioState((prev) => ({
+                                    ...prev,
+                                    currentTrack: {
+                                      ...prev.currentTrack,
+                                      user_image: userProfile.profile_image_url,
+                                    },
+                                  }));
+                                  console.log("✅ Fetched user image after load error");
+                                }
+                              })
+                              .catch((error) => {
+                                console.warn("⚠️ Could not fetch user image after error:", error);
+                              });
+                          }
+                        }}
                       />
                     </View>
                     <View style={styles.aboutDJInfo}>
@@ -7344,14 +7605,27 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     paddingHorizontal: 20,
   },
+  fullScreenTrackTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    gap: 12,
+    marginBottom: 8,
+  },
   fullScreenTrackTitle: {
     fontSize: 24,
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "900",
     textAlign: "center",
-    marginBottom: 8,
+    flex: 1,
     lineHeight: 28,
+  },
+  fullScreenLikeButton: {
+    padding: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   fullScreenTrackArtist: {
     fontSize: 16,
