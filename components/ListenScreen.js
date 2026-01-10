@@ -1927,6 +1927,10 @@ export default function ListenScreen({
                     value={newPlaylistName}
                     onChangeText={setNewPlaylistName}
                     maxLength={50}
+                    autoFocus={true}
+                    returnKeyType="done"
+                    onSubmitEditing={handleCreatePlaylist}
+                    editable={!creatingPlaylist}
                   />
                   <TouchableOpacity
                     style={[
@@ -2728,6 +2732,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "80%",
+    width: "90%",
+    maxWidth: 500,
     paddingBottom: 20,
   },
   playlistModalHeader: {
@@ -2799,12 +2805,13 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 12%)",
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 16,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 20%)",
+    minHeight: 48,
   },
   createPlaylistButton: {
     backgroundColor: "hsl(75, 100%, 60%)",

@@ -2199,7 +2199,7 @@ export default function ConnectionsScreen({
                 )}
 
                 {/* DJs Near You - Based on City */}
-                {nearbyDJs.length > 0 && (
+                {nearbyDJs.length > 0 && !searchQuery.trim() && (
                   <View style={styles.recommendationsSection}>
                     <View style={styles.recommendationsHeader}>
                       <Ionicons
@@ -2686,7 +2686,8 @@ const styles = StyleSheet.create({
   },
   searchWrapper: {
     position: "relative",
-    zIndex: 9999,
+    zIndex: 10000,
+    elevation: 10000,
     overflow: "visible",
   },
   searchContainer: {
@@ -2728,8 +2729,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 12,
-    elevation: 9999,
-    zIndex: 9999,
+    elevation: 10000,
+    zIndex: 10000,
   },
   suggestionItem: {
     flexDirection: "row",

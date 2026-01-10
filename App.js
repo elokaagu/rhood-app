@@ -305,6 +305,7 @@ export default function App() {
 
   // Full-screen player state
   const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
+  const [showQueueModal, setShowQueueModal] = useState(false);
 
   // Complete profile modal state
   const [showCompleteProfileModal, setShowCompleteProfileModal] =
@@ -1023,10 +1024,12 @@ export default function App() {
 
         // Clear invalid session
         setUser(null);
+        setAuthLoading(false);
         await checkFirstTime(null);
       } else {
         setUser(session?.user ?? null);
         await checkFirstTime(session?.user ?? null);
+        setAuthLoading(false);
       }
 
       // Listen for auth changes
@@ -1241,8 +1244,27 @@ export default function App() {
         code: error.code,
         details: error.details,
       });
-      console.log("⚠️ Setting isFirstTime=true due to error");
-      setIsFirstTime(true);
+      
+      // Only show onboarding if the profile truly doesn't exist
+      // Error code PGRST116 means "no rows returned" (profile doesn't exist)
+      // Other errors (like column doesn't exist) should not trigger onboarding
+      if (error.code === "PGRST116" || error.message?.includes("No rows returned")) {
+        console.log("⚠️ No profile found - user needs onboarding");
+        setIsFirstTime(true);
+      } else {
+        // For other errors (like database schema issues), try to continue with existing user
+        // Don't force onboarding - this might be a temporary database issue
+        console.error("⚠️ Database error fetching profile - this may be a schema issue");
+        console.error("⚠️ User is authenticated but profile fetch failed - showing error state");
+        // Set isFirstTime to false to avoid showing onboarding for existing users
+        // The app will show a loading/error state instead
+        setIsFirstTime(false);
+        Alert.alert(
+          "Error Loading Profile",
+          "There was an issue loading your profile. Please try again or contact support.",
+          [{ text: "OK" }]
+        );
+      }
     } finally {
       setAuthLoading(false); // Always stop loading when done
     }
@@ -3399,8 +3421,24 @@ export default function App() {
             "❌ Error getting profile for authenticated user:",
             error.message
           );
-          console.log("📝 Will show onboarding for profile creation");
-          setIsFirstTime(true);
+          
+          // Only show onboarding if the profile truly doesn't exist
+          // Error code PGRST116 means "no rows returned" (profile doesn't exist)
+          // Other errors (like column doesn't exist) should not trigger onboarding
+          if (error.code === "PGRST116" || error.message?.includes("No rows returned")) {
+            console.log("📝 No profile found - will show onboarding for profile creation");
+            setIsFirstTime(true);
+          } else {
+            // For other errors (like database schema issues), we still need a profile
+            // If we can't get the profile, we can't proceed - show onboarding as fallback
+            console.error("⚠️ Database error fetching profile - this may be a schema issue");
+            console.error("⚠️ User is authenticated but profile fetch failed");
+            console.error("⚠️ Error code:", error.code, "Message:", error.message);
+            // If it's a schema error (column doesn't exist), the fallback query should handle it
+            // But if that also fails, we need to show onboarding so user can create/update their profile
+            console.log("⚠️ Will show onboarding to allow profile creation/update");
+            setIsFirstTime(true);
+          }
         }
       } else {
         console.log("🔓 No authenticated user, checking local storage...");
@@ -4601,7 +4639,6 @@ export default function App() {
           last_name: lastName,
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
-          tiktok: djProfile.tiktok || null,
           youtube: djProfile.youtube || null,
           city: djProfile.city,
           genres: djProfile.genres,
@@ -4636,7 +4673,6 @@ export default function App() {
           last_name: lastName,
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
-          tiktok: djProfile.tiktok || null,
           youtube: djProfile.youtube || null,
           city: djProfile.city,
           genres: djProfile.genres,
@@ -6094,114 +6130,19 @@ export default function App() {
                     />
                   </TouchableOpacity>
 
-                  {/* Play/Pause Button - Large Center Button */}
+                  {/* Play/Pause Button */}
                   <TouchableOpacity
                     style={styles.fullScreenPlayButton}
                     onPress={async () => {
                       try {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-                        // iOS: Try TrackPlayer first, fall back to expo-av
-                        if (
-                          Platform.OS === "ios" &&
-                          trackPlayer &&
-                          globalAudioState.currentTrack &&
-                          typeof trackPlayer.getPlaybackState === "function"
-                        ) {
-                          try {
-                            // Use the trackPlayer wrapper which handles availability
-                            const state = await trackPlayer.getPlaybackState();
-                            const isCurrentlyPlaying = state.isPlaying;
-
-                            console.log(
-                              "🎵 Full screen - controlling playback:",
-                              {
-                                isCurrentlyPlaying,
-                                willBe: !isCurrentlyPlaying,
-                              }
-                            );
-
-                            // Use trackPlayer wrapper methods
-                            if (isCurrentlyPlaying) {
-                              if (typeof trackPlayer.pause === "function") {
-                                await trackPlayer.pause();
-                                console.log("✅ Paused via TrackPlayer");
-                              } else {
-                                await pauseGlobalAudio();
-                              }
-
-                              // Update state
-                              setGlobalAudioState((prev) => ({
-                                ...prev,
-                                isPlaying: false,
-                              }));
-                            } else {
-                              if (typeof trackPlayer.resume === "function") {
-                                await trackPlayer.resume();
-                                console.log("✅ Started/resumed via TrackPlayer");
-                              } else {
-                                await resumeGlobalAudio();
-                              }
-
-                              // Update state
-                              setGlobalAudioState((prev) => ({
-                                ...prev,
-                                isPlaying: true,
-                              }));
-                            }
-
-                            // Re-verify after a moment
-                            setTimeout(async () => {
-                              try {
-                                const verifiedState = await trackPlayer.getPlaybackState();
-                                const verifiedPlaying = verifiedState.isPlaying;
-                                setGlobalAudioState((prev) => ({
-                                  ...prev,
-                                  isPlaying: verifiedPlaying,
-                                }));
-                                console.log("✅ Verified state:", verifiedPlaying);
-                              } catch (err) {
-                                console.warn("⚠️ Could not verify state:", err);
-                              }
-                            }, 300);
-                          } catch (error) {
-                            // TrackPlayer not available - fall back to expo-av
-                            const errorMessage = error?.message || String(error) || "";
-                            const isExpectedError = 
-                              errorMessage.includes("react-native-track-player is not available") ||
-                              errorMessage.includes("Property 'require' doesn't exist") ||
-                              (errorMessage.includes("Property") && errorMessage.includes("require") && errorMessage.includes("doesn't exist")) ||
-                              (errorMessage.includes("require") && errorMessage.includes("doesn't exist"));
-                            
-                            if (!isExpectedError) {
-                              console.warn("⚠️ TrackPlayer control error, using fallback:", errorMessage);
-                            }
-                            // Fallback to expo-av functions
-                            if (globalAudioState.isPlaying) {
-                              await pauseGlobalAudio();
-                            } else {
-                              await resumeGlobalAudio();
-                            }
-                          }
+                        if (globalAudioState.isPlaying) {
+                          await pauseGlobalAudio();
                         } else {
-                          // Android or TrackPlayer not available: Use expo-av
-                          if (globalAudioState.isPlaying) {
-                            await pauseGlobalAudio();
-                          } else {
-                            await resumeGlobalAudio();
-                          }
+                          await resumeGlobalAudio();
                         }
                       } catch (error) {
-                        // Only log unexpected errors, not TrackPlayer unavailability
-                        const errorMessage = error?.message || String(error) || "";
-                        const isExpectedError = 
-                          errorMessage.includes("react-native-track-player is not available") ||
-                          errorMessage.includes("Property 'require' doesn't exist") ||
-                          (errorMessage.includes("Property") && errorMessage.includes("require") && errorMessage.includes("doesn't exist"));
-                        
-                        if (!isExpectedError) {
-                          console.error("❌ Play/pause error:", error);
-                        }
+                        console.error("❌ Play/pause error:", error);
                       }
                     }}
                     activeOpacity={0.8}
@@ -6241,6 +6182,80 @@ export default function App() {
                           : "hsl(75, 100%, 60%)"
                       }
                     />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Secondary Actions Row */}
+                <View style={styles.fullScreenSecondaryActions}>
+                  {/* Connect Button */}
+                  <TouchableOpacity
+                    style={styles.fullScreenSecondaryButton}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      // AirPlay/Connect functionality - placeholder for now
+                      Alert.alert(
+                        "Connect to Speakers",
+                        "AirPlay and speaker connection will be available soon.",
+                        [{ text: "OK" }]
+                      );
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="radio-outline"
+                      size={20}
+                      color="hsl(0, 0%, 100%)"
+                    />
+                    <Text style={styles.fullScreenSecondaryButtonText}>
+                      Connect
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Share Button */}
+                  <TouchableOpacity
+                    style={styles.fullScreenSecondaryButton}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      shareTrack();
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="share-outline"
+                      size={20}
+                      color="hsl(0, 0%, 100%)"
+                    />
+                    <Text style={styles.fullScreenSecondaryButtonText}>
+                      Share
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Queue Button */}
+                  <TouchableOpacity
+                    style={styles.fullScreenSecondaryButton}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShowFullScreenPlayer(false);
+                      // Show queue modal or navigate to queue view
+                      setShowQueueModal(true);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="list-outline"
+                      size={20}
+                      color="hsl(0, 0%, 100%)"
+                    />
+                    <Text style={styles.fullScreenSecondaryButtonText}>
+                      Queue
+                    </Text>
+                    {globalAudioState.queue && globalAudioState.queue.length > 0 && (
+                      <View style={styles.queueBadge}>
+                        <Text style={styles.queueBadgeText}>
+                          {globalAudioState.queue.length}
+                        </Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 </View>
 
@@ -6416,6 +6431,142 @@ export default function App() {
                     </View>
                   </TouchableOpacity>
                 </View>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Queue Modal */}
+        <Modal
+          visible={showQueueModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowQueueModal(false)}
+        >
+          <View style={styles.queueModalOverlay}>
+            <TouchableOpacity
+              style={styles.queueModalOverlayTouchable}
+              onPress={() => setShowQueueModal(false)}
+            />
+            <View style={styles.queueModalContainer}>
+              <View style={styles.queueModalContent}>
+                <View style={styles.queueModalHeader}>
+                  <Text style={styles.queueModalTitle}>Queue</Text>
+                  <TouchableOpacity
+                    style={styles.queueModalClose}
+                    onPress={() => setShowQueueModal(false)}
+                  >
+                    <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={styles.queueModalScroll}>
+                  {globalAudioState.currentTrack && (
+                    <View style={styles.queueItemCurrent}>
+                      <View style={styles.queueItemInfo}>
+                        <Text style={styles.queueItemTitle} numberOfLines={1}>
+                          {globalAudioState.currentTrack.title}
+                        </Text>
+                        <Text style={styles.queueItemArtist} numberOfLines={1}>
+                          {globalAudioState.currentTrack.artist}
+                        </Text>
+                      </View>
+                      <View style={styles.queueItemBadge}>
+                        <Text style={styles.queueItemBadgeText}>Now Playing</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {globalAudioState.queue && globalAudioState.queue.length > 0 ? (
+                    globalAudioState.queue.map((track, index) => (
+                      <TouchableOpacity
+                        key={`${track.id}-${index}`}
+                        style={styles.queueItem}
+                        onPress={() => {
+                          // Play this track from queue
+                          playGlobalAudio(track);
+                          setGlobalAudioState((prev) => ({
+                            ...prev,
+                            currentQueueIndex: index,
+                          }));
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.queueItemNumber}>
+                          <Text style={styles.queueItemNumberText}>
+                            {index + 1}
+                          </Text>
+                        </View>
+                        <View style={styles.queueItemInfo}>
+                          <Text style={styles.queueItemTitle} numberOfLines={1}>
+                            {track.title}
+                          </Text>
+                          <Text style={styles.queueItemArtist} numberOfLines={1}>
+                            {track.artist}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.queueItemRemove}
+                          onPress={() => {
+                            setGlobalAudioState((prev) => ({
+                              ...prev,
+                              queue: prev.queue.filter((_, i) => i !== index),
+                              currentQueueIndex:
+                                prev.currentQueueIndex > index
+                                  ? prev.currentQueueIndex - 1
+                                  : prev.currentQueueIndex,
+                            }));
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name="close"
+                            size={18}
+                            color="hsl(0, 0%, 50%)"
+                          />
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <View style={styles.queueEmpty}>
+                      <Ionicons
+                        name="musical-notes-outline"
+                        size={48}
+                        color="hsl(0, 0%, 30%)"
+                      />
+                      <Text style={styles.queueEmptyText}>Queue is empty</Text>
+                      <Text style={styles.queueEmptySubtext}>
+                        Add mixes to your queue to see them here
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
+
+                {globalAudioState.queue && globalAudioState.queue.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.queueClearButton}
+                    onPress={() => {
+                      Alert.alert(
+                        "Clear Queue?",
+                        "Are you sure you want to clear the queue?",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Clear",
+                            style: "destructive",
+                            onPress: () => {
+                              clearQueue();
+                              setShowQueueModal(false);
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.queueClearButtonText}>Clear Queue</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </View>
@@ -7664,6 +7815,162 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
   },
+  menuItemContent: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  menuItemDescription: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+  },
+  // Queue Modal Styles
+  queueModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "flex-end",
+  },
+  queueModalOverlayTouchable: {
+    flex: 1,
+  },
+  queueModalContainer: {
+    backgroundColor: "hsl(0, 0%, 5%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+    maxHeight: "80%",
+  },
+  queueModalContent: {
+    padding: 20,
+  },
+  queueModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  queueModalTitle: {
+    fontSize: 24,
+    fontFamily: "TS Block Bold",
+    fontWeight: "900",
+    color: "hsl(0, 0%, 100%)",
+  },
+  queueModalClose: {
+    padding: 4,
+  },
+  queueModalScroll: {
+    maxHeight: 500,
+  },
+  queueItemCurrent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+    marginBottom: 12,
+  },
+  queueItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    marginBottom: 8,
+  },
+  queueItemNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  queueItemNumberText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 70%)",
+  },
+  queueItemInfo: {
+    flex: 1,
+  },
+  queueItemTitle: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  queueItemArtist: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+  },
+  queueItemBadge: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+  },
+  queueItemBadgeText: {
+    fontSize: 11,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "700",
+    color: "hsl(0, 0%, 0%)",
+  },
+  queueItemRemove: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  queueEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  queueEmptyText: {
+    fontSize: 18,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 0%, 50%)",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  queueEmptySubtext: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 40%)",
+    textAlign: "center",
+  },
+  queueClearButton: {
+    marginTop: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+    alignItems: "center",
+  },
+  queueClearButtonText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(0, 100%, 60%)",
+  },
 
   // Global Audio Player Styles
   globalAudioPlayer: {
@@ -7921,14 +8228,14 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   fullScreenTrackInfo: {
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 32,
     paddingHorizontal: 20,
   },
   fullScreenTrackTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
     width: "100%",
     gap: 12,
     marginBottom: 8,
@@ -7938,7 +8245,7 @@ const styles = StyleSheet.create({
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     fontWeight: "900",
-    textAlign: "center",
+    textAlign: "left",
     flex: 1,
     lineHeight: 28,
   },
@@ -7951,7 +8258,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
-    textAlign: "center",
+    textAlign: "left",
     fontWeight: "500",
     marginBottom: 4,
   },
@@ -8006,7 +8313,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
     marginBottom: 32,
-    paddingHorizontal: 24,
+    marginLeft: 40,
+    marginRight: 40,
     gap: 40,
   },
   fullScreenControlButton: {
@@ -8016,6 +8324,49 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
+  },
+  fullScreenSecondaryActions: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 24,
+    marginBottom: 16,
+    paddingHorizontal: 20,
+    gap: 24,
+  },
+  fullScreenSecondaryButton: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 80,
+    position: "relative",
+  },
+  fullScreenSecondaryButtonText: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+  queueBadge: {
+    position: "absolute",
+    top: 0,
+    right: 4,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  queueBadgeText: {
+    fontSize: 10,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 0%)",
+    fontWeight: "700",
   },
   fullScreenPlayButton: {
     width: 72,

@@ -624,7 +624,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           data: simpleData,
         });
 
-        // Now try with the join
+        // Now try with the join - load all messages (up to 1000 limit)
         const { data, error } = await supabase
           .from("messages")
           .select(
@@ -639,7 +639,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
           `
           )
           .eq("thread_id", currentThreadId)
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: true })
+          .limit(1000); // Explicit limit to ensure we get all messages (Supabase default is 1000)
 
         console.log("🔍 Full query result:", {
           count: data?.length || 0,
