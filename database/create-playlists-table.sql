@@ -33,7 +33,13 @@ CREATE INDEX IF NOT EXISTS idx_playlist_mixes_position ON playlist_mixes(playlis
 ALTER TABLE playlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE playlist_mixes ENABLE ROW LEVEL SECURITY;
 
--- Step 5: Create RLS policies for playlists
+-- Step 5: Drop existing policies if they exist (to allow re-running this script)
+DROP POLICY IF EXISTS "Users can view their own playlists and public playlists" ON playlists;
+DROP POLICY IF EXISTS "Users can create their own playlists" ON playlists;
+DROP POLICY IF EXISTS "Users can update their own playlists" ON playlists;
+DROP POLICY IF EXISTS "Users can delete their own playlists" ON playlists;
+
+-- Step 6: Create RLS policies for playlists
 -- Users can view their own playlists and public playlists
 CREATE POLICY "Users can view their own playlists and public playlists" ON playlists
   FOR SELECT USING (
@@ -52,7 +58,13 @@ CREATE POLICY "Users can update their own playlists" ON playlists
 CREATE POLICY "Users can delete their own playlists" ON playlists
   FOR DELETE USING (auth.uid() = user_id);
 
--- Step 6: Create RLS policies for playlist_mixes
+-- Step 7: Drop existing policies for playlist_mixes if they exist
+DROP POLICY IF EXISTS "Users can view mixes in accessible playlists" ON playlist_mixes;
+DROP POLICY IF EXISTS "Users can add mixes to their own playlists" ON playlist_mixes;
+DROP POLICY IF EXISTS "Users can update mixes in their own playlists" ON playlist_mixes;
+DROP POLICY IF EXISTS "Users can remove mixes from their own playlists" ON playlist_mixes;
+
+-- Step 8: Create RLS policies for playlist_mixes
 -- Users can view mixes in playlists they own or in public playlists
 CREATE POLICY "Users can view mixes in accessible playlists" ON playlist_mixes
   FOR SELECT USING (
@@ -93,7 +105,7 @@ CREATE POLICY "Users can remove mixes from their own playlists" ON playlist_mixe
     )
   );
 
--- Step 7: Create updated_at trigger function (if it doesn't exist)
+-- Step 9: Create updated_at trigger function (if it doesn't exist)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -102,20 +114,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Step 8: Add updated_at trigger to playlists
+-- Step 10: Add updated_at trigger to playlists
 DROP TRIGGER IF EXISTS update_playlists_updated_at ON playlists;
 CREATE TRIGGER update_playlists_updated_at
   BEFORE UPDATE ON playlists
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- Step 9: Grant permissions
+-- Step 11: Grant permissions
 GRANT ALL ON playlists TO authenticated;
 GRANT ALL ON playlist_mixes TO authenticated;
 GRANT SELECT ON playlists TO anon;
 GRANT SELECT ON playlist_mixes TO anon;
 
--- Step 10: Verify tables created
+-- Step 12: Verify tables created
 SELECT '=== TABLES CREATED ===' as status;
 SELECT table_name, 
        (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) as column_count
@@ -124,7 +136,7 @@ WHERE table_schema = 'public'
 AND table_name IN ('playlists', 'playlist_mixes')
 ORDER BY table_name;
 
--- Step 11: Show RLS policies
+-- Step 13: Show RLS policies
 SELECT '=== RLS POLICIES ===' as status;
 SELECT tablename, policyname, cmd
 FROM pg_policies

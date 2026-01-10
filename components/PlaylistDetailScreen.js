@@ -62,18 +62,27 @@ export default function PlaylistDetailScreen({
       // Get mix IDs from playlist_mixes
       const { data: playlistMixesData, error: playlistMixesError } = await supabase
         .from("playlist_mixes")
-        .select("mix_id")
+        .select("mix_id, added_at, position")
         .eq("playlist_id", playlistId)
-        .order("created_at", { ascending: true });
+        .order("added_at", { ascending: true });
 
       if (playlistMixesError) {
         console.error("❌ Error fetching playlist mixes:", playlistMixesError);
+        console.error("Error details:", {
+          code: playlistMixesError.code,
+          message: playlistMixesError.message,
+          hint: playlistMixesError.hint,
+          details: playlistMixesError.details,
+        });
         setMixes([]);
         setLoading(false);
         return;
       }
 
+      console.log("📋 Found playlist mixes:", playlistMixesData?.length || 0, playlistMixesData);
+
       if (!playlistMixesData || playlistMixesData.length === 0) {
+        console.log("ℹ️ No mixes found in playlist");
         setMixes([]);
         setLoading(false);
         return;

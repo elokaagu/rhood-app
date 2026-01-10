@@ -834,16 +834,27 @@ export default function ListenScreen({
   // Add mix to existing playlist
   const handleAddMixToPlaylist = useCallback(async (playlistId, mixId) => {
     try {
-      const { error } = await supabase
+      console.log("📝 Adding mix to playlist:", { playlistId, mixId });
+      const { data, error } = await supabase
         .from("playlist_mixes")
         .insert({
           playlist_id: playlistId,
           mix_id: mixId,
-        });
+        })
+        .select();
 
       if (error) {
+        console.error("❌ Error adding mix to playlist:", error);
+        console.error("Error details:", {
+          code: error.code,
+          message: error.message,
+          hint: error.hint,
+          details: error.details,
+        });
+        
         // If duplicate, that's okay
         if (error.code === "23505") {
+          console.log("✅ Mix already in playlist");
           return; // Already in playlist
         }
         // If table doesn't exist, show helpful error
@@ -857,6 +868,7 @@ export default function ListenScreen({
         throw error;
       }
 
+      console.log("✅ Successfully added mix to playlist:", data);
       HapticPatterns.success();
     } catch (error) {
       console.error("❌ Error adding mix to playlist:", error);

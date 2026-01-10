@@ -1746,6 +1746,14 @@ export default function ConnectionsScreen({
 
   return (
     <View style={styles.container}>
+      {/* Dark overlay when suggestions are shown */}
+      {showSuggestions && searchSuggestions.length > 0 && activeTab === "discover" && (
+        <TouchableOpacity
+          style={styles.suggestionsOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSuggestions(false)}
+        />
+      )}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
@@ -2711,6 +2719,17 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+  },
+  suggestionsOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    zIndex: 9998,
+    elevation: 9998,
+    pointerEvents: "none", // Allow taps to pass through to suggestions
   },
   suggestionsContainer: {
     position: "absolute",
