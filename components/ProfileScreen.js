@@ -326,15 +326,25 @@ export default function ProfileScreen({
         let primaryMix = null;
         if (userProfile.primary_mix_id) {
           try {
-            const { data: mixData } = await import("../lib/supabase").then(
-              ({ supabase }) =>
-                supabase
-                  .from("mixes")
-                  .select("*")
-                  .eq("id", userProfile.primary_mix_id)
-                  .single()
-            );
+            console.log("🔍 Loading primary mix with ID:", userProfile.primary_mix_id);
+            const { supabase } = await import("../lib/supabase");
+            const { data: mixData, error: mixError } = await supabase
+              .from("mixes")
+              .select("*")
+              .eq("id", userProfile.primary_mix_id)
+              .single();
+            
+            if (mixError) {
+              console.error("❌ Error fetching primary mix:", mixError);
+              console.error("❌ Error details:", {
+                code: mixError.code,
+                message: mixError.message,
+                hint: mixError.hint,
+              });
+            }
+            
             if (mixData) {
+              console.log("✅ Successfully loaded primary mix:", mixData.title);
               const durationSeconds = extractDurationSeconds(mixData);
               // Generate waveform based on safe duration
               const waveform = generateGenreWaveform(
@@ -436,6 +446,9 @@ export default function ProfileScreen({
         console.log("✅ Profile loaded from database");
         console.log(
           `📊 Loaded ${recentGigs.length} gigs and ${achievements.length} achievements`
+        );
+        console.log(
+          `🎵 Audio ID: ${primaryMix ? `Set (${primaryMix.title})` : "Not set"}`
         );
       } else {
         console.log("📝 No profile found, using mock data");

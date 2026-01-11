@@ -38,7 +38,6 @@ export default function ConnectionsScreen({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
   const searchTimeoutRef = useRef(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState(null);
@@ -1493,56 +1492,53 @@ export default function ConnectionsScreen({
   }, [connections, searchQuery]);
 
   // Fetch search suggestions from database
-  const fetchSearchSuggestions = async (query) => {
-    if (!query.trim() || query.length < 2) {
+  const fetchSearchSuggestions = useCallback(async (query) => {
+    const trimmedQuery = query.trim();
+    
+    if (!trimmedQuery || trimmedQuery.length < 2) {
       setSearchSuggestions([]);
       setShowSuggestions(false);
       return;
     }
 
     try {
-      setSearchLoading(true);
-      const queryLower = query.toLowerCase().trim();
-
-      // Search for DJs by name, username, city, or genre
+      // Search for DJs by name, username, or city
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("id, dj_name, full_name, username, city, genres, profile_image_url")
-        .or(`dj_name.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%,city.ilike.%${query}%`)
+        .select("id, dj_name, full_name, username, city, profile_image_url")
+        .or(`dj_name.ilike.%${trimmedQuery}%,full_name.ilike.%${trimmedQuery}%,username.ilike.%${trimmedQuery}%,city.ilike.%${trimmedQuery}%`)
         .not("dj_name", "is", null)
-        .limit(10);
+        .limit(8);
 
       if (error) {
         console.error("Error fetching search suggestions:", error);
         setSearchSuggestions([]);
+        setShowSuggestions(false);
         return;
       }
 
-      // Filter and format suggestions
-      const suggestions = (data || [])
-        .filter((user) => {
-          const name = (user.dj_name || user.full_name || user.username || "").toLowerCase();
-          const city = (user.city || "").toLowerCase();
-          const username = (user.username || "").toLowerCase();
-          return name.includes(queryLower) || city.includes(queryLower) || username.includes(queryLower);
-        })
-        .map((user) => ({
-          id: user.id,
-          name: user.dj_name || user.full_name || user.username || "DJ",
-          username: user.username,
-          city: user.city,
-          profileImage: user.profile_image_url,
-        }));
+      if (!data || data.length === 0) {
+        setSearchSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      // Format suggestions
+      const suggestions = data.map((user) => ({
+        id: user.id,
+        name: user.dj_name || user.full_name || user.username || "DJ",
+        city: user.city || null,
+        profileImage: user.profile_image_url || null,
+      }));
 
       setSearchSuggestions(suggestions);
-      setShowSuggestions(suggestions.length > 0);
+      setShowSuggestions(true);
     } catch (error) {
       console.error("Error in fetchSearchSuggestions:", error);
       setSearchSuggestions([]);
-    } finally {
-      setSearchLoading(false);
+      setShowSuggestions(false);
     }
-  };
+  }, []);
 
   // Debounced search suggestions
   useEffect(() => {
@@ -1550,10 +1546,11 @@ export default function ConnectionsScreen({
       clearTimeout(searchTimeoutRef.current);
     }
 
-    if (searchQuery.trim().length >= 2) {
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery.length >= 2) {
       searchTimeoutRef.current = setTimeout(() => {
-        fetchSearchSuggestions(searchQuery);
-      }, 300); // 300ms debounce
+        fetchSearchSuggestions(trimmedQuery);
+      }, 300);
     } else {
       setSearchSuggestions([]);
       setShowSuggestions(false);
@@ -1564,7 +1561,7 @@ export default function ConnectionsScreen({
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery]);
+  }, [searchQuery, fetchSearchSuggestions]);
 
   const filteredDiscoverUsers = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -1746,14 +1743,6 @@ export default function ConnectionsScreen({
 
   return (
     <View style={styles.container}>
-      {/* Dark overlay when suggestions are shown */}
-      {showSuggestions && searchSuggestions.length > 0 && activeTab === "discover" && (
-        <TouchableOpacity
-          style={styles.suggestionsOverlay}
-          activeOpacity={1}
-          onPress={() => setShowSuggestions(false)}
-        />
-      )}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
@@ -1869,20 +1858,6 @@ export default function ConnectionsScreen({
                 value={searchQuery}
                 onChangeText={(text) => {
                   setSearchQuery(text);
-                  if (text.trim().length >= 2) {
-                    setShowSuggestions(true);
-                  } else {
-                    setShowSuggestions(false);
-                  }
-                }}
-                onFocus={() => {
-                  if (searchQuery.trim().length >= 2 && searchSuggestions.length > 0) {
-                    setShowSuggestions(true);
-                  }
-                }}
-                onBlur={() => {
-                  // Delay hiding suggestions to allow for tap events
-                  setTimeout(() => setShowSuggestions(false), 200);
                 }}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -1906,44 +1881,54 @@ export default function ConnectionsScreen({
             </View>
 
             {/* Search Suggestions Dropdown */}
-            {showSuggestions && searchSuggestions.length > 0 && activeTab === "discover" && (
+            {showSuggestions && searchSuggestions.length > 0 && (
               <View style={styles.suggestionsContainer}>
-                {searchSuggestions.map((suggestion) => (
-                  <TouchableOpacity
-                    key={suggestion.id}
-                    style={styles.suggestionItem}
-                    onPress={() => {
-                      setSearchQuery(suggestion.name);
-                      setShowSuggestions(false);
-                      if (onNavigate) {
-                        onNavigate("user-profile", { userId: suggestion.id, djName: suggestion.name });
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    {suggestion.profileImage ? (
-                      <ProgressiveImage
-                        source={{ uri: suggestion.profileImage }}
-                        style={styles.suggestionImage}
-                      />
-                    ) : (
-                      <View style={[styles.suggestionImage, styles.suggestionImagePlaceholder]}>
-                        <Ionicons name="person" size={16} color="hsl(0, 0%, 50%)" />
-                      </View>
-                    )}
-                    <View style={styles.suggestionInfo}>
-                      <Text style={styles.suggestionName} numberOfLines={1}>
-                        {suggestion.name}
-                      </Text>
-                      {suggestion.city && (
-                        <Text style={styles.suggestionCity} numberOfLines={1}>
-                          {suggestion.city}
-                        </Text>
+                <ScrollView 
+                  style={styles.suggestionsScroll}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled={true}
+                >
+                  {searchSuggestions.map((suggestion) => (
+                    <TouchableOpacity
+                      key={suggestion.id}
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        setSearchQuery(suggestion.name);
+                        setShowSuggestions(false);
+                        if (onNavigate) {
+                          onNavigate("user-profile", { userId: suggestion.id, djName: suggestion.name });
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      {suggestion.profileImage ? (
+                        <ProgressiveImage
+                          source={{ uri: suggestion.profileImage }}
+                          style={styles.suggestionImage}
+                        />
+                      ) : (
+                        <View style={[styles.suggestionImage, styles.suggestionImagePlaceholder]}>
+                          <Ionicons name="person" size={16} color="hsl(0, 0%, 50%)" />
+                        </View>
                       )}
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color="hsl(0, 0%, 40%)" />
-                  </TouchableOpacity>
-                ))}
+                      <View style={styles.suggestionInfo}>
+                        <Text style={styles.suggestionName} numberOfLines={1}>
+                          {suggestion.name}
+                        </Text>
+                        {suggestion.city ? (
+                          <Text style={styles.suggestionCity} numberOfLines={1}>
+                            {suggestion.city}
+                          </Text>
+                        ) : (
+                          <Text style={styles.suggestionCity} numberOfLines={1}>
+                            DJ
+                          </Text>
+                        )}
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="hsl(0, 0%, 40%)" />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
           </View>
@@ -2428,24 +2413,43 @@ export default function ConnectionsScreen({
                     })}
                   </View>
                 )}
-                {filteredDiscoverUsers.map((user, index) => {
-                  const normalizedStatus = normalizeConnectionStatus(
-                    user.connectionStatus
-                  );
-                  const isPending = normalizedStatus === "pending";
-                  const pendingKey = user.connectionId || user.id;
-                  const isCancelling =
-                    isPending && pendingKey === cancellingConnectionId;
-                  const pressableProps = user.isConnected
-                    ? {
-                        onLongPress: () => handleOpenConnectionOptions(user),
-                        delayLongPress: 350,
-                      }
-                    : {};
+                {/* DJ List - Hide when suggestions are showing */}
+                {!showSuggestions && (
+                  <View>
+                    {filteredDiscoverUsers.length === 0 ? (
+                      <View style={styles.noResultsContainer}>
+                        <Ionicons
+                          name="people-outline"
+                          size={48}
+                          color="hsl(0, 0%, 30%)"
+                        />
+                        <Text style={styles.noResultsTitle}>No DJs found</Text>
+                        <Text style={styles.noResultsSubtitle}>
+                          {searchQuery.trim()
+                            ? `No results for "${searchQuery}"`
+                            : "Try adjusting your filters"}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Animated.View style={{ opacity: discoverFadeAnim }}>
+                        {filteredDiscoverUsers.map((user, index) => {
+                          const normalizedStatus = normalizeConnectionStatus(
+                            user.connectionStatus
+                          );
+                          const isPending = normalizedStatus === "pending";
+                          const pendingKey = user.connectionId || user.id;
+                          const isCancelling =
+                            isPending && pendingKey === cancellingConnectionId;
+                          const pressableProps = user.isConnected
+                            ? {
+                                onLongPress: () => handleOpenConnectionOptions(user),
+                                delayLongPress: 350,
+                              }
+                            : {};
 
-                  return (
-                  <AnimatedListItem key={user.id} index={index} delay={80}>
-                      <Pressable style={styles.discoverCard} {...pressableProps}>
+                          return (
+                          <AnimatedListItem key={user.id} index={index} delay={80}>
+                              <Pressable style={styles.discoverCard} {...pressableProps}>
                       {/* Top Row: Profile Image + Name Info + Rating */}
                       <View style={styles.discoverTopRow}>
                         {/* Profile Image */}
@@ -2601,10 +2605,14 @@ export default function ConnectionsScreen({
                         </TouchableOpacity>
                           )}
                       </View>
-                      </Pressable>
-                  </AnimatedListItem>
-                  );
-                })}
+                              </Pressable>
+                          </AnimatedListItem>
+                          );
+                        })}
+                      </Animated.View>
+                    )}
+                  </View>
+                )}
               </Animated.View>
             )}
           </View>
@@ -2720,17 +2728,6 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: 4,
   },
-  suggestionsOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    zIndex: 9998,
-    elevation: 9998,
-    pointerEvents: "none", // Allow taps to pass through to suggestions
-  },
   suggestionsContainer: {
     position: "absolute",
     top: "100%",
@@ -2743,13 +2740,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     maxHeight: 300,
-    overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 10000,
     zIndex: 10000,
+  },
+  suggestionsScroll: {
+    maxHeight: 300,
   },
   suggestionItem: {
     flexDirection: "row",
