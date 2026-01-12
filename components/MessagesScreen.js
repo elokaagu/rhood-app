@@ -604,6 +604,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
           user.id,
           djId
         );
+        
+        if (!currentThreadId) {
+          console.error("❌ Failed to get or create thread ID");
+          Alert.alert("Error", "Failed to initialize chat. Please try again.");
+          setLoading(false);
+          return;
+        }
+        
         setThreadId(currentThreadId);
         console.log("🧵 Thread ID:", currentThreadId);
 
