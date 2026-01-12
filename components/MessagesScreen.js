@@ -619,10 +619,23 @@ const MessagesScreen = ({ user, navigation, route }) => {
         console.log("🔍 Querying messages for thread:", currentThreadId);
         console.log("🔍 Current user ID:", user.id);
 
+        // First, verify the thread exists and check its structure
+        const { data: threadCheck, error: threadCheckError } = await supabase
+          .from("message_threads")
+          .select("id, type, user_id_1, user_id_2, community_id")
+          .eq("id", currentThreadId)
+          .single();
+        
+        console.log("🔍 Thread check:", {
+          thread: threadCheck,
+          error: threadCheckError?.message,
+          currentUserId: user.id,
+        });
+
         // First, try a simple query without joins to test RLS
         const { data: simpleData, error: simpleError } = await supabase
           .from("messages")
-          .select("id, thread_id, sender_id, content, created_at")
+          .select("id, thread_id, sender_id, content, created_at, community_id")
           .eq("thread_id", currentThreadId);
 
         console.log("🔍 Simple query result:", {
@@ -631,6 +644,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
           errorCode: simpleError?.code,
           data: simpleData,
         });
+
+        if (simpleError) {
+          console.error("❌ Error in simple query (possible RLS issue):", simpleError);
+          console.error("❌ Error details:", {
+            code: simpleError.code,
+            message: simpleError.message,
+            hint: simpleError.hint,
+            details: simpleError.details,
+          });
+        }
 
         // Now try with the join - load all messages (up to 1000 limit)
         const { data, error } = await supabase
@@ -666,6 +689,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
           });
           Alert.alert("Error", `Failed to load messages: ${error.message}`);
           return;
+        }
+        
+        // If no error but also no data, log a warning
+        if (!error && (!data || data.length === 0)) {
+          console.log("⚠️ No messages found for thread:", currentThreadId);
+          console.log("⚠️ This could mean:");
+          console.log("   1. No messages have been sent yet");
+          console.log("   2. RLS policies are blocking access");
+          console.log("   3. Messages failed to insert due to constraint violations");
         }
 
         // Transform messages
@@ -1611,11 +1643,19 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
         console.log("💾 Inserting message(s) to database...");
         
+        // Prepare message data - messages table doesn't have community_id column
+        // The constraint messages_community_or_private_check likely checks thread_id existence
+        const baseMessageData = {
+          thread_id: currentThreadId,
+          sender_id: user.id,
+        };
+        
+        console.log("📝 Message data to insert:", baseMessageData);
+        
         // If there's text content, send it as a separate message first
         if (messageContent) {
           const textMessageData = {
-            thread_id: currentThreadId,
-            sender_id: user.id,
+            ...baseMessageData,
             content: messageContent,
             message_type: "text",
           };
@@ -1626,14 +1666,27 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
           if (textError) {
             console.error("❌ Error sending text message:", textError);
+            console.error("❌ Error details:", {
+              code: textError.code,
+              message: textError.message,
+              hint: textError.hint,
+              details: textError.details,
+            });
+            Alert.alert(
+              "Error",
+              `Failed to send message: ${textError.message || "Unknown error"}`
+            );
+            setNewMessage(messageContent);
+            setSelectedMedia(mediaArray);
+            setSending(false);
+            return;
           }
         }
 
         // Send each media file as a separate message
         if (mediaArray.length > 0) {
           const mediaMessages = mediaArray.map((mediaItem) => ({
-            thread_id: currentThreadId,
-            sender_id: user.id,
+            ...baseMessageData,
             content: "",
             message_type: mediaItem.type,
             media_url: mediaItem.url,

@@ -839,32 +839,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
 
       setUploadProgress(100);
 
-      // Automatically set as audio ID if this is the user's first mix
+      // Automatically set uploaded mix as Audio ID (primary_mix_id)
       if (!editingMix && mixRecord) {
         try {
-          // Check if user already has a primary mix set
-          const { data: userProfileData, error: profileError } = await supabase
-            .from("user_profiles")
-            .select("primary_mix_id")
-            .eq("id", userProfile.id)
-            .single();
-
-          if (!profileError && !userProfileData?.primary_mix_id) {
-            // User doesn't have a primary mix set - check if this is their first mix
-            const { count, error: countError } = await supabase
-              .from("mixes")
-              .select("*", { count: "exact", head: true })
-              .eq("user_id", userProfile.id)
-              .neq("id", mixRecord.id);
-
-            if (!countError && count === 0) {
-              // This is the user's first mix - automatically set as audio ID
-              const { db } = await import("../lib/supabase");
-              await db.setPrimaryMix(user.id, mixRecord.id);
-              console.log("✅ Automatically set first mix as Audio ID:", mixRecord.id);
-              mixData.setAsPrimary = true; // Update flag for success message
-            }
-          }
+          const { db } = await import("../lib/supabase");
+          await db.setPrimaryMix(user.id, mixRecord.id);
+          console.log("✅ Automatically set uploaded mix as Audio ID:", mixRecord.id);
+          mixData.setAsPrimary = true; // Update flag for success message
         } catch (autoPrimaryError) {
           console.error("❌ Error auto-setting primary mix:", autoPrimaryError);
           // Don't fail the upload if auto-setting primary fails
