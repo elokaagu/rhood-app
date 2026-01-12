@@ -77,6 +77,12 @@ export default function AboutScreen({ onBack }) {
           type: "link",
           url: "https://instagram.com/rhood.io",
         },
+        {
+          title: "YouTube",
+          value: "R/HOOD",
+          type: "link",
+          url: "https://www.youtube.com/channel/UCFGyKGGh4Z4PRHSlOJuGi4Q",
+        },
       ],
     },
   ];

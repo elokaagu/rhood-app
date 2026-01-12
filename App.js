@@ -81,6 +81,7 @@ import EditProfileScreen from "./components/EditProfileScreen";
 import UserProfileView from "./components/UserProfileView";
 import UploadMixScreen from "./components/UploadMixScreen";
 import AboutScreen from "./components/AboutScreen";
+import CommunityMembersScreen from "./components/CommunityMembersScreen";
 import TermsOfServiceScreen from "./components/TermsOfServiceScreen";
 import PrivacyPolicyScreen from "./components/PrivacyPolicyScreen";
 import HelpCenterScreen from "./components/HelpCenterScreen";
@@ -93,6 +94,8 @@ import BrandGigsPortal from "./components/BrandGigsPortal";
 import TrendingMixesScreen from "./components/TrendingMixesScreen";
 import YourLikesScreen from "./components/YourLikesScreen";
 import PlaylistDetailScreen from "./components/PlaylistDetailScreen";
+import ResetPasswordScreen from "./components/ResetPasswordScreen";
+import { getAudioErrorMessage } from "./lib/errorMessages";
 // Push notifications - gracefully handle Expo Go limitations
 import {
   registerForPushNotifications,
@@ -257,6 +260,9 @@ export default function App() {
     queue: [], // Array of tracks in queue
     currentQueueIndex: -1, // Index of current track in queue
   });
+
+  // Audio error modal state
+  const [audioErrorModal, setAudioErrorModal] = useState({ visible: false, title: "", message: "" });
 
   // Like state
   const [likedMixIds, setLikedMixIds] = useState(() => new Set());
@@ -520,6 +526,90 @@ export default function App() {
     initializeAuth();
     setupGlobalAudio();
     fetchOpportunities();
+
+    // Handle deep links for password reset
+    const handleDeepLink = async (url) => {
+      if (!url) return;
+      
+      console.log("🔗 Deep link received:", url);
+      
+      try {
+        // Handle both rhoodapp://reset-password and rhoodapp://reset-password#... formats
+        if (url.includes("reset-password")) {
+          // Supabase includes tokens in the URL hash/fragment
+          // Format: rhoodapp://reset-password#access_token=xxx&type=recovery&refresh_token=xxx
+          const hashIndex = url.indexOf("#");
+          if (hashIndex !== -1) {
+            const hash = url.substring(hashIndex + 1);
+            const params = new URLSearchParams(hash);
+            const accessToken = params.get("access_token");
+            const refreshToken = params.get("refresh_token");
+            const type = params.get("type");
+            
+            console.log("🔐 Password reset link detected:", { 
+              hasAccessToken: !!accessToken, 
+              hasRefreshToken: !!refreshToken,
+              type 
+            });
+            
+            if (type === "recovery" && accessToken) {
+              // Set the session using the tokens from the reset link
+              const { data, error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || "",
+              });
+              
+              if (error) {
+                console.error("❌ Error setting reset session:", error);
+                Alert.alert("Error", "This password reset link is invalid or has expired. Please request a new one.");
+                return;
+              }
+              
+              console.log("✅ Reset session established, showing reset password screen");
+              setShowAuth(false);
+              setCurrentScreen("reset-password");
+            }
+          } else {
+            // No hash - might be opening the screen directly
+            // Check if there's an active recovery session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              console.log("✅ Active session found, showing reset password screen");
+              setShowAuth(false);
+              setCurrentScreen("reset-password");
+            }
+          }
+        }
+      } catch (error) {
+        console.error("❌ Error handling deep link:", error);
+        // If URL parsing fails, try checking for active session
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session && url.includes("reset-password")) {
+            setShowAuth(false);
+            setCurrentScreen("reset-password");
+          }
+        } catch (sessionError) {
+          console.error("❌ Error checking session:", sessionError);
+        }
+      }
+    };
+
+    // Check for initial URL (app opened from link)
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    // Listen for deep links while app is running
+    const subscription = Linking.addEventListener("url", (event) => {
+      handleDeepLink(event.url);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
 
     // Setup push notifications (gracefully handle Expo Go limitations)
     // Note: Push notifications work in development builds but not in Expo Go
@@ -1362,59 +1452,74 @@ export default function App() {
   };
 
   // Fetch user location and check for mismatch with profile city
+  // Made non-blocking to prevent app freeze on first load in new countries
   const fetchUserLocation = async (profile) => {
     try {
-      const location = await getCurrentLocation();
-      if (location) {
-        setUserLocation(location);
+      // Don't await - let it run in background to prevent blocking app initialization
+      // This is especially important in new countries where GPS might take longer
+      getCurrentLocation()
+        .then((location) => {
+          if (location) {
+                setUserLocation(location);
 
-        // Check if location matches profile city
-        if (profile?.city) {
-          const matchResult = await checkLocationMatch(
-            profile.city,
-            location.latitude,
-            location.longitude
-          );
+            // Check if location matches profile city
+            if (profile?.city) {
+              checkLocationMatch(
+                profile.city,
+                location.latitude,
+                location.longitude
+              )
+                .then((matchResult) => {
+                  if (!matchResult.matches && matchResult.currentCity) {
+                    setLocationMismatchWarning(true);
 
-          if (!matchResult.matches && matchResult.currentCity) {
-            setLocationMismatchWarning(true);
+                    // Track location mismatch
+                    track(AnalyticsEvents.LOCATION_MISMATCH, {
+                      profile_city: profile.city,
+                      current_city: matchResult.currentCity,
+                    });
 
-            // Track location mismatch
-            track(AnalyticsEvents.LOCATION_MISMATCH, {
-              profile_city: profile.city,
-              current_city: matchResult.currentCity,
-            });
+                    // Show warning modal after a short delay
+                    setTimeout(() => {
+                      showCustomModal({
+                        type: "warning",
+                        title: "Location Mismatch",
+                        message: `Your current location (${matchResult.currentCity}) doesn't match your profile city (${profile.city}). Update your profile to show accurate opportunities.`,
+                        primaryButtonText: "Update Profile",
+                        secondaryButtonText: "Dismiss",
+                        onPrimaryPress: () => {
+                          setShowModal(false);
+                          setShowEditProfile(true);
+                        },
+                        onSecondaryPress: () => {
+                          setShowModal(false);
+                          setLocationMismatchWarning(false);
+                        },
+                      });
+                    }, 2000);
+                  }
 
-            // Show warning modal after a short delay
-            setTimeout(() => {
-              showCustomModal({
-                type: "warning",
-                title: "Location Mismatch",
-                message: `Your current location (${matchResult.currentCity}) doesn't match your profile city (${profile.city}). Update your profile to show accurate opportunities.`,
-                primaryButtonText: "Update Profile",
-                secondaryButtonText: "Dismiss",
-                onPrimaryPress: () => {
-                  setShowModal(false);
-                  setShowEditProfile(true);
-                },
-                onSecondaryPress: () => {
-                  setShowModal(false);
-                  setLocationMismatchWarning(false);
-                },
-              });
-            }, 2000);
+                  // Track location fetched
+                  track(AnalyticsEvents.LOCATION_FETCHED, {
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                    accuracy: location.accuracy,
+                  });
+                })
+                .catch((matchError) => {
+                  console.error("Error checking location match:", matchError);
+                });
+            }
           }
-
-          // Track location fetched
-          track(AnalyticsEvents.LOCATION_FETCHED, {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            accuracy: location.accuracy,
-          });
-        }
-      }
+        })
+        .catch((error) => {
+          // Silently handle location errors - don't block app initialization
+          console.warn("⚠️ Location fetch failed (non-blocking):", error.message);
+          // Location is optional, app can continue without it
+        });
     } catch (error) {
-      console.error("Error fetching location:", error);
+      // Silently handle location errors - don't block app initialization
+      console.warn("⚠️ Location fetch error (non-blocking):", error.message);
     }
   };
 
@@ -1712,15 +1817,25 @@ export default function App() {
           name: loadError.name,
           audioSource: audioSource,
         });
+        
+        // Stop any existing playback and reset state
         setGlobalAudioState((prev) => ({
           ...prev,
           isLoading: false,
-          error: "Failed to load audio: " + loadError.message,
+          isPlaying: false,
+          currentTrack: null,
+          error: getAudioErrorMessage(loadError),
         }));
-        Alert.alert(
-          "Audio Error",
-          `Failed to load audio: ${loadError.message}. Please try again.`
-        );
+        
+        // Show user-friendly error message
+        const userFriendlyMessage = getAudioErrorMessage(loadError);
+        setAudioErrorModal({
+          visible: true,
+          title: "Unable to Play Audio",
+          message: userFriendlyMessage
+        });
+        
+        // Prevent playback - return early
         return;
       }
 
@@ -1737,15 +1852,54 @@ export default function App() {
         });
 
         if (!status.isLoaded) {
+          // Unload the sound to free resources
+          await sound.unloadAsync();
           throw new Error("Sound failed to load properly");
         }
 
         if (status.durationMillis === 0) {
           console.warn("⚠️ Audio file has 0 duration - may be corrupted");
+          // Unload the sound and show error
+          await sound.unloadAsync();
+          const error = new Error("Audio file has invalid duration");
+          setGlobalAudioState((prev) => ({
+            ...prev,
+            isLoading: false,
+            isPlaying: false,
+            currentTrack: null,
+            error: getAudioErrorMessage(error),
+          }));
+          setAudioErrorModal({
+            visible: true,
+            title: "Unable to Play Audio",
+            message: getAudioErrorMessage(error)
+          });
+          return;
         }
       } catch (statusError) {
         console.error("❌ Error getting sound status:", statusError);
-        throw statusError;
+        // Clean up sound if it exists
+        if (sound) {
+          try {
+            await sound.unloadAsync();
+          } catch (unloadError) {
+            console.error("❌ Error unloading sound:", unloadError);
+          }
+        }
+        // Show user-friendly error
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          isLoading: false,
+          isPlaying: false,
+          currentTrack: null,
+          error: getAudioErrorMessage(statusError),
+        }));
+        setAudioErrorModal({
+          visible: true,
+          title: "Unable to Play Audio",
+          message: getAudioErrorMessage(statusError)
+        });
+        return;
       }
 
       // Set up status update listener
@@ -5027,6 +5181,10 @@ export default function App() {
                     screenParams?.returnToConnectionsTab || "connections",
                 }));
               },
+              navigate: (screen, params = {}) => {
+                setCurrentScreen(screen);
+                setScreenParams(params);
+              },
             }}
             route={{ params: screenParams }}
           />
@@ -5145,6 +5303,23 @@ export default function App() {
           />
         );
 
+      case "reset-password":
+        return (
+          <ResetPasswordScreen
+            onBack={() => {
+              setCurrentScreen("login");
+              setShowAuth(true);
+              setAuthMode("login");
+            }}
+            onSuccess={() => {
+              // Password reset successful, show login screen
+              setCurrentScreen("login");
+              setShowAuth(true);
+              setAuthMode("login");
+            }}
+          />
+        );
+
       case "edit-profile":
         return (
           <EditProfileScreen
@@ -5190,6 +5365,30 @@ export default function App() {
             onResumeAudio={resumeGlobalAudio}
             onStopAudio={stopGlobalAudio}
             onBack={() => setCurrentScreen("connections")}
+            onNavigate={(screen, params = {}) => {
+              setCurrentScreen(screen);
+              setScreenParams(params);
+            }}
+          />
+        );
+
+      case "community-members":
+        return (
+          <CommunityMembersScreen
+            communityId={screenParams.communityId}
+            communityName={screenParams.communityName}
+            onBack={() => {
+              // Go back to messages screen if we came from there
+              if (screenParams.returnToMessages) {
+                setCurrentScreen("messages");
+                setScreenParams({
+                  communityId: screenParams.communityId,
+                  chatType: "group",
+                });
+              } else {
+                setCurrentScreen("connections");
+              }
+            }}
             onNavigate={(screen, params = {}) => {
               setCurrentScreen(screen);
               setScreenParams(params);
@@ -6187,30 +6386,6 @@ export default function App() {
 
                 {/* Secondary Actions Row */}
                 <View style={styles.fullScreenSecondaryActions}>
-                  {/* Connect Button */}
-                  <TouchableOpacity
-                    style={styles.fullScreenSecondaryButton}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      // AirPlay/Connect functionality - placeholder for now
-                      Alert.alert(
-                        "Connect to Speakers",
-                        "AirPlay and speaker connection will be available soon.",
-                        [{ text: "OK" }]
-                      );
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="radio-outline"
-                      size={20}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                    <Text style={styles.fullScreenSecondaryButtonText}>
-                      Connect
-                    </Text>
-                  </TouchableOpacity>
-
                   {/* Share Button */}
                   <TouchableOpacity
                     style={styles.fullScreenSecondaryButton}
@@ -6249,13 +6424,6 @@ export default function App() {
                     <Text style={styles.fullScreenSecondaryButtonText}>
                       Queue
                     </Text>
-                    {globalAudioState.queue && globalAudioState.queue.length > 0 && (
-                      <View style={styles.queueBadge}>
-                        <Text style={styles.queueBadgeText}>
-                          {globalAudioState.queue.length}
-                        </Text>
-                      </View>
-                    )}
                   </TouchableOpacity>
                 </View>
 
@@ -6690,6 +6858,17 @@ export default function App() {
             ]}
           />
         )}
+
+        {/* Audio Error Modal */}
+        <RhoodModal
+          visible={audioErrorModal.visible}
+          onClose={() => setAudioErrorModal({ visible: false, title: "", message: "" })}
+          title={audioErrorModal.title}
+          message={audioErrorModal.message}
+          type="error"
+          primaryButtonText="OK"
+          onPrimaryPress={() => setAudioErrorModal({ visible: false, title: "", message: "" })}
+        />
 
         {/* Custom RHOOD Modal */}
         <RhoodModal

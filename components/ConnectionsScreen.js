@@ -72,6 +72,9 @@ export default function ConnectionsScreen({
   const [rhoodGroupData, setRhoodGroupData] = useState(null);
   const [latestGroupMessage, setLatestGroupMessage] = useState(null);
   const [unreadGroupCount, setUnreadGroupCount] = useState(0);
+  const [userCommunities, setUserCommunities] = useState([]);
+  const [communityMessages, setCommunityMessages] = useState({}); // Map of communityId -> latest message
+  const [communityUnreadCounts, setCommunityUnreadCounts] = useState({}); // Map of communityId -> unread count
   const [cancellingConnectionId, setCancellingConnectionId] = useState(null);
   const [acceptingUserId, setAcceptingUserId] = useState(null);
   const [decliningUserId, setDecliningUserId] = useState(null);
@@ -315,7 +318,7 @@ export default function ConnectionsScreen({
   useEffect(() => {
     if (activeTab === "connections" && user && !hasLoadedConnections) {
       loadUserAndConnections();
-      checkRhoodMembership();
+      loadUserCommunities(); // Load all user communities
     }
   }, [activeTab, user, hasLoadedConnections]);
 
@@ -726,44 +729,65 @@ export default function ConnectionsScreen({
     };
   }, [user?.id]);
 
-  const checkRhoodMembership = async () => {
+  const loadUserCommunities = async () => {
     try {
       if (!user?.id) return;
 
+      // Fetch all communities the user is a member of
+      const communities = await connectionsService.getUserCommunities();
+      setUserCommunities(communities || []);
+
+      // Load latest messages and unread counts for each community
+      const messagesMap = {};
+      const unreadCountsMap = {};
+
+      for (const community of communities) {
+        try {
+          // Get latest message
+          const latestMessage = await db.getLatestGroupMessage(community.id);
+          if (latestMessage) {
+            messagesMap[community.id] = latestMessage;
+          }
+
+          // Get unread count
+          const unreadCount = await db.getUnreadGroupMessageCount(
+            community.id,
+            user.id
+          );
+          unreadCountsMap[community.id] = unreadCount || 0;
+        } catch (error) {
+          console.error(`Error loading data for community ${community.id}:`, error);
+        }
+      }
+
+      setCommunityMessages(messagesMap);
+      setCommunityUnreadCounts(unreadCountsMap);
+
+      // Also check R/HOOD membership for backward compatibility
       const rhoodCommunityId = "550e8400-e29b-41d4-a716-446655440000";
-
-      // Load community data
-      const communityData = await db.getCommunityData(rhoodCommunityId);
-      setRhoodGroupData(communityData);
-
-      // Check membership
-      const isMember = await db.isUserCommunityMember(
-        rhoodCommunityId,
-        user.id
-      );
-      setIsRhoodMember(isMember);
-
-      // Get member count
-      const memberCount = await db.getCommunityMemberCount(rhoodCommunityId);
-      setRhoodMemberCount(memberCount);
-
-      // Get latest message if user is a member
-      if (isMember) {
-        const latestMessage = await db.getLatestGroupMessage(rhoodCommunityId);
-        setLatestGroupMessage(latestMessage);
-
-        // Get unread count
-        const unreadCount = await db.getUnreadGroupMessageCount(
-          rhoodCommunityId,
-          user.id
-        );
-        setUnreadGroupCount(unreadCount);
+      const rhoodCommunity = communities.find((c) => c.id === rhoodCommunityId);
+      
+      if (rhoodCommunity) {
+        setRhoodGroupData(rhoodCommunity);
+        setIsRhoodMember(true);
+        setRhoodMemberCount(rhoodCommunity.member_count || 0);
+        setLatestGroupMessage(messagesMap[rhoodCommunityId] || null);
+        setUnreadGroupCount(unreadCountsMap[rhoodCommunityId] || 0);
+      } else {
+        setIsRhoodMember(false);
+        setRhoodMemberCount(0);
+        setLatestGroupMessage(null);
+        setUnreadGroupCount(0);
       }
     } catch (error) {
-      console.error("Error checking R/HOOD membership:", error);
-      setIsRhoodMember(false);
-      setRhoodMemberCount(0);
+      console.error("Error loading user communities:", error);
+      setUserCommunities([]);
     }
+  };
+
+  const checkRhoodMembership = async () => {
+    // This function is kept for backward compatibility but now uses loadUserCommunities
+    await loadUserCommunities();
   };
 
   const handleJoinRhoodGroup = async () => {
@@ -778,9 +802,8 @@ export default function ConnectionsScreen({
       // Join the community
       await db.joinCommunity(rhoodCommunityId, user.id);
 
-      // Update local state
-      setIsRhoodMember(true);
-      setRhoodMemberCount((prev) => prev + 1);
+      // Reload communities to update the list
+      await loadUserCommunities();
 
       Alert.alert(
         "Welcome to R/HOOD Group!",
@@ -793,14 +816,18 @@ export default function ConnectionsScreen({
     }
   };
 
-  const handleGroupChatPress = () => {
-    if (isRhoodMember) {
+  const handleGroupChatPress = (communityId = null) => {
+    const targetCommunityId = communityId || "550e8400-e29b-41d4-a716-446655440000";
+    const community = userCommunities.find((c) => c.id === targetCommunityId);
+    
+    if (community) {
       onNavigate &&
         onNavigate("messages", {
-          communityId: "550e8400-e29b-41d4-a716-446655440000",
+          communityId: targetCommunityId,
           chatType: "group",
         });
-    } else {
+    } else if (!communityId) {
+      // Only show join prompt for R/HOOD if not a member
       handleJoinRhoodGroup();
     }
   };
@@ -1942,68 +1969,87 @@ export default function ConnectionsScreen({
               <SkeletonList count={5} />
             ) : (
               <Animated.View style={{ opacity: connectionsFadeAnim }}>
-                {/* R/HOOD Group Chat - Always pinned at top */}
-                <TouchableOpacity
-                  style={styles.messageItem}
-                  onPress={handleGroupChatPress}
-                >
-                  <View style={styles.messageContent}>
-                    {/* Group Avatar */}
-                    <View style={styles.avatarContainer}>
-                      <View style={styles.groupAvatar}>
-                        <Image
-                          source={require("../assets/rhood_logo.webp")}
-                          style={styles.groupLogo}
-                          resizeMode="contain"
-                        />
-                      </View>
-                      <View style={styles.onlineIndicator} />
-                    </View>
+                {/* Community Chats - Show all communities user is a member of */}
+                {userCommunities.map((community, communityIndex) => {
+                  const latestMessage = communityMessages[community.id];
+                  const unreadCount = communityUnreadCounts[community.id] || 0;
+                  const isRhood = community.id === "550e8400-e29b-41d4-a716-446655440000";
 
-                    {/* Message Info */}
-                    <View style={styles.messageInfo}>
-                      <View style={styles.messageHeader}>
-                        <Text style={styles.messageName}>
-                          {rhoodGroupData?.name || "R/HOOD Group"}
-                        </Text>
-                        <Text style={styles.messageTime}>
-                          {isRhoodMember && latestGroupMessage
-                            ? formatMessageTime(latestGroupMessage.created_at)
-                            : "Join to chat"}
-                        </Text>
-                      </View>
-                      <Text style={styles.messagePreview} numberOfLines={1}>
-                        {isRhoodMember && latestGroupMessage
-                          ? `${
-                              latestGroupMessage.author?.dj_name ||
-                              latestGroupMessage.author?.full_name ||
-                              "User"
-                            }: ${latestGroupMessage.content}`
-                          : "Join the main R/HOOD community chat"}
-                      </Text>
-                      <View style={styles.messageBadges}>
-                        <View style={styles.pinnedBadge}>
-                          <Text style={styles.pinnedBadgeText}>
-                            {isRhoodMember ? "Pinned" : "Join"}
-                          </Text>
+                  return (
+                    <TouchableOpacity
+                      key={community.id}
+                      style={styles.messageItem}
+                      onPress={() => handleGroupChatPress(community.id)}
+                    >
+                      <View style={styles.messageContent}>
+                        {/* Group Avatar */}
+                        <View style={styles.avatarContainer}>
+                          <View style={styles.groupAvatar}>
+                            {community.image_url ? (
+                              <ProgressiveImage
+                                source={{ uri: community.image_url }}
+                                style={styles.groupLogo}
+                                placeholderStyle={styles.groupLogo}
+                              />
+                            ) : (
+                              <Image
+                                source={require("../assets/rhood_logo.webp")}
+                                style={styles.groupLogo}
+                                resizeMode="contain"
+                              />
+                            )}
+                          </View>
+                          <View style={styles.onlineIndicator} />
                         </View>
-                        <Text style={styles.memberCount}>
-                          {rhoodMemberCount} member
-                          {rhoodMemberCount !== 1 ? "s" : ""}
-                        </Text>
-                      </View>
-                    </View>
 
-                    {/* Unread Counter */}
-                    {isRhoodMember && unreadGroupCount > 0 && (
-                      <View style={styles.unreadCounter}>
-                        <Text style={styles.unreadCount}>
-                          {unreadGroupCount}
-                        </Text>
+                        {/* Message Info */}
+                        <View style={styles.messageInfo}>
+                          <View style={styles.messageHeader}>
+                            <Text style={styles.messageName}>
+                              {community.name || "Community"}
+                            </Text>
+                            <Text style={styles.messageTime}>
+                              {latestMessage
+                                ? formatMessageTime(latestMessage.created_at)
+                                : "No messages"}
+                            </Text>
+                          </View>
+                          <Text style={styles.messagePreview} numberOfLines={1}>
+                            {latestMessage
+                              ? `${
+                                  latestMessage.author?.dj_name ||
+                                  latestMessage.author?.full_name ||
+                                  "User"
+                                }: ${latestMessage.content}`
+                              : "Start a conversation"}
+                          </Text>
+                          <View style={styles.messageBadges}>
+                            {isRhood && (
+                              <View style={styles.pinnedBadge}>
+                                <Text style={styles.pinnedBadgeText}>
+                                  Pinned
+                                </Text>
+                              </View>
+                            )}
+                            <Text style={styles.memberCount}>
+                              {community.member_count || 0} member
+                              {(community.member_count || 0) !== 1 ? "s" : ""}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Unread Counter */}
+                        {unreadCount > 0 && (
+                          <View style={styles.unreadCounter}>
+                            <Text style={styles.unreadCount}>
+                              {unreadCount}
+                            </Text>
+                          </View>
+                        )}
                       </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
+                    </TouchableOpacity>
+                  );
+                })}
 
                 {/* Individual Messages */}
                 {connectionsWithMessages.map((connection, index) => (

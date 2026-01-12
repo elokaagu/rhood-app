@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +13,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { auth, supabase } from "../lib/supabase";
+import RhoodModal from "./RhoodModal";
+import { getLoginErrorMessage } from "../lib/errorMessages";
 import {
   COLORS,
   TYPOGRAPHY,
@@ -30,7 +31,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+      setErrorModal({ visible: true, title: "Error", message: "Please fill in all fields" });
       return;
     }
 
@@ -66,25 +67,24 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
 
       // Handle specific error cases
       if (error.message?.includes("Email not confirmed")) {
-        Alert.alert(
-          "Email Not Confirmed",
-          "Please check your email and click the confirmation link before signing in.",
-          [
-            { text: "OK", style: "default" },
-            {
-              text: "Resend Confirmation",
-              style: "default",
-              onPress: () => handleResendConfirmation(email),
-            },
-          ]
-        );
-      } else if (error.message?.includes("Invalid login credentials")) {
-        Alert.alert("Login Failed", "Invalid email or password");
+        setErrorModal({ 
+          visible: true, 
+          title: "Email Not Confirmed", 
+          message: "Please check your email and click the confirmation link before signing in.",
+          secondaryButtonText: "Resend Confirmation",
+          onSecondaryPress: () => {
+            setErrorModal({ visible: false, title: "", message: "" });
+            handleResendConfirmation(email);
+          }
+        });
       } else {
-        Alert.alert(
-          "Login Failed",
-          error.message || "An error occurred during login"
-        );
+        // Use user-friendly error message utility for all other errors
+        const errorMessage = getLoginErrorMessage(error);
+        setErrorModal({ 
+          visible: true, 
+          title: "Login Failed", 
+          message: errorMessage 
+        });
       }
     } finally {
       setLoading(false);
@@ -114,19 +114,16 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
 
       if (error) throw error;
 
-      Alert.alert(
-        "Confirmation Email Sent",
-        "Please check your email and click the confirmation link."
-      );
+      setSuccessModal({ visible: true, message: "Confirmation Email Sent\n\nPlease check your email and click the confirmation link." });
     } catch (error) {
       console.error("Resend confirmation error:", error);
-      Alert.alert("Error", "Failed to resend confirmation email");
+      setErrorModal({ visible: true, title: "Error", message: "Failed to resend confirmation email" });
     }
   };
 
   const handleForgotPassword = async () => {
     if (!email) {
-      Alert.alert("Email Required", "Please enter your email address first");
+      setErrorModal({ visible: true, title: "Email Required", message: "Please enter your email address first" });
       return;
     }
 
@@ -146,26 +143,25 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
       }
 
       await auth.resetPassword(emailToUse);
-      Alert.alert(
-        "Password Reset Sent",
-        "Check your email for password reset instructions"
-      );
+      setSuccessModal({ visible: true, message: "Password Reset Sent\n\nCheck your email for password reset instructions" });
     } catch (error) {
       console.error("Password reset error:", error);
 
       // Handle specific error cases
       if (error.message?.includes("rate limit")) {
-        Alert.alert(
-          "Error",
-          "Too many password reset attempts. Please wait before trying again."
-        );
+        setErrorModal({ 
+          visible: true, 
+          title: "Error", 
+          message: "Too many password reset attempts. Please wait before trying again." 
+        });
       } else if (error.message?.includes("not found")) {
-        Alert.alert("Error", "No account found with this email address.");
+        setErrorModal({ visible: true, title: "Error", message: "No account found with this email address." });
       } else {
-        Alert.alert(
-          "Error",
-          "Failed to send password reset email. Please try again."
-        );
+        setErrorModal({ 
+          visible: true, 
+          title: "Error", 
+          message: "Failed to send password reset email. Please try again." 
+        });
       }
     }
   };
@@ -360,6 +356,30 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
           </View>
         </View>
       </ScrollView>
+
+      {/* Error Modal */}
+      <RhoodModal
+        visible={errorModal.visible}
+        onClose={() => setErrorModal({ visible: false, title: "", message: "" })}
+        title={errorModal.title}
+        message={errorModal.message}
+        type="error"
+        primaryButtonText="OK"
+        secondaryButtonText={errorModal.secondaryButtonText}
+        onPrimaryPress={() => setErrorModal({ visible: false, title: "", message: "" })}
+        onSecondaryPress={errorModal.onSecondaryPress}
+      />
+
+      {/* Success Modal */}
+      <RhoodModal
+        visible={successModal.visible}
+        onClose={() => setSuccessModal({ visible: false, message: "" })}
+        title="Success"
+        message={successModal.message}
+        type="success"
+        primaryButtonText="OK"
+        onPrimaryPress={() => setSuccessModal({ visible: false, message: "" })}
+      />
     </KeyboardAvoidingView>
   );
 }

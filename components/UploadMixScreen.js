@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Modal,
   Linking,
   Image,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { HapticPatterns } from "../lib/haptics";
@@ -42,6 +43,8 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showDevBuildModal, setShowDevBuildModal] = useState(false);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
   const [existingMixes, setExistingMixes] = useState([]);
   const [editingMix, setEditingMix] = useState(null);
   const [showMixSelector, setShowMixSelector] = useState(false);
@@ -68,6 +71,43 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   useEffect(() => {
     loadExistingMixes();
   }, [user?.id]);
+
+  // Animate progress bar when uploadProgress changes
+  useEffect(() => {
+    if (uploading) {
+      Animated.timing(progressAnim, {
+        toValue: uploadProgress / 100,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      progressAnim.setValue(0);
+    }
+  }, [uploadProgress, uploading]);
+
+  // Shimmer animation for progress bar
+  useEffect(() => {
+    if (uploading) {
+      const shimmerAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerAnim, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerAnim, {
+            toValue: 0,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      shimmerAnimation.start();
+      return () => shimmerAnimation.stop();
+    } else {
+      shimmerAnim.setValue(0);
+    }
+  }, [uploading]);
 
   // If existingMixId is provided, load that mix
   useEffect(() => {
@@ -1268,9 +1308,43 @@ const formatDuration = (millis) => {
           >
             {uploading ? (
               <View style={styles.uploadingContent}>
-                <ActivityIndicator color="white" />
+                <View style={styles.progressBarContainer}>
+                  <View style={styles.progressBarBackground}>
+                    <Animated.View
+                      style={[
+                        styles.progressBarFill,
+                        {
+                          width: progressAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ["0%", "100%"],
+                          }),
+                        },
+                      ]}
+                    >
+                      <Animated.View
+                        style={[
+                          styles.progressBarShimmer,
+                          {
+                            opacity: shimmerAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.3, 0.7],
+                            }),
+                            transform: [
+                              {
+                                translateX: shimmerAnim.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [-100, 100],
+                                }),
+                              },
+                            ],
+                          },
+                        ]}
+                      />
+                    </Animated.View>
+                  </View>
+                </View>
                 <Text style={styles.uploadButtonText}>
-                  Uploading... {uploadProgress}%
+                  {uploadProgress}%
                 </Text>
               </View>
             ) : (
@@ -1642,6 +1716,34 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    width: "100%",
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: 6,
+    justifyContent: "center",
+  },
+  progressBarBackground: {
+    height: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 3,
+    overflow: "hidden",
+    position: "relative",
+  },
+  progressBarShimmer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
+    width: 50,
   },
   // Modal Styles - R/HOOD Theme
   modalOverlay: {

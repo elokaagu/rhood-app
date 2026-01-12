@@ -1877,7 +1877,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
           </TouchableOpacity>
 
           {chatType === "individual" && otherUser && (
-            <View style={styles.headerInfo}>
+            <TouchableOpacity
+              style={styles.headerInfo}
+              onPress={() => {
+                HapticPatterns.buttonPress();
+                if (navigation && otherUser.id) {
+                  navigation.navigate("user-profile", { userId: otherUser.id });
+                }
+              }}
+              activeOpacity={0.7}
+            >
               <ProgressiveImage
                 source={
                   otherUser.profile_image_url
@@ -1898,11 +1907,24 @@ const MessagesScreen = ({ user, navigation, route }) => {
                     "Unknown Location"}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           )}
 
           {chatType === "group" && communityData && (
-            <View style={styles.headerInfo}>
+            <TouchableOpacity
+              style={styles.headerInfo}
+              onPress={() => {
+                HapticPatterns.buttonPress();
+                if (navigation && communityData.id) {
+                  navigation.navigate("community-members", {
+                    communityId: communityData.id,
+                    communityName: communityData.name,
+                    returnToMessages: true,
+                  });
+                }
+              }}
+              activeOpacity={0.7}
+            >
               <ProgressiveImage
                 source={
                   communityData.image_url
@@ -1918,7 +1940,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   {memberCount} member{memberCount !== 1 ? "s" : ""}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           )}
         </View>
 

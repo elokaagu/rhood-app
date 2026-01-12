@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +13,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { auth, db } from "../lib/supabase";
+import RhoodModal from "./RhoodModal";
+import { getSignupErrorMessage } from "../lib/errorMessages";
 
 export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [formData, setFormData] = useState({
@@ -29,6 +30,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorModal, setErrorModal] = useState({ visible: false, title: "", message: "" });
 
   const updateFormData = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -54,17 +56,17 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       !lastName ||
       !city
     ) {
-      Alert.alert("Error", "Please fill in all fields");
+      setErrorModal({ visible: true, title: "Error", message: "Please fill in all fields" });
       return false;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
+      setErrorModal({ visible: true, title: "Error", message: "Passwords do not match" });
       return false;
     }
 
     if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+      setErrorModal({ visible: true, title: "Error", message: "Password must be at least 6 characters" });
       return false;
     }
 
@@ -114,7 +116,11 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       }
     } catch (error) {
       console.error("Signup error:", error);
-      Alert.alert("Signup Failed", error.message || "Failed to create account");
+      
+      // Convert technical errors to user-friendly plain English messages
+      const errorMessage = getSignupErrorMessage(error);
+      
+      setErrorModal({ visible: true, title: "Signup Failed", message: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -410,6 +416,17 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
           </View>
         </View>
       </ScrollView>
+
+      {/* Error Modal */}
+      <RhoodModal
+        visible={errorModal.visible}
+        onClose={() => setErrorModal({ visible: false, title: "", message: "" })}
+        title={errorModal.title}
+        message={errorModal.message}
+        type="error"
+        primaryButtonText="OK"
+        onPrimaryPress={() => setErrorModal({ visible: false, title: "", message: "" })}
+      />
     </KeyboardAvoidingView>
   );
 }

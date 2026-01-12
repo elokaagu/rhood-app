@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -147,6 +146,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   const [showGenreModal, setShowGenreModal] = useState(false);
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [errorModal, setErrorModal] = useState({ visible: false, title: "", message: "" });
   const [userMixes, setUserMixes] = useState([]);
   const [showMixSelection, setShowMixSelection] = useState(false);
   const [selectingMix, setSelectingMix] = useState(false);
@@ -247,7 +247,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       }
     } catch (error) {
       console.error("Error loading profile:", error);
-      Alert.alert("Error", "Failed to load profile data");
+      setErrorModal({ visible: true, title: "Error", message: "Failed to load profile data" });
     } finally {
       setLoading(false);
     }
@@ -280,6 +280,11 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
     if (profile.genres.length === 0) {
       newErrors.genres = "Please select at least one genre";
+    }
+
+    // Profile picture is required
+    if (!profile.profile_image_url) {
+      newErrors.profile_image_url = "Profile picture is required";
     }
 
     if (profile.status_message && profile.status_message.length > 80) {
@@ -315,7 +320,16 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
   const handleSave = async () => {
     if (!validateForm()) {
-      Alert.alert("Validation Error", "Please fix the errors before saving");
+      // Check specifically for profile picture error
+      if (errors.profile_image_url) {
+        setErrorModal({ 
+          visible: true, 
+          title: "Profile Picture Required", 
+          message: "Please upload a profile picture before saving your profile." 
+        });
+      } else {
+        setErrorModal({ visible: true, title: "Validation Error", message: "Please fix the errors before saving" });
+      }
       return;
     }
 
@@ -404,10 +418,11 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       setShowSuccessModal(true);
     } catch (error) {
       console.error("❌ Error updating profile:", error);
-      Alert.alert(
-        "Error",
-        `Failed to update profile: ${error.message || "Please try again."}`
-      );
+      setErrorModal({ 
+        visible: true, 
+        title: "Error", 
+        message: `Failed to update profile: ${error.message || "Please try again."}` 
+      });
       setSaving(false);
     }
   };
@@ -423,47 +438,19 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
   const handleChangeAudioId = () => {
     if (userMixes.length === 0) {
-      Alert.alert(
-        "No Mixes Available",
-        "You need to upload some mixes first before you can set an Audio ID. Go to the Listen screen to upload your first mix!",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Upload Mix",
-            onPress: () => {
-              /* Navigate to upload */
-            },
-          },
-        ]
-      );
+      setErrorModal({ 
+        visible: true, 
+        title: "No Mixes Available", 
+        message: "You need to upload some mixes first before you can set an Audio ID. Go to the Listen screen to upload your first mix!" 
+      });
       return;
     }
     
     // If there's only one mix, show options to delete or upload another
     if (userMixes.length === 1 && currentPrimaryMix) {
-      Alert.alert(
-        "Change Audio ID",
-        "You can delete your current Audio ID or upload a new mix.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete Audio ID",
-            style: "destructive",
-            onPress: handleDeleteAudioId,
-          },
-          {
-            text: "Upload New Mix",
-            onPress: () => {
-              // Navigate to upload screen - this will be handled by parent component
-              Alert.alert(
-                "Upload Mix",
-                "Go to the Listen screen to upload a new mix, then come back here to set it as your Audio ID.",
-                [{ text: "OK" }]
-              );
-            },
-          },
-        ]
-      );
+      // Use RhoodModal for this case - we'll need to handle the actions differently
+      // For now, just show the mix selection modal
+      setShowMixSelection(true);
       return;
     }
     
@@ -481,10 +468,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       setCurrentPrimaryMix(mix);
 
       setShowMixSelection(false);
-      Alert.alert("Success!", "Your Audio ID has been updated successfully.");
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("❌ Error setting primary mix:", error);
-      Alert.alert("Error", "Failed to update Audio ID. Please try again.");
+      setErrorModal({ visible: true, title: "Error", message: "Failed to update Audio ID. Please try again." });
     } finally {
       setSelectingMix(false);
     }
@@ -500,10 +487,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       // Update local state
       setCurrentPrimaryMix(null);
 
-      Alert.alert("Success!", "Your Audio ID has been removed.");
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("❌ Error removing primary mix:", error);
-      Alert.alert("Error", "Failed to remove Audio ID. Please try again.");
+      setErrorModal({ visible: true, title: "Error", message: "Failed to remove Audio ID. Please try again." });
     } finally {
       setSelectingMix(false);
     }
@@ -519,21 +506,9 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   };
 
   const handleImagePicker = () => {
-    Alert.alert(
-      "Select Profile Image",
-      "Choose how you want to add a profile image",
-      [
-        { text: "Camera", onPress: () => openImagePicker("camera") },
-        { text: "Photo Library", onPress: () => openImagePicker("library") },
-        {
-          text: "Remove Image",
-          onPress: () =>
-            setProfile((prev) => ({ ...prev, profile_image_url: null })),
-        },
-        { text: "Cancel", style: "cancel" },
-      ]
-    );
+    setShowImagePicker(true);
   };
+
 
   const uploadProfileImage = async (imageUri) => {
     try {
@@ -581,10 +556,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       if (source === "camera") {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert(
-            "Permission Required",
-            "Camera permission is needed to take photos"
-          );
+          setErrorModal({ visible: true, title: "Permission Required", message: "Camera permission is needed to take photos" });
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -597,10 +569,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         const permission =
           await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert(
-            "Permission Required",
-            "Photo library permission is needed to select images"
-          );
+          setErrorModal({ visible: true, title: "Permission Required", message: "Photo library permission is needed to select images" });
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
@@ -630,17 +599,14 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           console.log("✅ Profile image updated with URL:", publicUrl);
         } catch (uploadError) {
           console.error("❌ Failed to upload image:", uploadError);
-          Alert.alert(
-            "Upload Error",
-            "Failed to upload image. Please try again."
-          );
+          setErrorModal({ visible: true, title: "Upload Error", message: "Failed to upload image. Please try again." });
         } finally {
           setLoading(false);
         }
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      Alert.alert("Error", "Failed to select image");
+      setErrorModal({ visible: true, title: "Error", message: "Failed to select image" });
       setLoading(false);
     }
   };
@@ -713,29 +679,30 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      {/* Sticky Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+          <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Edit Profile</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollViewContent}
       >
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
-            <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Edit Profile</Text>
-          <TouchableOpacity
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
-            ) : (
-              <Text style={styles.saveButtonText}>Save</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.content}>
           {/* Profile Image */}
           <View style={styles.imageSection}>
@@ -772,8 +739,11 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               </View>
             </TouchableOpacity>
             <Text style={styles.imageLabel}>
-              {loading ? "Uploading..." : "Tap to change photo"}
+              {loading ? "Uploading..." : "Profile Picture *"}
             </Text>
+            {errors.profile_image_url && (
+              <Text style={styles.errorText}>{errors.profile_image_url}</Text>
+            )}
           </View>
 
           {/* Form Fields */}
@@ -1217,6 +1187,17 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           </View>
         </View>
       </Modal>
+
+      {/* Error Modal */}
+      <RhoodModal
+        visible={errorModal.visible}
+        onClose={() => setErrorModal({ visible: false, title: "", message: "" })}
+        title={errorModal.title}
+        message={errorModal.message}
+        type="error"
+        primaryButtonText="OK"
+        onPrimaryPress={() => setErrorModal({ visible: false, title: "", message: "" })}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -1252,6 +1233,8 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
+    backgroundColor: "hsl(0, 0%, 0%)",
+    zIndex: 1000,
   },
   cancelButton: {
     padding: 8,

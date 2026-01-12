@@ -233,10 +233,18 @@ export default function NotificationsScreen({
         })
         .map((notification) => {
         const rawTitle = notification.title || "";
-        const baseTitle =
-          notification.type === "connection"
-            ? rawTitle.replace(/^\s*New\s+/i, "").trim() || "Connection Request"
-            : rawTitle;
+        let baseTitle = rawTitle;
+        
+        // For connection requests, always use "Connection Request" (remove "New" prefix)
+        if (notification.type === "connection" || notification.type === "connection_request") {
+          // Remove "New" prefix if present, then ensure it says "Connection Request"
+          const cleanedTitle = rawTitle.replace(/^\s*New\s+/i, "").trim();
+          baseTitle = cleanedTitle || "Connection Request";
+          // If it still contains "Connection Request" but with extra words, normalize it
+          if (baseTitle.toLowerCase().includes("connection request")) {
+            baseTitle = "Connection Request";
+          }
+        }
         const displayTitle =
           notification.type === "application"
             ? removeCelebrateEmoji(baseTitle)
@@ -744,6 +752,14 @@ export default function NotificationsScreen({
                     !notification.isRead && styles.unreadCard,
                   ]}
                   onPress={() => handleNotificationPress(notification)}
+                  onLongPress={() => {
+                    // Show accept/reject dialog for connection requests on long press
+                    if (notification.type === "connection" || notification.type === "connection_request") {
+                      HapticPatterns.primaryButtonPress();
+                      setActiveConnectionNotification(notification);
+                      setShowConnectionPrompt(true);
+                    }
+                  }}
                   activeOpacity={0.7}
                 >
                   <View style={styles.notificationContent}>
