@@ -329,9 +329,9 @@ export default function ProfileScreen({
             console.log("🔍 Loading primary mix with ID:", userProfile.primary_mix_id);
             const { supabase } = await import("../lib/supabase");
             const { data: mixData, error: mixError } = await supabase
-              .from("mixes")
-              .select("*")
-              .eq("id", userProfile.primary_mix_id)
+                  .from("mixes")
+                  .select("*")
+                  .eq("id", userProfile.primary_mix_id)
               .single();
             
             if (mixError) {
@@ -340,10 +340,23 @@ export default function ProfileScreen({
                 code: mixError.code,
                 message: mixError.message,
                 hint: mixError.hint,
+                primary_mix_id: userProfile.primary_mix_id,
               });
-            }
-            
-            if (mixData) {
+              
+              // If mix doesn't exist (PGRST116), clear the invalid primary_mix_id
+              if (mixError.code === "PGRST116" || mixError.message?.includes("No rows")) {
+                console.warn("⚠️ Primary mix not found, clearing invalid primary_mix_id");
+                try {
+                  const { db } = await import("../lib/supabase");
+                  await db.setPrimaryMix(userProfile.id, null);
+                  console.log("✅ Cleared invalid primary_mix_id");
+                } catch (clearError) {
+                  console.error("❌ Failed to clear invalid primary_mix_id:", clearError);
+                }
+              }
+            } else if (!mixData) {
+              console.warn("⚠️ Primary mix ID exists but no mix data returned");
+            } else {
               console.log("✅ Successfully loaded primary mix:", mixData.title);
               const durationSeconds = extractDurationSeconds(mixData);
               // Generate waveform based on safe duration
@@ -400,7 +413,102 @@ export default function ProfileScreen({
               };
             }
           } catch (mixError) {
-            console.error("❌ Error loading primary mix:", mixError);
+            console.error("❌ Exception loading primary mix:", mixError);
+            console.error("❌ Stack:", mixError.stack);
+          }
+        } else {
+          console.log("ℹ️ No primary_mix_id set in user profile");
+          
+          // Auto-set Audio ID if user has mixes but no primary_mix_id
+          try {
+            const { supabase } = await import("../lib/supabase");
+            // Get all mixes (including private ones) for setting Audio ID
+            const { data: userMixes, error: mixesError } = await supabase
+              .from("mixes")
+              .select("*")
+              .eq("user_id", userProfile.id)
+              .order("created_at", { ascending: false })
+              .limit(1);
+            
+            if (mixesError) {
+              console.error("❌ Error fetching user mixes:", mixesError);
+            } else if (userMixes && userMixes.length > 0) {
+              // Set the most recent mix as Audio ID
+              const mostRecentMix = userMixes[0]; // Already ordered by created_at DESC
+              console.log("🔄 Auto-setting Audio ID to most recent mix:", mostRecentMix.id);
+              
+              try {
+                const { db } = await import("../lib/supabase");
+                await db.setPrimaryMix(userProfile.id, mostRecentMix.id);
+                console.log("✅ Auto-set Audio ID to:", mostRecentMix.title);
+                
+                // Reload the mix data now that we've set it
+                const { data: mixData } = await supabase
+                  .from("mixes")
+                  .select("*")
+                  .eq("id", mostRecentMix.id)
+                  .single();
+                
+                if (mixData) {
+                  const durationSeconds = extractDurationSeconds(mixData);
+                  const waveform = generateGenreWaveform(
+                    durationSeconds || 300,
+                    mixData.genre || "electronic",
+                    16
+                  );
+
+                  const artistName =
+                    userProfile.dj_name ||
+                    userProfile.full_name ||
+                    `${userProfile.first_name || ""} ${
+                      userProfile.last_name || ""
+                    }`.trim() ||
+                    (typeof mixData.artist === "string" &&
+                    mixData.artist.trim().length > 0
+                      ? mixData.artist.trim()
+                      : null) ||
+                    "Unknown Artist";
+
+                  primaryMix = {
+                    id: mixData.id,
+                    user_id: mixData.user_id,
+                    title: mixData.title || "Audio ID",
+                    artist: artistName,
+                    genre: mixData.genre || "Electronic",
+                    duration: durationSeconds,
+                    durationSeconds,
+                    durationMillis: durationSeconds
+                      ? durationSeconds * 1000
+                      : null,
+                    audioUrl: mixData.file_url,
+                    file_url: mixData.file_url,
+                    artwork_url: mixData.artwork_url || null,
+                    image:
+                      mixData.artwork_url ||
+                      userProfile.profile_image_url ||
+                      null,
+                    description: mixData.description || "",
+                    waveform,
+                    created_at: mixData.created_at || null,
+                    user: {
+                      id: userProfile.id,
+                      dj_name: userProfile.dj_name,
+                      full_name: userProfile.full_name,
+                      first_name: userProfile.first_name,
+                      last_name: userProfile.last_name,
+                      bio: userProfile.bio,
+                      profile_image_url: userProfile.profile_image_url,
+                      username: userProfile.username,
+                      status_message: userProfile.status_message,
+                    },
+                  };
+                }
+              } catch (autoSetError) {
+                console.error("❌ Error auto-setting Audio ID:", autoSetError);
+              }
+            }
+          } catch (mixesError) {
+            console.error("❌ Error checking user mixes:", mixesError);
           }
         }
 

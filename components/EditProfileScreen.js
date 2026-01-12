@@ -359,9 +359,12 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         updatedProfile.tiktok = profile.tiktok.trim();
       }
 
-      if (profile.youtube && profile.youtube.trim()) {
-        updatedProfile.youtube = profile.youtube.trim();
-      }
+      // YouTube column - temporarily commented out until column is added
+      // Run database/add-youtube-column.sql in Supabase SQL Editor to add the column
+      // Then uncomment the code below:
+      // if (profile.youtube && profile.youtube.trim()) {
+      //   updatedProfile.youtube = profile.youtube.trim();
+      // }
 
       if (profile.bio && profile.bio.trim()) {
         updatedProfile.bio = profile.bio.trim();
@@ -379,6 +382,12 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
       if (profile.profile_image_url) {
         updatedProfile.profile_image_url = profile.profile_image_url;
+      }
+
+      // Explicitly remove youtube if it somehow got added (column doesn't exist yet)
+      // Remove this safeguard after running database/add-youtube-column.sql
+      if (updatedProfile.youtube !== undefined) {
+        delete updatedProfile.youtube;
       }
 
       console.log("📝 Updating profile with:", updatedProfile);

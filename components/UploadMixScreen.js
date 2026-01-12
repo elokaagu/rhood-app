@@ -843,12 +843,31 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       if (!editingMix && mixRecord) {
         try {
           const { db } = await import("../lib/supabase");
-          await db.setPrimaryMix(user.id, mixRecord.id);
+          const updatedProfile = await db.setPrimaryMix(user.id, mixRecord.id);
           console.log("✅ Automatically set uploaded mix as Audio ID:", mixRecord.id);
+          console.log("✅ Updated profile:", updatedProfile?.primary_mix_id);
           mixData.setAsPrimary = true; // Update flag for success message
+          
+          // Verify it was set correctly
+          if (!updatedProfile || updatedProfile.primary_mix_id !== mixRecord.id) {
+            console.warn("⚠️ Warning: primary_mix_id may not have been set correctly");
+            console.warn("⚠️ Expected:", mixRecord.id, "Got:", updatedProfile?.primary_mix_id);
+          }
         } catch (autoPrimaryError) {
           console.error("❌ Error auto-setting primary mix:", autoPrimaryError);
-          // Don't fail the upload if auto-setting primary fails
+          console.error("❌ Error details:", {
+            code: autoPrimaryError.code,
+            message: autoPrimaryError.message,
+            hint: autoPrimaryError.hint,
+            userId: user.id,
+            mixId: mixRecord.id,
+          });
+          // Don't fail the upload if auto-setting primary fails, but log it
+          Alert.alert(
+            "Upload Successful",
+            "Your mix was uploaded, but there was an issue setting it as your Audio ID. You can set it manually from your profile.",
+            [{ text: "OK" }]
+          );
         }
       }
 

@@ -1617,11 +1617,19 @@ export default function ListenScreen({
               activeOpacity={0.8}
             >
               <View style={styles.playlistIconContainer}>
-                <Ionicons
-                  name="musical-notes"
-                  size={24}
-                  color="hsl(75, 100%, 60%)"
-                />
+                {playlist.image_url ? (
+                  <Image
+                    source={{ uri: playlist.image_url }}
+                    style={styles.playlistImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons
+                    name="musical-notes"
+                    size={24}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                )}
               </View>
               <View style={styles.playlistInfo}>
                 <Text style={styles.playlistName} numberOfLines={1}>
@@ -1975,11 +1983,19 @@ export default function ListenScreen({
                       activeOpacity={0.7}
                     >
                       <View style={styles.existingPlaylistIcon}>
-                        <Ionicons
-                          name="musical-notes"
-                          size={20}
-                          color="hsl(75, 100%, 60%)"
-                        />
+                        {playlist.image_url ? (
+                          <Image
+                            source={{ uri: playlist.image_url }}
+                            style={styles.existingPlaylistImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <Ionicons
+                            name="musical-notes"
+                            size={20}
+                            color="hsl(75, 100%, 60%)"
+                          />
+                        )}
                       </View>
                       <View style={styles.existingPlaylistInfo}>
                         <Text style={styles.existingPlaylistName} numberOfLines={1}>
@@ -2723,6 +2739,12 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 12%)",
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+  },
+  playlistImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
   },
   playlistInfo: {
     flex: 1,
@@ -2868,6 +2890,12 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 12%)",
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+  },
+  existingPlaylistImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
   },
   existingPlaylistInfo: {
     flex: 1,

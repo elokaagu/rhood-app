@@ -108,26 +108,18 @@ export default function InviteScreen({ user, onBack }) {
     
     const subject = "Join R/HOOD - The DJ Community";
     const body = `${message}\n\n${link}`;
-    const url = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
     try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) {
-        await Linking.openURL(url);
-      } else {
-        // Fallback to native share if email app not available
-        await Share.share({
-          message: body,
-          title: subject,
-        });
-      }
-    } catch (error) {
-      console.error("Error sharing via Email:", error);
-      // Fallback to native share
+      // Use native Share API which will show email as an option
+      // This is more reliable than mailto: URLs on iOS
       await Share.share({
         message: body,
+        subject: subject, // iOS will use this as email subject
         title: subject,
       });
+    } catch (error) {
+      console.error("Error sharing via Email:", error);
+      Alert.alert("Error", "Could not open share sheet. Please try again.");
     }
   };
 
