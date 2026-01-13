@@ -1875,8 +1875,8 @@ export default function ConnectionsScreen({
           </View>
 
           {/* Search Bar */}
-          <View style={styles.searchWrapper}>
-            <View style={styles.searchContainer}>
+          <View style={styles.searchWrapper} pointerEvents="box-none">
+            <View style={styles.searchContainer} pointerEvents="auto">
               <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
               <TextInput
                 style={styles.searchInput}
@@ -1909,16 +1909,20 @@ export default function ConnectionsScreen({
 
             {/* Search Suggestions Dropdown */}
             {showSuggestions && searchSuggestions.length > 0 && (
-              <View style={styles.suggestionsContainer}>
+              <View style={styles.suggestionsContainer} pointerEvents="box-none">
                 <ScrollView 
                   style={styles.suggestionsScroll}
+                  contentContainerStyle={styles.suggestionsScrollContent}
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled={true}
                 >
-                  {searchSuggestions.map((suggestion) => (
+                  {searchSuggestions.map((suggestion, index) => (
                     <TouchableOpacity
                       key={suggestion.id}
-                      style={styles.suggestionItem}
+                      style={[
+                        styles.suggestionItem,
+                        index === 0 && styles.suggestionItemFirst
+                      ]}
                       onPress={() => {
                         setSearchQuery(suggestion.name);
                         setShowSuggestions(false);
@@ -1927,6 +1931,7 @@ export default function ConnectionsScreen({
                         }
                       }}
                       activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                       {suggestion.profileImage ? (
                         <ProgressiveImage
@@ -2781,7 +2786,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 12,
-    marginTop: 4,
+    marginTop: 12, // Increased spacing to prevent overlap with search bar
     marginBottom: 8,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
@@ -2790,11 +2795,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 12,
-    elevation: 10000,
-    zIndex: 10000,
+    elevation: 10001, // Higher than searchWrapper
+    zIndex: 10001, // Higher than searchWrapper
+    pointerEvents: "auto", // Ensure touches work
   },
   suggestionsScroll: {
     maxHeight: 300,
+  },
+  suggestionsScrollContent: {
+    paddingTop: 8, // Increased padding at top of scroll content
   },
   suggestionItem: {
     flexDirection: "row",
@@ -2803,6 +2812,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
     gap: 12,
+    minHeight: 60, // Ensure minimum touch target size
+  },
+  suggestionItemFirst: {
+    marginTop: 0,
+    paddingTop: 16, // Extra padding for first item to push it down
   },
   suggestionImage: {
     width: 40,

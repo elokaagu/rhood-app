@@ -28,6 +28,17 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorModal, setErrorModal] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    secondaryButtonText: undefined,
+    onSecondaryPress: undefined,
+  });
+  const [successModal, setSuccessModal] = useState({
+    visible: false,
+    message: "",
+  });
 
   const handleLogin = async () => {
     if (!email || !password) {

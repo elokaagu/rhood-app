@@ -208,18 +208,41 @@ export default function NotificationsScreen({
       });
 
       // Load notifications from database
+      // IMPORTANT: Double-check user.id is valid before querying
+      if (!user?.id) {
+        console.error("❌ Cannot load notifications: user.id is missing");
+        setNotifications([]);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", user.id)  // Only get notifications for current user
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Error loading notifications:", error);
+        throw error;
+      }
+
+      // Additional safety check: Filter out any notifications that don't match current user
+      // This is a defensive measure in case RLS policies fail
+      const filteredData = (data || []).filter(
+        (notification) => notification.user_id === user.id
+      );
+
+      if (filteredData.length !== (data || []).length) {
+        console.warn(
+          "⚠️ Filtered out notifications that didn't match current user ID"
+        );
+      }
 
       const allowMessageNotifications = messageEnabled;
 
       // Transform database notifications to match UI format
-      const transformedNotifications = (data || [])
+      const transformedNotifications = (filteredData || [])
         .filter((notification) => {
           if (!allowMessageNotifications) {
             const typeValue = (notification.type || "")

@@ -32,21 +32,31 @@ import { Ionicons } from "@expo/vector-icons";
 // Import Audio from expo-av (works in Expo Go)
 import { Audio } from "expo-av";
 import lockScreenControls from "./lib/lockScreenControls";
-console.log("✅ Audio module imported from expo-av");
 
 // Conditionally import track-player (only works in native builds)
+// TEMPORARILY DISABLED to diagnose RCTFatal crash
+// Use a function to defer evaluation and prevent crashes during module initialization
 let trackPlayer = null;
-try {
-  trackPlayer = require("./src/audio/player");
-  console.log("✅ Track player module loaded");
-} catch (error) {
-  console.warn("⚠️ Track player not available:", error.message);
-}
+const loadTrackPlayer = () => {
+  // Temporarily disabled - always return null to test if this is causing the crash
+  return null;
+  
+  // Original code (commented out for testing):
+  // if (trackPlayer !== null) return trackPlayer; // Already attempted
+  // try {
+  //   trackPlayer = require("./src/audio/player");
+  //   return trackPlayer;
+  // } catch (error) {
+  //   trackPlayer = false; // Mark as failed to prevent retries
+  //   console.warn("⚠️ Track player not available:", error.message);
+  //   return null;
+  // }
+};
 
 // Import playback callbacks registry for remote controls
 // Removed playbackCallbacks - TrackPlayer events handle everything
 import { LinearGradient } from "expo-linear-gradient";
-import { useFonts, Font } from "expo-font";
+import { useFonts } from "expo-font";
 import * as Haptics from "expo-haptics";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingForm from "./components/OnboardingForm";
@@ -603,13 +613,9 @@ export default function App() {
     });
 
     // Listen for deep links while app is running
-    const subscription = Linking.addEventListener("url", (event) => {
+    const linkingSubscription = Linking.addEventListener("url", (event) => {
       handleDeepLink(event.url);
     });
-
-    return () => {
-      subscription?.remove();
-    };
 
     // Setup push notifications (gracefully handle Expo Go limitations)
     // Note: Push notifications work in development builds but not in Expo Go
@@ -631,14 +637,15 @@ export default function App() {
       }
     };
 
-    const subscription = AppState.addEventListener(
+    const appStateSubscription = AppState.addEventListener(
       "change",
       handleAppStateChange
     );
 
-    // Cleanup audio on unmount
+    // Cleanup on unmount
     return () => {
-      subscription?.remove();
+      linkingSubscription?.remove();
+      appStateSubscription?.remove();
       if (globalAudioRef.current) {
         globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
@@ -1591,7 +1598,8 @@ export default function App() {
 
       // iOS: Use react-native-track-player for native lock screen controls
       // Fall back to expo-av if TrackPlayer is not available (e.g., Expo Go)
-      if (Platform.OS === "ios" && trackPlayer) {
+      const player = loadTrackPlayer();
+      if (Platform.OS === "ios" && player) {
 
         // CRITICAL: playTrack() internally calls setupPlayer() which:
         // 1. Triggers the service function to register event listeners
@@ -1753,7 +1761,7 @@ export default function App() {
           });
 
           // Add all tracks to TrackPlayer queue and start playing
-          await trackPlayer.playTracks(tracksForPlayer, newIndex);
+          await player.playTracks(tracksForPlayer, newIndex);
 
           console.log(
             "✅ iOS: Track playing via track-player with full queue sync for lock screen controls"
@@ -6041,9 +6049,10 @@ export default function App() {
                             );
 
                             // Use trackPlayer wrapper methods
+                            const player = loadTrackPlayer();
                             if (isCurrentlyPlaying) {
-                              if (typeof trackPlayer.pause === "function") {
-                                await trackPlayer.pause();
+                              if (player && typeof player.pause === "function") {
+                                await player.pause();
                                 console.log("✅ Paused via TrackPlayer");
                               } else {
                                 await pauseGlobalAudio();
@@ -6055,8 +6064,8 @@ export default function App() {
                                 isPlaying: false,
                               }));
                             } else {
-                              if (typeof trackPlayer.resume === "function") {
-                                await trackPlayer.resume();
+                              if (player && typeof player.resume === "function") {
+                                await player.resume();
                                 console.log("✅ Started/resumed via TrackPlayer");
                               } else {
                                 await resumeGlobalAudio();
