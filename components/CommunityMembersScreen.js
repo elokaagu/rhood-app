@@ -30,7 +30,17 @@ export default function CommunityMembersScreen({
   const loadMembers = async () => {
     try {
       setError(null);
-      const { data, error: fetchError } = await supabase
+      setLoading(true);
+
+      // Validate communityId
+      if (!communityId) {
+        throw new Error("Community ID is missing");
+      }
+
+      console.log("🔍 Loading members for community:", communityId);
+
+      // Try the foreign key relationship first
+      let { data, error: fetchError } = await supabase
         .from("community_members")
         .select(
           `
@@ -43,7 +53,6 @@ export default function CommunityMembersScreen({
             profile_image_url,
             location,
             city,
-            country,
             bio
           )
         `
@@ -51,16 +60,57 @@ export default function CommunityMembersScreen({
         .eq("community_id", communityId)
         .order("joined_at", { ascending: false });
 
-      if (fetchError) throw fetchError;
+      // If foreign key relationship fails, try manual join
+      if (fetchError) {
+        console.warn("⚠️ Foreign key query failed, trying manual join:", fetchError);
+        
+        // Get community members first
+        const { data: membersData, error: membersError } = await supabase
+          .from("community_members")
+          .select("*")
+          .eq("community_id", communityId)
+          .order("joined_at", { ascending: false });
+
+        if (membersError) throw membersError;
+
+        // Then get user profiles for each member
+        if (membersData && membersData.length > 0) {
+          const userIds = membersData.map((m) => m.user_id).filter(Boolean);
+          
+          if (userIds.length > 0) {
+            const { data: usersData, error: usersError } = await supabase
+              .from("user_profiles")
+              .select("id, dj_name, full_name, username, profile_image_url, location, city, bio")
+              .in("id", userIds);
+
+            if (usersError) {
+              console.warn("⚠️ Error fetching user profiles:", usersError);
+            }
+
+            // Combine members with user data
+            data = membersData.map((member) => ({
+              ...member,
+              user: usersData?.find((u) => u.id === member.user_id) || null,
+            }));
+          } else {
+            data = [];
+          }
+        } else {
+          data = [];
+        }
+      }
 
       // Filter out any members without user data
       const validMembers = (data || []).filter(
         (member) => member.user && member.user.id
       );
+      
+      console.log(`✅ Loaded ${validMembers.length} members for community`);
       setMembers(validMembers);
     } catch (err) {
-      console.error("Error loading community members:", err);
-      setError("Failed to load members. Please try again.");
+      console.error("❌ Error loading community members:", err);
+      const errorMessage = err.message || "Failed to load members. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -73,6 +123,13 @@ export default function CommunityMembersScreen({
 
   const handleRefresh = () => {
     setRefreshing(true);
+    setError(null);
+    loadMembers();
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setLoading(true);
     loadMembers();
   };
 
@@ -89,7 +146,7 @@ export default function CommunityMembersScreen({
   };
 
   const getLocation = (user) => {
-    return user.location || user.city || user.country || "Unknown Location";
+    return user.location || user.city || "Unknown Location";
   };
 
   if (loading) {
@@ -147,7 +204,8 @@ export default function CommunityMembersScreen({
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={loadMembers}
+            onPress={handleRetry}
+            disabled={loading}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
@@ -226,7 +284,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
-    backgroundColor: COLORS.backgroundCard,
+    backgroundColor: COLORS.background,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },

@@ -358,7 +358,7 @@ const DJMix = ({
 
           {/* Track Info */}
           <View style={styles.trackInfo}>
-            <Text style={styles.trackTitle} numberOfLines={1}>
+            <Text style={styles.trackTitle} numberOfLines={1} ellipsizeMode="tail">
               {mix.title}
             </Text>
             <TouchableOpacity

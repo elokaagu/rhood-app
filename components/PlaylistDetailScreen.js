@@ -759,7 +759,7 @@ export default function PlaylistDetailScreen({
                     )}
                   </View>
                   <View style={styles.mixInfo}>
-                    <Text style={styles.mixTitle} numberOfLines={1}>
+                    <Text style={styles.mixTitle} numberOfLines={1} ellipsizeMode="tail">
                       {mix.title}
                     </Text>
                     <Text style={styles.mixSubtitle} numberOfLines={1}>

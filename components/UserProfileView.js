@@ -757,7 +757,7 @@ export default function UserProfileView({
               <Text style={styles.audioIdTitle}>AUDIO ID</Text>
               <View style={styles.audioPlayer}>
                 <View style={styles.audioInfo}>
-                  <Text style={styles.trackTitle}>
+                  <Text style={styles.trackTitle} numberOfLines={1} ellipsizeMode="tail">
                     {profile.primaryMix.title}
                   </Text>
                   <Text style={styles.trackDetails}>

@@ -372,19 +372,13 @@ export default function CommunityScreen({ onNavigate }) {
                         {formatMemberCount(community.memberCount)} members
                       </Text>
                     </View>
-                    <View style={styles.statItem}>
+                    <View style={[styles.statItem, styles.statItemRight]}>
                       <Ionicons
                         name="location"
                         size={14}
                         color="hsl(0, 0%, 70%)"
                       />
                       <Text style={styles.statText}>{community.location}</Text>
-                    </View>
-                    <View style={styles.statItem}>
-                      <Ionicons name="time" size={14} color="hsl(0, 0%, 70%)" />
-                      <Text style={styles.statText}>
-                        Active {community.recentActivity}
-                      </Text>
                     </View>
                   </View>
 
@@ -683,6 +677,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+  },
+  statItemRight: {
+    flex: 0,
+    marginLeft: "auto",
   },
   statText: {
     fontSize: 12,

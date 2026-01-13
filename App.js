@@ -5986,11 +5986,9 @@ export default function App() {
                 </View>
 
                 <View style={styles.audioTrackInfo}>
-                  <AutoScrollText
-                    text={globalAudioState.currentTrack.title}
-                    style={styles.audioTrackTitle}
-                    containerWidth={200}
-                  />
+                  <Text style={styles.audioTrackTitle} numberOfLines={1} ellipsizeMode="tail">
+                    {globalAudioState.currentTrack.title}
+                  </Text>
                   <Text style={styles.audioTrackArtist} numberOfLines={1}>
                     {globalAudioState.currentTrack.artist}
                   </Text>

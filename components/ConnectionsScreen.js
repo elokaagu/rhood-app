@@ -1909,7 +1909,7 @@ export default function ConnectionsScreen({
 
             {/* Search Suggestions Dropdown */}
             {showSuggestions && searchSuggestions.length > 0 && (
-              <View style={styles.suggestionsContainer} pointerEvents="box-none">
+              <View style={styles.suggestionsContainer}>
                 <ScrollView 
                   style={styles.suggestionsScroll}
                   contentContainerStyle={styles.suggestionsScrollContent}
@@ -1931,7 +1931,7 @@ export default function ConnectionsScreen({
                         }
                       }}
                       activeOpacity={0.7}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                     >
                       {suggestion.profileImage ? (
                         <ProgressiveImage
@@ -1989,21 +1989,20 @@ export default function ConnectionsScreen({
                       <View style={styles.messageContent}>
                         {/* Group Avatar */}
                         <View style={styles.avatarContainer}>
-                          <View style={styles.groupAvatar}>
-                            {community.image_url ? (
-                              <ProgressiveImage
-                                source={{ uri: community.image_url }}
-                                style={styles.groupLogo}
-                                placeholderStyle={styles.groupLogo}
+                          <ProgressiveImage
+                            source={
+                              community.image_url
+                                ? { uri: community.image_url }
+                                : require("../assets/rhood_logo.webp")
+                            }
+                            style={styles.profileImage}
+                            placeholder={
+                              <ProfileImagePlaceholder
+                                size={48}
+                                style={styles.profileImage}
                               />
-                            ) : (
-                              <Image
-                                source={require("../assets/rhood_logo.webp")}
-                                style={styles.groupLogo}
-                                resizeMode="contain"
-                              />
-                            )}
-                          </View>
+                            }
+                          />
                           <View style={styles.onlineIndicator} />
                         </View>
 
@@ -2786,7 +2785,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 12,
-    marginTop: 12, // Increased spacing to prevent overlap with search bar
+    marginTop: 16, // Increased spacing to prevent overlap with search bar
     marginBottom: 8,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
@@ -2803,20 +2802,20 @@ const styles = StyleSheet.create({
     maxHeight: 300,
   },
   suggestionsScrollContent: {
-    paddingTop: 8, // Increased padding at top of scroll content
+    paddingTop: 4, // Minimal padding at top
+    paddingBottom: 4,
   },
   suggestionItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
     gap: 12,
-    minHeight: 60, // Ensure minimum touch target size
+    minHeight: 64, // Ensure minimum touch target size
   },
   suggestionItemFirst: {
-    marginTop: 0,
-    paddingTop: 16, // Extra padding for first item to push it down
+    paddingTop: 20, // Extra padding for first item to push it down
   },
   suggestionImage: {
     width: 40,
@@ -2879,19 +2878,6 @@ const styles = StyleSheet.create({
   groupAvatarContainer: {
     position: "relative",
     marginRight: 12,
-  },
-  groupAvatar: {
-    width: 48,
-    height: 48,
-    backgroundColor: "transparent",
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  groupLogo: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
   },
   onlineIndicator: {
     position: "absolute",
@@ -3153,10 +3139,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: "hsl(75, 100%, 60%)",
-  },
-  groupLogo: {
-    width: 32,
-    height: 32,
   },
   profileImage: {
     width: 48,

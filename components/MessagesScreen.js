@@ -1933,6 +1933,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 }
                 style={styles.headerAvatar}
                 placeholderStyle={styles.headerAvatarPlaceholder}
+                contentFit="cover"
               />
               <View style={styles.headerText}>
                 <Text style={styles.headerName}>{communityData.name}</Text>
