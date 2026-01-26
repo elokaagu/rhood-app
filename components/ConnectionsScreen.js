@@ -21,20 +21,32 @@ import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
 import { HapticPatterns } from "../lib/haptics";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase, db } from "../lib/supabase";
-import { SkeletonList } from "./Skeleton";
 import RhoodModal from "./RhoodModal";
 
 // No mock data - all data comes from database
 
 // All connection data comes from database
 
-export default function ConnectionsScreen({
+function ConnectionsScreenComponent({
   user: propUser,
   onNavigate,
   initialTab = "discover",
   route = null, // Add route prop for share mode
   onPlayAudio, // Add audio playback handler
 }) {
+  // Ensure propUser is valid - return early if invalid
+  // Check for string type first (common mistake)
+  if (typeof propUser === 'string') {
+    console.warn('ConnectionsScreen: user prop is a string, expected object');
+    return null;
+  }
+  if (!propUser) {
+    return null;
+  }
+  if (typeof propUser !== 'object' || propUser === null || Array.isArray(propUser)) {
+    return null;
+  }
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -43,7 +55,13 @@ export default function ConnectionsScreen({
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(propUser); // Use prop user as initial state
+  // Safely initialize user state - ensure it's always an object
+  const [user, setUser] = useState(() => {
+    if (!propUser || typeof propUser !== 'object' || Array.isArray(propUser)) {
+      return null;
+    }
+    return propUser;
+  });
   const [activeTab, setActiveTab] = useState(initialTab); // 'connections' or 'discover'
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [discoverUsers, setDiscoverUsers] = useState([]);
@@ -51,8 +69,8 @@ export default function ConnectionsScreen({
   const [popularDJsLoading, setPopularDJsLoading] = useState(false);
   const [nearbyDJs, setNearbyDJs] = useState([]);
   const [nearbyDJsLoading, setNearbyDJsLoading] = useState(false);
-  const [connectionsFadeAnim] = useState(new Animated.Value(0));
-  const [discoverFadeAnim] = useState(new Animated.Value(0));
+  const [connectionsFadeAnim] = useState(new Animated.Value(1)); // Start visible for smooth rendering
+  const [discoverFadeAnim] = useState(new Animated.Value(1)); // Start visible for smooth rendering
   const [hasLoadedConnections, setHasLoadedConnections] = useState(false);
   const hasLoadedMessagesRef = useRef(false);
   const [connectionMessage, setConnectionMessage] = useState("");
@@ -124,13 +142,16 @@ export default function ConnectionsScreen({
   const isPendingConnectionStatus = (status) =>
     normalizeConnectionStatus(status) === "pending";
 
-  // Update user state when prop changes
+  // Update user state when prop changes - ensure it's always valid
   useEffect(() => {
-    if (propUser && propUser !== user) {
+    if (propUser && typeof propUser === 'object' && !Array.isArray(propUser) && propUser !== user) {
       console.log("User prop changed, updating user state");
       setUser(propUser);
+    } else if (!propUser || typeof propUser !== 'object' || Array.isArray(propUser)) {
+      // If propUser becomes invalid, don't update state
+      console.warn('ConnectionsScreen: propUser became invalid, keeping current user state');
     }
-  }, [propUser]);
+  }, [propUser, user]);
 
   // Load popular DJs (trending DJs)
   const loadPopularDJs = async () => {
@@ -1637,7 +1658,7 @@ export default function ConnectionsScreen({
     // Debug: Log the connection data to see what's available
     console.log("🔍 Connection data for name:", connection);
 
-    // Return just the participant's name with better fallbacks
+    // Return just the participant's name with better fallbacks - always return a string
     const participantName =
       connection.name ||
       connection.dj_name ||
@@ -1647,26 +1668,37 @@ export default function ConnectionsScreen({
       "DJ"; // Simple fallback instead of "Unknown User"
 
     console.log("🔍 Resolved name:", participantName);
-    return participantName;
+    // Ensure we always return a string
+    return String(participantName || "DJ");
   };
 
   const formatMessageTime = (timestamp) => {
     if (!timestamp) return "";
 
-    const now = new Date();
-    const messageTime = new Date(timestamp);
-    const diffInMinutes = Math.floor((now - messageTime) / (1000 * 60));
+    try {
+      const now = new Date();
+      const messageTime = new Date(timestamp);
+      
+      // Check if date is valid
+      if (isNaN(messageTime.getTime())) return "";
 
-    if (diffInMinutes < 1) return "now";
-    if (diffInMinutes < 60) return `${diffInMinutes}m`;
+      const diffInMinutes = Math.floor((now - messageTime) / (1000 * 60));
 
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours}h`;
+      if (diffInMinutes < 1) return "now";
+      if (diffInMinutes < 60) return String(`${diffInMinutes}m`);
 
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays}d`;
+      const diffInHours = Math.floor(diffInMinutes / 60);
+      if (diffInHours < 24) return String(`${diffInHours}h`);
 
-    return messageTime.toLocaleDateString();
+      const diffInDays = Math.floor(diffInHours / 24);
+      if (diffInDays < 7) return String(`${diffInDays}d`);
+
+      const formatted = messageTime.toLocaleDateString();
+      return String(formatted || "");
+    } catch (error) {
+      console.error("Error formatting message time:", error);
+      return "";
+    }
   };
 
   const loadLastMessagesForConnections = async (userId, connections) => {
@@ -1705,7 +1737,7 @@ export default function ConnectionsScreen({
       return "No messages yet";
     }
 
-    // Format the message content based on type
+    // Format the message content based on type - always return a string
     if (lastMessage.messageType === "image") {
       return "📷 Photo";
     } else if (lastMessage.messageType === "video") {
@@ -1715,7 +1747,7 @@ export default function ConnectionsScreen({
     } else if (lastMessage.messageType === "file") {
       return "📎 File";
     } else {
-      return lastMessage.content || "No messages yet";
+      return String(lastMessage.content || "No messages yet");
     }
   };
 
@@ -1723,7 +1755,8 @@ export default function ConnectionsScreen({
     const lastMessage = lastMessages[connection.id];
     if (!lastMessage || !lastMessage.timestamp) return "";
 
-    return formatMessageTime(lastMessage.timestamp);
+    const formatted = formatMessageTime(lastMessage.timestamp);
+    return formatted || "";
   };
 
   const getLastMessageSender = (connection) => {
@@ -1735,9 +1768,10 @@ export default function ConnectionsScreen({
       return "";
     }
 
-    // Show sender name if it's not the current user
+    // Show sender name if it's not the current user - always return a string
     if (lastMessage.senderId !== user?.id) {
-      return `${lastMessage.senderName}: `;
+      const senderName = String(lastMessage.senderName || "");
+      return senderName ? `${senderName}: ` : "";
     }
     return "You: ";
   };
@@ -1768,11 +1802,20 @@ export default function ConnectionsScreen({
     );
   }, [filteredConnections, user?.id]);
 
+  // Final safety check - ensure user is valid before rendering
+  if (!user || typeof user !== 'object' || Array.isArray(user)) {
+    console.warn('ConnectionsScreen: user state is invalid, returning null');
+    return null;
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
+        removeClippedSubviews={true}
+        scrollEventThrottle={16}
+        decelerationRate="normal"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1945,15 +1988,15 @@ export default function ConnectionsScreen({
                       )}
                       <View style={styles.suggestionInfo}>
                         <Text style={styles.suggestionName} numberOfLines={1}>
-                          {suggestion.name}
+                          {String(suggestion.name || "")}
                         </Text>
-                        {suggestion.city ? (
+                        {suggestion.city && String(suggestion.city).trim() ? (
                           <Text style={styles.suggestionCity} numberOfLines={1}>
-                            {suggestion.city}
+                            {String(suggestion.city || "")}
                           </Text>
                         ) : (
                           <Text style={styles.suggestionCity} numberOfLines={1}>
-                            DJ
+                            {String("DJ")}
                           </Text>
                         )}
                       </View>
@@ -1970,12 +2013,9 @@ export default function ConnectionsScreen({
         {activeTab === "connections" ? (
           /* Messages List */
           <View style={styles.messagesList}>
-            {loading ? (
-              <SkeletonList count={5} />
-            ) : (
-              <Animated.View style={{ opacity: connectionsFadeAnim }}>
+            <Animated.View style={{ opacity: connectionsFadeAnim }}>
                 {/* Community Chats - Show all communities user is a member of */}
-                {userCommunities.map((community, communityIndex) => {
+                {(userCommunities || []).map((community, communityIndex) => {
                   const latestMessage = communityMessages[community.id];
                   const unreadCount = communityUnreadCounts[community.id] || 0;
                   const isRhood = community.id === "550e8400-e29b-41d4-a716-446655440000";
@@ -2010,22 +2050,18 @@ export default function ConnectionsScreen({
                         <View style={styles.messageInfo}>
                           <View style={styles.messageHeader}>
                             <Text style={styles.messageName}>
-                              {community.name || "Community"}
+                              {String(community.name || "Community")}
                             </Text>
                             <Text style={styles.messageTime}>
                               {latestMessage
-                                ? formatMessageTime(latestMessage.created_at)
-                                : "No messages"}
+                                ? String(formatMessageTime(latestMessage.created_at) || "")
+                                : String("No messages")}
                             </Text>
                           </View>
                           <Text style={styles.messagePreview} numberOfLines={1}>
                             {latestMessage
-                              ? `${
-                                  latestMessage.author?.dj_name ||
-                                  latestMessage.author?.full_name ||
-                                  "User"
-                                }: ${latestMessage.content}`
-                              : "Start a conversation"}
+                              ? String(`${String(latestMessage.author?.dj_name || latestMessage.author?.full_name || "User")}: ${String(latestMessage.content || "")}`)
+                              : String("Start a conversation")}
                           </Text>
                           <View style={styles.messageBadges}>
                             {isRhood && (
@@ -2036,8 +2072,7 @@ export default function ConnectionsScreen({
                               </View>
                             )}
                             <Text style={styles.memberCount}>
-                              {community.member_count || 0} member
-                              {(community.member_count || 0) !== 1 ? "s" : ""}
+                              {String(`${community.member_count || 0} member${(community.member_count || 0) !== 1 ? "s" : ""}`)}
                             </Text>
                           </View>
                         </View>
@@ -2046,7 +2081,7 @@ export default function ConnectionsScreen({
                         {unreadCount > 0 && (
                           <View style={styles.unreadCounter}>
                             <Text style={styles.unreadCount}>
-                              {unreadCount}
+                              {String(unreadCount || 0)}
                             </Text>
                           </View>
                         )}
@@ -2056,7 +2091,7 @@ export default function ConnectionsScreen({
                 })}
 
                 {/* Individual Messages */}
-                {connectionsWithMessages.map((connection, index) => (
+                {(connectionsWithMessages || []).map((connection, index) => (
                   <AnimatedListItem
                     key={connection.id}
                     index={index}
@@ -2099,30 +2134,29 @@ export default function ConnectionsScreen({
                         <View style={styles.messageInfo}>
                           <View style={styles.messageHeader}>
                             <Text style={styles.messageName} numberOfLines={1}>
-                              {getUserName(connection)}
+                              {String(getUserName(connection) || "")}
                             </Text>
-                          <View style={styles.messageHeaderMeta}>
-                            <Text style={styles.messageTime}>
-                              {connection.lastActive || "Recently"}
-                            </Text>
+                            <View style={styles.messageHeaderMeta}>
+                              <Text style={styles.messageTime}>
+                                {String(connection.lastActive || "Recently")}
+                              </Text>
+                            </View>
                           </View>
-                        </View>
                           {/* Location removed per design */}
-                          {connection.statusMessage ? (
+                          {connection.statusMessage && String(connection.statusMessage).trim() ? (
                             <Text
                               style={styles.connectionStatusMessage}
                               numberOfLines={1}
                             >
-                              {connection.statusMessage}
+                              {String(connection.statusMessage || "")}
                             </Text>
                           ) : null}
                           <View style={styles.messagePreview}>
                             <Text style={styles.messageText} numberOfLines={1}>
-                              {getLastMessageSender(connection)}
-                              {getLastMessageContent(connection)}
+                              {String((getLastMessageSender(connection) || "") + (getLastMessageContent(connection) || ""))}
                             </Text>
                             <Text style={styles.messageTime}>
-                              {getLastMessageTime(connection)}
+                              {String(getLastMessageTime(connection) || "")}
                             </Text>
                           </View>
                         </View>
@@ -2130,34 +2164,12 @@ export default function ConnectionsScreen({
                     </TouchableOpacity>
                   </AnimatedListItem>
                 ))}
-
-                {/* Empty State - only show if no individual messages */}
-                {connectionsWithMessages.length === 0 && !loading && (
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyStateTitle}>No Messages Yet</Text>
-                    <Text style={styles.emptyStateDescription}>
-                      Start connecting with DJs to begin conversations
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.emptyStateButton}
-                      onPress={() => setActiveTab("discover")}
-                    >
-                      <Text style={styles.emptyStateButtonText}>
-                        Discover DJs
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
               </Animated.View>
-            )}
           </View>
         ) : (
           /* Discover Tab */
           <View style={styles.discoverList}>
-            {discoverLoading ? (
-              <SkeletonList count={4} />
-            ) : (
-              <Animated.View style={{ opacity: discoverFadeAnim }}>
+            <Animated.View style={{ opacity: discoverFadeAnim }}>
                 {/* Popular DJs - Trending DJs */}
                 {popularDJs.length > 0 && !searchQuery.trim() && (
                   <View style={styles.recommendationsSection}>
@@ -2177,17 +2189,17 @@ export default function ConnectionsScreen({
                       style={styles.recommendationsScroll}
                       contentContainerStyle={styles.recommendationsContent}
                     >
-                      {popularDJs.map((dj) => (
-                        <TouchableOpacity
-                          key={dj.id}
-                          style={styles.recommendationCard}
-                          onPress={() => {
-                            if (onNavigate) {
-                              onNavigate("user-profile", { userId: dj.id, djName: dj.dj_name });
-                            }
-                          }}
-                          activeOpacity={0.8}
-                        >
+                      {popularDJs.map((dj, index) => (
+                        <AnimatedListItem key={dj.id} index={index} delay={50}>
+                          <TouchableOpacity
+                            style={styles.recommendationCard}
+                            onPress={() => {
+                              if (onNavigate) {
+                                onNavigate("user-profile", { userId: dj.id, djName: dj.dj_name });
+                              }
+                            }}
+                            activeOpacity={0.8}
+                          >
                           <View style={styles.recommendationImageContainer}>
                             <ProgressiveImage
                               source={
@@ -2213,27 +2225,28 @@ export default function ConnectionsScreen({
                                 style={styles.recommendationTitle}
                                 numberOfLines={1}
                               >
-                                {dj.dj_name || "DJ"}
+                                {String(dj.dj_name || "DJ")}
                               </Text>
-                              {dj.city && (
+                              {dj.city && String(dj.city).trim() && (
                                 <Text
                                   style={styles.recommendationArtist}
                                   numberOfLines={1}
                                 >
-                                  {dj.city}
+                                  {String(dj.city || "")}
                                 </Text>
                               )}
-                              {dj.genres && dj.genres.length > 0 && (
+                              {Array.isArray(dj.genres) && dj.genres.length > 0 && (
                                 <Text
                                   style={styles.recommendationGenre}
                                   numberOfLines={1}
                                 >
-                                  {dj.genres.slice(0, 2).join(", ")}
+                                  {String(dj.genres.slice(0, 2).join(", ") || "")}
                                 </Text>
                               )}
                             </View>
                           </View>
                         </TouchableOpacity>
+                        </AnimatedListItem>
                       ))}
                     </ScrollView>
                     {/* Divider line */}
@@ -2260,20 +2273,20 @@ export default function ConnectionsScreen({
                       style={styles.recommendationsScroll}
                       contentContainerStyle={styles.recommendationsContent}
                     >
-                      {nearbyDJs.map((dj) => (
-                        <TouchableOpacity
-                          key={dj.id}
-                          style={styles.recommendationCard}
-                          onPress={() => {
-                            HapticPatterns.itemPress();
-                            if (onNavigate) {
-                              onNavigate("user-profile", { userId: dj.id, djName: dj.dj_name });
-                            }
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <View style={styles.recommendationImageContainer}>
-                            <ProgressiveImage
+                      {nearbyDJs.map((dj, index) => (
+                        <AnimatedListItem key={dj.id} index={index} delay={50}>
+                          <TouchableOpacity
+                            style={styles.recommendationCard}
+                            onPress={() => {
+                              HapticPatterns.itemPress();
+                              if (onNavigate) {
+                                onNavigate("user-profile", { userId: dj.id, djName: dj.dj_name });
+                              }
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <View style={styles.recommendationImageContainer}>
+                              <ProgressiveImage
                               source={
                                 dj.profile_image_url
                                   ? { uri: dj.profile_image_url }
@@ -2297,27 +2310,28 @@ export default function ConnectionsScreen({
                                 style={styles.recommendationTitle}
                                 numberOfLines={1}
                               >
-                                {dj.dj_name || "DJ"}
+                                {String(dj.dj_name || "DJ")}
                               </Text>
-                              {dj.city && (
+                              {dj.city && String(dj.city).trim() && (
                                 <Text
                                   style={styles.recommendationArtist}
                                   numberOfLines={1}
                                 >
-                                  {dj.city}
+                                  {String(dj.city || "")}
                                 </Text>
                               )}
-                              {dj.genres && dj.genres.length > 0 && (
+                              {Array.isArray(dj.genres) && dj.genres.length > 0 && (
                                 <Text
                                   style={styles.recommendationGenre}
                                   numberOfLines={1}
                                 >
-                                  {dj.genres.slice(0, 2).join(", ")}
+                                  {String(dj.genres.slice(0, 2).join(", ") || "")}
                                 </Text>
                               )}
                             </View>
                           </View>
                         </TouchableOpacity>
+                        </AnimatedListItem>
                       ))}
                     </ScrollView>
                     {/* Divider line */}
@@ -2371,22 +2385,22 @@ export default function ConnectionsScreen({
                                 style={styles.pendingRequestName}
                                 numberOfLines={1}
                               >
-                                {getUserName(request)}
+                                {String(getUserName(request) || "")}
                               </Text>
-                              {request.statusMessage ? (
+                              {request.statusMessage && String(request.statusMessage).trim() ? (
                                 <Text
                                   style={styles.pendingRequestStatus}
                                   numberOfLines={1}
                                 >
-                                  {request.statusMessage}
+                                  {String(request.statusMessage || "")}
                                 </Text>
                               ) : null}
-                              {request.username ? (
+                              {request.username && String(request.username).trim() ? (
                                 <Text
                                   style={styles.pendingRequestSubtitle}
                                   numberOfLines={1}
                                 >
-                                  {request.username}
+                                  {String(request.username || "")}
                                 </Text>
                               ) : null}
                             </View>
@@ -2466,23 +2480,8 @@ export default function ConnectionsScreen({
                 {/* DJ List - Hide when suggestions are showing */}
                 {!showSuggestions && (
                   <View>
-                    {filteredDiscoverUsers.length === 0 ? (
-                      <View style={styles.noResultsContainer}>
-                        <Ionicons
-                          name="people-outline"
-                          size={48}
-                          color="hsl(0, 0%, 30%)"
-                        />
-                        <Text style={styles.noResultsTitle}>No DJs found</Text>
-                        <Text style={styles.noResultsSubtitle}>
-                          {searchQuery.trim()
-                            ? `No results for "${searchQuery}"`
-                            : "Try adjusting your filters"}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Animated.View style={{ opacity: discoverFadeAnim }}>
-                        {filteredDiscoverUsers.map((user, index) => {
+                    <Animated.View style={{ opacity: discoverFadeAnim }}>
+                      {filteredDiscoverUsers.map((user, index) => {
                           const normalizedStatus = normalizeConnectionStatus(
                             user.connectionStatus
                           );
@@ -2526,20 +2525,20 @@ export default function ConnectionsScreen({
                         {/* Name Info */}
                         <View style={styles.discoverNameSection}>
                           <View style={styles.discoverHeader}>
-                            <Text style={styles.discoverName}>{user.name}</Text>
+                            <Text style={styles.discoverName}>{String(user.name || "")}</Text>
                           </View>
                           <Text style={styles.discoverUsername}>
-                            {user.username}
+                            {String(user.username || "")}
                           </Text>
                           <Text style={styles.discoverLocation}>
-                            {user.location}
+                            {String(user.location || "")}
                           </Text>
-                            {user.statusMessage ? (
+                            {user.statusMessage && String(user.statusMessage).trim() ? (
                               <Text
                                 style={styles.discoverStatus}
                                 numberOfLines={1}
                               >
-                                {user.statusMessage}
+                                {String(user.statusMessage || "")}
                               </Text>
                             ) : null}
                         </View>
@@ -2547,7 +2546,7 @@ export default function ConnectionsScreen({
                         {/* Activity */}
                         <View style={styles.discoverRatingSection}>
                           <Text style={styles.discoverLastActive}>
-                            {user.lastActive}
+                            {String(user.lastActive || "")}
                           </Text>
                         </View>
                       </View>
@@ -2557,7 +2556,7 @@ export default function ConnectionsScreen({
 
                       {/* Genre Tags */}
                       <View style={styles.discoverGenres}>
-                        {user.genres.slice(0, 3).map((genre, index) => (
+                        {(Array.isArray(user.genres) ? user.genres.slice(0, 3) : []).map((genre, index) => (
                           <View key={index} style={styles.discoverGenreTag}>
                             <Ionicons
                               name="musical-notes"
@@ -2565,7 +2564,7 @@ export default function ConnectionsScreen({
                               color="hsl(75, 100%, 60%)"
                             />
                             <Text style={styles.discoverGenreText}>
-                              {genre}
+                              {String(genre || "")}
                             </Text>
                           </View>
                         ))}
@@ -2646,11 +2645,11 @@ export default function ConnectionsScreen({
                                   isPending && styles.discoverPendingText,
                                 ]}
                               >
-                                {isPending
+                                {String(isPending
                                   ? isCancelling
                                     ? "Cancelling..."
                                     : "Cancel Request"
-                              : "Connect"}
+                              : "Connect")}
                           </Text>
                         </TouchableOpacity>
                           )}
@@ -2660,11 +2659,9 @@ export default function ConnectionsScreen({
                           );
                         })}
                       </Animated.View>
-                    )}
-                  </View>
-                )}
-              </Animated.View>
-            )}
+                    </View>
+                  )}
+            </Animated.View>
           </View>
         )}
 
@@ -2711,6 +2708,30 @@ export default function ConnectionsScreen({
     </View>
   );
 }
+
+// Export with validation wrapper to catch prop issues
+const ConnectionsScreenWrapper = (props) => {
+  // Validate props before rendering
+  if (!props || typeof props !== 'object') {
+    console.warn('ConnectionsScreen: Invalid props object');
+    return null;
+  }
+  
+  // Ensure user prop is valid - check for string first (common mistake)
+  if (typeof props.user === 'string') {
+    console.warn('ConnectionsScreen: user prop is a string, expected object');
+    return null;
+  }
+  
+  if (!props.user || typeof props.user !== 'object' || props.user === null || Array.isArray(props.user)) {
+    console.warn('ConnectionsScreen: user prop is missing or invalid');
+    return null;
+  }
+  
+  return <ConnectionsScreenComponent {...props} />;
+};
+
+export default ConnectionsScreenWrapper;
 
 const styles = StyleSheet.create({
   container: {
@@ -2841,6 +2862,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 60%)",
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 40,
   },
   noResultsContainer: {
     alignItems: "center",

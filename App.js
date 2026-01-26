@@ -38,19 +38,15 @@ import lockScreenControls from "./lib/lockScreenControls";
 // Use a function to defer evaluation and prevent crashes during module initialization
 let trackPlayer = null;
 const loadTrackPlayer = () => {
-  // Temporarily disabled - always return null to test if this is causing the crash
-  return null;
-  
-  // Original code (commented out for testing):
-  // if (trackPlayer !== null) return trackPlayer; // Already attempted
-  // try {
-  //   trackPlayer = require("./src/audio/player");
-  //   return trackPlayer;
-  // } catch (error) {
-  //   trackPlayer = false; // Mark as failed to prevent retries
-  //   console.warn("⚠️ Track player not available:", error.message);
-  //   return null;
-  // }
+  if (trackPlayer !== null) return trackPlayer; // Already attempted
+  try {
+    trackPlayer = require("./src/audio/player");
+    return trackPlayer;
+  } catch (error) {
+    trackPlayer = false; // Mark as failed to prevent retries
+    console.warn("⚠️ Track player not available:", error.message);
+    return null;
+  }
 };
 
 // Import playback callbacks registry for remote controls
@@ -810,6 +806,10 @@ export default function App() {
           });
           setGlobalAudioState((prev) => {
             if (!prev.currentTrack) return prev;
+            // Don't update progress/position during scrubbing to avoid conflicts
+            if (prev.isScrubbing) {
+              return prev;
+            }
             return {
               ...prev,
               positionMillis: data.position * 1000,
@@ -825,17 +825,49 @@ export default function App() {
         Event.PlaybackTrackChanged,
         async (data) => {
           console.log("🎵 [APP] Track changed event:", data);
-          // TrackPlayer will handle the track change, just sync state
+          // TrackPlayer will handle the track change, sync state and update current track
           try {
             const state = await trackPlayer.getPlaybackState();
+            const currentTrackIndex = await TrackPlayer.getCurrentTrack();
+            
+            // Get the track from queue if available
+            let newTrack = null;
+            if (currentTrackIndex !== null) {
+              const queue = globalAudioStateRef.current.queue;
+              if (queue && queue[currentTrackIndex]) {
+                newTrack = queue[currentTrackIndex];
+              } else {
+                // Try to get track from TrackPlayer
+                try {
+                  const trackPlayerTrack = await TrackPlayer.getTrack(currentTrackIndex);
+                  if (trackPlayerTrack) {
+                    // Map TrackPlayer track to our format
+                    newTrack = {
+                      id: trackPlayerTrack.id,
+                      title: trackPlayerTrack.title,
+                      artist: trackPlayerTrack.artist,
+                      image: trackPlayerTrack.artwork,
+                      audioUrl: trackPlayerTrack.url,
+                      durationMillis: trackPlayerTrack.duration ? trackPlayerTrack.duration * 1000 : undefined,
+                    };
+                  }
+                } catch (trackError) {
+                  console.warn("⚠️ [APP] Could not get track from TrackPlayer:", trackError);
+                }
+              }
+            }
+            
             setGlobalAudioState((prev) => ({
               ...prev,
               isPlaying: state.isPlaying,
               positionMillis: state.position * 1000,
               durationMillis: state.duration * 1000,
-              progress:
-                state.duration > 0 ? state.position / state.duration : 0,
+              progress: state.duration > 0 ? state.position / state.duration : 0,
+              currentTrack: newTrack || prev.currentTrack, // Update current track if found
+              currentQueueIndex: currentTrackIndex !== null ? currentTrackIndex : prev.currentQueueIndex,
             }));
+            
+            console.log("✅ [APP] Track changed - updated state and metadata for lock screen");
           } catch (error) {
             console.warn(
               "⚠️ [APP] Error syncing state after track change:",
@@ -898,6 +930,11 @@ export default function App() {
 
           setGlobalAudioState((prev) => {
             if (!prev.currentTrack) return prev;
+            
+            // Don't update progress/position during scrubbing to avoid conflicts
+            if (prev.isScrubbing) {
+              return prev;
+            }
             
             // Only update if values actually changed (avoid unnecessary re-renders)
             if (
@@ -1960,12 +1997,14 @@ export default function App() {
             }
 
             // Normal progress update when not scrubbing
+            // Don't update progress/position during scrubbing to avoid conflicts
             const newState = {
               ...prev,
               isPlaying: status.isPlaying,
               isLoading: false,
-              progress: status.positionMillis / status.durationMillis || 0,
-              positionMillis: status.positionMillis || 0,
+              // Only update progress if not scrubbing (scrubPosition takes precedence)
+              progress: prev.isScrubbing ? prev.progress : (status.positionMillis / status.durationMillis || 0),
+              positionMillis: prev.isScrubbing ? prev.positionMillis : (status.positionMillis || 0),
               durationMillis: status.durationMillis || 0,
             };
 
@@ -2246,22 +2285,24 @@ export default function App() {
       pauseGlobalAudioRef.current = pauseGlobalAudio;
 
       // iOS: Try TrackPlayer first, fall back to expo-av
-      if (Platform.OS === "ios") {
-        if (trackPlayer && globalAudioState.currentTrack && typeof trackPlayer.pause === "function") {
-          try {
-            // Call TrackPlayer - events will update state automatically
-            // This ensures lock screen and in-app stay in sync
-            await trackPlayer.pause();
+      if (Platform.OS === "ios" && trackPlayer) {
+        try {
+          // Use TrackPlayer directly - events will update state automatically
+          // This ensures lock screen and in-app stay in sync
+          const TrackPlayer = trackPlayer.getTrackPlayer();
+          if (TrackPlayer && globalAudioState.currentTrack) {
+            await TrackPlayer.pause();
+            console.log("✅ Paused via TrackPlayer - lock screen controls will sync");
             // Don't update state here - let TrackPlayer events handle it
             // This ensures single source of truth (TrackPlayer)
             return;
-          } catch (trackPlayerError) {
-            // TrackPlayer not available or failed - fall through to expo-av
-            if (!trackPlayerError.message?.includes("react-native-track-player is not available")) {
-              console.warn("⚠️ TrackPlayer pause failed, falling back to expo-av:", trackPlayerError.message);
-            }
-            // Fall through to expo-av
           }
+        } catch (trackPlayerError) {
+          // TrackPlayer not available or failed - fall through to expo-av
+          if (!trackPlayerError.message?.includes("react-native-track-player is not available")) {
+            console.warn("⚠️ TrackPlayer pause failed, falling back to expo-av:", trackPlayerError.message);
+          }
+          // Fall through to expo-av
         }
       }
 
@@ -2289,9 +2330,10 @@ export default function App() {
       seekGlobalAudioRef.current = seekGlobalAudio;
       
       // iOS: Try TrackPlayer first, fall back to expo-av
-      if (Platform.OS === "ios") {
-        if (trackPlayer && globalAudioState.currentTrack && typeof trackPlayer.getPlaybackState === "function" && typeof trackPlayer.seekTo === "function") {
-          try {
+      if (Platform.OS === "ios" && trackPlayer) {
+        try {
+          const TrackPlayer = trackPlayer.getTrackPlayer();
+          if (TrackPlayer && globalAudioState.currentTrack) {
             const state = await trackPlayer.getPlaybackState();
             const currentPosition = state.position * 1000;
             const newPosition = Math.max(
@@ -2299,7 +2341,7 @@ export default function App() {
               Math.min(state.duration * 1000, currentPosition + seekAmount)
             );
 
-            await trackPlayer.seekTo(newPosition / 1000);
+            await TrackPlayer.seekTo(newPosition / 1000);
 
             // Don't update state here - let TrackPlayer events handle it
             // This ensures lock screen and in-app stay in sync
@@ -2311,13 +2353,13 @@ export default function App() {
               )}s directly via track-player`
             );
             return;
-          } catch (trackPlayerError) {
-            // TrackPlayer not available or failed - fall through to expo-av
-            if (!trackPlayerError.message?.includes("react-native-track-player is not available")) {
-              console.warn("⚠️ TrackPlayer seek failed, falling back to expo-av:", trackPlayerError.message);
-            }
-            // Fall through to expo-av
           }
+        } catch (trackPlayerError) {
+          // TrackPlayer not available or failed - fall through to expo-av
+          if (!trackPlayerError.message?.includes("react-native-track-player is not available")) {
+            console.warn("⚠️ TrackPlayer seek failed, falling back to expo-av:", trackPlayerError.message);
+          }
+          // Fall through to expo-av
         }
       }
 
@@ -2366,22 +2408,24 @@ export default function App() {
       resumeGlobalAudioRef.current = resumeGlobalAudio;
 
       // iOS: Try TrackPlayer first, fall back to expo-av
-      if (Platform.OS === "ios") {
-        if (trackPlayer && globalAudioState.currentTrack && typeof trackPlayer.resume === "function") {
-          try {
-            // Call TrackPlayer - events will update state automatically
-            // This ensures lock screen and in-app stay in sync
-            await trackPlayer.resume();
+      if (Platform.OS === "ios" && trackPlayer) {
+        try {
+          // Use TrackPlayer directly - events will update state automatically
+          // This ensures lock screen and in-app stay in sync
+          const TrackPlayer = trackPlayer.getTrackPlayer();
+          if (TrackPlayer && globalAudioState.currentTrack) {
+            await TrackPlayer.play();
+            console.log("✅ Resumed via TrackPlayer - lock screen controls will sync");
             // Don't update state here - let TrackPlayer events handle it
             // This ensures single source of truth (TrackPlayer)
             return;
-          } catch (trackPlayerError) {
-            // TrackPlayer not available or failed - fall through to expo-av
-            if (!trackPlayerError.message?.includes("react-native-track-player is not available")) {
-              console.warn("⚠️ TrackPlayer resume failed, falling back to expo-av:", trackPlayerError.message);
-            }
-            // Fall through to expo-av
           }
+        } catch (trackPlayerError) {
+          // TrackPlayer not available or failed - fall through to expo-av
+          if (!trackPlayerError.message?.includes("react-native-track-player is not available")) {
+            console.warn("⚠️ TrackPlayer resume failed, falling back to expo-av:", trackPlayerError.message);
+          }
+          // Fall through to expo-av
         }
       }
 
@@ -2691,12 +2735,11 @@ export default function App() {
           const clampedPosition = Math.min(positionMillis, maxSeekPosition);
           const seekPositionSeconds = clampedPosition / 1000;
 
-          // Check if we're already close to this position to avoid unnecessary seeks
+          // Check if we're already close to this position
           const currentPosition = state.position * 1000;
           const positionDiff = Math.abs(clampedPosition - currentPosition);
 
-          if (positionDiff < 200) {
-            console.log(`⏭️ Skipping seek - already close to target position`);
+          if (positionDiff < 100) {
             return;
           }
 
@@ -2732,13 +2775,11 @@ export default function App() {
         const maxSeekPosition = status.durationMillis - 100; // Leave 100ms buffer
         const clampedPosition = Math.min(positionMillis, maxSeekPosition);
 
-        // Check if we're already close to this position to avoid unnecessary seeks
+        // Check if we're already close to this position
         const currentPosition = status.positionMillis || 0;
         const positionDiff = Math.abs(clampedPosition - currentPosition);
 
-        if (positionDiff < 200) {
-          // Less than 0.2 seconds difference for smoother scrubbing
-          console.log(`⏭️ Skipping seek - already close to target position`);
+        if (positionDiff < 100) {
           return;
         }
 
@@ -2785,92 +2826,15 @@ export default function App() {
     []
   );
 
-  // Enhanced progress bar handler with drag support
-  const handleProgressBarPress = async (event) => {
-    event.stopPropagation();
+  // Simple scrubbing system - visual updates during drag, seek on release
+  const pendingSeekPositionRef = useRef(null);
+  const isDraggingRef = useRef(false);
 
-    // Get duration from state or audio ref
-    let durationMillis = globalAudioState.durationMillis;
-    if (durationMillis <= 0 && globalAudioRef.current) {
-      try {
-        const status = await globalAudioRef.current.getStatusAsync();
-        if (status.isLoaded && status.durationMillis > 0) {
-          durationMillis = status.durationMillis;
-        }
-      } catch (error) {
-        console.warn("⚠️ Could not get audio duration:", error);
-      }
-    }
-
-    // Check if audio is ready
-    if (durationMillis <= 0 || globalAudioState.isLoading) {
-      console.warn("⚠️ Cannot scrub - audio not ready");
-      return;
-    }
-
-    // Get the touch position
-    const { locationX } = event.nativeEvent;
-    const target = event.currentTarget;
-    const progressBarWidth =
-      target?.offsetWidth || target?.clientWidth || getProgressBarWidth();
-
-    // Calculate the percentage position
-    const percentage = Math.max(0, Math.min(1, locationX / progressBarWidth));
-
-    // Seek to the position immediately
-    const newPosition = percentage * durationMillis;
-    await seekToPosition(newPosition);
-
-    // Provide haptic feedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  // Optimized seeking system with unified throttling and debouncing
-  const seekThrottleRef = useRef(null);
-  const lastSeekPositionRef = useRef(0);
-  const scrubDebounceRef = useRef(null);
-
-  // Constants for seeking optimization
-  const SEEK_THRESHOLD_MS = 200; // Minimum position difference to seek
-  const SEEK_THROTTLE_MS = 100; // Throttle delay
-  const SCRUB_UPDATE_MS = 16; // ~60fps visual updates
-
-  // Unified scrub position update with debouncing
-  const updateScrubPosition = useCallback((percentage) => {
-    if (scrubDebounceRef.current) {
-      clearTimeout(scrubDebounceRef.current);
-    }
-
-    scrubDebounceRef.current = setTimeout(() => {
-      setScrubPosition(percentage);
-    }, SCRUB_UPDATE_MS);
-  }, []);
-
-  // Optimized throttled seek function
-  const throttledSeek = useCallback((positionMillis) => {
-    // Clear any existing throttle
-    if (seekThrottleRef.current) {
-      clearTimeout(seekThrottleRef.current);
-    }
-
-    // Only seek if position has changed significantly
-    const positionDiff = Math.abs(positionMillis - lastSeekPositionRef.current);
-    if (positionDiff < SEEK_THRESHOLD_MS) {
-      return;
-    }
-
-    seekThrottleRef.current = setTimeout(async () => {
-      lastSeekPositionRef.current = positionMillis;
-      await seekToPosition(positionMillis);
-    }, SEEK_THROTTLE_MS);
-  }, []);
-
-  // Unified pan responder factory for progress bars
+  // Clean scrubbing implementation - simple and reliable
   const createProgressBarPanResponder = useCallback(
     (options = {}) => {
       const {
         enableImmediateSeek = true,
-        enableThrottledSeek = true,
         captureTouches = true,
       } = options;
 
@@ -2880,7 +2844,10 @@ export default function App() {
         onMoveShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponderCapture: () => captureTouches,
         onPanResponderGrant: async (evt) => {
-          // Get duration from state or audio ref
+          // Mark that we're starting a gesture (might be tap or drag)
+          isDraggingRef.current = false;
+          
+          // Get duration
           let durationMillis = globalAudioState.durationMillis;
           if (durationMillis <= 0 && globalAudioRef.current) {
             try {
@@ -2889,84 +2856,140 @@ export default function App() {
                 durationMillis = status.durationMillis;
               }
             } catch (error) {
-              // Ignore error, will check again below
+              // Ignore
             }
           }
 
-          // Check if audio is ready
           if (durationMillis <= 0 || globalAudioState.isLoading) {
             return;
           }
 
-          // Start scrubbing
           setIsScrubbing(true);
 
-          // Calculate percentage from touch position
           const progressBarWidth = getProgressBarWidth();
-          const percentage = Math.max(
-            0,
-            Math.min(1, evt.nativeEvent.locationX / progressBarWidth)
-          );
-
-          // Update visual feedback
-          updateScrubPosition(percentage);
-
-          // Seek immediately for tap
-          if (enableImmediateSeek) {
-            const newPosition = percentage * durationMillis;
-            seekToPosition(newPosition);
+          if (progressBarWidth <= 0) {
+            setIsScrubbing(false);
+            return;
           }
 
-          // Provide haptic feedback
+          const percentage = Math.max(0, Math.min(1, evt.nativeEvent.locationX / progressBarWidth));
+          setScrubPosition(percentage);
+
+          // Store initial position but don't seek yet - wait to see if it's a drag or tap
+          const position = percentage * durationMillis;
+          pendingSeekPositionRef.current = position;
+
+          // Only seek immediately if this is likely a tap (not a drag)
+          // We'll detect drag in onPanResponderMove
+          // For now, don't seek in Grant - wait for Move or Release
+          
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         },
-        onPanResponderMove: (_, gestureState) => {
-          // Get duration from state (use current state for move events)
+        onPanResponderMove: (evt, gestureState) => {
+          // Mark that this is a drag, not just a tap
+          isDraggingRef.current = true;
+          
           const durationMillis = globalAudioState.durationMillis;
           
-          // Check if audio is ready
           if (durationMillis <= 0 || globalAudioState.isLoading) {
             return;
           }
 
-          // Calculate percentage from gesture position
           const progressBarWidth = getProgressBarWidth();
-          const percentage = Math.max(
-            0,
-            Math.min(1, gestureState.moveX / progressBarWidth)
-          );
+          if (progressBarWidth <= 0) {
+            return;
+          }
 
-          // Update visual feedback
-          updateScrubPosition(percentage);
+          // Calculate percentage - prefer event locationX (absolute position)
+          let percentage;
+          if (evt && evt.nativeEvent && typeof evt.nativeEvent.locationX === 'number') {
+            percentage = Math.max(0, Math.min(1, evt.nativeEvent.locationX / progressBarWidth));
+          } else {
+            // Fallback to gestureState.moveX
+            percentage = Math.max(0, Math.min(1, gestureState.moveX / progressBarWidth));
+          }
+          
+          // Update visual position immediately for smooth feedback
+          setScrubPosition(percentage);
 
-          // Use throttled seek for smooth dragging
-          if (enableThrottledSeek) {
-            const newPosition = percentage * durationMillis;
-            throttledSeek(newPosition);
+          // Store the latest position for final seek on release
+          // Don't seek during drag - only update visual position
+          const position = percentage * durationMillis;
+          pendingSeekPositionRef.current = position;
+        },
+        onPanResponderRelease: async (evt, gestureState) => {
+          try {
+            const wasDragging = isDraggingRef.current;
+            isDraggingRef.current = false;
+            
+            const durationMillis = globalAudioState.durationMillis;
+            if (durationMillis <= 0) {
+              setIsScrubbing(false);
+              pendingSeekPositionRef.current = null;
+              return;
+            }
+
+            // Calculate final position - use event locationX if available (most accurate)
+            const progressBarWidth = getProgressBarWidth();
+            let finalPercentage = scrubPosition; // Fallback to current scrub position
+            
+            if (progressBarWidth > 0) {
+              // Try to get absolute position from event
+              if (evt && evt.nativeEvent && typeof evt.nativeEvent.locationX === 'number') {
+                finalPercentage = Math.max(0, Math.min(1, evt.nativeEvent.locationX / progressBarWidth));
+              } else if (gestureState && typeof gestureState.moveX === 'number') {
+                // Fallback: use gestureState.moveX (should be absolute position relative to responder)
+                finalPercentage = Math.max(0, Math.min(1, gestureState.moveX / progressBarWidth));
+              }
+              // Otherwise use scrubPosition which was updated during move
+            }
+
+            // Use pending position from drag (most recent), or calculate from percentage
+            let seekPosition;
+            if (pendingSeekPositionRef.current !== null) {
+              seekPosition = pendingSeekPositionRef.current;
+            } else {
+              seekPosition = finalPercentage * durationMillis;
+            }
+            
+            // Ensure valid position
+            seekPosition = Math.max(0, Math.min(seekPosition, durationMillis - 100));
+            
+            // Seek on release
+            // If it was a tap (not a drag) and immediate seek is enabled, seek now
+            // If it was a drag, we always seek on release
+            if (!wasDragging && enableImmediateSeek) {
+              // This was a tap - seek immediately
+              await seekToPosition(seekPosition);
+            } else {
+              // This was a drag - seek to final position
+              await seekToPosition(seekPosition);
+            }
+            
+            setScrubPosition(finalPercentage);
+            pendingSeekPositionRef.current = null;
+          } catch (error) {
+            console.error('Error in onPanResponderRelease:', error);
+          } finally {
+            setIsScrubbing(false);
           }
         },
-        onPanResponderRelease: () => {
-          // Clean up scrubbing state
-          setIsScrubbing(false);
-          if (seekThrottleRef.current) {
-            clearTimeout(seekThrottleRef.current);
-            seekThrottleRef.current = null;
-          }
-          if (scrubDebounceRef.current) {
-            clearTimeout(scrubDebounceRef.current);
-            scrubDebounceRef.current = null;
-          }
-        },
-        onPanResponderTerminate: () => {
-          // Handle unexpected termination
-          setIsScrubbing(false);
-          if (seekThrottleRef.current) {
-            clearTimeout(seekThrottleRef.current);
-            seekThrottleRef.current = null;
-          }
-          if (scrubDebounceRef.current) {
-            clearTimeout(scrubDebounceRef.current);
-            scrubDebounceRef.current = null;
+        onPanResponderTerminate: async () => {
+          try {
+            // If drag was interrupted, seek to pending position if available
+            if (pendingSeekPositionRef.current !== null) {
+              const durationMillis = globalAudioState.durationMillis;
+              if (durationMillis > 0) {
+                const seekPosition = Math.max(0, Math.min(pendingSeekPositionRef.current, durationMillis - 100));
+                await seekToPosition(seekPosition);
+              }
+            }
+            setIsScrubbing(false);
+            pendingSeekPositionRef.current = null;
+          } catch (error) {
+            console.error('Error in onPanResponderTerminate:', error);
+            setIsScrubbing(false);
+            pendingSeekPositionRef.current = null;
           }
         },
       });
@@ -2974,8 +2997,11 @@ export default function App() {
     [
       globalAudioState.durationMillis,
       globalAudioState.isLoading,
-      throttledSeek,
-      updateScrubPosition,
+      seekToPosition,
+      scrubPosition,
+      getProgressBarWidth,
+      setIsScrubbing,
+      setScrubPosition,
     ]
   );
 
@@ -3254,7 +3280,7 @@ export default function App() {
         .from("mixes")
         .select(`
           *,
-          user_profiles (
+          user_profiles!mixes_user_id_fkey (
             id,
             dj_name,
             full_name,
@@ -5014,7 +5040,7 @@ export default function App() {
               <View style={styles.opportunitiesHeader}>
                 <Text style={styles.tsBlockBoldHeading}>OPPORTUNITIES</Text>
                 <Text style={styles.opportunitiesSubtitle}>
-                  Find your next DJ gig
+                  Swipe to find your next gig
                 </Text>
                 {/* Daily Application Counter */}
                 <View style={styles.dailyApplicationCounter}>
@@ -6157,10 +6183,8 @@ export default function App() {
                 style={styles.audioProgressContainer}
                 {...progressBarPanResponder.panHandlers}
               >
-                <TouchableOpacity
+                <View
                   style={styles.audioProgressBar}
-                  onPress={handleProgressBarPress}
-                  activeOpacity={0.8}
                 >
                   <View
                     style={[
@@ -6179,7 +6203,7 @@ export default function App() {
                       },
                     ]}
                   />
-                </TouchableOpacity>
+                </View>
               </View>
             </Animated.View>
           )}

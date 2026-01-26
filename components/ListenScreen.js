@@ -17,7 +17,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SkeletonMix } from "./Skeleton";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { getRecommendedMixes } from "../lib/mixRecommendations";
@@ -220,7 +219,7 @@ export default function ListenScreen({
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   
   // Fade-in animation for content
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current; // Start visible for smooth rendering
 
   // Fetch mixes from Supabase
   const fetchMixes = async () => {
@@ -569,18 +568,7 @@ export default function ListenScreen({
     }
   }, [globalAudioState.currentTrack, globalAudioState.isPlaying, mixes]);
   
-  // Fade-in animation when content loads
-  useEffect(() => {
-    if (!loading) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      fadeAnim.setValue(0);
-    }
-  }, [loading]);
+  // Content renders immediately for smooth experience
 
   // Handle play/pause when user interacts with mix
   const handleMixPress = (mix) => {
@@ -1150,7 +1138,7 @@ export default function ListenScreen({
         <Text style={styles.tsBlockBoldHeading}>LISTEN</Text>
         <Text style={styles.headerSubtitle}>
           DJ mixes from the R/HOOD community
-          {refreshing && " • Refreshing..."}
+          {refreshing && <Text> • Refreshing...</Text>}
         </Text>
       </View>
 
@@ -1790,6 +1778,9 @@ export default function ListenScreen({
     <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        scrollEventThrottle={16}
+        decelerationRate="normal"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1801,29 +1792,19 @@ export default function ListenScreen({
       >
         {renderHeader()}
         
-        {loading ? (
-          <View style={styles.skeletonContainer}>
-            <SkeletonMix />
-            <SkeletonMix />
-            <SkeletonMix />
-            <SkeletonMix />
-            <SkeletonMix />
-          </View>
-        ) : (
-          <Animated.View style={{ opacity: fadeAnim }}>
-            {searchQuery.trim() ? (
-              renderSearchResults()
-            ) : (
-              <>
-                {renderPlaylists()}
-                {renderTrending()}
-                {renderYourLikes()}
-                {renderYouMayLike()}
-              </>
-            )}
-            {renderFooter()}
-          </Animated.View>
-        )}
+        <Animated.View style={{ opacity: fadeAnim }}>
+          {searchQuery.trim() ? (
+            renderSearchResults()
+          ) : (
+            <>
+              {renderPlaylists()}
+              {renderTrending()}
+              {renderYourLikes()}
+              {renderYouMayLike()}
+            </>
+          )}
+          {renderFooter()}
+        </Animated.View>
       </ScrollView>
 
       {/* Upload Mix Modal - R/HOOD Themed */}
@@ -2374,9 +2355,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   // Empty State Styles
-  skeletonContainer: {
-    padding: 20,
-  },
   emptyState: {
     alignItems: "center",
     paddingVertical: 40,

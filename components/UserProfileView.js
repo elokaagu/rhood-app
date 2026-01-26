@@ -749,6 +749,13 @@ export default function UserProfileView({
                 </View>
               )}
             </View>
+            {/* Audio ID */}
+            {profile.primaryMix?.id && (
+              <View style={styles.audioIdContainer}>
+                <Text style={styles.audioIdLabel}>Audio ID:</Text>
+                <Text style={styles.audioIdText}>{String(profile.primaryMix.id)}</Text>
+              </View>
+            )}
           </View>
 
           {/* Audio ID Card */}
@@ -1141,6 +1148,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)",
+  },
+  audioIdContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "hsl(0, 0%, 15%)",
+  },
+  audioIdLabel: {
+    fontSize: 11,
+    fontFamily: "Arial",
+    color: "hsl(0, 0%, 50%)",
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  audioIdText: {
+    fontSize: 10,
+    fontFamily: "monospace",
+    color: "hsl(0, 0%, 60%)",
   },
   primaryMixSection: {
     marginBottom: 24,
