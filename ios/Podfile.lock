@@ -261,7 +261,7 @@ PODS:
     - ExpoModulesCore
   - ExpoAsset (12.0.10):
     - ExpoModulesCore
-  - ExpoAudio (1.0.14):
+  - ExpoAudio (1.0.15):
     - ExpoModulesCore
   - ExpoBlur (15.0.7):
     - ExpoModulesCore
@@ -332,7 +332,7 @@ PODS:
   - ExpoWebBrowser (15.0.9):
     - ExpoModulesCore
   - EXStructuredHeaders (5.0.0)
-  - EXUpdates (29.0.12):
+  - EXUpdates (29.0.13):
     - boost
     - DoubleConversion
     - EASClient
@@ -3183,7 +3183,7 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: 600df12ea01efecdd822daaf13cc0ac091775533
   ExpoAppleAuthentication: bc9de6e9ff3340604213ab9031d4c4f7f802623e
   ExpoAsset: d839c8eae8124470332408427327e8f88beb2dfd
-  ExpoAudio: 6a923f661e3360a183503fd96728ff9010ae8afd
+  ExpoAudio: a435784a5da9c27649d5c585b47c65ee4e25ff2a
   ExpoBlur: 2dd8f64aa31f5d405652c21d3deb2d2588b1852f
   ExpoClipboard: af650d14765f19c60ce2a1eaf9dfe6445eff7365
   ExpoCrypto: c1fbce112d1b6b79652bbe380b4fd4cc91676595
@@ -3203,7 +3203,7 @@ SPEC CHECKSUMS:
   ExpoVideo: 50f5b3f31c7b5fb5a8f61a0137e674096c54eb4f
   ExpoWebBrowser: b973e1351fdcf5fec0c400997b1851f5a8219ec3
   EXStructuredHeaders: c951e77f2d936f88637421e9588c976da5827368
-  EXUpdates: 270eabe70b7592ebc87728521a72805095217880
+  EXUpdates: 47c643e6169433ce42bf6973b772a7fceb97cfb7
   EXUpdatesInterface: 5adf50cb41e079c861da6d9b4b954c3db9a50734
   fast_float: b32c788ed9c6a8c584d114d0047beda9664e7cc6
   FBLazyVector: 5beb8028d5a2e75dd9634917f23e23d3a061d2aa

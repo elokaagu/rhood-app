@@ -384,6 +384,11 @@ const DJMix = ({
               <Text style={styles.mixDetailText}>
                 {mix.genre || "Electronic"}
               </Text>
+              {mix.is_primary && (
+                <View style={styles.primaryTagSmall}>
+                  <Text style={styles.primaryTagTextSmall}>P</Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -727,6 +732,21 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 40%)",
     fontSize: 12,
     marginHorizontal: 6,
+  },
+  primaryTagSmall: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 6,
+  },
+  primaryTagTextSmall: {
+    fontSize: 10,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 0%)",
+    fontWeight: "bold",
   },
 });
 

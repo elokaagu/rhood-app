@@ -749,13 +749,6 @@ export default function UserProfileView({
                 </View>
               )}
             </View>
-            {/* Audio ID */}
-            {profile.primaryMix?.id && (
-              <View style={styles.audioIdContainer}>
-                <Text style={styles.audioIdLabel}>Audio ID:</Text>
-                <Text style={styles.audioIdText}>{String(profile.primaryMix.id)}</Text>
-              </View>
-            )}
           </View>
 
           {/* Audio ID Card */}
@@ -843,7 +836,12 @@ export default function UserProfileView({
           {/* Primary Mix */}
           {profile.primary_mix && (
             <View style={styles.primaryMixSection}>
-              <Text style={styles.sectionTitle}>Primary Mix</Text>
+              <View style={styles.sectionTitleContainer}>
+                <Text style={styles.sectionTitle}>Primary Mix</Text>
+                <View style={styles.primaryTag}>
+                  <Text style={styles.primaryTagText}>P</Text>
+                </View>
+              </View>
               <TouchableOpacity
                 style={styles.mixCard}
                 onPress={handlePrimaryMixPlay}
@@ -1132,6 +1130,31 @@ const styles = StyleSheet.create({
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 16,
+  },
+  sectionTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  primaryTag: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  primaryTagText: {
+    fontSize: 12,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 0%)",
+    fontWeight: "bold",
   },
   genresContainer: {
     flexDirection: "row",
