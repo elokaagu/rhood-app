@@ -18,8 +18,7 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
-
-
+  FlatList,
   Image,
   Modal,
   Linking,
@@ -39,6 +38,7 @@ import RhoodModal from "./RhoodModal";
 import { Audio, Video } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import * as WebBrowser from "expo-web-browser";
+import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 
 const URL_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
 
@@ -1946,19 +1946,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
         </View>
 
         {/* Messages */}
-        <ScrollView
+        <FlatList
           ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={[
-            styles.messagesContent,
-            { paddingBottom: scrollBottomPadding },
-          ]}
-          onContentSizeChange={() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          {messages.length === 0 ? (
+          data={messages}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Image
                 source={require("../assets/rhood_logo.webp")}
@@ -1970,15 +1962,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 Start the conversation by sending a message!
               </Text>
             </View>
-          ) : (
-            messages.map((message) => (
-              <View
-                key={message.id}
-                style={[
-                  styles.messageContainer,
-                  message.isOwn ? styles.ownMessage : styles.otherMessage,
-                ]}
-              >
+          }
+          renderItem={({ item: message }) => (
+            <View
+              style={[
+                styles.messageContainer,
+                message.isOwn ? styles.ownMessage : styles.otherMessage,
+              ]}
+            >
                 {!message.isOwn && (
                   <View style={styles.messageHeader}>
                     <ProgressiveImage
@@ -2289,9 +2280,21 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   </Text>
                 </Pressable>
               </View>
-            ))
           )}
-        </ScrollView>
+          contentContainerStyle={[
+            styles.messagesContent,
+            { paddingBottom: scrollBottomPadding },
+          ]}
+          style={styles.messagesContainer}
+          onContentSizeChange={() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+          }}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+          maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+          windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+          removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+        />
 
         {selectedMedia.length > 0 && (
           <ScrollView

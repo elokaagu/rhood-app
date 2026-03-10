@@ -9,9 +9,19 @@ if (typeof global !== "undefined") {
 }
 
 import { registerRootComponent } from "expo";
+import React from "react";
 import App from "./App";
+import { AudioProvider } from "./context/AudioContext";
 
 // TrackPlayer service registration is now handled in App.js after app initialization
 // This prevents Metro from trying to analyze the native module during bundling
 
-registerRootComponent(App);
+function Root() {
+  return (
+    <AudioProvider>
+      <App />
+    </AudioProvider>
+  );
+}
+
+registerRootComponent(Root);

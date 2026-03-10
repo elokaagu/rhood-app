@@ -65,12 +65,45 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     genre: "",
     isPublic: true,
     setAsPrimary: false,
+    isPinned: false,
   });
+  const [pinnedMixesCount, setPinnedMixesCount] = useState(0);
 
   // Load existing mixes on mount
   useEffect(() => {
     loadExistingMixes();
+    fetchPinnedMixesCount();
   }, [user?.id]);
+
+  // Fetch count of pinned mixes
+  const fetchPinnedMixesCount = async () => {
+    if (!user?.id) {
+      setPinnedMixesCount(0);
+      return;
+    }
+
+    try {
+      const { count, error } = await supabase
+        .from("mixes")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_pinned", true);
+
+      if (error) {
+        // If column doesn't exist yet, that's okay
+        if (error.code === "42703") {
+          setPinnedMixesCount(0);
+          return;
+        }
+        throw error;
+      }
+
+      setPinnedMixesCount(count || 0);
+    } catch (error) {
+      console.error("❌ Error fetching pinned mixes count:", error);
+      setPinnedMixesCount(0);
+    }
+  };
 
   // Animate progress bar when uploadProgress changes
   useEffect(() => {
@@ -139,7 +172,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     }
   };
 
-  const handleSelectMixToEdit = (mix) => {
+  const handleSelectMixToEdit = async (mix) => {
     setEditingMix(mix);
     setShowMixSelector(false);
     setMixData({
@@ -148,7 +181,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       genre: mix.genre || "",
       isPublic: mix.is_public !== false,
       setAsPrimary: false, // Don't change primary mix when editing
+      isPinned: mix.is_pinned || false,
     });
+    // Refresh pinned count when editing
+    await fetchPinnedMixesCount();
     if (mix.artwork_url || mix.image_url) {
       setSelectedArtwork({ uri: mix.artwork_url || mix.image_url });
     }
@@ -163,6 +199,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       genre: "",
       isPublic: true,
       setAsPrimary: existingMixes.length === 0, // Only set as primary if no mixes exist
+      isPinned: false,
     });
     setSelectedFile(null);
     setSelectedArtwork(null);
@@ -752,6 +789,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         description: mixData.description.trim() || null,
         genre: mixData.genre || "Electronic",
         is_public: mixData.isPublic,
+        is_pinned: mixData.isPinned || false,
       };
 
       // Persist duration when known (seconds). If editing without new file, keep existing duration.
@@ -921,6 +959,16 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           console.error("❌ Error setting primary mix:", primaryError);
           // Don't fail the upload if setting primary fails
         }
+      }
+
+      // Refresh pinned count after upload/update
+      await fetchPinnedMixesCount();
+      
+      // If unpinning, update local count immediately
+      if (editingMix && !mixData.isPinned && editingMix.is_pinned) {
+        setPinnedMixesCount((prev) => Math.max(0, prev - 1));
+      } else if (mixData.isPinned && (!editingMix || !editingMix.is_pinned)) {
+        setPinnedMixesCount((prev) => Math.min(3, prev + 1));
       }
 
       HapticPatterns.success();
@@ -1149,6 +1197,47 @@ const formatDuration = (millis) => {
               <Text style={styles.existingArtworkLabel}>Current artwork</Text>
             </View>
           )}
+          
+          {/* Show preview of selected artwork */}
+          {selectedArtwork && (
+            <View style={styles.artworkPreviewContainer}>
+              <Text style={styles.artworkPreviewLabel}>Preview</Text>
+              <Text style={styles.artworkPreviewSubtext}>
+                This is how your artwork will appear
+              </Text>
+              <View style={styles.artworkPreviewCard}>
+                <Image
+                  source={{ uri: selectedArtwork.uri }}
+                  style={styles.artworkPreviewImage}
+                  resizeMode="cover"
+                />
+                {mixData.title && (
+                  <View style={styles.artworkPreviewOverlay}>
+                    <Text style={styles.artworkPreviewTitle} numberOfLines={1}>
+                      {mixData.title}
+                    </Text>
+                    {mixData.genre && (
+                      <Text style={styles.artworkPreviewGenre} numberOfLines={1}>
+                        {mixData.genre}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.removeArtworkButton}
+                onPress={() => {
+                  setSelectedArtwork(null);
+                  HapticPatterns.buttonPress();
+                }}
+                disabled={uploading}
+              >
+                <Ionicons name="close-circle" size={20} color="hsl(0, 100%, 50%)" />
+                <Text style={styles.removeArtworkText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <TouchableOpacity
             style={styles.filePickerButton}
             onPress={pickArtworkImage}
@@ -1287,6 +1376,66 @@ const formatDuration = (millis) => {
                 : "This mix won't be your primary mix"}
             </Text>
           </View>
+
+          {/* Pin Mix Toggle */}
+          <View style={styles.inputGroup}>
+            <TouchableOpacity
+              style={styles.toggleRow}
+              onPress={() => {
+                HapticPatterns.buttonPress();
+                
+                // Check if we can pin (max 3)
+                if (!mixData.isPinned && pinnedMixesCount >= 3) {
+                  Alert.alert(
+                    "Maximum Pinned Mixes",
+                    "You can only pin up to 3 mixes. Please unpin another mix first.",
+                    [{ text: "OK" }]
+                  );
+                  return;
+                }
+
+                setMixData((prev) => ({
+                  ...prev,
+                  isPinned: !prev.isPinned,
+                }));
+              }}
+              disabled={uploading}
+            >
+              <View style={styles.toggleLeft}>
+                <Ionicons
+                  name={mixData.isPinned ? "pin" : "pin-outline"}
+                  size={20}
+                  color={mixData.isPinned ? "hsl(75, 100%, 60%)" : "white"}
+                />
+                <View style={styles.toggleLabelContainer}>
+                  <Text style={styles.toggleLabel}>Pin as Top Mix</Text>
+                  <Text style={styles.toggleSubLabel}>
+                    Showcase your best work ({pinnedMixesCount}/3 pinned)
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={[
+                  styles.toggle,
+                  mixData.isPinned && styles.toggleActive,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.toggleThumb,
+                    mixData.isPinned && styles.toggleThumbActive,
+                  ]}
+                />
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.toggleHint}>
+              {mixData.isPinned
+                ? "This mix will appear in your pinned mixes section"
+                : pinnedMixesCount >= 3
+                ? "You've reached the maximum of 3 pinned mixes"
+                : "Pin up to 3 mixes to showcase your versatility"}
+            </Text>
+          </View>
         </View>
 
         {/* Upload Button */}
@@ -1300,7 +1449,7 @@ const formatDuration = (millis) => {
         >
           <LinearGradient
             colors={
-              uploading || !selectedFile
+              uploading || (!editingMix && !selectedFile)
                 ? ["hsl(0, 0%, 20%)", "hsl(0, 0%, 15%)"]
                 : ["hsl(75, 100%, 60%)", "hsl(75, 100%, 50%)"]
             }
@@ -1570,6 +1719,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
   },
+  toggleLabelContainer: {
+    flex: 1,
+    gap: 2,
+  },
+  toggleSubLabel: {
+    fontSize: 11,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+  },
   uploadButton: {
     borderRadius: 12,
     overflow: "hidden",
@@ -1612,6 +1770,77 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 60%)",
     fontSize: 12,
     fontFamily: "Helvetica Neue",
+  },
+  artworkPreviewContainer: {
+    marginBottom: 20,
+    alignItems: "center",
+  },
+  artworkPreviewLabel: {
+    fontSize: 14,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  artworkPreviewSubtext: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+    marginBottom: 16,
+  },
+  artworkPreviewCard: {
+    width: 200,
+    height: 200,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderWidth: 2,
+    borderColor: "hsl(75, 100%, 60%, 0.3)",
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    position: "relative",
+  },
+  artworkPreviewImage: {
+    width: "100%",
+    height: "100%",
+  },
+  artworkPreviewOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    padding: 12,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+  },
+  artworkPreviewTitle: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 4,
+  },
+  artworkPreviewGenre: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 80%)",
+  },
+  removeArtworkButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  removeArtworkText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 100%, 50%)",
   },
   mixSelectorScroll: {
     marginHorizontal: -20,

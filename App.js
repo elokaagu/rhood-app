@@ -1,6 +1,7 @@
 import React, {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useMemo,
   useCallback,
@@ -121,6 +122,7 @@ import {
   trackScreenView,
   AnalyticsEvents,
 } from "./lib/analytics";
+import { useAudio } from "./context/AudioContext";
 
 // Static Album Art Component
 const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
@@ -252,20 +254,8 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login"); // 'login' or 'signup'
 
-  // Global audio state for persistent playback
-  const [globalAudioState, setGlobalAudioState] = useState({
-    isPlaying: false,
-    currentTrack: null,
-    progress: 0,
-    isLoading: false,
-    sound: null,
-    isShuffled: false,
-    repeatMode: "none", // 'none', 'one', 'all'
-    positionMillis: 0,
-    durationMillis: 0,
-    queue: [], // Array of tracks in queue
-    currentQueueIndex: -1, // Index of current track in queue
-  });
+  // Global audio state from context (so only audio consumers re-render when it changes)
+  const { globalAudioState, setGlobalAudioState, actionsRef } = useAudio();
 
   // Audio error modal state
   const [audioErrorModal, setAudioErrorModal] = useState({ visible: false, title: "", message: "" });
@@ -329,53 +319,6 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null);
   const [locationMismatchWarning, setLocationMismatchWarning] = useState(false);
   const [showFullScreenMenu, setShowFullScreenMenu] = useState(false);
-
-  // Gesture handlers for full-screen player
-  const createGestureHandlers = () => {
-    const panResponder = PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Don't handle gestures if we're currently scrubbing
-        if (isScrubbing) {
-          return false;
-        }
-        return Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20;
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        // Don't handle gestures if we're currently scrubbing
-        if (isScrubbing) {
-          return;
-        }
-
-        // Handle horizontal swipes for track navigation
-        if (Math.abs(gestureState.dx) > Math.abs(gestureState.dy)) {
-          if (gestureState.dx > 50) {
-            // Swipe right - previous track
-            skipBackward();
-            Vibration.vibrate(100);
-          } else if (gestureState.dx < -50) {
-            // Swipe left - next track
-            skipForward();
-            Vibration.vibrate(100);
-          }
-        }
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        // Don't handle gestures if we're currently scrubbing
-        if (isScrubbing) {
-          return;
-        }
-
-        // Handle vertical swipes
-        if (Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
-          if (gestureState.dy > 100) {
-            // Swipe down - close player
-            setShowFullScreenPlayer(false);
-          }
-        }
-      },
-    });
-    return panResponder.panHandlers;
-  };
 
   // Opportunities state - now using live data from Supabase
   const [opportunities, setOpportunities] = useState([]);
@@ -469,6 +412,10 @@ export default function App() {
   const pauseGlobalAudioRef = useRef(null);
   const resumeGlobalAudioRef = useRef(null);
   const seekGlobalAudioRef = useRef(null);
+  // Refs for full-screen player gesture handlers (avoid recreating PanResponder every render)
+  const isScrubbingRef = useRef(false);
+  const skipBackwardRef = useRef(null);
+  const skipForwardRef = useRef(null);
 
   // Keep refs in sync with current functions/state
   useEffect(() => {
@@ -2525,6 +2472,38 @@ export default function App() {
     }
   };
 
+  // Memoized full-screen player gesture handlers (refs updated in render so callbacks see latest values)
+  isScrubbingRef.current = isScrubbing;
+  skipBackwardRef.current = skipBackward;
+  skipForwardRef.current = skipForward;
+  const fullScreenGestureHandlers = useMemo(() => {
+    const panResponder = PanResponder.create({
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        if (isScrubbingRef.current) return false;
+        return Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20;
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        if (isScrubbingRef.current) return;
+        if (Math.abs(gestureState.dx) > Math.abs(gestureState.dy)) {
+          if (gestureState.dx > 50) {
+            if (skipBackwardRef.current) skipBackwardRef.current();
+            Vibration.vibrate(100);
+          } else if (gestureState.dx < -50) {
+            if (skipForwardRef.current) skipForwardRef.current();
+            Vibration.vibrate(100);
+          }
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        if (isScrubbingRef.current) return;
+        if (Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && gestureState.dy > 100) {
+          setShowFullScreenPlayer(false);
+        }
+      },
+    });
+    return panResponder.panHandlers;
+  }, []);
+
   // Repeat functionality
   const toggleRepeat = () => {
     setGlobalAudioState((prev) => {
@@ -3067,6 +3046,65 @@ export default function App() {
     console.log("🗑️ Queue cleared");
   };
 
+  // Move queue item up (decrease index)
+  const moveQueueItemUp = useCallback((index) => {
+    if (index > 0) {
+      setGlobalAudioState((prev) => {
+        // Reorder logic inline to avoid nested setState
+        const newQueue = [...prev.queue];
+        const [movedItem] = newQueue.splice(index, 1);
+        newQueue.splice(index - 1, 0, movedItem);
+        
+        // Update currentQueueIndex if it's affected by the reorder
+        let newCurrentIndex = prev.currentQueueIndex;
+        if (prev.currentQueueIndex === index) {
+          newCurrentIndex = index - 1;
+        } else if (prev.currentQueueIndex === index - 1) {
+          newCurrentIndex = index;
+        }
+        
+        HapticPatterns.buttonPress();
+        console.log(`🔄 Moved queue item from position ${index + 1} to ${index}`);
+        
+        return {
+          ...prev,
+          queue: newQueue,
+          currentQueueIndex: newCurrentIndex,
+        };
+      });
+    }
+  }, []);
+
+  // Move queue item down (increase index)
+  const moveQueueItemDown = useCallback((index) => {
+    setGlobalAudioState((prev) => {
+      if (index < prev.queue.length - 1) {
+        // Reorder logic inline to avoid nested setState
+        const newQueue = [...prev.queue];
+        const [movedItem] = newQueue.splice(index, 1);
+        newQueue.splice(index + 1, 0, movedItem);
+        
+        // Update currentQueueIndex if it's affected by the reorder
+        let newCurrentIndex = prev.currentQueueIndex;
+        if (prev.currentQueueIndex === index) {
+          newCurrentIndex = index + 1;
+        } else if (prev.currentQueueIndex === index + 1) {
+          newCurrentIndex = index;
+        }
+        
+        HapticPatterns.buttonPress();
+        console.log(`🔄 Moved queue item from position ${index + 1} to ${index + 2}`);
+        
+        return {
+          ...prev,
+          queue: newQueue,
+          currentQueueIndex: newCurrentIndex,
+        };
+      }
+      return prev;
+    });
+  }, []);
+
   // Shuffle functions
   const shuffleArray = (array) => {
     const shuffled = [...array];
@@ -3483,6 +3521,26 @@ export default function App() {
 
   // TrackPlayer events handle remote controls - no callbacks needed
   // Old callback code removed - TrackPlayer service handles everything
+
+  // Expose audio actions to context so screens can use useAudioActions().current without re-subscribing to state
+  useLayoutEffect(() => {
+    if (actionsRef) {
+      actionsRef.current = {
+        playGlobalAudio,
+        pauseGlobalAudio,
+        resumeGlobalAudio,
+        stopGlobalAudio,
+        addToQueue,
+        playNextTrack,
+        playPreviousTrack,
+        clearQueue,
+        addToQueueAndPlay,
+        skipForward,
+        skipBackward,
+        toggleLike,
+      };
+    }
+  });
 
   // Share functionality
   const shareTrack = async () => {
@@ -5334,6 +5392,7 @@ export default function App() {
               console.log("Mix uploaded:", mix);
               setCurrentScreen("profile");
             }}
+            existingMixId={screenParams.mixId || null}
           />
         );
 
@@ -5769,6 +5828,34 @@ export default function App() {
                 adjustsFontSizeToFit={true}
               >
                 Listen
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                currentScreen === "profile" && styles.activeTab,
+              ]}
+              onPress={() => handleMenuNavigation("profile")}
+            >
+              <Ionicons
+                name="person-outline"
+                size={20}
+                color={
+                  currentScreen === "profile"
+                    ? "hsl(75, 100%, 60%)"
+                    : "hsl(0, 0%, 70%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  currentScreen === "profile" && styles.activeTabText,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+              >
+                Profile
               </Text>
             </TouchableOpacity>
           </LinearGradient>
@@ -6224,7 +6311,7 @@ export default function App() {
                 style={styles.fullScreenPlayer}
                 contentContainerStyle={styles.fullScreenPlayerContent}
                 showsVerticalScrollIndicator={false}
-                {...createGestureHandlers()}
+                {...fullScreenGestureHandlers}
               >
                 {/* Header with close button */}
                 <View style={styles.fullScreenHeader}>
@@ -6678,53 +6765,90 @@ export default function App() {
 
                   {globalAudioState.queue && globalAudioState.queue.length > 0 ? (
                     globalAudioState.queue.map((track, index) => (
-                      <TouchableOpacity
+                      <View
                         key={`${track.id}-${index}`}
                         style={styles.queueItem}
-                        onPress={() => {
-                          // Play this track from queue
-                          playGlobalAudio(track);
-                          setGlobalAudioState((prev) => ({
-                            ...prev,
-                            currentQueueIndex: index,
-                          }));
-                        }}
-                        activeOpacity={0.7}
                       >
-                        <View style={styles.queueItemNumber}>
-                          <Text style={styles.queueItemNumberText}>
-                            {index + 1}
-                          </Text>
-                        </View>
-                        <View style={styles.queueItemInfo}>
-                          <Text style={styles.queueItemTitle} numberOfLines={1}>
-                            {track.title}
-                          </Text>
-                          <Text style={styles.queueItemArtist} numberOfLines={1}>
-                            {track.artist}
-                          </Text>
-                        </View>
                         <TouchableOpacity
-                          style={styles.queueItemRemove}
+                          style={styles.queueItemContent}
                           onPress={() => {
+                            // Play this track from queue
+                            playGlobalAudio(track);
                             setGlobalAudioState((prev) => ({
                               ...prev,
-                              queue: prev.queue.filter((_, i) => i !== index),
-                              currentQueueIndex:
-                                prev.currentQueueIndex > index
-                                  ? prev.currentQueueIndex - 1
-                                  : prev.currentQueueIndex,
+                              currentQueueIndex: index,
                             }));
                           }}
                           activeOpacity={0.7}
                         >
-                          <Ionicons
-                            name="close"
-                            size={18}
-                            color="hsl(0, 0%, 50%)"
-                          />
+                          <View style={styles.queueItemNumber}>
+                            <Text style={styles.queueItemNumberText}>
+                              {index + 1}
+                            </Text>
+                          </View>
+                          <View style={styles.queueItemInfo}>
+                            <Text style={styles.queueItemTitle} numberOfLines={1}>
+                              {track.title}
+                            </Text>
+                            <Text style={styles.queueItemArtist} numberOfLines={1}>
+                              {track.artist}
+                            </Text>
+                          </View>
                         </TouchableOpacity>
-                      </TouchableOpacity>
+                        <View style={styles.queueItemActions}>
+                          {/* Move Up Button */}
+                          {index > 0 && (
+                            <TouchableOpacity
+                              style={styles.queueItemReorderButton}
+                              onPress={() => moveQueueItemUp(index)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name="chevron-up"
+                                size={18}
+                                color="hsl(75, 100%, 60%)"
+                              />
+                            </TouchableOpacity>
+                          )}
+                          {/* Move Down Button */}
+                          {index < globalAudioState.queue.length - 1 && (
+                            <TouchableOpacity
+                              style={styles.queueItemReorderButton}
+                              onPress={() => moveQueueItemDown(index)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name="chevron-down"
+                                size={18}
+                                color="hsl(75, 100%, 60%)"
+                              />
+                            </TouchableOpacity>
+                          )}
+                          {/* Remove Button */}
+                          <TouchableOpacity
+                            style={styles.queueItemRemove}
+                            onPress={() => {
+                              setGlobalAudioState((prev) => ({
+                                ...prev,
+                                queue: prev.queue.filter((_, i) => i !== index),
+                                currentQueueIndex:
+                                  prev.currentQueueIndex > index
+                                    ? prev.currentQueueIndex - 1
+                                    : prev.currentQueueIndex === index
+                                    ? -1
+                                    : prev.currentQueueIndex,
+                              }));
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons
+                              name="close"
+                              size={18}
+                              color="hsl(0, 0%, 50%)"
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
                     ))
                   ) : (
                     <View style={styles.queueEmpty}>
@@ -7416,23 +7540,23 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     alignItems: "center",
     flexDirection: "column",
     gap: 4,
-    marginHorizontal: 2,
+    marginHorizontal: 1,
     backgroundColor: "transparent", // Ensure 0 opacity for all tabs
   },
   activeTab: {
     backgroundColor: "transparent", // Remove background for active tab
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: "Helvetica Neue",
     fontWeight: "500", // Medium weight
     color: "hsl(0, 0%, 70%)", // Muted foreground
     textTransform: "capitalize", // Proper capitalization instead of uppercase
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   activeTabText: {
     color: "hsl(75, 100%, 60%)", // Brand lime green for active text
@@ -8099,6 +8223,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "hsl(0, 0%, 8%)",
     marginBottom: 8,
+  },
+  queueItemContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  queueItemActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  queueItemReorderButton: {
+    padding: 4,
   },
   queueItemNumber: {
     width: 32,

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,6 +18,7 @@ import AnimatedListItem from "./AnimatedListItem";
 import RhoodModal from "./RhoodModal";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
+import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 
 // Helper function to format relative time
 const formatRelativeTime = (timestamp) => {
@@ -273,12 +275,13 @@ export default function NotificationsScreen({
             ? removeCelebrateEmoji(baseTitle)
             : baseTitle;
 
-        return {
+        const transformedNotification = {
         id: notification.id,
         type: notification.type,
           title: displayTitle,
         description: notification.message,
         timestamp: formatRelativeTime(notification.created_at),
+        rawTimestamp: notification.created_at, // Keep original timestamp for sorting
         isRead: notification.is_read,
         priority: getPriorityFromType(notification.type),
         actionRequired:
@@ -296,6 +299,11 @@ export default function NotificationsScreen({
             null,
           rawData: notification.data || notification.metadata || {},
         };
+        
+        // Calculate priority score for sorting
+        transformedNotification.priorityScore = getPriorityScore(transformedNotification);
+        
+        return transformedNotification;
         });
 
       setNotifications(transformedNotifications);
@@ -308,8 +316,60 @@ export default function NotificationsScreen({
     }
   };
 
+  // Enhanced priority system with numeric values for better sorting
+  const getPriorityScore = (notification) => {
+    const type = notification.type?.toLowerCase() || "";
+    const title = (notification.title || "").toLowerCase();
+    const message = (notification.message || "").toLowerCase();
+    const isRead = notification.is_read || false;
+    
+    // Priority levels (higher number = higher priority):
+    // 100+ = Urgent (connection requests, payment deadlines, opportunity acceptance deadlines)
+    // 50-99 = High (opportunities, applications)
+    // 20-49 = Medium (messages)
+    // 0-19 = Low (system, general)
+    
+    // Connection requests - highest priority (unread)
+    if ((type === "connection" || type === "connection_request") && !isRead) {
+      return 100;
+    }
+    
+    // Payment deadline notifications - urgent
+    if (title.includes("payment") && (title.includes("deadline") || title.includes("due"))) {
+      return 95;
+    }
+    
+    // Opportunity acceptance deadlines - urgent
+    if ((type === "opportunity" || type === "application") && 
+        (title.includes("deadline") || title.includes("accept") || title.includes("respond"))) {
+      return 90;
+    }
+    
+    // Opportunity and application notifications - high priority
+    if (type === "opportunity" || type === "application") {
+      return isRead ? 50 : 60; // Unread opportunities slightly higher
+    }
+    
+    // Connection requests (read) - still high priority
+    if (type === "connection" || type === "connection_request") {
+      return 45;
+    }
+    
+    // Messages - medium priority
+    if (type === "message") {
+      return isRead ? 20 : 30; // Unread messages slightly higher
+    }
+    
+    // System notifications - low priority
+    return isRead ? 0 : 10; // Unread system notifications slightly higher
+  };
+  
+  // Legacy function for backward compatibility
   const getPriorityFromType = (type) => {
     switch (type) {
+      case "connection":
+      case "connection_request":
+        return "urgent";
       case "opportunity":
       case "application":
         return "high";
@@ -633,20 +693,24 @@ export default function NotificationsScreen({
     setRefreshing(false);
   };
 
-  // Sort notifications by priority and timestamp
+  // Sort notifications by priority score, unread status, and timestamp
   const sortedNotifications = useMemo(() => {
-    return notifications.sort((a, b) => {
-      // Unread first
+    return [...notifications].sort((a, b) => {
+      // First: Unread notifications come first
       if (a.isRead !== b.isRead) {
         return a.isRead ? 1 : -1;
       }
-      // Then by priority
-      const priorityOrder = { high: 3, medium: 2, low: 1 };
-      if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-        return priorityOrder[b.priority] - priorityOrder[a.priority];
+      
+      // Second: Sort by priority score (higher = more urgent)
+      const priorityDiff = (b.priorityScore || 0) - (a.priorityScore || 0);
+      if (priorityDiff !== 0) {
+        return priorityDiff;
       }
-      // Then by timestamp (most recent first)
-      return new Date(b.timestamp) - new Date(a.timestamp);
+      
+      // Third: Within same priority, newest first (most recent timestamp)
+      const timeA = a.rawTimestamp ? new Date(a.rawTimestamp).getTime() : 0;
+      const timeB = b.rawTimestamp ? new Date(b.rawTimestamp).getTime() : 0;
+      return timeB - timeA;
     });
   }, [notifications]);
 
@@ -667,12 +731,27 @@ export default function NotificationsScreen({
     }
   };
 
-  const getPriorityColor = (priority) => {
+  const getPriorityColor = (priority, priorityScore) => {
+    // Use priority score if available for more accurate color
+    if (priorityScore !== undefined) {
+      if (priorityScore >= 90) {
+        return "hsl(0, 100%, 60%)"; // Red for urgent
+      } else if (priorityScore >= 50) {
+        return "hsl(45, 100%, 60%)"; // Orange for high
+      } else if (priorityScore >= 20) {
+        return "hsl(75, 100%, 60%)"; // Lime for medium
+      }
+      return "hsl(0, 0%, 60%)"; // Gray for low
+    }
+    
+    // Fallback to priority string
     switch (priority) {
-      case "high":
+      case "urgent":
         return "hsl(0, 100%, 60%)";
-      case "medium":
+      case "high":
         return "hsl(45, 100%, 60%)";
+      case "medium":
+        return "hsl(75, 100%, 60%)";
       case "low":
         return "hsl(0, 0%, 60%)";
       default:
@@ -685,205 +764,188 @@ export default function NotificationsScreen({
     ? getNotificationActionState(activeConnectionNotification.id)
     : null;
 
+  const renderNotificationItem = useCallback(
+    ({ item: notification, index }) => (
+      <AnimatedListItem key={notification.id} index={index} delay={60}>
+        <TouchableOpacity
+          style={[
+            styles.notificationCard,
+            !notification.isRead && styles.unreadCard,
+          ]}
+          onPress={() => handleNotificationPress(notification)}
+          onLongPress={() => {
+            if (notification.type === "connection" || notification.type === "connection_request") {
+              HapticPatterns.primaryButtonPress();
+              setActiveConnectionNotification(notification);
+              setShowConnectionPrompt(true);
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={styles.notificationContent}>
+            <View style={styles.notificationLeft}>
+              <View style={styles.iconContainer}>
+                <Ionicons
+                  name={getNotificationIcon(notification.type)}
+                  size={24}
+                  color={
+                    notification.isRead
+                      ? "hsl(0, 0%, 50%)"
+                      : "hsl(75, 100%, 60%)"
+                  }
+                />
+                {!notification.isRead && <View style={styles.unreadDot} />}
+              </View>
+              {notification.senderImage && (
+                <ProgressiveImage
+                  source={{ uri: notification.senderImage }}
+                  style={styles.senderImage}
+                />
+              )}
+            </View>
+            <View style={styles.notificationCenter}>
+              <View style={styles.notificationHeader}>
+                <Text
+                  style={[
+                    styles.notificationTitle,
+                    !notification.isRead && styles.unreadTitle,
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {notification.title}
+                </Text>
+                <View style={styles.notificationActions}>
+                  {!notification.isRead && (
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleMarkAsRead(notification.id);
+                      }}
+                      style={styles.actionButton}
+                    >
+                      <Ionicons name="checkmark" size={16} color="hsl(0, 0%, 50%)" />
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleDismiss(notification.id);
+                    }}
+                    style={styles.actionButton}
+                  >
+                    <Ionicons name="close" size={16} color="hsl(0, 0%, 50%)" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <Text
+                style={styles.notificationDescription}
+                numberOfLines={2}
+              >
+                {notification.description}
+              </Text>
+              <View style={styles.notificationFooter}>
+                <Text style={styles.notificationTimestamp}>
+                  {notification.timestamp}
+                </Text>
+                <View
+                  style={[
+                    styles.priorityIndicator,
+                    {
+                      backgroundColor: getPriorityColor(
+                        notification.priority,
+                        notification.priorityScore
+                      ),
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </AnimatedListItem>
+    ),
+    [
+      handleNotificationPress,
+      handleMarkAsRead,
+      handleDismiss,
+    ]
+  );
+
+  const listHeader = (
+    <>
+      <View style={styles.header}>
+        <Text style={styles.tsBlockBoldHeading}>NOTIFICATIONS</Text>
+        <Text style={styles.headerSubtitle}>
+          {unreadCount > 0
+            ? `${unreadCount} unread notifications`
+            : "All caught up!"}
+        </Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.headerActionButton}
+            onPress={markAllAsRead}
+            disabled={loading || notifications.length === 0}
+          >
+            <Ionicons name="checkmark-done" size={16} color="hsl(75, 100%, 60%)" />
+            <Text style={styles.headerActionText}>Mark All Read</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerActionButton}
+            onPress={handleClearAllPress}
+            disabled={loading || notifications.length === 0}
+          >
+            <Ionicons name="trash-outline" size={16} color="hsl(0, 0%, 70%)" />
+            <Text style={styles.headerActionText}>Clear All</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      {!notificationPreferences.messageNotifications && (
+        <View style={styles.preferenceBanner}>
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color="hsl(75, 100%, 60%)" />
+          <View style={styles.preferenceBannerContent}>
+            <Text style={styles.preferenceBannerTitle}>
+              Message notifications are off
+            </Text>
+            <Text style={styles.preferenceBannerSubtitle}>
+              Re-enable them in Settings if you want alerts for new messages.
+            </Text>
+          </View>
+        </View>
+      )}
+    </>
+  );
+
+  const listEmptyComponent = loading ? (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
+      <Text style={styles.loadingText}>Loading notifications...</Text>
+    </View>
+  ) : (
+    <View style={styles.noResultsContainer}>
+      <Ionicons name="notifications-off" size={48} color="hsl(0, 0%, 30%)" />
+      <Text style={styles.noResultsTitle}>No notifications</Text>
+      <Text style={styles.noResultsSubtitle}>You're all caught up!</Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
+      <FlatList
+        data={loading ? [] : sortedNotifications}
+        keyExtractor={(item) => item.id}
+        renderItem={renderNotificationItem}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmptyComponent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.tsBlockBoldHeading}>NOTIFICATIONS</Text>
-          <Text style={styles.headerSubtitle}>
-            {unreadCount > 0
-              ? `${unreadCount} unread notifications`
-              : "All caught up!"}
-          </Text>
-
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.headerActionButton}
-              onPress={markAllAsRead}
-              disabled={loading || notifications.length === 0}
-            >
-              <Ionicons
-                name="checkmark-done"
-                size={16}
-                color="hsl(75, 100%, 60%)"
-              />
-              <Text style={styles.headerActionText}>Mark All Read</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerActionButton}
-              onPress={handleClearAllPress}
-              disabled={loading || notifications.length === 0}
-            >
-              <Ionicons
-                name="trash-outline"
-                size={16}
-                color="hsl(0, 0%, 70%)"
-              />
-              <Text style={styles.headerActionText}>Clear All</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Notifications List */}
-        <View style={styles.notificationsList}>
-          {!notificationPreferences.messageNotifications && (
-            <View style={styles.preferenceBanner}>
-              <Ionicons
-                name="chatbubble-ellipses-outline"
-                size={18}
-                color="hsl(75, 100%, 60%)"
-              />
-              <View style={styles.preferenceBannerContent}>
-                <Text style={styles.preferenceBannerTitle}>
-                  Message notifications are off
-                </Text>
-                <Text style={styles.preferenceBannerSubtitle}>
-                  Re-enable them in Settings if you want alerts for new messages.
-                </Text>
-              </View>
-            </View>
-          )}
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
-              <Text style={styles.loadingText}>Loading notifications...</Text>
-            </View>
-          ) : sortedNotifications.length === 0 ? (
-            <View style={styles.noResultsContainer}>
-              <Ionicons
-                name="notifications-off"
-                size={48}
-                color="hsl(0, 0%, 30%)"
-              />
-              <Text style={styles.noResultsTitle}>No notifications</Text>
-              <Text style={styles.noResultsSubtitle}>
-                You're all caught up!
-              </Text>
-            </View>
-          ) : (
-            sortedNotifications.map((notification, index) => (
-              <AnimatedListItem key={notification.id} index={index} delay={60}>
-                <TouchableOpacity
-                  style={[
-                    styles.notificationCard,
-                    !notification.isRead && styles.unreadCard,
-                  ]}
-                  onPress={() => handleNotificationPress(notification)}
-                  onLongPress={() => {
-                    // Show accept/reject dialog for connection requests on long press
-                    if (notification.type === "connection" || notification.type === "connection_request") {
-                      HapticPatterns.primaryButtonPress();
-                      setActiveConnectionNotification(notification);
-                      setShowConnectionPrompt(true);
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.notificationContent}>
-                    {/* Left Side - Icon and Status */}
-                    <View style={styles.notificationLeft}>
-                      <View style={styles.iconContainer}>
-                        <Ionicons
-                          name={getNotificationIcon(notification.type)}
-                          size={24}
-                          color={
-                            notification.isRead
-                              ? "hsl(0, 0%, 50%)"
-                              : "hsl(75, 100%, 60%)"
-                          }
-                        />
-                        {!notification.isRead && (
-                          <View style={styles.unreadDot} />
-                        )}
-                      </View>
-                      {notification.senderImage && (
-                        <ProgressiveImage
-                          source={{ uri: notification.senderImage }}
-                          style={styles.senderImage}
-                        />
-                      )}
-                    </View>
-
-                    {/* Center - Content */}
-                    <View style={styles.notificationCenter}>
-                      <View style={styles.notificationHeader}>
-                        <Text
-                          style={[
-                            styles.notificationTitle,
-                            !notification.isRead && styles.unreadTitle,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {notification.title}
-                        </Text>
-                        <View style={styles.notificationActions}>
-                          {!notification.isRead && (
-                            <TouchableOpacity
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                handleMarkAsRead(notification.id);
-                              }}
-                              style={styles.actionButton}
-                            >
-                              <Ionicons
-                                name="checkmark"
-                                size={16}
-                                color="hsl(0, 0%, 50%)"
-                              />
-                            </TouchableOpacity>
-                          )}
-                          <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleDismiss(notification.id);
-                            }}
-                            style={styles.actionButton}
-                          >
-                            <Ionicons
-                              name="close"
-                              size={16}
-                              color="hsl(0, 0%, 50%)"
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-
-                      <Text
-                        style={styles.notificationDescription}
-                        numberOfLines={2}
-                      >
-                        {notification.description}
-                      </Text>
-
-                      <View style={styles.notificationFooter}>
-                        <Text style={styles.notificationTimestamp}>
-                          {notification.timestamp}
-                        </Text>
-                        <View
-                          style={[
-                            styles.priorityIndicator,
-                            {
-                              backgroundColor: getPriorityColor(
-                                notification.priority
-                              ),
-                            },
-                          ]}
-                        />
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </AnimatedListItem>
-            ))
-          )}
-        </View>
-      </ScrollView>
+        style={styles.scrollView}
+        initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+        maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+        windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+        removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+      />
 
       {/* Bottom gradient fade overlay */}
       <LinearGradient
@@ -1110,12 +1172,14 @@ const styles = StyleSheet.create({
   },
   notificationCenter: {
     flex: 1,
+    minWidth: 0,
   },
   notificationHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 8,
+    minWidth: 0,
   },
   notificationTitle: {
     fontSize: 12.5,
@@ -1124,7 +1188,9 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     flex: 1,
     flexShrink: 1,
+    minWidth: 0,
     marginRight: 8,
+    paddingRight: 4,
   },
   unreadTitle: {
     color: "hsl(75, 100%, 60%)",

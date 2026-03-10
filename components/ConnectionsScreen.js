@@ -12,6 +12,8 @@ import {
   Alert,
   ActivityIndicator,
   Pressable,
+  Modal,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,6 +24,7 @@ import { HapticPatterns } from "../lib/haptics";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase, db } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
+import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 
 // No mock data - all data comes from database
 
@@ -69,6 +72,11 @@ function ConnectionsScreenComponent({
   const [popularDJsLoading, setPopularDJsLoading] = useState(false);
   const [nearbyDJs, setNearbyDJs] = useState([]);
   const [nearbyDJsLoading, setNearbyDJsLoading] = useState(false);
+  const [nearbyOpportunities, setNearbyOpportunities] = useState([]);
+  const [nearbyOpportunitiesLoading, setNearbyOpportunitiesLoading] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [newLocationCity, setNewLocationCity] = useState("");
+  const [updatingLocation, setUpdatingLocation] = useState(false);
   const [connectionsFadeAnim] = useState(new Animated.Value(1)); // Start visible for smooth rendering
   const [discoverFadeAnim] = useState(new Animated.Value(1)); // Start visible for smooth rendering
   const [hasLoadedConnections, setHasLoadedConnections] = useState(false);
@@ -222,6 +230,148 @@ function ConnectionsScreenComponent({
     }
   };
 
+  // Load nearby opportunities based on user's city
+  const loadNearbyOpportunities = async () => {
+    try {
+      setNearbyOpportunitiesLoading(true);
+
+      // Get current user
+      const { supabase } = await import("../lib/supabase");
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      if (!currentUser) {
+        console.log("❌ No current user found for nearby opportunities");
+        setNearbyOpportunities([]);
+        return;
+      }
+
+      // Get user's profile to find their city
+      const userProfile = await db.getUserProfile(currentUser.id);
+      if (!userProfile || !userProfile.city) {
+        console.log("❌ User has no city set, skipping nearby opportunities");
+        setNearbyOpportunities([]);
+        return;
+      }
+
+      // Fetch active opportunities in the same city
+      const { data: opportunitiesData, error } = await supabase
+        .from("opportunities")
+        .select("*")
+        .eq("is_active", true)
+        .ilike("city", userProfile.city) // Case-insensitive match
+        .gte("event_date", new Date().toISOString().split("T")[0]) // Only future events
+        .order("event_date", { ascending: true })
+        .limit(10);
+
+      if (error) {
+        console.error("Error loading nearby opportunities:", error);
+        setNearbyOpportunities([]);
+        return;
+      }
+
+      // Transform opportunities for display
+      const transformedOpportunities = (opportunitiesData || []).map((opp) => {
+        const formattedDate = opp.event_date
+          ? new Date(opp.event_date).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })
+          : "TBD";
+
+        return {
+          id: opp.id,
+          title: opp.title,
+          venue: opp.venue || "Venue TBD",
+          city: opp.city || userProfile.city,
+          date: formattedDate,
+          genre: opp.genre || "Electronic",
+          compensation: opp.payment
+            ? `${opp.payment_currency || "GBP"} ${opp.payment}`
+            : "TBD",
+          image:
+            opp.image_url ||
+            (opp.genre === "Techno"
+              ? "https://images.unsplash.com/photo-1571266028243-e68f8570c0e8?w=400&h=400&fit=crop"
+              : opp.genre === "House"
+              ? "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop"
+              : "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop"),
+        };
+      });
+
+      setNearbyOpportunities(transformedOpportunities);
+    } catch (error) {
+      console.error("Error loading nearby opportunities:", error);
+      setNearbyOpportunities([]);
+    } finally {
+      setNearbyOpportunitiesLoading(false);
+    }
+  };
+
+  // Update user's location
+  const handleUpdateLocation = async () => {
+    if (!newLocationCity.trim() || !user?.id) return;
+
+    try {
+      setUpdatingLocation(true);
+      await db.updateUserProfile(user.id, { city: newLocationCity.trim() });
+
+      // Update local user state
+      setUser((prev) => ({
+        ...prev,
+        city: newLocationCity.trim(),
+      }));
+
+      // Reload nearby DJs and opportunities with new location
+      await Promise.all([loadNearbyDJs(), loadNearbyOpportunities()]);
+
+      setShowLocationModal(false);
+      setNewLocationCity("");
+      HapticPatterns.success();
+      Alert.alert("Success", "Location updated successfully!");
+    } catch (error) {
+      console.error("❌ Error updating location:", error);
+      Alert.alert("Error", "Failed to update location. Please try again.");
+    } finally {
+      setUpdatingLocation(false);
+    }
+  };
+
+  // Get current location and update city
+  const handleUseCurrentLocation = async () => {
+    try {
+      const { getCurrentLocation, reverseGeocode } = await import(
+        "../lib/locationService"
+      );
+
+      const location = await getCurrentLocation();
+      if (!location) {
+        Alert.alert(
+          "Location Unavailable",
+          "Could not get your current location. Please enter your city manually."
+        );
+        return;
+      }
+
+      const city = await reverseGeocode(location.latitude, location.longitude);
+      if (city) {
+        setNewLocationCity(city);
+      } else {
+        Alert.alert(
+          "Location Unavailable",
+          "Could not determine your city. Please enter it manually."
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error getting current location:", error);
+      Alert.alert(
+        "Error",
+        "Failed to get your location. Please enter your city manually."
+      );
+    }
+  };
+
   // Load nearby DJs based on user's city
   const loadNearbyDJs = async () => {
     try {
@@ -318,6 +468,13 @@ function ConnectionsScreenComponent({
       setNearbyDJsLoading(false);
     }
   };
+
+  // Load nearby opportunities when user or city changes
+  useEffect(() => {
+    if (user?.id) {
+      loadNearbyOpportunities();
+    }
+  }, [user?.id, user?.city]);
 
   // Load user and discover data on mount
   useEffect(() => {
@@ -2266,6 +2423,20 @@ function ConnectionsScreenComponent({
                       <Text style={styles.recommendationsTitle}>
                         DJs Near You
                       </Text>
+                      <TouchableOpacity
+                        style={styles.locationUpdateButton}
+                        onPress={() => {
+                          setNewLocationCity(user?.city || "");
+                          setShowLocationModal(true);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name="location-outline"
+                          size={16}
+                          color="hsl(75, 100%, 60%)"
+                        />
+                      </TouchableOpacity>
                     </View>
                     <ScrollView
                       horizontal
@@ -2331,6 +2502,106 @@ function ConnectionsScreenComponent({
                             </View>
                           </View>
                         </TouchableOpacity>
+                        </AnimatedListItem>
+                      ))}
+                    </ScrollView>
+                    {/* Divider line */}
+                    <View style={styles.recommendationsDivider} />
+                  </View>
+                )}
+
+                {/* Opportunities Near You */}
+                {nearbyOpportunities.length > 0 && !searchQuery.trim() && (
+                  <View style={styles.recommendationsSection}>
+                    <View style={styles.recommendationsHeader}>
+                      <Ionicons
+                        name="briefcase"
+                        size={18}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                      <Text style={styles.recommendationsTitle}>
+                        Opportunities Near You
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.locationUpdateButton}
+                        onPress={() => {
+                          setNewLocationCity(user?.city || "");
+                          setShowLocationModal(true);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name="location-outline"
+                          size={16}
+                          color="hsl(75, 100%, 60%)"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.recommendationsScroll}
+                      contentContainerStyle={styles.recommendationsContent}
+                    >
+                      {nearbyOpportunities.map((opp, index) => (
+                        <AnimatedListItem key={opp.id} index={index} delay={80}>
+                          <TouchableOpacity
+                            style={styles.opportunityCard}
+                            onPress={() => {
+                              HapticPatterns.itemPress();
+                              if (onNavigate) {
+                                onNavigate("opportunities");
+                              }
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <View style={styles.opportunityImageContainer}>
+                              <Image
+                                source={{ uri: opp.image }}
+                                style={styles.opportunityImage}
+                                resizeMode="cover"
+                              />
+                              <LinearGradient
+                                colors={[
+                                  "transparent",
+                                  "rgba(0, 0, 0, 0.3)",
+                                  "rgba(0, 0, 0, 0.8)",
+                                  "rgba(0, 0, 0, 0.95)",
+                                ]}
+                                style={styles.opportunityGradient}
+                              />
+                              <View style={styles.opportunityInfo}>
+                                <Text
+                                  style={styles.opportunityTitle}
+                                  numberOfLines={2}
+                                >
+                                  {String(opp.title)}
+                                </Text>
+                                <Text
+                                  style={styles.opportunityVenue}
+                                  numberOfLines={1}
+                                >
+                                  {String(opp.venue)}
+                                </Text>
+                                <View style={styles.opportunityMeta}>
+                                  <Text
+                                    style={styles.opportunityMetaText}
+                                    numberOfLines={1}
+                                  >
+                                    {String(opp.date)} • {String(opp.city)}
+                                  </Text>
+                                </View>
+                                {opp.compensation && (
+                                  <Text
+                                    style={styles.opportunityCompensation}
+                                    numberOfLines={1}
+                                  >
+                                    {String(opp.compensation)}
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+                          </TouchableOpacity>
                         </AnimatedListItem>
                       ))}
                     </ScrollView>
@@ -2705,6 +2976,95 @@ function ConnectionsScreenComponent({
         onSecondaryPress={handleConnectionModalSecondaryPress}
         showCloseButton={false}
       />
+
+      {/* Location Update Modal */}
+      <Modal
+        visible={showLocationModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowLocationModal(false);
+          setNewLocationCity("");
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Update Location</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowLocationModal(false);
+                  setNewLocationCity("");
+                }}
+              >
+                <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.locationModalBody}>
+              <Text style={styles.locationModalDescription}>
+                Update your location to see opportunities and DJs near you
+              </Text>
+
+              <View style={styles.locationInputContainer}>
+                <TextInput
+                  style={styles.locationInput}
+                  placeholder="Enter city name (e.g., London, New York)"
+                  placeholderTextColor="hsl(0, 0%, 50%)"
+                  value={newLocationCity}
+                  onChangeText={setNewLocationCity}
+                  autoCapitalize="words"
+                  maxLength={100}
+                />
+                <TouchableOpacity
+                  style={styles.useCurrentLocationButton}
+                  onPress={handleUseCurrentLocation}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="locate"
+                    size={20}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                  <Text style={styles.useCurrentLocationText}>
+                    Use Current
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.locationModalActions}>
+                <TouchableOpacity
+                  style={styles.locationModalCancelButton}
+                  onPress={() => {
+                    setShowLocationModal(false);
+                    setNewLocationCity("");
+                  }}
+                >
+                  <Text style={styles.locationModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.locationModalSaveButton,
+                    (!newLocationCity.trim() || updatingLocation) &&
+                      styles.locationModalSaveButtonDisabled,
+                  ]}
+                  onPress={handleUpdateLocation}
+                  disabled={!newLocationCity.trim() || updatingLocation}
+                >
+                  {updatingLocation ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="hsl(0, 0%, 0%)"
+                    />
+                  ) : (
+                    <Text style={styles.locationModalSaveText}>Update</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -3761,5 +4121,170 @@ const styles = StyleSheet.create({
   },
   discoverPendingText: {
     color: "hsl(75, 100%, 60%)",
+  },
+  locationUpdateButton: {
+    marginLeft: "auto",
+    padding: 4,
+  },
+  opportunityCard: {
+    width: 200,
+    height: 240,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%, 0.15)",
+    backgroundColor: "hsl(0, 0%, 8%)",
+  },
+  opportunityImageContainer: {
+    width: "100%",
+    height: "100%",
+    position: "relative",
+  },
+  opportunityImage: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  opportunityGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "60%",
+  },
+  opportunityInfo: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 14,
+    gap: 6,
+  },
+  opportunityTitle: {
+    fontSize: 15,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "600",
+  },
+  opportunityVenue: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    fontWeight: "500",
+  },
+  opportunityMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  opportunityMetaText: {
+    fontSize: 11,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+  },
+  opportunityCompensation: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "60%",
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  locationModalBody: {
+    padding: 20,
+    gap: 20,
+  },
+  locationModalDescription: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+    lineHeight: 20,
+  },
+  locationInputContainer: {
+    gap: 12,
+  },
+  locationInput: {
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+  },
+  useCurrentLocationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%, 0.3)",
+  },
+  useCurrentLocationText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    fontWeight: "600",
+  },
+  locationModalActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+  },
+  locationModalCancelButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    alignItems: "center",
+  },
+  locationModalCancelText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "600",
+  },
+  locationModalSaveButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    alignItems: "center",
+  },
+  locationModalSaveButtonDisabled: {
+    opacity: 0.5,
+  },
+  locationModalSaveText: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 0%)",
   },
 });

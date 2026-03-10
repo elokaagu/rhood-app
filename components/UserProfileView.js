@@ -48,6 +48,7 @@ export default function UserProfileView({
   const [isPlayingPrimaryMix, setIsPlayingPrimaryMix] = useState(false);
   const [audioIdProgress, setAudioIdProgress] = useState(0);
   const [primaryMixProgress, setPrimaryMixProgress] = useState(0);
+  const [pinnedMixes, setPinnedMixes] = useState([]);
   const audioIdSoundRef = useRef(null);
   const primaryMixSoundRef = useRef(null);
 
@@ -306,10 +307,42 @@ export default function UserProfileView({
         }
       }
 
+      // Load pinned mixes (up to 3)
+      let pinnedMixesData = [];
+      try {
+        const { supabase } = await import("../lib/supabase");
+        const { data: pinnedData, error: pinnedError } = await supabase
+          .from("mixes")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("is_pinned", true)
+          .eq("is_public", true)
+          .order("created_at", { ascending: false })
+          .limit(3);
+
+        if (!pinnedError && pinnedData) {
+          pinnedMixesData = pinnedData.map((mix) => {
+            const durationSeconds = extractDurationSeconds(mix);
+            return {
+              ...mix,
+              duration: durationSeconds,
+              duration_label: formatSecondsToLabel(durationSeconds),
+            };
+          });
+        }
+      } catch (pinnedErr) {
+        // If column doesn't exist yet, that's okay
+        if (pinnedErr.code !== "42703") {
+          console.warn("⚠️ Could not load pinned mixes:", pinnedErr);
+        }
+      }
+
       const finalProfile = {
         ...profileData,
         primaryMix: primaryMix,
       };
+
+      setPinnedMixes(pinnedMixesData);
 
       // Debug: Log the final profile data
       console.log("🔍 Final profile data being set:", finalProfile);
@@ -881,6 +914,93 @@ export default function UserProfileView({
             </View>
           )}
 
+          {/* Pinned Mixes */}
+          {pinnedMixes.length > 0 && (
+            <View style={styles.pinnedMixesSection}>
+              <View style={styles.sectionTitleContainer}>
+                <Text style={styles.sectionTitle}>Top Mixes</Text>
+                <View style={styles.pinnedTag}>
+                  <Ionicons name="pin" size={14} color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.pinnedTagText}>
+                    {pinnedMixes.length}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.pinnedMixesGrid}>
+                {pinnedMixes.map((mix, index) => {
+                  const isPlaying =
+                    globalAudioState.currentTrack?.id === mix.id &&
+                    globalAudioState.isPlaying;
+                  return (
+                    <TouchableOpacity
+                      key={mix.id}
+                      style={styles.pinnedMixCard}
+                      onPress={() => {
+                        HapticPatterns.playPause();
+                        const normalizedMix = {
+                          id: mix.id,
+                          title: mix.title,
+                          artist: profile.dj_name || profile.full_name || "Unknown",
+                          genre: mix.genre || "Electronic",
+                          audioUrl: mix.file_url,
+                          image: mix.artwork_url || null,
+                          user_id: profile.id,
+                          user_image: profile.profile_image_url,
+                          user_dj_name: profile.dj_name,
+                          user_bio: profile.bio,
+                          duration: mix.duration,
+                          durationFormatted: mix.duration_label,
+                        };
+                        if (isPlaying) {
+                          onPauseAudio();
+                        } else {
+                          onPlayAudio(normalizedMix);
+                        }
+                      }}
+                    >
+                      <View style={styles.pinnedMixArtwork}>
+                        <ProgressiveImage
+                          source={{
+                            uri:
+                              mix.artwork_url ||
+                              "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=200&h=200&fit=crop",
+                          }}
+                          style={styles.pinnedMixImage}
+                        />
+                        {isPlaying && (
+                          <View style={styles.pinnedMixPlayOverlay}>
+                            <Ionicons
+                              name="pause"
+                              size={24}
+                              color="hsl(0, 0%, 100%)"
+                            />
+                          </View>
+                        )}
+                        {!isPlaying && (
+                          <View style={styles.pinnedMixPlayButton}>
+                            <Ionicons
+                              name="play"
+                              size={20}
+                              color="hsl(0, 0%, 100%)"
+                            />
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.pinnedMixInfo}>
+                        <Text style={styles.pinnedMixTitle} numberOfLines={1}>
+                          {mix.title}
+                        </Text>
+                        <Text style={styles.pinnedMixGenre} numberOfLines={1}>
+                          {mix.genre || "Electronic"}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity
@@ -1193,6 +1313,82 @@ const styles = StyleSheet.create({
   },
   primaryMixSection: {
     marginBottom: 24,
+  },
+  pinnedMixesSection: {
+    marginBottom: 24,
+  },
+  pinnedTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "hsl(75, 100%, 60%, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  pinnedTagText: {
+    fontSize: 12,
+    fontFamily: "TS Block Bold",
+    color: "hsl(75, 100%, 60%)",
+  },
+  pinnedMixesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  pinnedMixCard: {
+    width: "31%",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  pinnedMixArtwork: {
+    width: "100%",
+    aspectRatio: 1,
+    position: "relative",
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  pinnedMixImage: {
+    width: "100%",
+    height: "100%",
+  },
+  pinnedMixPlayOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pinnedMixPlayButton: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pinnedMixInfo: {
+    padding: 10,
+    gap: 4,
+  },
+  pinnedMixTitle: {
+    fontSize: 12,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  pinnedMixGenre: {
+    fontSize: 10,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
   },
   mixCard: {
     backgroundColor: "hsl(0, 0%, 8%)",

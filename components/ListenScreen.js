@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,12 +14,15 @@ import {
   Platform,
   ActionSheetIOS,
   ActivityIndicator,
+  FlatList,
+  SectionList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { getRecommendedMixes } from "../lib/mixRecommendations";
+import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 
 // Audio optimization utilities for handling large files
 const getAudioOptimization = (audioUrl) => {
@@ -212,6 +215,9 @@ export default function ListenScreen({
   const [recommendedMixes, setRecommendedMixes] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [hasUserMixes, setHasUserMixes] = useState(false);
+  const [userMixes, setUserMixes] = useState([]);
+  const [showManageMixesModal, setShowManageMixesModal] = useState(false);
+  const [loadingUserMixes, setLoadingUserMixes] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [showSaveToPlaylistModal, setShowSaveToPlaylistModal] = useState(false);
   const [selectedMixForPlaylist, setSelectedMixForPlaylist] = useState(null);
@@ -620,11 +626,20 @@ export default function ListenScreen({
       return;
     }
 
+    // Check if this is the user's own mix
+    const isOwnMix = user?.id && normalizedMix.user_id === user.id;
+
     if (Platform.OS === "ios") {
+      const options = ["Cancel", "Add to Queue", "Play Next", "Save to Playlist"];
+      if (isOwnMix) {
+        options.push("Delete Mix");
+      }
+      
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ["Cancel", "Add to Queue", "Play Next", "Save to Playlist"],
+          options: options,
           cancelButtonIndex: 0,
+          destructiveButtonIndex: isOwnMix ? options.length - 1 : undefined,
         },
         (buttonIndex) => {
           if (buttonIndex === 1) {
@@ -642,41 +657,56 @@ export default function ListenScreen({
           } else if (buttonIndex === 3) {
             // Save to Playlist
             handleSaveToPlaylist(normalizedMix);
+          } else if (buttonIndex === 4 && isOwnMix) {
+            // Delete Mix
+            handleDeleteMix(normalizedMix);
           }
         }
       );
     } else {
       // Android
+      const alertOptions = [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Add to Queue",
+          onPress: () => {
+            if (onAddToQueue) {
+              onAddToQueue(normalizedMix);
+              HapticPatterns.success();
+            }
+          },
+        },
+        {
+          text: "Play Next",
+          onPress: () => {
+            if (onPlayNext) {
+              onPlayNext(normalizedMix);
+              HapticPatterns.success();
+            }
+          },
+        },
+        {
+          text: "Save to Playlist",
+          onPress: () => {
+            handleSaveToPlaylist(normalizedMix);
+          },
+        },
+      ];
+      
+      if (isOwnMix) {
+        alertOptions.push({
+          text: "Delete Mix",
+          style: "destructive",
+          onPress: () => {
+            handleDeleteMix(normalizedMix);
+          },
+        });
+      }
+      
       Alert.alert(
         mix.title || "Mix",
         "Choose an option",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Add to Queue",
-            onPress: () => {
-              if (onAddToQueue) {
-                onAddToQueue(normalizedMix);
-                HapticPatterns.success();
-              }
-            },
-          },
-          {
-            text: "Play Next",
-            onPress: () => {
-              if (onPlayNext) {
-                onPlayNext(normalizedMix);
-                HapticPatterns.success();
-              }
-            },
-          },
-          {
-            text: "Save to Playlist",
-            onPress: () => {
-              handleSaveToPlaylist(normalizedMix);
-            },
-          },
-        ],
+        alertOptions,
         { cancelable: true }
       );
     }
@@ -695,7 +725,166 @@ export default function ListenScreen({
 
   const handleUploadMix = () => {
     HapticPatterns.buttonPress();
-    setShowUploadModal(true);
+    if (hasUserMixes) {
+      // Show manage mixes modal instead of upload modal
+      fetchUserMixes();
+      setShowManageMixesModal(true);
+    } else {
+      // Show upload modal for new users
+      setShowUploadModal(true);
+    }
+  };
+
+  // Fetch user's mixes for management
+  const fetchUserMixes = async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoadingUserMixes(true);
+      const mixes = await db.getUserMixes(user.id);
+      setUserMixes(mixes || []);
+      
+      // Update pinned count
+      const pinnedCount = (mixes || []).filter(m => m.is_pinned).length;
+      setPinnedMixesCount(pinnedCount);
+    } catch (error) {
+      console.error("❌ Error fetching user mixes:", error);
+      setUserMixes([]);
+    } finally {
+      setLoadingUserMixes(false);
+    }
+  };
+
+  // Handle pin/unpin mix
+  const handlePinMix = async (mix) => {
+    if (!user?.id) return;
+
+    // Check if we can pin (max 3)
+    const currentPinnedCount = userMixes.filter(m => m.is_pinned && m.id !== mix.id).length;
+    if (!mix.is_pinned && currentPinnedCount >= 3) {
+      Alert.alert(
+        "Maximum Pinned Mixes",
+        "You can only pin up to 3 mixes. Please unpin another mix first.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("mixes")
+        .update({ is_pinned: !mix.is_pinned })
+        .eq("id", mix.id)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setUserMixes((prev) =>
+        prev.map((m) =>
+          m.id === mix.id ? { ...m, is_pinned: !m.is_pinned } : m
+        )
+      );
+
+      // Update pinned count
+      const newPinnedCount = mix.is_pinned ? pinnedMixesCount - 1 : pinnedMixesCount + 1;
+      setPinnedMixesCount(newPinnedCount);
+
+      HapticPatterns.success();
+    } catch (error) {
+      console.error("❌ Error pinning/unpinning mix:", error);
+      Alert.alert("Error", "Failed to update pinned status. Please try again.");
+    }
+  };
+
+  // Handle edit mix
+  const handleEditMix = (mix) => {
+    setShowManageMixesModal(false);
+    if (onNavigate) {
+      onNavigate("upload-mix", { mixId: mix.id });
+    }
+  };
+
+  // Handle delete mix
+  const handleDeleteMixFromManage = async (mix) => {
+    Alert.alert(
+      "Delete Mix",
+      `Are you sure you want to delete "${mix.title}"? This action cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Delete from database
+              const { error: dbError } = await supabase
+                .from("mixes")
+                .delete()
+                .eq("id", mix.id);
+
+              if (dbError) {
+                console.error("❌ Error deleting mix:", dbError);
+                Alert.alert("Error", "Failed to delete mix. Please try again.");
+                return;
+              }
+
+              // Delete audio file from storage
+              if (mix.file_url && typeof mix.file_url === "string") {
+                const audioPath = mix.file_url.split("/mixes/")[1];
+                if (audioPath) {
+                  const { error: audioError } = await supabase.storage
+                    .from("mixes")
+                    .remove([audioPath]);
+
+                  if (audioError) {
+                    console.error("❌ Error deleting audio file:", audioError);
+                  }
+                }
+              }
+
+              // Delete artwork from storage if it exists
+              if (
+                mix.artwork_url &&
+                typeof mix.artwork_url === "string" &&
+                mix.artwork_url.includes("supabase")
+              ) {
+                const artworkPath = mix.artwork_url.split("/mixes/")[1];
+                if (artworkPath) {
+                  const { error: artworkError } = await supabase.storage
+                    .from("mixes")
+                    .remove([artworkPath]);
+
+                  if (artworkError) {
+                    console.error("❌ Error deleting artwork:", artworkError);
+                  }
+                }
+              }
+
+              // Stop audio if this mix is currently playing
+              if (playingMixId === mix.id) {
+                onStopAudio();
+              }
+
+              // Refresh mixes list
+              await fetchUserMixes();
+              
+              // Update hasUserMixes state
+              const remainingMixes = userMixes.filter((m) => m.id !== mix.id);
+              setHasUserMixes(remainingMixes.length > 0);
+              
+              HapticPatterns.success();
+            } catch (error) {
+              console.error("❌ Error deleting mix:", error);
+              Alert.alert("Error", "Failed to delete mix. Please try again.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Fetch user's playlists
@@ -1667,6 +1856,352 @@ export default function ListenScreen({
     </>
   );
 
+  // Sections for SectionList (virtualized home content)
+  const sections = useMemo(() => {
+    const s = [];
+    if (user?.id && playlists.length > 0) {
+      s.push({
+        id: "playlists",
+        title: "YOUR PLAYLISTS",
+        subtitle: "Your saved collections of mixes",
+        data: playlists,
+        type: "playlist",
+      });
+    }
+    if (trendingMixes.length > 0) {
+      s.push({
+        id: "trending",
+        title: "TRENDING",
+        subtitle: "Who's hottest on the platform right now",
+        data: trendingMixes,
+        type: "mix",
+        onSeeAll: () => onNavigate?.("trending-mixes"),
+      });
+    }
+    if (user?.id && userLikedMixes.length > 0) {
+      s.push({
+        id: "yourLikes",
+        title: "YOUR LIKES",
+        subtitle: "Mixes you've already liked",
+        data: userLikedMixes,
+        type: "mix",
+        onSeeAll: () => onNavigate?.("your-likes"),
+      });
+    }
+    if (recommendedMixes.length > 0) {
+      s.push({
+        id: "youMayLike",
+        title: "YOU MAY LIKE",
+        subtitle: "Recommendations based on your likes and connections",
+        data: [recommendedMixes],
+        type: "horizontalMixes",
+      });
+    }
+    return s;
+  }, [user?.id, playlists, trendingMixes, userLikedMixes, recommendedMixes, onNavigate]);
+
+  const keyExtractor = useCallback((item, index, section) => {
+    if (section.type === "horizontalMixes") return `youMayLike-${index}`;
+    if (section.type === "playlist") return `playlist-${item.id}`;
+    return `${section.id}-${item.id}`;
+  }, []);
+
+  const renderSectionHeader = useCallback(
+    ({ section }) => {
+      if (section.type === "horizontalMixes") {
+        return (
+          <View style={styles.recommendationsSection}>
+            <View style={styles.recommendationsHeader}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ionicons name="sparkles" size={18} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.recommendationsTitle}>YOU MAY LIKE</Text>
+              </View>
+            </View>
+            <Text style={styles.recommendationExplainer}>{section.subtitle}</Text>
+          </View>
+        );
+      }
+      const isClickable = !!section.onSeeAll;
+      const content = (
+        <>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            {section.id === "playlists" && (
+              <Ionicons name="musical-notes" size={18} color="hsl(75, 100%, 60%)" />
+            )}
+            {section.id === "trending" && (
+              <Ionicons name="flame" size={18} color="hsl(75, 100%, 60%)" />
+            )}
+            {section.id === "yourLikes" && (
+              <Ionicons name="heart" size={18} color="hsl(75, 100%, 60%)" />
+            )}
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+          </View>
+          {isClickable && (
+            <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
+          )}
+        </>
+      );
+      return (
+        <View style={styles.section}>
+          {isClickable ? (
+            <TouchableOpacity
+              style={styles.sectionHeader}
+              onPress={() => {
+                HapticPatterns.itemPress();
+                section.onSeeAll?.();
+              }}
+              activeOpacity={0.7}
+            >
+              {content}
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.sectionHeader}>{content}</View>
+          )}
+          <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
+        </View>
+      );
+    },
+    []
+  );
+
+  const renderMixRow = useCallback(
+    (mix) => {
+      const isPlaying = playingMixId === mix.id && globalAudioState.isPlaying;
+      return (
+        <TouchableOpacity
+          style={styles.popularRow}
+          onPress={() => handleMixPress(mix)}
+          onLongPress={() => handleMixLongPress(mix)}
+          delayLongPress={500}
+          activeOpacity={0.8}
+        >
+          <View style={styles.popularImageWrap}>
+            <Image
+              source={
+                mix.artwork_url || mix.image_url || mix.image
+                  ? { uri: mix.artwork_url || mix.image_url || mix.image }
+                  : require("../assets/rhood_logo.webp")
+              }
+              style={styles.popularImage}
+              resizeMode="cover"
+            />
+            {isPlaying && (
+              <View style={styles.recommendationPlayingOverlay}>
+                <Ionicons name="play" size={20} color="hsl(75, 100%, 60%)" />
+              </View>
+            )}
+          </View>
+          <View style={styles.popularInfo}>
+            <Text style={styles.popularTitle} numberOfLines={1}>
+              {mix.title}
+            </Text>
+            <Text style={styles.popularSubtitle} numberOfLines={1}>
+              {mix.artist || mix.user_dj_name || "Unknown"}
+            </Text>
+            <View style={styles.popularMetaRow}>
+              {mix.durationFormatted && (
+                <Text style={styles.popularMeta}>{mix.durationFormatted}</Text>
+              )}
+              {mix.genre && (
+                <>
+                  {mix.durationFormatted && (
+                    <Text style={styles.popularMeta}> • </Text>
+                  )}
+                  <Text style={styles.popularMeta}>{mix.genre}</Text>
+                </>
+              )}
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.likeButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleToggleLike(mix);
+            }}
+            activeOpacity={0.7}
+            disabled={likeLoadingMap[mix.id]}
+          >
+            <Ionicons
+              name={likedMixIds.has(mix.id) ? "heart" : "heart-outline"}
+              size={18}
+              color={likedMixIds.has(mix.id) ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 60%)"}
+            />
+          </TouchableOpacity>
+          <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
+        </TouchableOpacity>
+      );
+    },
+    [
+      playingMixId,
+      globalAudioState.isPlaying,
+      handleMixPress,
+      handleMixLongPress,
+      handleToggleLike,
+      likeLoadingMap,
+      likedMixIds,
+    ]
+  );
+
+  const renderSectionItem = useCallback(
+    ({ item, section }) => {
+      if (section.type === "horizontalMixes") {
+        const mixes = item;
+        return (
+          <View style={styles.recommendationsSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.recommendationsScroll}
+              contentContainerStyle={styles.recommendationsContent}
+            >
+              {mixes.map((mix) => {
+                const isPlaying = playingMixId === mix.id;
+                return (
+                  <TouchableOpacity
+                    key={mix.id}
+                    style={styles.recommendationCard}
+                    onPress={() => handleMixPress(mix)}
+                    onLongPress={() => handleMixLongPress(mix)}
+                    delayLongPress={500}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.recommendationImageContainer}>
+                      <Image
+                        source={
+                          mix.artwork_url || mix.image_url || mix.image
+                            ? { uri: mix.artwork_url || mix.image_url || mix.image }
+                            : require("../assets/rhood_logo.webp")
+                        }
+                        style={styles.recommendationImage}
+                        resizeMode="cover"
+                      />
+                      {isPlaying && (
+                        <View style={styles.recommendationPlayingOverlay}>
+                          <Ionicons name="play" size={24} color="hsl(75, 100%, 60%)" />
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={styles.recommendationLikeButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleToggleLike(mix);
+                        }}
+                        activeOpacity={0.7}
+                        disabled={likeLoadingMap[mix.id]}
+                      >
+                        <Ionicons
+                          name={likedMixIds.has(mix.id) ? "heart" : "heart-outline"}
+                          size={20}
+                          color={likedMixIds.has(mix.id) ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 100%)"}
+                        />
+                      </TouchableOpacity>
+                      <LinearGradient
+                        colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.95)"]}
+                        style={styles.recommendationGradientOverlay}
+                      />
+                      <View style={styles.recommendationInfo}>
+                        <Text style={styles.recommendationTitle} numberOfLines={1}>
+                          {mix.title}
+                        </Text>
+                        <Text style={styles.recommendationArtist} numberOfLines={1}>
+                          {mix.artist || mix.user_dj_name || "Unknown"}
+                        </Text>
+                        {mix.genre && (
+                          <Text style={styles.recommendationGenre} numberOfLines={1}>
+                            {mix.genre}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        );
+      }
+      if (section.type === "playlist") {
+        return (
+          <TouchableOpacity
+            style={styles.playlistRow}
+            onPress={() => {
+              HapticPatterns.itemPress();
+              onNavigate?.("playlist-detail", {
+                playlistId: item.id,
+                playlistName: item.name,
+              });
+            }}
+            activeOpacity={0.8}
+          >
+            <View style={styles.playlistIconContainer}>
+              {item.image_url ? (
+                <Image
+                  source={{ uri: item.image_url }}
+                  style={styles.playlistImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="musical-notes" size={24} color="hsl(75, 100%, 60%)" />
+              )}
+            </View>
+            <View style={styles.playlistInfo}>
+              <Text style={styles.playlistName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={styles.playlistMeta}>
+                {item.mixCount || 0} {item.mixCount === 1 ? "mix" : "mixes"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
+          </TouchableOpacity>
+        );
+      }
+      return <View style={styles.sectionItemWrap}>{renderMixRow(item)}</View>;
+    },
+    [
+      playingMixId,
+      handleMixPress,
+      handleMixLongPress,
+      handleToggleLike,
+      likeLoadingMap,
+      likedMixIds,
+      onNavigate,
+      renderMixRow,
+    ]
+  );
+
+  const renderSearchMixItem = useCallback(
+    ({ item: mix }) => (
+      <View style={styles.sectionItemWrap}>{renderMixRow(mix)}</View>
+    ),
+    [renderMixRow]
+  );
+
+  const searchListEmptyComponent = useCallback(
+    () => (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>SEARCH RESULTS</Text>
+        </View>
+        <View style={styles.emptyState}>
+          <Ionicons name="search" size={48} color="hsl(0, 0%, 30%)" />
+          <Text style={styles.emptyStateTitle}>No results found</Text>
+          <Text style={styles.emptyStateSubtitle}>
+            No mixes match "{searchQuery}". Try a different search term.
+          </Text>
+        </View>
+      </View>
+    ),
+    [searchQuery]
+  );
+
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      tintColor="hsl(75, 100%, 60%)"
+    />
+  );
 
   // Render search results if searching
   const renderSearchResults = () => {
@@ -1776,36 +2311,38 @@ export default function ListenScreen({
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        removeClippedSubviews={true}
-        scrollEventThrottle={16}
-        decelerationRate="normal"
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="hsl(75, 100%, 60%)"
-          />
-        }
-        contentContainerStyle={styles.scrollContent}
-      >
-        {renderHeader()}
-        
-        <Animated.View style={{ opacity: fadeAnim }}>
-          {searchQuery.trim() ? (
-            renderSearchResults()
-          ) : (
-            <>
-              {renderPlaylists()}
-              {renderTrending()}
-              {renderYourLikes()}
-              {renderYouMayLike()}
-            </>
-          )}
-          {renderFooter()}
-        </Animated.View>
-      </ScrollView>
+      {searchQuery.trim() ? (
+        <FlatList
+          data={filteredMixes}
+          keyExtractor={(item) => `search-${item.id}`}
+          ListHeaderComponent={renderHeader}
+          renderItem={renderSearchMixItem}
+          ListEmptyComponent={searchListEmptyComponent}
+          refreshControl={refreshControl}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+          maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+          windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+          removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+        />
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={keyExtractor}
+          renderSectionHeader={renderSectionHeader}
+          renderItem={renderSectionItem}
+          ListHeaderComponent={renderHeader}
+          ListFooterComponent={renderFooter}
+          refreshControl={refreshControl}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+          maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+          windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+          removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+        />
+      )}
 
       {/* Upload Mix Modal - R/HOOD Themed */}
       <Modal
@@ -1851,6 +2388,145 @@ export default function ListenScreen({
                   style={styles.modalUploadGradient}
                 >
                   <Text style={styles.modalUploadText}>Upload</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Manage Mixes Modal */}
+      <Modal
+        visible={showManageMixesModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowManageMixesModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.manageMixesModalContent}>
+            <View style={styles.manageMixesModalHeader}>
+              <Text style={styles.manageMixesModalTitle}>Manage Mixes</Text>
+              <TouchableOpacity
+                onPress={() => setShowManageMixesModal(false)}
+                style={styles.manageMixesModalClose}
+              >
+                <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+              </TouchableOpacity>
+            </View>
+
+            {loadingUserMixes ? (
+              <View style={styles.manageMixesLoadingContainer}>
+                <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
+                <Text style={styles.manageMixesLoadingText}>Loading your mixes...</Text>
+              </View>
+            ) : userMixes.length === 0 ? (
+              <View style={styles.manageMixesEmptyContainer}>
+                <Ionicons name="musical-notes-outline" size={64} color="hsl(0, 0%, 50%)" />
+                <Text style={styles.manageMixesEmptyText}>No mixes yet</Text>
+                <Text style={styles.manageMixesEmptySubtext}>
+                  Upload your first mix to get started
+                </Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.manageMixesScroll}>
+                {userMixes.map((mix) => (
+                  <View key={mix.id} style={styles.manageMixItem}>
+                    <View style={styles.manageMixItemInfo}>
+                      <Image
+                        source={
+                          mix.artwork_url || mix.image_url
+                            ? { uri: mix.artwork_url || mix.image_url }
+                            : require("../assets/rhood_logo.webp")
+                        }
+                        style={styles.manageMixItemImage}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.manageMixItemDetails}>
+                        <Text style={styles.manageMixItemTitle} numberOfLines={1}>
+                          {mix.title}
+                        </Text>
+                        <Text style={styles.manageMixItemGenre} numberOfLines={1}>
+                          {mix.genre || "No genre"}
+                        </Text>
+                        <View style={styles.manageMixBadges}>
+                          {mix.is_primary && (
+                            <View style={styles.manageMixPrimaryBadge}>
+                              <Text style={styles.manageMixPrimaryText}>Primary</Text>
+                            </View>
+                          )}
+                          {mix.is_pinned && (
+                            <View style={styles.manageMixPinnedBadge}>
+                              <Ionicons name="pin" size={12} color="hsl(75, 100%, 60%)" />
+                              <Text style={styles.manageMixPinnedText}>Pinned</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.manageMixItemActions}>
+                      <TouchableOpacity
+                        style={styles.manageMixActionButton}
+                        onPress={() => handleEditMix(mix)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="create-outline" size={20} color="hsl(75, 100%, 60%)" />
+                        <Text style={styles.manageMixActionText}>Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.manageMixActionButton,
+                          mix.is_pinned && styles.manageMixActionButtonPinned,
+                        ]}
+                        onPress={() => handlePinMix(mix)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name={mix.is_pinned ? "pin" : "pin-outline"}
+                          size={20}
+                          color={mix.is_pinned ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 60%)"}
+                        />
+                        <Text
+                          style={[
+                            styles.manageMixActionText,
+                            mix.is_pinned && styles.manageMixActionTextPinned,
+                          ]}
+                        >
+                          {mix.is_pinned ? "Unpin" : "Pin"}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.manageMixActionButton, styles.manageMixActionButtonDelete]}
+                        onPress={() => handleDeleteMixFromManage(mix)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={20} color="hsl(0, 100%, 50%)" />
+                        <Text style={[styles.manageMixActionText, styles.manageMixActionTextDelete]}>
+                          Delete
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            <View style={styles.manageMixesModalFooter}>
+              <TouchableOpacity
+                style={styles.manageMixesUploadButton}
+                onPress={() => {
+                  setShowManageMixesModal(false);
+                  if (onNavigate) {
+                    onNavigate("upload-mix");
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={["hsl(75, 100%, 60%)", "hsl(75, 100%, 50%)"]}
+                  style={styles.manageMixesUploadGradient}
+                >
+                  <Ionicons name="add" size={20} color="hsl(0, 0%, 0%)" />
+                  <Text style={styles.manageMixesUploadText}>Upload New Mix</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -2531,6 +3207,9 @@ const styles = StyleSheet.create({
   popularList: {
     marginTop: 8,
   },
+  sectionItemWrap: {
+    marginTop: 8,
+  },
   popularRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -2889,5 +3568,180 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 60%)",
+  },
+  // Manage Mixes Modal Styles
+  manageMixesModalContent: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "80%",
+    width: "100%",
+    maxWidth: 500,
+    paddingBottom: 20,
+  },
+  manageMixesModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  manageMixesModalTitle: {
+    fontSize: 20,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "bold",
+  },
+  manageMixesModalClose: {
+    padding: 4,
+  },
+  manageMixesLoadingContainer: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+  },
+  manageMixesLoadingText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+  },
+  manageMixesEmptyContainer: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  manageMixesEmptyText: {
+    fontSize: 18,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  manageMixesEmptySubtext: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+    textAlign: "center",
+  },
+  manageMixesScroll: {
+    maxHeight: 400,
+  },
+  manageMixItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  manageMixItemInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 12,
+  },
+  manageMixItemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  manageMixItemDetails: {
+    flex: 1,
+    gap: 4,
+  },
+  manageMixItemTitle: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  manageMixItemGenre: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+  },
+  manageMixBadges: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 4,
+  },
+  manageMixPrimaryBadge: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  manageMixPrimaryText: {
+    fontSize: 11,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 0%)",
+  },
+  manageMixPinnedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "hsl(75, 100%, 60%, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  manageMixPinnedText: {
+    fontSize: 11,
+    fontFamily: "TS Block Bold",
+    color: "hsl(75, 100%, 60%)",
+  },
+  manageMixActionButtonPinned: {
+    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
+  },
+  manageMixActionTextPinned: {
+    color: "hsl(75, 100%, 60%)",
+  },
+  manageMixItemActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  manageMixActionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  manageMixActionButtonDelete: {
+    backgroundColor: "hsl(0, 0%, 12%)",
+  },
+  manageMixActionText: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+  },
+  manageMixActionTextDelete: {
+    color: "hsl(0, 100%, 50%)",
+  },
+  manageMixesModalFooter: {
+    padding: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "hsl(0, 0%, 15%)",
+  },
+  manageMixesUploadButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  manageMixesUploadGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  manageMixesUploadText: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 0%)",
   },
 });

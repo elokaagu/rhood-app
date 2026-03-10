@@ -54,18 +54,6 @@ export default function AboutScreen({ onBack }) {
           type: "link",
           url: "https://rhood.io",
         },
-        {
-          title: "Support",
-          value: "hello@rhood.io",
-          type: "email",
-          url: "mailto:hello@rhood.io",
-        },
-        {
-          title: "Partnership",
-          value: "hello@rhood.io",
-          type: "email",
-          url: "mailto:hello@rhood.io",
-        },
       ],
     },
     {
@@ -82,6 +70,18 @@ export default function AboutScreen({ onBack }) {
           value: "R/HOOD",
           type: "link",
           url: "https://www.youtube.com/channel/UCFGyKGGh4Z4PRHSlOJuGi4Q",
+        },
+        {
+          title: "Partnership",
+          value: "hello@rhood.io",
+          type: "email",
+          url: "mailto:hello@rhood.io",
+        },
+        {
+          title: "App Support",
+          value: "support@rhood.io",
+          type: "email",
+          url: "mailto:support@rhood.io",
         },
       ],
     },

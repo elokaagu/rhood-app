@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
   Modal,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -136,6 +137,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     soundcloud: "",
     tiktok: "",
     youtube: "",
+    portfolio_url: "",
     city: "",
     bio: "",
     status_message: "",
@@ -192,6 +194,40 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     loadUserProfile();
   }, [user]);
 
+  const fetchUserMixes = async () => {
+    if (!user?.id) return;
+
+    try {
+      const mixes = await db.getUserMixes(user.id);
+      
+      // Extract and normalize duration for each mix
+      const mixesWithDuration = mixes.map((mix) => {
+        const durationSeconds = extractDurationSeconds(mix);
+        return {
+          ...mix,
+          duration: durationSeconds,
+          durationFormatted: formatDurationLabel(durationSeconds),
+        };
+      });
+      
+      setUserMixes(mixesWithDuration);
+
+      // Update current primary mix if exists
+      const userProfile = await db.getUserProfile(user.id);
+      if (userProfile?.primary_mix_id) {
+        const primaryMix = mixesWithDuration.find(
+          (mix) => mix.id === userProfile.primary_mix_id
+        );
+        setCurrentPrimaryMix(primaryMix || null);
+      } else {
+        setCurrentPrimaryMix(null);
+      }
+    } catch (mixesError) {
+      console.error("❌ Error loading user mixes:", mixesError);
+      setUserMixes([]);
+    }
+  };
+
   const loadUserProfile = async () => {
     if (!user?.id) return;
 
@@ -210,6 +246,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           soundcloud: userProfile.soundcloud || "",
           tiktok: userProfile.tiktok || "",
           youtube: userProfile.youtube || "",
+          portfolio_url: userProfile.portfolio_url || "",
           city: userProfile.city || "",
           bio: userProfile.bio || "",
           status_message: userProfile.status_message || "",
@@ -218,32 +255,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         });
 
         // Load user's mixes for Audio ID selection
-        try {
-          const mixes = await db.getUserMixes(user.id);
-          
-          // Extract and normalize duration for each mix
-          const mixesWithDuration = mixes.map((mix) => {
-            const durationSeconds = extractDurationSeconds(mix);
-            return {
-              ...mix,
-              duration: durationSeconds,
-              durationFormatted: formatDurationLabel(durationSeconds),
-            };
-          });
-          
-          setUserMixes(mixesWithDuration);
-
-          // Set current primary mix if exists
-          if (userProfile.primary_mix_id) {
-            const primaryMix = mixesWithDuration.find(
-              (mix) => mix.id === userProfile.primary_mix_id
-            );
-            setCurrentPrimaryMix(primaryMix || null);
-          }
-        } catch (mixesError) {
-          console.error("❌ Error loading user mixes:", mixesError);
-          setUserMixes([]);
-        }
+        await fetchUserMixes();
       }
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -303,6 +315,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     }
     if (profile.youtube && !isValidUrl(profile.youtube)) {
       newErrors.youtube = "Please enter a valid YouTube URL";
+    }
+
+    if (profile.portfolio_url && !isValidUrl(profile.portfolio_url)) {
+      newErrors.portfolio_url = "Please enter a valid URL";
     }
 
     setErrors(newErrors);
@@ -373,12 +389,15 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         updatedProfile.tiktok = profile.tiktok.trim();
       }
 
-      // YouTube column - temporarily commented out until column is added
-      // Run database/add-youtube-column.sql in Supabase SQL Editor to add the column
-      // Then uncomment the code below:
-      // if (profile.youtube && profile.youtube.trim()) {
-      //   updatedProfile.youtube = profile.youtube.trim();
-      // }
+      if (profile.youtube && profile.youtube.trim()) {
+        updatedProfile.youtube = profile.youtube.trim();
+      }
+
+      if (profile.portfolio_url && profile.portfolio_url.trim()) {
+        updatedProfile.portfolio_url = profile.portfolio_url.trim();
+      } else {
+        updatedProfile.portfolio_url = null;
+      }
 
       if (profile.bio && profile.bio.trim()) {
         updatedProfile.bio = profile.bio.trim();
@@ -478,22 +497,98 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   };
 
   const handleDeleteAudioId = async () => {
-    try {
-      setSelectingMix(true);
-
-      // Remove primary mix by setting it to null
-      await db.setPrimaryMix(user.id, null);
-
-      // Update local state
-      setCurrentPrimaryMix(null);
-
-      setShowSuccessModal(true);
-    } catch (error) {
-      console.error("❌ Error removing primary mix:", error);
-      setErrorModal({ visible: true, title: "Error", message: "Failed to remove Audio ID. Please try again." });
-    } finally {
-      setSelectingMix(false);
+    if (!currentPrimaryMix) {
+      return;
     }
+
+    Alert.alert(
+      "Delete Audio ID",
+      `Are you sure you want to delete "${currentPrimaryMix.title}"? This will permanently remove the mix and cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setSelectingMix(true);
+
+              // Delete the mix from database
+              const { error: dbError } = await supabase
+                .from("mixes")
+                .delete()
+                .eq("id", currentPrimaryMix.id);
+
+              if (dbError) {
+                console.error("❌ Error deleting mix from database:", dbError);
+                setErrorModal({ 
+                  visible: true, 
+                  title: "Error", 
+                  message: "Failed to delete mix. Please try again." 
+                });
+                return;
+              }
+
+              // Delete audio file from storage
+              if (currentPrimaryMix.file_url && typeof currentPrimaryMix.file_url === "string") {
+                const audioPath = currentPrimaryMix.file_url.split("/mixes/")[1];
+                if (audioPath) {
+                  const { error: audioError } = await supabase.storage
+                    .from("mixes")
+                    .remove([audioPath]);
+
+                  if (audioError) {
+                    console.error("❌ Error deleting audio file:", audioError);
+                  }
+                }
+              }
+
+              // Delete artwork from storage if it exists
+              if (
+                currentPrimaryMix.artwork_url &&
+                typeof currentPrimaryMix.artwork_url === "string" &&
+                currentPrimaryMix.artwork_url.includes("supabase")
+              ) {
+                const artworkPath = currentPrimaryMix.artwork_url.split("/mixes/")[1];
+                if (artworkPath) {
+                  const { error: artworkError } = await supabase.storage
+                    .from("mixes")
+                    .remove([artworkPath]);
+
+                  if (artworkError) {
+                    console.error("❌ Error deleting artwork:", artworkError);
+                  }
+                }
+              }
+
+              // Remove primary mix reference (set to null)
+              await db.setPrimaryMix(user.id, null);
+
+              // Update local state
+              setCurrentPrimaryMix(null);
+              
+              // Refresh user mixes list
+              await fetchUserMixes();
+
+              setShowSuccessModal(true);
+              setShowMixSelection(false);
+            } catch (error) {
+              console.error("❌ Error deleting Audio ID:", error);
+              setErrorModal({ 
+                visible: true, 
+                title: "Error", 
+                message: "Failed to delete Audio ID. Please try again." 
+              });
+            } finally {
+              setSelectingMix(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleGenreToggle = (genre) => {
@@ -1084,6 +1179,35 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               />
               {errors.youtube && (
                 <Text style={styles.errorText}>{errors.youtube}</Text>
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Portfolio / Website</Text>
+              <TextInput
+                style={[styles.input, errors.portfolio_url && styles.inputError]}
+                value={profile.portfolio_url}
+                onChangeText={(text) => {
+                  // Auto-prepend https:// if user just enters domain
+                  let processedText = text;
+                  if (text && !text.startsWith("http://") && !text.startsWith("https://")) {
+                    processedText = `https://${text}`;
+                  }
+                  setProfile((prev) => ({
+                    ...prev,
+                    portfolio_url: processedText,
+                  }));
+                  if (errors.portfolio_url) {
+                    setErrors((prev) => ({ ...prev, portfolio_url: null }));
+                  }
+                }}
+                placeholder="yourwebsite.com"
+                placeholderTextColor="hsl(0, 0%, 50%)"
+                keyboardType="url"
+                autoCapitalize="none"
+              />
+              {errors.portfolio_url && (
+                <Text style={styles.errorText}>{errors.portfolio_url}</Text>
               )}
             </View>
           </View>

@@ -542,6 +542,9 @@ export default function ProfileScreen({
           socialLinks: {
             instagram: userProfile.instagram || null,
             soundcloud: userProfile.soundcloud || null,
+            tiktok: userProfile.tiktok || null,
+            youtube: userProfile.youtube || null,
+            portfolio_url: userProfile.portfolio_url || null,
           },
           audioId: primaryMix || null,
           isVerified: userProfile.is_verified || false,
@@ -582,11 +585,11 @@ export default function ProfileScreen({
     let url;
     switch (platform) {
       case "instagram":
-        // Link is already a full URL from autofill, use it directly
-        url = link;
-        break;
       case "soundcloud":
-        // Link is already a full URL from autofill, use it directly
+      case "tiktok":
+      case "youtube":
+      case "portfolio_url":
+        // Link is already a full URL, use it directly
         url = link;
         break;
       default:
@@ -1292,6 +1295,111 @@ export default function ProfileScreen({
                 />
               </View>
             </TouchableOpacity>
+
+            {/* TikTok Link */}
+            {profile.socialLinks.tiktok && (
+              <TouchableOpacity
+                style={styles.socialLinkCard}
+                onPress={() =>
+                  handleSocialLinkPress("tiktok", profile.socialLinks.tiktok)
+                }
+              >
+                <View style={styles.socialLinkContent}>
+                  <View style={styles.socialIconWrapper}>
+                    <Ionicons
+                      name="logo-tiktok"
+                      size={24}
+                      color="hsl(0, 0%, 100%)"
+                    />
+                  </View>
+                  <View style={styles.socialLinkInfo}>
+                    <Text style={styles.socialPlatformName}>TikTok</Text>
+                    <Text style={styles.socialHandle}>
+                      {profile.socialLinks.tiktok.replace(
+                        "https://www.tiktok.com/@",
+                        "@"
+                      )}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* YouTube Link */}
+            {profile.socialLinks.youtube && (
+              <TouchableOpacity
+                style={styles.socialLinkCard}
+                onPress={() =>
+                  handleSocialLinkPress("youtube", profile.socialLinks.youtube)
+                }
+              >
+                <View style={styles.socialLinkContent}>
+                  <View style={styles.socialIconWrapper}>
+                    <Ionicons
+                      name="logo-youtube"
+                      size={24}
+                      color="hsl(0, 0%, 100%)"
+                    />
+                  </View>
+                  <View style={styles.socialLinkInfo}>
+                    <Text style={styles.socialPlatformName}>YouTube</Text>
+                    <Text style={styles.socialHandle}>
+                      {profile.socialLinks.youtube.replace(
+                        "https://www.youtube.com/@",
+                        "@"
+                      ).replace("https://www.youtube.com/", "")}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* Portfolio/Website Link */}
+            {profile.socialLinks.portfolio_url && (
+              <TouchableOpacity
+                style={styles.socialLinkCard}
+                onPress={() =>
+                  handleSocialLinkPress(
+                    "portfolio_url",
+                    profile.socialLinks.portfolio_url
+                  )
+                }
+              >
+                <View style={styles.socialLinkContent}>
+                  <View style={styles.socialIconWrapper}>
+                    <Ionicons
+                      name="globe-outline"
+                      size={24}
+                      color="hsl(0, 0%, 100%)"
+                    />
+                  </View>
+                  <View style={styles.socialLinkInfo}>
+                    <Text style={styles.socialPlatformName}>Portfolio</Text>
+                    <Text style={styles.socialHandle} numberOfLines={1}>
+                      {profile.socialLinks.portfolio_url.replace(
+                        "https://",
+                        ""
+                      ).replace("http://", "")}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color="hsl(75, 100%, 60%)"
+                  />
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 

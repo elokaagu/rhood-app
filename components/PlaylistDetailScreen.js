@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
+import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 import * as ImagePicker from "expo-image-picker";
 
 export default function PlaylistDetailScreen({
@@ -838,6 +839,10 @@ export default function PlaylistDetailScreen({
             <FlatList
               data={availableMixes}
               keyExtractor={(item) => item.id}
+              initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+              maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+              windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+              removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
               renderItem={({ item: mix }) => (
                 <TouchableOpacity
                   style={styles.availableMixRow}
