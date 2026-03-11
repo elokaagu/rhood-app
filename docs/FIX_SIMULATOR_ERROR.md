@@ -7,9 +7,27 @@ Error: xcrun simctl boot 0694F081-B7B7-46F4-A3DB-781D40FD5EF2 exited with non-ze
 Invalid device or device pair: 0694F081-B7B7-46F4-A3DB-781D40FD5EF2
 ```
 
-This happens when Expo is trying to use a simulator device UUID that no longer exists (the simulator was deleted or renamed).
+This happens when Expo (or the Simulator app) is trying to use a simulator device UUID that no longer exists (e.g. after an Xcode update or simulator cleanup).
 
-## ✅ Solution: Complete Cache Clear
+## ✅ Quick fix: Boot a valid simulator
+
+From the project root:
+
+```bash
+npm run ios:sim
+```
+
+Then install the development build on the simulator (first time, or when the app is not installed):
+
+```bash
+npm run ios
+```
+
+This builds and installs the native app on the booted simulator. After that, use `npm run start` and press **i** to open the app.
+
+**Note:** This project uses a development build (not Expo Go). `npx expo start --ios` only works after the dev build is installed; use `npm run ios` to install it.
+
+## Alternative: Complete Cache Clear
 
 I've already cleared the following caches for you:
 

@@ -11,7 +11,6 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
-  Pressable,
   Modal,
   FlatList,
 } from "react-native";
@@ -20,6 +19,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
+import ConnectionListItem from "./ConnectionListItem";
+import CommunityListItem from "./CommunityListItem";
+import DiscoverUserCard from "./DiscoverUserCard";
 import { HapticPatterns } from "../lib/haptics";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase, db } from "../lib/supabase";
@@ -2172,154 +2174,42 @@ function ConnectionsScreenComponent({
           <View style={styles.messagesList}>
             <Animated.View style={{ opacity: connectionsFadeAnim }}>
                 {/* Community Chats - Show all communities user is a member of */}
-                {(userCommunities || []).map((community, communityIndex) => {
+                {(userCommunities || []).map((community) => {
                   const latestMessage = communityMessages[community.id];
                   const unreadCount = communityUnreadCounts[community.id] || 0;
                   const isRhood = community.id === "550e8400-e29b-41d4-a716-446655440000";
-
                   return (
-                    <TouchableOpacity
+                    <CommunityListItem
                       key={community.id}
-                      style={styles.messageItem}
-                      onPress={() => handleGroupChatPress(community.id)}
-                    >
-                      <View style={styles.messageContent}>
-                        {/* Group Avatar */}
-                        <View style={styles.avatarContainer}>
-                          <ProgressiveImage
-                            source={
-                              community.image_url
-                                ? { uri: community.image_url }
-                                : require("../assets/rhood_logo.webp")
-                            }
-                            style={styles.profileImage}
-                            placeholder={
-                              <ProfileImagePlaceholder
-                                size={48}
-                                style={styles.profileImage}
-                              />
-                            }
-                          />
-                          <View style={styles.onlineIndicator} />
-                        </View>
-
-                        {/* Message Info */}
-                        <View style={styles.messageInfo}>
-                          <View style={styles.messageHeader}>
-                            <Text style={styles.messageName}>
-                              {String(community.name || "Community")}
-                            </Text>
-                            <Text style={styles.messageTime}>
-                              {latestMessage
-                                ? String(formatMessageTime(latestMessage.created_at) || "")
-                                : String("No messages")}
-                            </Text>
-                          </View>
-                          <Text style={styles.messagePreview} numberOfLines={1}>
-                            {latestMessage
-                              ? String(`${String(latestMessage.author?.dj_name || latestMessage.author?.full_name || "User")}: ${String(latestMessage.content || "")}`)
-                              : String("Start a conversation")}
-                          </Text>
-                          <View style={styles.messageBadges}>
-                            {isRhood && (
-                              <View style={styles.pinnedBadge}>
-                                <Text style={styles.pinnedBadgeText}>
-                                  Pinned
-                                </Text>
-                              </View>
-                            )}
-                            <Text style={styles.memberCount}>
-                              {String(`${community.member_count || 0} member${(community.member_count || 0) !== 1 ? "s" : ""}`)}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {/* Unread Counter */}
-                        {unreadCount > 0 && (
-                          <View style={styles.unreadCounter}>
-                            <Text style={styles.unreadCount}>
-                              {String(unreadCount || 0)}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </TouchableOpacity>
+                      community={community}
+                      latestMessage={latestMessage}
+                      unreadCount={unreadCount}
+                      isRhood={isRhood}
+                      onPress={handleGroupChatPress}
+                      formatMessageTime={formatMessageTime}
+                      styles={styles}
+                    />
                   );
                 })}
 
                 {/* Individual Messages */}
                 {(connectionsWithMessages || []).map((connection, index) => (
-                  <AnimatedListItem
+                  <ConnectionListItem
                     key={connection.id}
+                    connection={connection}
                     index={index}
-                    delay={80}
-                  >
-                    <TouchableOpacity
-                      style={styles.messageItem}
-                      onPress={() => handleConnectionPress(connection)}
-                      onLongPress={
-                        connection.isConnected
-                          ? () => handleOpenConnectionOptions(connection)
-                          : undefined
-                      }
-                      delayLongPress={350}
-                      activeOpacity={0.85}
-                    >
-                      <View style={styles.messageContent}>
-                        {/* Profile Avatar */}
-                        <View style={styles.avatarContainer}>
-                          <ProgressiveImage
-                            source={
-                              connection.profileImage &&
-                              typeof connection.profileImage === "string" &&
-                              connection.profileImage.trim()
-                                ? { uri: connection.profileImage.trim() }
-                                : null
-                            }
-                            style={styles.profileImage}
-                            placeholder={
-                              <ProfileImagePlaceholder
-                                size={48}
-                                style={styles.profileImage}
-                              />
-                            }
-                          />
-                          <View style={styles.onlineIndicator} />
-                        </View>
-
-                        {/* Message Info */}
-                        <View style={styles.messageInfo}>
-                          <View style={styles.messageHeader}>
-                            <Text style={styles.messageName} numberOfLines={1}>
-                              {String(getUserName(connection) || "")}
-                            </Text>
-                            <View style={styles.messageHeaderMeta}>
-                              <Text style={styles.messageTime}>
-                                {String(connection.lastActive || "Recently")}
-                              </Text>
-                            </View>
-                          </View>
-                          {/* Location removed per design */}
-                          {connection.statusMessage && String(connection.statusMessage).trim() ? (
-                            <Text
-                              style={styles.connectionStatusMessage}
-                              numberOfLines={1}
-                            >
-                              {String(connection.statusMessage || "")}
-                            </Text>
-                          ) : null}
-                          <View style={styles.messagePreview}>
-                            <Text style={styles.messageText} numberOfLines={1}>
-                              {String((getLastMessageSender(connection) || "") + (getLastMessageContent(connection) || ""))}
-                            </Text>
-                            <Text style={styles.messageTime}>
-                              {String(getLastMessageTime(connection) || "")}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  </AnimatedListItem>
+                    onPress={handleConnectionPress}
+                    onLongPress={
+                      connection.isConnected
+                        ? () => handleOpenConnectionOptions(connection)
+                        : undefined
+                    }
+                    getUserName={getUserName}
+                    getLastMessageSender={getLastMessageSender}
+                    getLastMessageContent={getLastMessageContent}
+                    getLastMessageTime={getLastMessageTime}
+                    styles={styles}
+                  />
                 ))}
               </Animated.View>
           </View>
@@ -2760,173 +2650,21 @@ function ConnectionsScreenComponent({
                           const pendingKey = user.connectionId || user.id;
                           const isCancelling =
                             isPending && pendingKey === cancellingConnectionId;
-                          const pressableProps = user.isConnected
-                            ? {
-                                onLongPress: () => handleOpenConnectionOptions(user),
-                                delayLongPress: 350,
-                              }
-                            : {};
-
                           return (
-                          <AnimatedListItem key={user.id} index={index} delay={80}>
-                              <Pressable style={styles.discoverCard} {...pressableProps}>
-                      {/* Top Row: Profile Image + Name Info + Rating */}
-                      <View style={styles.discoverTopRow}>
-                        {/* Profile Image */}
-                        <View style={styles.discoverProfileContainer}>
-                          <ProgressiveImage
-                            source={
-                              user.profileImage &&
-                              typeof user.profileImage === "string" &&
-                              user.profileImage.trim()
-                                ? { uri: user.profileImage.trim() }
-                                : null
-                            }
-                            style={styles.discoverProfileImage}
-                            placeholder={
-                              <ProfileImagePlaceholder
-                                size={80}
-                                style={styles.discoverProfileImage}
-                              />
-                            }
-                          />
-                          <View style={styles.discoverOnlineIndicator} />
-                        </View>
-
-                        {/* Name Info */}
-                        <View style={styles.discoverNameSection}>
-                          <View style={styles.discoverHeader}>
-                            <Text style={styles.discoverName}>{String(user.name || "")}</Text>
-                          </View>
-                          <Text style={styles.discoverUsername}>
-                            {String(user.username || "")}
-                          </Text>
-                          <Text style={styles.discoverLocation}>
-                            {String(user.location || "")}
-                          </Text>
-                            {user.statusMessage && String(user.statusMessage).trim() ? (
-                              <Text
-                                style={styles.discoverStatus}
-                                numberOfLines={1}
-                              >
-                                {String(user.statusMessage || "")}
-                              </Text>
-                            ) : null}
-                        </View>
-
-                        {/* Activity */}
-                        <View style={styles.discoverRatingSection}>
-                          <Text style={styles.discoverLastActive}>
-                            {String(user.lastActive || "")}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Description - Full Width - Hidden for now */}
-                      {/* <Text style={styles.discoverBio}>{user.bio}</Text> */}
-
-                      {/* Genre Tags */}
-                      <View style={styles.discoverGenres}>
-                        {(Array.isArray(user.genres) ? user.genres.slice(0, 3) : []).map((genre, index) => (
-                          <View key={index} style={styles.discoverGenreTag}>
-                            <Ionicons
-                              name="musical-notes"
-                              size={12}
-                              color="hsl(75, 100%, 60%)"
+                            <DiscoverUserCard
+                              key={user.id}
+                              user={user}
+                              index={index}
+                              onViewProfile={handleViewProfile}
+                              onConnectionPress={handleConnectionPress}
+                              onConnect={handleConnect}
+                              onCancelPending={handleCancelPendingConnection}
+                              onLongPress={handleOpenConnectionOptions}
+                              isPending={isPending}
+                              isCancelling={isCancelling}
+                              discoverLoading={discoverLoading}
+                              styles={styles}
                             />
-                            <Text style={styles.discoverGenreText}>
-                              {String(genre || "")}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-
-                      {/* Bottom Row: Action Buttons */}
-                      <View style={styles.discoverActions}>
-                        <TouchableOpacity
-                          style={styles.discoverViewProfileButton}
-                          onPress={() => handleViewProfile(user)}
-                        >
-                          <Ionicons
-                            name="person-outline"
-                            size={16}
-                            color="hsl(0, 0%, 100%)"
-                          />
-                          <Text style={styles.discoverViewProfileText}>
-                            View Profile
-                          </Text>
-                        </TouchableOpacity>
-                          {user.isConnected ? (
-                        <TouchableOpacity
-                          style={[
-                            styles.discoverConnectButton,
-                                styles.discoverMessageButton,
-                              ]}
-                              onPress={() =>
-                                handleConnectionPress({
-                                  id: user.id,
-                                  connectionId: user.connectionId,
-                                  threadId: user.threadId,
-                                })
-                          }
-                        >
-                          <Ionicons
-                                name="chatbubble-outline"
-                                size={16}
-                                color="hsl(0, 0%, 0%)"
-                              />
-                              <Text style={styles.discoverMessageText}>
-                                Message
-                              </Text>
-                            </TouchableOpacity>
-                          ) : (
-                            <TouchableOpacity
-                              style={[
-                                styles.discoverConnectButton,
-                                isPending && styles.discoverPendingButton,
-                              ]}
-                              onPress={() =>
-                                isPending
-                                  ? handleCancelPendingConnection(user)
-                                  : handleConnect(user)
-                              }
-                              disabled={
-                                discoverLoading || (isPending && isCancelling)
-                              }
-                            >
-                              {isPending && isCancelling ? (
-                                <ActivityIndicator
-                                  size="small"
-                                  color="hsl(75, 100%, 60%)"
-                                />
-                              ) : (
-                                <Ionicons
-                                  name={isPending ? "close" : "add"}
-                            size={16}
-                            color={
-                                    isPending
-                                      ? "hsl(75, 100%, 60%)"
-                                : "hsl(0, 0%, 0%)"
-                            }
-                          />
-                              )}
-                          <Text
-                            style={[
-                              styles.discoverConnectText,
-                                  isPending && styles.discoverPendingText,
-                                ]}
-                              >
-                                {String(isPending
-                                  ? isCancelling
-                                    ? "Cancelling..."
-                                    : "Cancel Request"
-                              : "Connect")}
-                          </Text>
-                        </TouchableOpacity>
-                          )}
-                      </View>
-                              </Pressable>
-                          </AnimatedListItem>
                           );
                         })}
                       </Animated.View>

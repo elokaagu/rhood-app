@@ -27,7 +27,6 @@ import {
   Vibration,
   Platform,
 } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 // Import Audio from expo-av (works in Expo Go)
@@ -55,25 +54,15 @@ const loadTrackPlayer = () => {
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
 import * as Haptics from "expo-haptics";
-import SplashScreen from "./components/SplashScreen";
-import OnboardingForm from "./components/OnboardingForm";
 import {
   setupAudioNotificationCategories,
   setupNotificationListeners as setupAudioNotificationListeners,
   requestNotificationPermissions,
 } from "./lib/notificationSetup";
-import ConnectionsScreen from "./components/ConnectionsScreen";
-import ConnectionsDiscoveryScreen from "./components/ConnectionsDiscoveryScreen";
-import ListenScreen from "./components/ListenScreen";
-import MessagesScreen from "./components/MessagesScreen";
-import NotificationsScreen from "./components/NotificationsScreen";
-import CommunityScreen from "./components/CommunityScreen";
-import ProfileScreen from "./components/ProfileScreen";
-import SettingsScreen from "./components/SettingsScreen";
 import RhoodModal from "./components/RhoodModal";
-import SwipeableOpportunityCard from "./components/SwipeableOpportunityCard";
 import ProgressiveImage from "./components/ProgressiveImage";
-// import BriefForm from "./components/BriefForm"; // REMOVED - no longer needed for simplified swipe-to-apply
+import EditProfileScreen from "./components/EditProfileScreen";
+import AuthGate from "./components/AuthGate";
 import { db, auth, supabase } from "./lib/supabase";
 import { APPLICATION_LIMITS } from "./lib/performanceConstants";
 import {
@@ -82,26 +71,8 @@ import {
   SPRING_CONFIG,
   PERFORMANCE_THRESHOLDS,
 } from "./lib/performanceConstants";
-import LoginScreen from "./components/LoginScreen";
-import SignupScreen from "./components/SignupScreen";
-import EditProfileScreen from "./components/EditProfileScreen";
-import UserProfileView from "./components/UserProfileView";
-import UploadMixScreen from "./components/UploadMixScreen";
-import AboutScreen from "./components/AboutScreen";
-import CommunityMembersScreen from "./components/CommunityMembersScreen";
-import TermsOfServiceScreen from "./components/TermsOfServiceScreen";
-import PrivacyPolicyScreen from "./components/PrivacyPolicyScreen";
-import HelpCenterScreen from "./components/HelpCenterScreen";
-import HelpChatScreen from "./components/HelpChatScreen";
-import ConnectionsListScreen from "./components/ConnectionsListScreen";
-import AchievementsListScreen from "./components/AchievementsListScreen";
-import InviteScreen from "./components/InviteScreen";
-import AdminApplicationsScreen from "./components/AdminApplicationsScreen";
-import BrandGigsPortal from "./components/BrandGigsPortal";
-import TrendingMixesScreen from "./components/TrendingMixesScreen";
-import YourLikesScreen from "./components/YourLikesScreen";
-import PlaylistDetailScreen from "./components/PlaylistDetailScreen";
-import ResetPasswordScreen from "./components/ResetPasswordScreen";
+import AppShell from "./components/AppShell";
+import ScreenRouter from "./navigation/ScreenRouter";
 import { getAudioErrorMessage } from "./lib/errorMessages";
 // Push notifications - gracefully handle Expo Go limitations
 import {
@@ -4995,873 +4966,80 @@ export default function App() {
   // Fonts will load asynchronously - app continues with system fonts until ready
   // No need to block or log repeatedly
 
-  // Show splash screen first
-  if (showSplash) {
-    console.log("🎬 App: Rendering splash screen");
-    return (
-      <SafeAreaProvider>
-        <SplashScreen onFinish={handleSplashFinish} />
-      </SafeAreaProvider>
-    );
+  // Auth gate: splash, auth loading, login/signup, onboarding, profile loading
+  const authGateRender = AuthGate({
+    showSplash,
+    onSplashFinish: handleSplashFinish,
+    authLoading,
+    isLoading,
+    user,
+    isFirstTime,
+    authMode,
+    djProfile,
+    setDjProfile,
+    onLoginSuccess: handleLoginSuccess,
+    onSignupSuccess: handleSignupSuccess,
+    onSwitchToSignup: showSignup,
+    onSwitchToLogin: showLogin,
+    onOnboardingComplete: completeOnboarding,
+    styles,
+  });
+  if (authGateRender !== null) {
+    return authGateRender;
   }
 
-  // Show loading screen while checking authentication
-  if (authLoading || isLoading) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          <View style={styles.center}>
-            <Text style={styles.title}>R/HOOD</Text>
-          </View>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
+  const renderScreen = () => (
+    <View style={styles.screenContainer}>
+      <ScreenRouter
+        screen={currentScreen}
+        screenParams={screenParams}
+        styles={styles}
+        user={user}
+        setCurrentScreen={setCurrentScreen}
+        setScreenParams={setScreenParams}
+        setUser={setUser}
+        setIsFirstTime={setIsFirstTime}
+        setDjProfile={setDjProfile}
+        setShowAuth={setShowAuth}
+        setAuthMode={setAuthMode}
+        globalAudioState={globalAudioState}
+        playGlobalAudio={playGlobalAudio}
+        pauseGlobalAudio={pauseGlobalAudio}
+        resumeGlobalAudio={resumeGlobalAudio}
+        stopGlobalAudio={stopGlobalAudio}
+        addToQueue={addToQueue}
+        playNextTrack={playNextTrack}
+        clearQueue={clearQueue}
+        opportunities={opportunities}
+        currentOpportunityIndex={currentOpportunityIndex}
+        dailyApplicationStats={dailyApplicationStats}
+        handleOpportunityPress={handleOpportunityPress}
+        handleSwipeLeft={handleSwipeLeft}
+        handleSwipeRight={handleSwipeRight}
+        resetOpportunities={resetOpportunities}
+        isLoadingOpportunities={isLoadingOpportunities}
+        showSwipeTutorial={showSwipeTutorial}
+        handleDismissSwipeTutorial={handleDismissSwipeTutorial}
+        loadNotificationCounts={loadNotificationCounts}
+        shuffleAllMixes={shuffleAllMixes}
+        shuffleByGenre={shuffleByGenre}
+        shuffleBasedOnLikes={shuffleBasedOnLikes}
+      />
+    </View>
+  );
 
-  // Show authentication screens if not logged in
-  if (!user) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          {authMode === "login" ? (
-            <LoginScreen
-              onLoginSuccess={handleLoginSuccess}
-              onSwitchToSignup={showSignup}
-            />
-          ) : (
-            <SignupScreen
-              onSignupSuccess={handleSignupSuccess}
-              onSwitchToLogin={showLogin}
-            />
-          )}
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
-  // Show onboarding if first time user (only after auth is complete)
-  if (isFirstTime && !authLoading && user) {
-    console.log("📱 Showing onboarding for authenticated first-time user");
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          <OnboardingForm
-            onComplete={completeOnboarding}
-            djProfile={djProfile}
-            setDjProfile={setDjProfile}
-          />
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
-  // Show loading screen while determining auth state
-  if (authLoading || (user && !djProfile)) {
-    console.log(
-      "📱 Showing loading screen - authLoading:",
-      authLoading,
-      "user:",
-      !!user,
-      "djProfile:",
-      !!djProfile
-    );
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          <View
-            style={[
-              styles.container,
-              { justifyContent: "center", alignItems: "center" },
-            ]}
-          >
-            <Text style={styles.loadingText}>Loading...</Text>
-          </View>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
-  const renderScreen = () => {
-    return (
-      <View style={styles.screenContainer}>
-        {renderScreenContent(currentScreen)}
-      </View>
-    );
-  };
-
-  const renderScreenContent = (screen) => {
-    switch (screen) {
-      case "opportunities":
-        return (
-          <View style={[styles.screen, { backgroundColor: "hsl(0, 0%, 0%)" }]}>
-            <View style={styles.opportunitiesContainer}>
-              <View style={styles.opportunitiesHeader}>
-                <Text style={styles.tsBlockBoldHeading}>OPPORTUNITIES</Text>
-                <Text style={styles.opportunitiesSubtitle}>
-                  Swipe to find your next gig
-                </Text>
-                {/* Daily Application Counter */}
-                <View style={styles.dailyApplicationCounter}>
-                  <Ionicons
-                    name="checkmark-circle-outline"
-                    size={16}
-                    color={
-                      dailyApplicationStats.can_apply
-                        ? "hsl(75, 100%, 60%)"
-                        : "hsl(0, 100%, 60%)"
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.dailyApplicationText,
-                      {
-                        color: dailyApplicationStats.can_apply
-                          ? "hsl(75, 100%, 60%)"
-                          : "hsl(0, 100%, 60%)",
-                      },
-                    ]}
-                  >
-                    {dailyApplicationStats?.remaining_applications || 0}{" "}
-                    applications remaining today
-                  </Text>
-                </View>
-              </View>
-
-              {/* Single Card with Transition */}
-              <View style={styles.opportunitiesCardContainer}>
-                {isLoadingOpportunities ? (
-                  /* Loading state */
-                  <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>
-                      Loading opportunities...
-                    </Text>
-                  </View>
-                ) : currentOpportunityIndex < opportunities.length ? (
-                  (() => {
-                    console.log(
-                      "🎯 App.js - Rendering SwipeableOpportunityCard with dailyApplicationStats:",
-                      dailyApplicationStats
-                    );
-                    return (
-                      <SwipeableOpportunityCard
-                        key={currentOpportunityIndex}
-                        opportunity={opportunities[currentOpportunityIndex]}
-                        onPress={() =>
-                          handleOpportunityPress(
-                            opportunities[currentOpportunityIndex]
-                          )
-                        }
-                        onSwipeLeft={handleSwipeLeft}
-                        onSwipeRight={handleSwipeRight}
-                        isTopCard={true}
-                        dailyApplicationStats={dailyApplicationStats}
-                      />
-                    );
-                  })()
-                ) : (
-                  /* No more opportunities */
-                  <View style={styles.noMoreOpportunities}>
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={64}
-                      color="hsl(75, 100%, 60%)"
-                    />
-                    <Text style={styles.noMoreTitle}>All Caught Up!</Text>
-                    <Text style={styles.noMoreSubtitle}>
-                      You've seen all available opportunities. Check back later
-                      for new gigs!
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.resetButton}
-                      onPress={resetOpportunities}
-                    >
-                      <Text style={styles.resetButtonText}>Start Over</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-
-              {/* Swipe Tutorial Overlay */}
-              {showSwipeTutorial && (
-                <Modal
-                  transparent={true}
-                  visible={showSwipeTutorial}
-                  animationType="fade"
-                  onRequestClose={handleDismissSwipeTutorial}
-                >
-                  <View style={styles.tutorialOverlay}>
-                    <View style={styles.tutorialContent}>
-                      <View style={styles.tutorialHeader}>
-                        <Text style={styles.tutorialTitle}>How to Use</Text>
-                        <TouchableOpacity
-                          onPress={handleDismissSwipeTutorial}
-                          style={styles.tutorialCloseButton}
-                        >
-                          <Ionicons
-                            name="close"
-                            size={24}
-                            color="hsl(0, 0%, 100%)"
-                          />
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style={styles.tutorialInstructions}>
-                        <View style={styles.tutorialInstructionRow}>
-                          <View style={styles.tutorialIconContainer}>
-                            <Ionicons
-                              name="arrow-forward"
-                              size={32}
-                              color="hsl(75, 100%, 60%)"
-                            />
-                          </View>
-                          <View style={styles.tutorialTextContainer}>
-                            <Text style={styles.tutorialInstructionTitle}>
-                              Swipe Right
-                            </Text>
-                            <Text style={styles.tutorialInstructionText}>
-                              To apply for an opportunity
-                            </Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.tutorialInstructionRow}>
-                          <View style={styles.tutorialIconContainer}>
-                            <Ionicons
-                              name="arrow-back"
-                              size={32}
-                              color="hsl(0, 100%, 60%)"
-                            />
-                          </View>
-                          <View style={styles.tutorialTextContainer}>
-                            <Text style={styles.tutorialInstructionTitle}>
-                              Swipe Left
-                            </Text>
-                            <Text style={styles.tutorialInstructionText}>
-                              To dismiss and see the next opportunity
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity
-                        style={styles.tutorialGotItButton}
-                        onPress={handleDismissSwipeTutorial}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.tutorialGotItButtonText}>
-                          Got It
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </Modal>
-              )}
-            </View>
-          </View>
-        );
-
-      case "messages":
-        return (
-          <MessagesScreen
-            user={user}
-            navigation={{
-              goBack: () => {
-                setCurrentScreen("connections");
-                setScreenParams((prev) => ({
-                  ...prev,
-                  initialTab:
-                    screenParams?.returnToConnectionsTab || "connections",
-                }));
-              },
-              navigate: (screen, params = {}) => {
-                setCurrentScreen(screen);
-                setScreenParams(params);
-              },
-            }}
-            route={{ params: screenParams }}
-          />
-        );
-
-      case "connections":
-        return (
-          <ConnectionsScreen
-            user={user}
-            initialTab={screenParams.initialTab || "discover"}
-            route={{ params: screenParams }}
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-            onPlayAudio={playGlobalAudio}
-          />
-        );
-
-      case "messages-list":
-        // Messages list shows Connections screen with connections tab (which displays messages)
-        return (
-          <ConnectionsScreen
-            user={user}
-            initialTab="connections"
-            route={{ params: { ...screenParams, returnToMessagesList: true } }}
-            onNavigate={(screen, params = {}) => {
-              // If navigating to messages screen, add returnToMessagesList flag
-              if (screen === "messages") {
-                params.returnToMessagesList = true;
-              }
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-          />
-        );
-
-      case "notifications":
-        return (
-          <NotificationsScreen
-            user={user}
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-            onNotificationRead={() => {
-              // Refresh notification count when a notification is read
-              loadNotificationCounts();
-            }}
-          />
-        );
-
-      case "community":
-        return (
-          <CommunityScreen
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-          />
-        );
-
-      case "profile":
-        return (
-          <ProfileScreen
-            key={screenParams.profileRefreshKey || "profile"}
-            user={user}
-            globalAudioState={globalAudioState}
-            onPlayAudio={playGlobalAudio}
-            onPauseAudio={pauseGlobalAudio}
-            onResumeAudio={resumeGlobalAudio}
-            onStopAudio={stopGlobalAudio}
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-          />
-        );
-
-      case "settings":
-        return (
-          <SettingsScreen
-            user={user}
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-            onSignOut={() => {
-              // Handle sign out
-              setUser(null);
-              setIsFirstTime(true);
-              setDjProfile({
-                djName: "",
-                firstName: "",
-                lastName: "",
-                instagram: "",
-                soundcloud: "",
-                city: "",
-                genres: [],
-              });
-              setCurrentScreen("login");
-            }}
-            onNotificationPreferencesChange={loadNotificationCounts}
-          />
-        );
-
-      case "upload-mix":
-        return (
-          <UploadMixScreen
-            user={user}
-            onBack={() => setCurrentScreen("profile")}
-            onUploadComplete={(mix) => {
-              console.log("Mix uploaded:", mix);
-              setCurrentScreen("profile");
-            }}
-            existingMixId={screenParams.mixId || null}
-          />
-        );
-
-      case "reset-password":
-        return (
-          <ResetPasswordScreen
-            onBack={() => {
-              setCurrentScreen("login");
-              setShowAuth(true);
-              setAuthMode("login");
-            }}
-            onSuccess={() => {
-              // Password reset successful, show login screen
-              setCurrentScreen("login");
-              setShowAuth(true);
-              setAuthMode("login");
-            }}
-          />
-        );
-
-      case "edit-profile":
-        return (
-          <EditProfileScreen
-            user={user}
-            onSave={async (updatedProfile) => {
-              // Refresh user profile data
-              if (user) {
-                try {
-                  const profile = await db.getUserProfile(user.id);
-
-                  // Update the user object with the new profile data
-                  setUser((prevUser) => ({
-                    ...prevUser,
-                    user_metadata: {
-                      ...prevUser.user_metadata,
-                      profile_image_url: profile.profile_image_url,
-                      dj_name: profile.dj_name,
-                      // Add other fields as needed
-                    },
-                  }));
-                } catch (error) {
-                  // Error refreshing profile
-                }
-              }
-              setCurrentScreen("profile");
-              // Force refresh of ProfileScreen
-              setScreenParams((prev) => ({
-                ...prev,
-                profileRefreshKey: Date.now(),
-              }));
-            }}
-            onCancel={() => setCurrentScreen("profile")}
-          />
-        );
-
-      case "user-profile":
-        return (
-          <UserProfileView
-            userId={screenParams.userId}
-            globalAudioState={globalAudioState}
-            onPlayAudio={playGlobalAudio}
-            onPauseAudio={pauseGlobalAudio}
-            onResumeAudio={resumeGlobalAudio}
-            onStopAudio={stopGlobalAudio}
-            onBack={() => setCurrentScreen("connections")}
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-          />
-        );
-
-      case "community-members":
-        return (
-          <CommunityMembersScreen
-            communityId={screenParams.communityId}
-            communityName={screenParams.communityName}
-            onBack={() => {
-              // Go back to messages screen if we came from there
-              if (screenParams.returnToMessages) {
-                setCurrentScreen("messages");
-                setScreenParams({
-                  communityId: screenParams.communityId,
-                  chatType: "group",
-                });
-              } else {
-                setCurrentScreen("connections");
-              }
-            }}
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-          />
-        );
-
-      case "connections-list":
-        return (
-          <ConnectionsListScreen
-            user={user}
-            onBack={() => setCurrentScreen("profile")}
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-          />
-        );
-
-      case "achievements-list":
-        return (
-          <AchievementsListScreen
-            user={user}
-            onBack={() => setCurrentScreen("profile")}
-          />
-        );
-
-      case "invite":
-        return (
-          <InviteScreen
-            user={user}
-            onBack={() => setCurrentScreen("profile")}
-          />
-        );
-
-      case "admin-applications":
-        return (
-          <AdminApplicationsScreen
-            user={user}
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-          />
-        );
-
-      case "brand-gigs-portal":
-        return (
-          <BrandGigsPortal
-            user={user}
-            onBack={() => setCurrentScreen("admin-applications")}
-          />
-        );
-
-      case "about":
-        return <AboutScreen onBack={() => setCurrentScreen("opportunities")} />;
-
-      case "terms":
-        return (
-          <TermsOfServiceScreen onBack={() => setCurrentScreen("settings")} />
-        );
-
-      case "privacy":
-        return (
-          <PrivacyPolicyScreen onBack={() => setCurrentScreen("settings")} />
-        );
-
-      case "help":
-        return (
-          <HelpCenterScreen
-            onBack={() => setCurrentScreen("settings")}
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-          />
-        );
-
-      case "help-chat":
-        return (
-          <HelpChatScreen user={user} onBack={() => setCurrentScreen("help")} />
-        );
-
-      case "listen":
-        return (
-          <ListenScreen
-            globalAudioState={globalAudioState}
-            onPlayAudio={playGlobalAudio}
-            onPauseAudio={pauseGlobalAudio}
-            onResumeAudio={resumeGlobalAudio}
-            onStopAudio={stopGlobalAudio}
-            onAddToQueue={addToQueue}
-            onPlayNext={playNextTrack}
-            onClearQueue={clearQueue}
-            onNavigate={(screen, params = {}) => {
-              setCurrentScreen(screen);
-              setScreenParams(params);
-            }}
-            user={user}
-            onShuffleAll={shuffleAllMixes}
-            onShuffleByGenre={shuffleByGenre}
-            onShuffleBasedOnLikes={shuffleBasedOnLikes}
-          />
-        );
-
-      case "trending-mixes":
-        return (
-          <TrendingMixesScreen
-            globalAudioState={globalAudioState}
-            onPlayAudio={playGlobalAudio}
-            onPauseAudio={pauseGlobalAudio}
-            onBack={() => setCurrentScreen("listen")}
-            user={user}
-            onAddToQueue={addToQueue}
-            onPlayNext={playNextTrack}
-          />
-        );
-
-      case "your-likes":
-        return (
-          <YourLikesScreen
-            globalAudioState={globalAudioState}
-            onPlayAudio={playGlobalAudio}
-            onPauseAudio={pauseGlobalAudio}
-            onBack={() => setCurrentScreen("listen")}
-            user={user}
-            onAddToQueue={addToQueue}
-            onPlayNext={playNextTrack}
-          />
-        );
-
-      case "playlist-detail":
-        return (
-          <PlaylistDetailScreen
-            globalAudioState={globalAudioState}
-            onPlayAudio={playGlobalAudio}
-            onPauseAudio={pauseGlobalAudio}
-            onBack={() => setCurrentScreen("listen")}
-            user={user}
-            onAddToQueue={addToQueue}
-            onPlayNext={playNextTrack}
-            playlistId={screenParams.playlistId}
-            playlistName={screenParams.playlistName}
-          />
-        );
-
-      case "notifications":
-        return (
-          <ScrollView style={styles.screen}>
-            <Text style={styles.tsBlockBoldHeading}>NOTIFICATIONS</Text>
-            <View style={styles.notificationCard}>
-              <Text style={styles.notificationTitle}>New Opportunity</Text>
-              <Text style={styles.notificationText}>
-                Underground Warehouse Rave is looking for DJs
-              </Text>
-              <Text style={styles.notificationTime}>2 hours ago</Text>
-            </View>
-            <View style={styles.notificationCard}>
-              <Text style={styles.notificationTitle}>Application Accepted</Text>
-              <Text style={styles.notificationText}>
-                Your application for Club Neon has been accepted
-              </Text>
-              <Text style={styles.notificationTime}>1 day ago</Text>
-            </View>
-            <View style={styles.notificationCard}>
-              <Text style={styles.notificationTitle}>New Message</Text>
-              <Text style={styles.notificationText}>
-                You have a new message from Darkside Collective
-              </Text>
-              <Text style={styles.notificationTime}>3 days ago</Text>
-            </View>
-          </ScrollView>
-        );
-
-      case "community":
-        return (
-          <ScrollView style={styles.screen}>
-            <Text style={styles.tsBlockBoldHeading}>COMMUNITY</Text>
-            <View style={styles.communityCard}>
-              <Text style={styles.communityTitle}>Underground DJs</Text>
-              <Text style={styles.communityMembers}>1,234 members</Text>
-              <Text style={styles.communityDescription}>
-                Connect with underground DJs worldwide
-              </Text>
-            </View>
-            <View style={styles.communityCard}>
-              <Text style={styles.communityTitle}>Techno Collective</Text>
-              <Text style={styles.communityMembers}>856 members</Text>
-              <Text style={styles.communityDescription}>
-                Share techno tracks and collaborate
-              </Text>
-            </View>
-            <View style={styles.communityCard}>
-              <Text style={styles.communityTitle}>Miami Music Scene</Text>
-              <Text style={styles.communityMembers}>432 members</Text>
-              <Text style={styles.communityDescription}>
-                Local Miami DJs and producers
-              </Text>
-            </View>
-          </ScrollView>
-        );
-
-      case "profile":
-        // Duplicate profile implementation - using ProfileScreen component instead
-        return null;
-
-      default:
-        return (
-          <ListenScreen
-            globalAudioState={globalAudioState}
-            onPlayAudio={playGlobalAudio}
-            onPauseAudio={pauseGlobalAudio}
-            onResumeAudio={resumeGlobalAudio}
-            onStopAudio={stopGlobalAudio}
-            onAddToQueue={addToQueue}
-            onPlayNext={playNextTrack}
-            onClearQueue={clearQueue}
-            user={user}
-            onShuffleAll={shuffleAllMixes}
-            onShuffleByGenre={shuffleByGenre}
-            onShuffleBasedOnLikes={shuffleBasedOnLikes}
-          />
-        );
-    }
-  };
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.logoContainer}>
-              <Image
-                source={require("./assets/rhood_logo.png")}
-                style={styles.logoIcon}
-                resizeMode="contain"
-              />
-              <Image
-                source={require("./assets/RHOOD_Lettering_White.png")}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.menuButton} onPress={openMenu}>
-              <Ionicons name="menu" size={24} color="hsl(0, 0%, 100%)" />
-              <NotificationBadge
-                count={unreadNotificationCount}
-                style={styles.menuNotificationBadge}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
+    <AppShell
+      currentScreen={currentScreen}
+      onOpenMenu={openMenu}
+      onTabPress={handleMenuNavigation}
+      unreadNotificationCount={unreadNotificationCount}
+      styles={styles}
+    >
+      {renderScreen()}
 
-        {renderScreen()}
-
-        {/* Hide tab bar on messages screen */}
-        {currentScreen !== "messages" && (
-          <LinearGradient
-            colors={["#000000", "#1a1a1a", "#000000"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.tabBar}
-          >
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                currentScreen === "opportunities" && styles.activeTab,
-              ]}
-              onPress={() => handleMenuNavigation("opportunities")}
-            >
-              <Ionicons
-                name="briefcase-outline"
-                size={20}
-                color={
-                  currentScreen === "opportunities"
-                    ? "hsl(75, 100%, 60%)"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  currentScreen === "opportunities" && styles.activeTabText,
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-              >
-                Opportunities
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                currentScreen === "connections" && styles.activeTab,
-              ]}
-              onPress={() => handleMenuNavigation("connections")}
-            >
-              <Ionicons
-                name="people-outline"
-                size={20}
-                color={
-                  currentScreen === "connections"
-                    ? "hsl(75, 100%, 60%)"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  currentScreen === "connections" && styles.activeTabText,
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-              >
-                Connections
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                currentScreen === "listen" && styles.activeTab,
-              ]}
-              onPress={() => handleMenuNavigation("listen")}
-            >
-              <Ionicons
-                name="musical-notes-outline"
-                size={20}
-                color={
-                  currentScreen === "listen"
-                    ? "hsl(75, 100%, 60%)"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  currentScreen === "listen" && styles.activeTabText,
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-              >
-                Listen
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                currentScreen === "profile" && styles.activeTab,
-              ]}
-              onPress={() => handleMenuNavigation("profile")}
-            >
-              <Ionicons
-                name="person-outline"
-                size={20}
-                color={
-                  currentScreen === "profile"
-                    ? "hsl(75, 100%, 60%)"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  currentScreen === "profile" && styles.activeTabText,
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-              >
-                Profile
-              </Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        )}
-
-        {/* Hamburger Menu Modal */}
+      {/* Hamburger Menu Modal */}
         <Modal
           visible={showMenu}
           transparent={true}
@@ -7045,8 +6223,7 @@ export default function App() {
         />
 
         {/* Brief Form Modal - REMOVED (simplified to swipe-to-apply) */}
-      </SafeAreaView>
-    </SafeAreaProvider>
+    </AppShell>
   );
 }
 

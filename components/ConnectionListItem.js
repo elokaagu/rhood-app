@@ -1,0 +1,88 @@
+import React from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import ProgressiveImage from "./ProgressiveImage";
+import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
+import AnimatedListItem from "./AnimatedListItem";
+
+/**
+ * Single connection row in the connections/messages list.
+ * Used by ConnectionsScreen for the "connections" tab.
+ */
+export default function ConnectionListItem({
+  connection,
+  index,
+  onPress,
+  onLongPress,
+  getUserName,
+  getLastMessageSender,
+  getLastMessageContent,
+  getLastMessageTime,
+  styles,
+}) {
+  return (
+    <AnimatedListItem key={connection.id} index={index} delay={80}>
+      <TouchableOpacity
+        style={styles.messageItem}
+        onPress={() => onPress(connection)}
+        onLongPress={onLongPress}
+        delayLongPress={350}
+        activeOpacity={0.85}
+      >
+        <View style={styles.messageContent}>
+          <View style={styles.avatarContainer}>
+            <ProgressiveImage
+              source={
+                connection.profileImage &&
+                typeof connection.profileImage === "string" &&
+                connection.profileImage.trim()
+                  ? { uri: connection.profileImage.trim() }
+                  : null
+              }
+              style={styles.profileImage}
+              placeholder={
+                <ProfileImagePlaceholder
+                  size={48}
+                  style={styles.profileImage}
+                />
+              }
+            />
+            <View style={styles.onlineIndicator} />
+          </View>
+          <View style={styles.messageInfo}>
+            <View style={styles.messageHeader}>
+              <Text style={styles.messageName} numberOfLines={1}>
+                {String(getUserName(connection) || "")}
+              </Text>
+              <View style={styles.messageHeaderMeta}>
+                <Text style={styles.messageTime}>
+                  {String(connection.lastActive || "Recently")}
+                </Text>
+              </View>
+            </View>
+            {connection.statusMessage &&
+            String(connection.statusMessage).trim() ? (
+              <Text
+                style={styles.connectionStatusMessage}
+                numberOfLines={1}
+              >
+                {String(connection.statusMessage || "")}
+              </Text>
+            ) : null}
+            <View style={styles.messagePreview}>
+              <Text style={styles.messageText} numberOfLines={1}>
+                {String(
+                  (getLastMessageSender(connection) || "") +
+                    (getLastMessageContent(connection) || "")
+                )}
+              </Text>
+              <Text style={styles.messageTime}>
+                {String(getLastMessageTime(connection) || "")}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </AnimatedListItem>
+  );
+}
