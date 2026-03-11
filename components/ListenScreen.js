@@ -1900,14 +1900,17 @@ export default function ListenScreen({
     return s;
   }, [user?.id, playlists, trendingMixes, userLikedMixes, recommendedMixes, onNavigate]);
 
-  const keyExtractor = useCallback((item, index, section) => {
-    if (section.type === "horizontalMixes") return `youMayLike-${index}`;
-    if (section.type === "playlist") return `playlist-${item.id}`;
-    return `${section.id}-${item.id}`;
+  // SectionList only passes (item, index), not section - derive key from item shape to avoid crash
+  const keyExtractor = useCallback((item, index) => {
+    if (item == null) return `item-${index}`;
+    if (Array.isArray(item)) return `youMayLike-${index}`;
+    if (typeof item.mixCount === "number" && item.name != null) return `playlist-${item.id ?? index}`;
+    return `mix-${item.id ?? index}`;
   }, []);
 
   const renderSectionHeader = useCallback(
     ({ section }) => {
+      if (!section) return null;
       if (section.type === "horizontalMixes") {
         return (
           <View style={styles.recommendationsSection}>
@@ -2044,8 +2047,10 @@ export default function ListenScreen({
 
   const renderSectionItem = useCallback(
     ({ item, section }) => {
+      if (!section) return null;
+      if (item == null && section.type !== "horizontalMixes") return null;
       if (section.type === "horizontalMixes") {
-        const mixes = item;
+        const mixes = Array.isArray(item) ? item : [];
         return (
           <View style={styles.recommendationsSection}>
             <ScrollView
@@ -2328,7 +2333,7 @@ export default function ListenScreen({
         />
       ) : (
         <SectionList
-          sections={sections}
+          sections={sections ?? []}
           keyExtractor={keyExtractor}
           renderSectionHeader={renderSectionHeader}
           renderItem={renderSectionItem}
