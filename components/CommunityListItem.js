@@ -1,13 +1,12 @@
-import React from "react";
+import React, { memo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import ProgressiveImage from "./ProgressiveImage";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
 
 /**
  * Single community row in the connections tab (e.g. R/HOOD group).
- * Used by ConnectionsScreen.
  */
-export default function CommunityListItem({
+function CommunityListItem({
   community,
   latestMessage,
   unreadCount,
@@ -83,3 +82,5 @@ export default function CommunityListItem({
     </TouchableOpacity>
   );
 }
+
+export default memo(CommunityListItem);

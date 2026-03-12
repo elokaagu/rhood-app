@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback, startTransition } from "react";
 import {
   View,
   Text,
@@ -18,7 +18,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
-import AnimatedListItem from "./AnimatedListItem";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
 import ConnectionListItem from "./ConnectionListItem";
 import CommunityListItem from "./CommunityListItem";
@@ -224,16 +223,15 @@ function ConnectionsScreenComponent({
         
         // Filter out brand accounts
         const filteredRecent = (recentUsers || []).filter(user => !isBrandAccount(user.email));
-        setPopularDJs(filteredRecent.slice(0, 10));
+        startTransition(() => setPopularDJs(filteredRecent.slice(0, 10)));
         return;
       }
 
-      // Filter out brand accounts
       const filteredPopular = (popularUsers || []).filter(user => !isBrandAccount(user.email));
-      setPopularDJs(filteredPopular.slice(0, 10));
+      startTransition(() => setPopularDJs(filteredPopular.slice(0, 10)));
     } catch (error) {
       console.error("Error loading popular DJs:", error);
-      setPopularDJs([]);
+      startTransition(() => setPopularDJs([]));
     } finally {
       setPopularDJsLoading(false);
     }
@@ -307,7 +305,7 @@ function ConnectionsScreenComponent({
         };
       });
 
-      setNearbyOpportunities(transformedOpportunities);
+      startTransition(() => setNearbyOpportunities(transformedOpportunities));
     } catch (error) {
       console.error("Error loading nearby opportunities:", error);
       setNearbyOpportunities([]);
@@ -465,7 +463,7 @@ function ConnectionsScreenComponent({
         .filter(user => !connectedUserIds.has(user.id))
         .slice(0, 10);
 
-      setNearbyDJs(filteredNearby);
+      startTransition(() => setNearbyDJs(filteredNearby));
     } catch (error) {
       console.error("Error loading nearby DJs:", error);
       setNearbyDJs([]);
@@ -481,14 +479,11 @@ function ConnectionsScreenComponent({
     }
   }, [user?.id, user?.city]);
 
-  // Critical vs non-critical: screen usable fast, rest hydrates (P0)
+  // Run all loads in parallel so Discover tab isn't blocked by Messages data (biggest fix for "still slow")
   useEffect(() => {
     const initializeData = async () => {
-      // Wave 1 — critical: user, connections, last messages, then communities
-      await loadUserAndConnections({ showLoader: true });
-      await checkRhoodMembership();
-      // Wave 2 — non-critical: discover, popular, nearby, opportunities (parallel)
       await Promise.all([
+        loadUserAndConnections({ showLoader: true }).then(() => checkRhoodMembership()),
         loadDiscoverDJs(),
         loadPopularDJs(),
         loadNearbyDJs(),
@@ -564,16 +559,11 @@ function ConnectionsScreenComponent({
 
       setUser(currentUser);
 
-      // Get user's connections from database (both pending and accepted)
-      const connectionsData = await db.getUserConnections(
-        currentUser.id,
-        null // Get all connections regardless of status
-      );
-
-      // Get all conversation participants (even if not connected)
-      const conversationParticipants = await db.getAllConversationParticipants(
-        currentUser.id
-      );
+      // Parallel: connections and participants (saves one round-trip)
+      const [connectionsData, conversationParticipants] = await Promise.all([
+        db.getUserConnections(currentUser.id, null),
+        db.getAllConversationParticipants(currentUser.id),
+      ]);
 
       // Create a map of existing connections
       const connectionsMap = {};
@@ -726,6 +716,7 @@ function ConnectionsScreenComponent({
         );
         setConnections(allConnections);
         setLastMessages(lastMessagesData);
+        hasLoadedMessagesRef.current = true; // avoid double fetch in "load messages once" effect
 
         if (newlyAcceptedConnections.length > 0) {
           const accepted = newlyAcceptedConnections[0];
@@ -776,7 +767,10 @@ function ConnectionsScreenComponent({
   const handleRefresh = async () => {
     HapticPatterns.pullToRefresh();
     setRefreshing(true);
-    await loadUserAndConnections();
+    await Promise.all([
+      loadUserAndConnections(),
+      loadUserCommunities(),
+    ]);
     setRefreshing(false);
   };
 
@@ -1572,7 +1566,7 @@ function ConnectionsScreenComponent({
         return formattedUser;
       });
 
-      setDiscoverUsers(formattedDiscoverUsers);
+      startTransition(() => setDiscoverUsers(formattedDiscoverUsers));
     } catch (error) {
       console.error("❌ Error loading discover DJs:", error);
       setDiscoverUsers([]);
@@ -2289,9 +2283,9 @@ function ConnectionsScreenComponent({
                       style={styles.recommendationsScroll}
                       contentContainerStyle={styles.recommendationsContent}
                     >
-                      {popularDJs.map((dj, index) => (
-                        <AnimatedListItem key={dj.id} index={index} delay={30} maxStaggerIndex={6}>
-                          <TouchableOpacity
+                      {popularDJs.map((dj) => (
+                        <TouchableOpacity
+                          key={dj.id}
                             style={styles.recommendationCard}
                             onPress={() => {
                               if (onNavigate) {
@@ -2344,12 +2338,10 @@ function ConnectionsScreenComponent({
                                 </Text>
                               )}
                             </View>
-                          </View>
-                        </TouchableOpacity>
-                        </AnimatedListItem>
+                            </View>
+                          </TouchableOpacity>
                       ))}
                     </ScrollView>
-                    {/* Divider line */}
                     <View style={styles.recommendationsDivider} />
                   </View>
                 )}
@@ -2387,10 +2379,10 @@ function ConnectionsScreenComponent({
                       style={styles.recommendationsScroll}
                       contentContainerStyle={styles.recommendationsContent}
                     >
-                      {nearbyDJs.map((dj, index) => (
-                        <AnimatedListItem key={dj.id} index={index} delay={30} maxStaggerIndex={6}>
-                          <TouchableOpacity
-                            style={styles.recommendationCard}
+                      {nearbyDJs.map((dj) => (
+                        <TouchableOpacity
+                          key={dj.id}
+                          style={styles.recommendationCard}
                             onPress={() => {
                               HapticPatterns.itemPress();
                               if (onNavigate) {
@@ -2445,10 +2437,8 @@ function ConnectionsScreenComponent({
                             </View>
                           </View>
                         </TouchableOpacity>
-                        </AnimatedListItem>
                       ))}
                     </ScrollView>
-                    {/* Divider line */}
                     <View style={styles.recommendationsDivider} />
                   </View>
                 )}
@@ -2486,10 +2476,10 @@ function ConnectionsScreenComponent({
                       style={styles.recommendationsScroll}
                       contentContainerStyle={styles.recommendationsContent}
                     >
-                      {nearbyOpportunities.map((opp, index) => (
-                        <AnimatedListItem key={opp.id} index={index} delay={35} maxStaggerIndex={6}>
-                          <TouchableOpacity
-                            style={styles.opportunityCard}
+                      {nearbyOpportunities.map((opp) => (
+                        <TouchableOpacity
+                          key={opp.id}
+                          style={styles.opportunityCard}
                             onPress={() => {
                               HapticPatterns.itemPress();
                               if (onNavigate) {
@@ -2545,10 +2535,8 @@ function ConnectionsScreenComponent({
                               </View>
                             </View>
                           </TouchableOpacity>
-                        </AnimatedListItem>
                       ))}
                     </ScrollView>
-                    {/* Divider line */}
                     <View style={styles.recommendationsDivider} />
                   </View>
                 )}

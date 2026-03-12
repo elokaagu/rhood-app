@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import {
   View,
   Text,
@@ -9,12 +9,11 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
-import AnimatedListItem from "./AnimatedListItem";
 
 /**
- * Single user card in the discover tab of ConnectionsScreen.
+ * Single user card in the discover tab. No per-item animation for smooth scroll.
  */
-export default function DiscoverUserCard({
+function DiscoverUserCard({
   user,
   index,
   onViewProfile,
@@ -32,8 +31,7 @@ export default function DiscoverUserCard({
     : {};
 
   return (
-    <AnimatedListItem key={user.id} index={index} delay={80}>
-      <Pressable style={styles.discoverCard} {...pressableProps}>
+    <Pressable style={styles.discoverCard} {...pressableProps}>
         <View style={styles.discoverTopRow}>
           <View style={styles.discoverProfileContainer}>
             <ProgressiveImage
@@ -175,6 +173,7 @@ export default function DiscoverUserCard({
           )}
         </View>
       </Pressable>
-    </AnimatedListItem>
   );
 }
+
+export default memo(DiscoverUserCard);

@@ -1,15 +1,14 @@
-import React from "react";
+import React, { memo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
-import AnimatedListItem from "./AnimatedListItem";
 
 /**
  * Single connection row in the connections/messages list.
- * Used by ConnectionsScreen for the "connections" tab.
+ * No per-item animation to keep list scroll smooth (virtualized).
  */
-export default function ConnectionListItem({
+function ConnectionListItem({
   connection,
   index,
   onPress,
@@ -21,8 +20,7 @@ export default function ConnectionListItem({
   styles,
 }) {
   return (
-    <AnimatedListItem key={connection.id} index={index} delay={80}>
-      <TouchableOpacity
+    <TouchableOpacity
         style={styles.messageItem}
         onPress={() => onPress(connection)}
         onLongPress={onLongPress}
@@ -83,6 +81,7 @@ export default function ConnectionListItem({
           </View>
         </View>
       </TouchableOpacity>
-    </AnimatedListItem>
   );
 }
+
+export default memo(ConnectionListItem);
