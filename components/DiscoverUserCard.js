@@ -9,6 +9,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
+import FadeInView from "./FadeInView";
 
 /**
  * Single user card in the discover tab. No per-item animation for smooth scroll.
@@ -32,6 +33,7 @@ function DiscoverUserCard({
 
   return (
     <Pressable style={styles.discoverCard} {...pressableProps}>
+      <FadeInView>
         <View style={styles.discoverTopRow}>
           <View style={styles.discoverProfileContainer}>
             <ProgressiveImage
@@ -172,7 +174,8 @@ function DiscoverUserCard({
             </TouchableOpacity>
           )}
         </View>
-      </Pressable>
+      </FadeInView>
+    </Pressable>
   );
 }
 

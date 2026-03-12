@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
+import FadeInView from "./FadeInView";
 
 /**
  * Single connection row in the connections/messages list.
@@ -27,7 +28,7 @@ function ConnectionListItem({
         delayLongPress={350}
         activeOpacity={0.85}
       >
-        <View style={styles.messageContent}>
+        <FadeInView style={styles.messageContent}>
           <View style={styles.avatarContainer}>
             <ProgressiveImage
               source={
@@ -44,6 +45,7 @@ function ConnectionListItem({
                   style={styles.profileImage}
                 />
               }
+              transition={0}
             />
             <View style={styles.onlineIndicator} />
           </View>
@@ -79,7 +81,7 @@ function ConnectionListItem({
               </Text>
             </View>
           </View>
-        </View>
+        </FadeInView>
       </TouchableOpacity>
   );
 }

@@ -50,7 +50,7 @@ All run in parallel with each other and with the connections path. No `startTran
 
 ### 1.5 Tab switch & refresh
 
-- **Messages tab focused:** Effect runs only if `!hasLoadedConnections` or data older than 60s; calls `loadUserAndConnections()` and `loadUserCommunities()` (no `deferLoadingEnd`).
+- **Messages tab focused:** Effect runs only if `!hasLoadedConnections` or data older than 60s. When **mounting with Connections tab** (`initialTab === "connections"`), the effect does **not** start a load; only the mount effect (`initializeData`) runs, avoiding double load and flicker. When the user **switches** to the Connections tab and data is missing, the effect runs with `deferLoadingEnd: true` and awaits both `loadUserAndConnections` and `loadUserCommunities` before a single `setLoading(false)` / `setHasLoadedConnections(true)`. When data is stale (>60s), it calls `loadUserAndConnections()` and `loadUserCommunities()` without defer.
 - **Pull-to-refresh:** `Promise.all([ loadUserAndConnections(), loadUserCommunities() ])` so both connections and communities refresh.
 
 ### 1.6 Realtime & periodic
@@ -71,6 +71,12 @@ All run in parallel with each other and with the connections path. No `startTran
   - then a single `setLoading(false)`, `setHasLoadedConnections(true)`, `lastLoadedAtRef`, fade.
 - **Result:** The Connections tab shows the skeleton until both connections and communities are ready, then one transition to the full list. No mid-list flicker from communities appearing later.
 - **Error:** If `loadUserAndConnections` throws with `deferLoadingEnd`, the catch block still calls `setLoading(false)` and `setHasLoadedConnections(true)` so the user can see the error/retry UI.
+
+### 2.1 Why it was still flickering (March 2025 follow-up)
+
+- **Double load when opening the app on the Connections tab:** When `initialTab === "connections"`, two code paths run: (1) Mount effect `initializeData` starts `loadUserAndConnections({ deferLoadingEnd: true })` then on resolve runs `checkRhoodMembership()` (i.e. `loadUserCommunities`) and then `setLoading(false)`, `setHasLoadedConnections(true)`. (2) Tab effect sees `activeTab === "connections"` and `!hasLoadedConnections`, so it also runs `await loadUserAndConnections({ deferLoadingEnd: true })` then `await loadUserCommunities()` then `setLoading(false)`, `setHasLoadedConnections(true)`. So two `loadUserCommunities` run; whichever completes first shows the list, the second calls `setCommunitiesData` again → list re-renders → visible flicker.
+- **Fix:** `mountedWithConnectionsTabRef = useRef(initialTab === "connections")`. In the tab effect, when `!hasLoadedConnections` and `mountedWithConnectionsTabRef.current` is true, skip the load (set ref to false and return). Only the mount effect performs the first load when the app opens on the Connections tab.
+- **Tab button:** Removed `connectionsFadeAnim.setValue(0)` on tab press so the content does not flash to invisible then fade in.
 
 ---
 
@@ -124,6 +130,62 @@ All run in parallel with each other and with the connections path. No `startTran
 
 ---
 
-## 6. Conclusion
+## 6. Full audit – Connections page (systematic)
 
-The Connections page is in a strong state (target 90s): parallel loads; no N+1 (including batched getAllConversationParticipants); virtualized lists with getItemLayout; memoized items; single transition off the skeleton (flicker fix); batched community state (setCommunitiesData); and sensible realtime/periodic behavior. Remaining items are optional. This doc can be re-used for future checks by updating §3 and §4.
+### 6.1 File and surface
+
+- **File:** `components/ConnectionsScreen.js` (single large component).
+- **Tabs:** Connections (SectionList: communities + connections) and Discover (FlatList + carousels). Content is `activeTab === "connections" ? … : …`.
+- **Connections content branch:** `loading && !hasLoadedConnections` → skeleton ScrollView; `connectionsLoadError && connections.length === 0` → error + retry; else → SectionList with `connectionSections`, footer CTA, refreshControl.
+
+### 6.2 State that drives Connections list
+
+| State | Purpose |
+|-------|--------|
+| `loading` | Show skeleton when true and `!hasLoadedConnections`. |
+| `hasLoadedConnections` | Distinguishes “never loaded” (skeleton) from “loaded (maybe empty)”. |
+| `connections` | Raw connection rows from DB. |
+| `lastMessages` | Map of connection id → last message; drives `connectionsWithMessages`. |
+| `communitiesData` | Single object: userCommunities, communityMessages, communityUnreadCounts, rhood*, latestGroupMessage, unreadGroupCount. Destructured for render. |
+| `connectionsLoadError` | Error message; when set and no connections, show error UI. |
+
+Derived: `filteredConnections` (connections + search + status filter), `connectionsWithMessages` (filtered + has last message), `connectionSections = [ { key: "communities", data: userCommunities }, { key: "connections", data: connectionsWithMessages } ]`.
+
+### 6.3 Effects that affect Connections
+
+| Effect | Trigger | Action |
+|--------|--------|--------|
+| Mount | `[]` | `initializeData`: connections path with `deferLoadingEnd: true` → then `checkRhoodMembership()` → single `setLoading(false)`, `setHasLoadedConnections(true)`; parallel discover/popular/nearby/opportunities. |
+| Tab | `[activeTab, user?.id, hasLoadedConnections]` | When `activeTab === "connections"`: if mounted with connections tab, skip load; else if `!hasLoadedConnections` run deferred load (connections + communities then one transition); else if stale (60s) run load without defer. |
+| Load messages once | `[user?.id, connections.length, hasLoadedConnections]` | When connections loaded and `!hasLoadedMessagesRef.current`, set ref and call `loadLastMessagesForConnections` (no double fetch; initial messages come from loadUserAndConnections batch). |
+| Realtime messages | `[user?.id, connections.length, hasLoadedConnections]` | Subscribe to messages INSERT; on event call `loadLastMessagesForConnections`. |
+| Realtime community_posts | same channel | On R/HOOD post INSERT call `checkRhoodMembership()`. |
+| Periodic | `[user?.id, connections.length]` | Every 30s call `loadLastMessagesForConnections`. |
+| Realtime connections | `[user?.id]` | Debounced 600ms → `loadUserAndConnections`, discover, nearby. |
+
+### 6.4 List configuration (Connections SectionList)
+
+- `sections={connectionSections}`, `keyExtractor=(item) => item.id`, `renderSectionHeader={() => null}`, `stickySectionHeadersEnabled={false}`.
+- `initialNumToRender`, `maxToRenderPerBatch`, `windowSize`, `removeClippedSubviews` from `LIST_PERFORMANCE`.
+- `getItemLayout={getConnectionListItemLayout}`: fixed height per index (`ESTIMATED_ROW_HEIGHT_MESSAGES * index`). Note: SectionList’s `getItemLayout` is per-section; this callback uses a flat index, so it is correct only if used as the section’s `getItemLayout` or if the list is treated as a single section. In the current code it is passed to SectionList directly; React Native SectionList may pass (data, index) per section. If scroll jumps occur, consider providing a section-aware layout or removing getItemLayout for SectionList.
+- Wrapper: `<Animated.View style={[styles.flex1, { opacity: connectionsFadeAnim }]}>`; fade anim starts at 1; no longer forced to 0 on tab press.
+
+### 6.5 Flicker sources (addressed)
+
+1. **Communities popping in after list shown** – Fixed by deferLoadingEnd and single transition after connections + communities.
+2. **Double load when opening on Connections tab** – Fixed by `mountedWithConnectionsTabRef` so tab effect does not run its load on mount when `initialTab === "connections"`.
+3. **Tab press flash** – Fixed by not setting `connectionsFadeAnim.setValue(0)` on tab press.
+4. **Multiple setState after list visible** – Batched: connections + lastMessages in one pass in loadUserAndConnections; communities in one setCommunitiesData; loading done in one transition.
+
+### 6.6 Refs
+
+- `lastLoadedAtRef`: timestamp of last connections load; used for 60s staleness.
+- `hasLoadedMessagesRef`: prevents “load messages once” and realtime from double-fetching; set when batch last messages are set in loadUserAndConnections.
+- `mountedWithConnectionsTabRef`: prevents tab effect from loading when mount already owns the first load (initialTab === "connections").
+- `prevConnectionStatusesRef`, `realtimeDebounceRef`, `searchTimeoutRef`: status diffing, debounce, search debounce.
+
+---
+
+## 7. Conclusion
+
+The Connections page is in a strong state (target 90s): parallel loads; no N+1 (including batched getAllConversationParticipants); virtualized lists with getItemLayout; memoized items; single transition off the skeleton (flicker fix); batched community state (setCommunitiesData); no double load when opening on Connections tab; and sensible realtime/periodic behavior. Remaining items are optional. This doc can be re-used for future checks by updating §3, §4, and §6.

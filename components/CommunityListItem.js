@@ -2,6 +2,7 @@ import React, { memo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import ProgressiveImage from "./ProgressiveImage";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
+import FadeInView from "./FadeInView";
 
 /**
  * Single community row in the connections tab (e.g. R/HOOD group).
@@ -20,7 +21,7 @@ function CommunityListItem({
       style={styles.messageItem}
       onPress={() => onPress(community.id)}
     >
-      <View style={styles.messageContent}>
+      <BlurInView style={styles.messageContent}>
         <View style={styles.avatarContainer}>
           <ProgressiveImage
             source={
@@ -35,6 +36,7 @@ function CommunityListItem({
                 style={styles.profileImage}
               />
             }
+            transition={0}
           />
           <View style={styles.onlineIndicator} />
         </View>
@@ -78,7 +80,7 @@ function CommunityListItem({
             </Text>
           </View>
         )}
-      </View>
+      </FadeInView>
     </TouchableOpacity>
   );
 }
