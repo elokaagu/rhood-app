@@ -126,6 +126,21 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
     }
   }, [connectionModalSecondaryAction, handleCloseConnectionModal]);
 
+  // Discover loaders context (updated each render so async loaders see latest state)
+  const discoverCtxRef = useRef({});
+  discoverCtxRef.current = {
+    setDiscoverUsers,
+    setDiscoverLoading,
+    setDiscoverLoadError,
+    setPopularDJs,
+    setPopularDJsLoading,
+    setNearbyDJs,
+    setNearbyDJsLoading,
+    setNearbyOpportunities,
+    setNearbyOpportunitiesLoading,
+    discoverFadeAnim,
+  };
+
   // Context for loaders (updated each render so async loaders see latest state)
   const connectionsLoaderCtxRef = useRef({});
   connectionsLoaderCtxRef.current = {
@@ -534,10 +549,6 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
     try {
       setDiscoverLoading(true);
 
-      // Debug: Log connection data
-
-      // Get current user
-      const { supabase } = await import("../lib/supabase");
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser();
