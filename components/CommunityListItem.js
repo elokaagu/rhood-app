@@ -21,7 +21,7 @@ function CommunityListItem({
       style={styles.messageItem}
       onPress={() => onPress(community.id)}
     >
-      <BlurInView style={styles.messageContent}>
+      <FadeInView style={styles.messageContent}>
         <View style={styles.avatarContainer}>
           <ProgressiveImage
             source={
