@@ -383,6 +383,7 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
         ) : (
           /* Messages Section */
           <ConnectionsScreen
+            user={user}
             onNavigate={(screen, params = {}) => {
               onNavigate(screen, params);
             }}

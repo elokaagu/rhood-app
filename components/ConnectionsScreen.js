@@ -16,6 +16,9 @@ function ConnectionsScreenComponent({ user: propUser, onNavigate, initialTab = "
 
   const screen = useConnectionsScreen(propUser, onNavigate, route, initialTab);
 
+  if (!screen || typeof screen !== "object") {
+    return null;
+  }
   if (!screen.user || typeof screen.user !== "object" || Array.isArray(screen.user)) {
     return null;
   }
@@ -89,7 +92,7 @@ function ConnectionsScreenComponent({ user: propUser, onNavigate, initialTab = "
         showSuggestions={showSuggestions}
         connectionsFadeAnim={connectionsFadeAnim}
         discoverFadeAnim={discoverFadeAnim}
-        discoverUsersLength={discoverUsers.length}
+        discoverUsersLength={discoverUsers?.length ?? 0}
         loadDiscoverDJs={loadDiscoverDJs}
         onNavigate={onNavigate}
       />
