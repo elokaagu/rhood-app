@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  SectionList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -108,6 +109,13 @@ function ConnectionsScreenComponent({
   const [decliningUserId, setDecliningUserId] = useState(null);
   const [isDeletingConnectionId, setIsDeletingConnectionId] = useState(null);
   const prevConnectionStatusesRef = useRef(new Map());
+  const lastLoadedAtRef = useRef(0);
+  const STALE_MS = 60 * 1000; // Don't full-reload if data is under 1 min old
+  const PERIODIC_REFRESH_INTERVAL_MS = 30 * 1000; // Softer than 10s (audit §8)
+  const REALTIME_DEBOUNCE_MS = 600; // Debounce connection-update handler
+  const [connectionsLoadError, setConnectionsLoadError] = useState(null);
+  const [discoverLoadError, setDiscoverLoadError] = useState(null);
+  const realtimeDebounceRef = useRef(null);
 
   const handleCloseConnectionModal = useCallback(() => {
     setShowConnectionModal(false);
@@ -155,7 +163,6 @@ function ConnectionsScreenComponent({
   // Update user state when prop changes - ensure it's always valid
   useEffect(() => {
     if (propUser && typeof propUser === 'object' && !Array.isArray(propUser) && propUser !== user) {
-      console.log("User prop changed, updating user state");
       setUser(propUser);
     } else if (!propUser || typeof propUser !== 'object' || Array.isArray(propUser)) {
       // If propUser becomes invalid, don't update state
@@ -244,7 +251,6 @@ function ConnectionsScreenComponent({
       } = await supabase.auth.getUser();
 
       if (!currentUser) {
-        console.log("❌ No current user found for nearby opportunities");
         setNearbyOpportunities([]);
         return;
       }
@@ -252,7 +258,6 @@ function ConnectionsScreenComponent({
       // Get user's profile to find their city
       const userProfile = await db.getUserProfile(currentUser.id);
       if (!userProfile || !userProfile.city) {
-        console.log("❌ User has no city set, skipping nearby opportunities");
         setNearbyOpportunities([]);
         return;
       }
@@ -386,7 +391,6 @@ function ConnectionsScreenComponent({
       } = await supabase.auth.getUser();
 
       if (!currentUser) {
-        console.log("❌ No current user found for nearby DJs");
         setNearbyDJs([]);
         return;
       }
@@ -394,7 +398,6 @@ function ConnectionsScreenComponent({
       // Get user's profile to find their city
       const userProfile = await db.getUserProfile(currentUser.id);
       if (!userProfile || !userProfile.city) {
-        console.log("❌ User has no city set, skipping nearby DJs");
         setNearbyDJs([]);
         return;
       }
@@ -478,32 +481,39 @@ function ConnectionsScreenComponent({
     }
   }, [user?.id, user?.city]);
 
-  // Load user and discover data on mount
+  // Critical vs non-critical: screen usable fast, rest hydrates (P0)
   useEffect(() => {
     const initializeData = async () => {
+      // Wave 1 — critical: user, connections, last messages, then communities
       await loadUserAndConnections({ showLoader: true });
-      // Load discover data after connections are loaded
-      await loadDiscoverDJs();
-      // Load popular DJs
-      await loadPopularDJs();
-      // Load nearby DJs
-      await loadNearbyDJs();
-      // Check R/HOOD membership
       await checkRhoodMembership();
+      // Wave 2 — non-critical: discover, popular, nearby, opportunities (parallel)
+      await Promise.all([
+        loadDiscoverDJs(),
+        loadPopularDJs(),
+        loadNearbyDJs(),
+        loadNearbyOpportunities(),
+      ]);
     };
     initializeData();
   }, []);
 
-  // Load data when Messages tab becomes active (only if not already loaded)
+  // Load data when Messages tab becomes active — only if missing or stale (P0: no reload every tab switch)
   useEffect(() => {
-    if (activeTab === "connections" && user && !hasLoadedConnections) {
+    if (activeTab !== "connections" || !user?.id) return;
+    const isStale = Date.now() - lastLoadedAtRef.current > STALE_MS;
+    if (!hasLoadedConnections) {
       loadUserAndConnections();
-      loadUserCommunities(); // Load all user communities
+      loadUserCommunities();
+    } else if (isStale) {
+      loadUserAndConnections({ showLoader: false });
+      loadUserCommunities();
     }
-  }, [activeTab, user, hasLoadedConnections]);
+  }, [activeTab, user?.id, hasLoadedConnections]);
 
   const loadUserAndConnections = async ({ showLoader = false } = {}) => {
     try {
+      setConnectionsLoadError(null);
       if (showLoader || !hasLoadedConnections) {
       setLoading(true);
       }
@@ -512,8 +522,6 @@ function ConnectionsScreenComponent({
       let currentUser = propUser;
 
       if (!currentUser) {
-        console.log("No user prop provided, attempting to fetch user...");
-
         // Add a small delay to ensure auth state is fully initialized
         await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -523,12 +531,12 @@ function ConnectionsScreenComponent({
             error: userError,
           } = await supabase.auth.getUser();
           if (userError) {
-            console.log("getUser error:", userError);
+            // getUser failed, try getSession below
           } else {
             currentUser = user;
           }
         } catch (getUserError) {
-          console.log("getUser failed:", getUserError);
+          // ignore, try getSession
         }
 
         // If getUser didn't work, try getSession
@@ -539,23 +547,21 @@ function ConnectionsScreenComponent({
               error: sessionError,
             } = await supabase.auth.getSession();
             if (sessionError) {
-              console.log("getSession error:", sessionError);
+              // ignore
             } else if (session?.user) {
               currentUser = session.user;
             }
           } catch (getSessionError) {
-            console.log("getSession failed:", getSessionError);
+            // ignore
           }
         }
       }
 
       if (!currentUser) {
-        console.log("❌ No user found - user might not be authenticated");
         Alert.alert("Error", "Please log in to view connections");
         return;
       }
 
-      console.log("✅ User found:", currentUser.id);
       setUser(currentUser);
 
       // Get user's connections from database (both pending and accepted)
@@ -569,33 +575,11 @@ function ConnectionsScreenComponent({
         currentUser.id
       );
 
-      // Debug: Log the data
-      console.log(
-        "🔍 Connections tab - Raw connections data:",
-        connectionsData
-      );
-      console.log(
-        "🔍 Connections tab - Number of connections:",
-        connectionsData?.length || 0
-      );
-      console.log(
-        "🔍 Conversations tab - Number of conversation participants:",
-        conversationParticipants?.length || 0
-      );
-
       // Create a map of existing connections
       const connectionsMap = {};
       const newlyAcceptedConnections = [];
       if (connectionsData && connectionsData.length > 0) {
         connectionsData.forEach((conn) => {
-          // Log connection data for debugging
-          console.log("🔍 Connection data:", {
-            id: conn.connected_user_id,
-            name: conn.connected_user_name,
-            image: conn.connected_user_image,
-            hasImage: !!conn.connected_user_image,
-          });
-
           // Ensure profileImage is a valid URL string or null
           let profileImage = conn.connected_user_image || null;
           if (
@@ -736,13 +720,12 @@ function ConnectionsScreenComponent({
       const allConnections = Object.values(connectionsMap);
 
       if (allConnections.length > 0) {
-        setConnections(allConnections);
-        console.log(
-          `✅ Loaded ${allConnections.length} total conversations (connections + participants)`
+        // Batch: fetch last messages then update connections + lastMessages in one pass
+        const lastMessagesData = await db.getLastMessagesForAllConnections(
+          currentUser.id
         );
-
-        // Load last messages for all connections
-        await loadLastMessagesForConnections(currentUser.id, allConnections);
+        setConnections(allConnections);
+        setLastMessages(lastMessagesData);
 
         if (newlyAcceptedConnections.length > 0) {
           const accepted = newlyAcceptedConnections[0];
@@ -769,19 +752,18 @@ function ConnectionsScreenComponent({
           setShowConnectionModal(true);
         }
       } else {
-        // No connections yet, show empty state
         setConnections([]);
-        console.log("📭 No conversations found");
       }
     } catch (error) {
       console.error("❌ Error loading connections:", error);
-      // Show empty state on error
       setConnections([]);
+      setConnectionsLoadError(error?.message || "Couldn't load connections");
     } finally {
       setLoading(false);
       if (!hasLoadedConnections) {
         setHasLoadedConnections(true);
       }
+      lastLoadedAtRef.current = Date.now();
       // Always fade in connections after loading completes (even if empty)
       Animated.timing(connectionsFadeAnim, {
         toValue: 1,
@@ -816,8 +798,6 @@ function ConnectionsScreenComponent({
   useEffect(() => {
     if (!user?.id || !hasLoadedConnections || connections.length === 0) return;
 
-    console.log("📨 Setting up real-time subscription for messages list");
-
     // Subscribe to all messages for the current user
     const channel = supabase
       .channel("messages-list-updates")
@@ -830,7 +810,6 @@ function ConnectionsScreenComponent({
           filter: `receiver_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("📨 New message received in list:", payload.new);
           // Refresh last messages when a new message arrives (only after initial load)
           if (user?.id && connections.length > 0 && hasLoadedMessagesRef.current) {
             loadLastMessagesForConnections(user.id, connections);
@@ -845,7 +824,6 @@ function ConnectionsScreenComponent({
           table: "community_posts",
         },
         (payload) => {
-          console.log("📨 New group message received in list:", payload.new);
           // Check if user is part of the R/HOOD group
           if (
             payload.new.community_id === "550e8400-e29b-41d4-a716-446655440000"
@@ -857,19 +835,17 @@ function ConnectionsScreenComponent({
       .subscribe();
 
     return () => {
-      console.log("📨 Cleaning up messages list subscription");
       supabase.removeChannel(channel);
     };
   }, [user?.id, connections.length, hasLoadedConnections]);
 
-  // Periodic refresh to ensure accuracy (every 10 seconds) - only after initial load
+  // Periodic refresh (softer interval) - only after initial load
   useEffect(() => {
     if (!user?.id || connections.length === 0 || !hasLoadedMessagesRef.current) return;
 
     const refreshInterval = setInterval(() => {
-      console.log("🔄 Periodic refresh of messages list");
       loadLastMessagesForConnections(user.id, connections);
-    }, 10000); // Refresh every 10 seconds
+    }, PERIODIC_REFRESH_INTERVAL_MS);
 
     return () => clearInterval(refreshInterval);
   }, [user?.id, connections.length]);
@@ -895,16 +871,20 @@ function ConnectionsScreenComponent({
             payload.old?.user_id_2 === user.id;
 
           if (involvesUser) {
-            console.log("🔗 Connection change detected:", payload);
-            loadUserAndConnections({ showLoader: false });
-            loadDiscoverDJs();
-            loadNearbyDJs();
+            if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+            realtimeDebounceRef.current = setTimeout(() => {
+              realtimeDebounceRef.current = null;
+              loadUserAndConnections({ showLoader: false });
+              loadDiscoverDJs();
+              loadNearbyDJs();
+            }, REALTIME_DEBOUNCE_MS);
           }
         }
       )
       .subscribe();
 
     return () => {
+      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
       supabase.removeChannel(channel);
     };
   }, [user?.id]);
@@ -913,32 +893,16 @@ function ConnectionsScreenComponent({
     try {
       if (!user?.id) return;
 
-      // Fetch all communities the user is a member of
       const communities = await connectionsService.getUserCommunities();
       setUserCommunities(communities || []);
 
-      // Load latest messages and unread counts for each community
-      const messagesMap = {};
-      const unreadCountsMap = {};
-
-      for (const community of communities) {
-        try {
-          // Get latest message
-          const latestMessage = await db.getLatestGroupMessage(community.id);
-          if (latestMessage) {
-            messagesMap[community.id] = latestMessage;
-          }
-
-          // Get unread count
-          const unreadCount = await db.getUnreadGroupMessageCount(
-            community.id,
-            user.id
-          );
-          unreadCountsMap[community.id] = unreadCount || 0;
-        } catch (error) {
-          console.error(`Error loading data for community ${community.id}:`, error);
-        }
-      }
+      const ids = (communities || []).map((c) => c.id);
+      const [messagesMap, unreadCountsMap] = await Promise.all([
+        ids.length ? db.getLatestGroupMessagesBatch(ids) : Promise.resolve({}),
+        Promise.resolve(
+          ids.reduce((acc, id) => ({ ...acc, [id]: 0 }), {})
+        ),
+      ]);
 
       setCommunityMessages(messagesMap);
       setCommunityUnreadCounts(unreadCountsMap);
@@ -1064,9 +1028,6 @@ function ConnectionsScreenComponent({
       setDiscoverLoading(true);
 
       // Debug: Log connection data
-      console.log("🔍 Connection data:", connection);
-      console.log("🔍 Connection dj_name:", connection?.dj_name);
-      console.log("🔍 Connection full_name:", connection?.full_name);
 
       // Get current user
       const { supabase } = await import("../lib/supabase");
@@ -1491,6 +1452,7 @@ function ConnectionsScreenComponent({
 
   const loadDiscoverDJs = async () => {
     try {
+      setDiscoverLoadError(null);
       setDiscoverLoading(true);
 
       // Get current user first
@@ -1500,7 +1462,6 @@ function ConnectionsScreenComponent({
       } = await supabase.auth.getUser();
 
       if (!currentUser) {
-        console.log("❌ No current user found for connection status");
         setDiscoverUsers([]);
         return;
       }
@@ -1515,13 +1476,10 @@ function ConnectionsScreenComponent({
       );
 
       // Debug: Log the connections data
-      console.log("🔍 Existing connections:", existingConnections);
-      console.log("🔍 Current user ID:", currentUser.id);
 
       // Create a map of user connections with their status
       const connectionStatusMap = new Map();
       existingConnections.forEach((conn) => {
-        console.log("🔍 Connection data:", conn);
         const userId = conn.connected_user_id;
         const rawStatus =
           conn.connection_status ||
@@ -1541,11 +1499,6 @@ function ConnectionsScreenComponent({
           thread_id: conn.thread_id || null,
         });
       });
-
-      console.log(
-        "🔍 Connection status map:",
-        Object.fromEntries(connectionStatusMap)
-      );
 
       // Transform to match UI format with connection status
       const formattedDiscoverUsers = recommendedUsers.map((user) => {
@@ -1616,30 +1569,14 @@ function ConnectionsScreenComponent({
             null,
         };
 
-        // Log for debugging
-        if (profileImage) {
-          console.log(
-            `🖼️ Discover user ${formattedUser.name} has profileImage:`,
-            profileImage
-          );
-        }
-
         return formattedUser;
       });
 
       setDiscoverUsers(formattedDiscoverUsers);
-      console.log(
-        `✅ Loaded ${formattedDiscoverUsers.length} discover users from database`
-      );
-      console.log("🔍 Sample user data:", formattedDiscoverUsers[0]);
-      console.log(
-        "🔍 Connected users:",
-        formattedDiscoverUsers.filter((u) => u.isConnected).length
-      );
     } catch (error) {
       console.error("❌ Error loading discover DJs:", error);
-      // No fallback to mock data - show empty state
       setDiscoverUsers([]);
+      setDiscoverLoadError(error?.message || "Couldn't load discover");
     } finally {
       setDiscoverLoading(false);
       // Always fade in discover users after loading completes (even if empty)
@@ -1814,20 +1751,13 @@ function ConnectionsScreenComponent({
   };
 
   const getUserName = (connection) => {
-    // Debug: Log the connection data to see what's available
-    console.log("🔍 Connection data for name:", connection);
-
-    // Return just the participant's name with better fallbacks - always return a string
     const participantName =
       connection.name ||
       connection.dj_name ||
       connection.full_name ||
       connection.connected_user_name ||
       connection.username ||
-      "DJ"; // Simple fallback instead of "Unknown User"
-
-    console.log("🔍 Resolved name:", participantName);
-    // Ensure we always return a string
+      "DJ";
     return String(participantName || "DJ");
   };
 
@@ -1860,22 +1790,11 @@ function ConnectionsScreenComponent({
     }
   };
 
-  const loadLastMessagesForConnections = async (userId, connections) => {
+  const loadLastMessagesForConnections = async (userId) => {
     try {
-      console.log("📨 Loading last messages for connections...");
-      console.log("📨 User ID:", userId);
-      console.log(
-        "📨 Connections:",
-        connections.map((c) => ({ id: c.id, name: c.name }))
-      );
-
-      // Get last messages for all connections
       const lastMessagesData = await db.getLastMessagesForAllConnections(
         userId
       );
-
-      console.log("📨 Last messages loaded:", lastMessagesData);
-      console.log("📨 Last messages keys:", Object.keys(lastMessagesData));
       setLastMessages(lastMessagesData);
     } catch (error) {
       console.error("❌ Error loading last messages:", error);
@@ -1884,17 +1803,8 @@ function ConnectionsScreenComponent({
   };
 
   const getLastMessageContent = (connection) => {
-    // Get the last message from state
     const lastMessage = lastMessages[connection.id];
-    console.log(
-      `🔍 Getting last message for ${connection.name} (ID: ${connection.id}):`,
-      lastMessage
-    );
-
-    if (!lastMessage) {
-      console.log(`❌ No last message found for ${connection.name}`);
-      return "No messages yet";
-    }
+    if (!lastMessage) return "No messages yet";
 
     // Format the message content based on type - always return a string
     if (lastMessage.messageType === "image") {
@@ -1920,12 +1830,7 @@ function ConnectionsScreenComponent({
 
   const getLastMessageSender = (connection) => {
     const lastMessage = lastMessages[connection.id];
-    console.log(`🔍 Getting sender for ${connection.name}:`, lastMessage);
-
-    if (!lastMessage) {
-      console.log(`❌ No sender info for ${connection.name}`);
-      return "";
-    }
+    if (!lastMessage) return "";
 
     // Show sender name if it's not the current user - always return a string
     if (lastMessage.senderId !== user?.id) {
@@ -1961,31 +1866,90 @@ function ConnectionsScreenComponent({
     );
   }, [filteredConnections, user?.id]);
 
+  // SectionList data for Connections tab (virtualized)
+  const connectionSections = useMemo(
+    () => [
+      {
+        key: "communities",
+        data: userCommunities || [],
+      },
+      {
+        key: "connections",
+        data: connectionsWithMessages || [],
+      },
+    ],
+    [userCommunities, connectionsWithMessages]
+  );
+
   // Final safety check - ensure user is valid before rendering
   if (!user || typeof user !== 'object' || Array.isArray(user)) {
     console.warn('ConnectionsScreen: user state is invalid, returning null');
     return null;
   }
 
+  const renderConnectionSectionItem = useCallback(
+    ({ item, section, index }) => {
+      if (section.key === "communities") {
+        const community = item;
+        const latestMessage = communityMessages[community.id];
+        const unreadCount = communityUnreadCounts[community.id] || 0;
+        const isRhood = community.id === "550e8400-e29b-41d4-a716-446655440000";
+        return (
+          <CommunityListItem
+            community={community}
+            latestMessage={latestMessage}
+            unreadCount={unreadCount}
+            isRhood={isRhood}
+            onPress={handleGroupChatPress}
+            formatMessageTime={formatMessageTime}
+            styles={styles}
+          />
+        );
+      }
+      return (
+        <ConnectionListItem
+          connection={item}
+          index={index}
+          onPress={handleConnectionPress}
+          onLongPress={
+            item.isConnected
+              ? () => handleOpenConnectionOptions(item)
+              : undefined
+          }
+          getUserName={getUserName}
+          getLastMessageSender={getLastMessageSender}
+          getLastMessageContent={getLastMessageContent}
+          getLastMessageTime={getLastMessageTime}
+          styles={styles}
+        />
+      );
+    },
+    [
+      communityMessages,
+      communityUnreadCounts,
+      handleGroupChatPress,
+      handleConnectionPress,
+      handleOpenConnectionOptions,
+      getUserName,
+      getLastMessageSender,
+      getLastMessageContent,
+      getLastMessageTime,
+    ]
+  );
+
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      tintColor="hsl(0, 0%, 100%)"
+      colors={["hsl(0, 0%, 100%)"]}
+    />
+  );
+
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
-        removeClippedSubviews={true}
-        scrollEventThrottle={16}
-        decelerationRate="normal"
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="hsl(0, 0%, 100%)"
-            colors={["hsl(0, 0%, 100%)"]}
-          />
-        }
-      >
-        {/* Header */}
-        <View style={styles.header}>
+      {/* Fixed header */}
+      <View style={styles.header}>
           <Text style={styles.headerTitle}>CONNECTIONS</Text>
           <Text style={styles.headerSubtitle}>
             Connect with DJs and manage your conversations
@@ -2044,15 +2008,12 @@ function ConnectionsScreenComponent({
                 if (!hasLoadedConnections) {
                   connectionsFadeAnim.setValue(0);
                 }
-                // Reload connections data when switching to messages tab
-                loadUserAndConnections();
-                // Ensure connections stay visible without flicker
+                // Reload only via effect when missing/stale; full reload on pull-to-refresh
                 Animated.timing(connectionsFadeAnim, {
                   toValue: 1,
                   duration: 300,
                   useNativeDriver: true,
                 }).start();
-                // Reset discover fade animation
                 discoverFadeAnim.setValue(0);
               }}
             >
@@ -2168,55 +2129,147 @@ function ConnectionsScreenComponent({
           </View>
         </View>
 
-        {/* Content based on active tab */}
+        {/* Content: virtualized list per tab */}
         {activeTab === "connections" ? (
-          /* Messages List */
-          <View style={styles.messagesList}>
-            <Animated.View style={{ opacity: connectionsFadeAnim }}>
-                {/* Community Chats - Show all communities user is a member of */}
-                {(userCommunities || []).map((community) => {
-                  const latestMessage = communityMessages[community.id];
-                  const unreadCount = communityUnreadCounts[community.id] || 0;
-                  const isRhood = community.id === "550e8400-e29b-41d4-a716-446655440000";
-                  return (
-                    <CommunityListItem
-                      key={community.id}
-                      community={community}
-                      latestMessage={latestMessage}
-                      unreadCount={unreadCount}
-                      isRhood={isRhood}
-                      onPress={handleGroupChatPress}
-                      formatMessageTime={formatMessageTime}
-                      styles={styles}
-                    />
-                  );
-                })}
-
-                {/* Individual Messages */}
-                {(connectionsWithMessages || []).map((connection, index) => (
-                  <ConnectionListItem
-                    key={connection.id}
-                    connection={connection}
+          <Animated.View style={[styles.flex1, { opacity: connectionsFadeAnim }]}>
+            {loading && !hasLoadedConnections ? (
+              <ScrollView
+                style={styles.flex1}
+                contentContainerStyle={[styles.messagesList, styles.listContent]}
+                refreshControl={refreshControl}
+              >
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <View key={i} style={styles.skeletonRow}>
+                    <View style={styles.skeletonAvatar} />
+                    <View style={styles.skeletonLines}>
+                      <View style={styles.skeletonLine} />
+                      <View style={styles.skeletonLineShort} />
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : connectionsLoadError && connections.length === 0 ? (
+              <ScrollView
+                style={styles.flex1}
+                contentContainerStyle={[styles.messagesList, styles.listContent, styles.loadingContainer]}
+                refreshControl={refreshControl}
+              >
+                <Ionicons name="cloud-offline" size={40} color="hsl(0, 0%, 50%)" />
+                <Text style={styles.noResultsTitle}>Something went wrong</Text>
+                <Text style={styles.noResultsSubtitle}>{connectionsLoadError}</Text>
+                <TouchableOpacity
+                  style={styles.ctaButton}
+                  onPress={() => {
+                    setConnectionsLoadError(null);
+                    loadUserAndConnections({ showLoader: true });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.ctaButtonText}>Try again</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            ) : (
+              <SectionList
+                sections={connectionSections}
+                keyExtractor={(item) => item.id}
+                renderItem={renderConnectionSectionItem}
+                renderSectionHeader={() => null}
+                stickySectionHeadersEnabled={false}
+                initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+                maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+                windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+                removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+                ListFooterComponent={
+                  <View style={styles.ctaSection}>
+                    <View style={styles.ctaCard}>
+                      <Ionicons name="person-add" size={24} color="hsl(0, 0%, 70%)" />
+                      <Text style={styles.ctaTitle}>Find More Connections</Text>
+                      <Text style={styles.ctaDescription}>
+                        Connect with DJs and start conversations
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.ctaButton}
+                        onPress={handleBrowseCommunity}
+                      >
+                        <Text style={styles.ctaButtonText}>Browse Communities</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                }
+                refreshControl={refreshControl}
+                contentContainerStyle={[styles.messagesList, styles.listContent]}
+                style={styles.flex1}
+              />
+            )}
+          </Animated.View>
+        ) : (
+          <Animated.View style={[styles.flex1, { opacity: discoverFadeAnim }]}>
+            <FlatList
+              data={filteredDiscoverUsers}
+              keyExtractor={(item) => item.id}
+              initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+              maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+              windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+              removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+              renderItem={({ item: u, index }) => {
+                const normalizedStatus = normalizeConnectionStatus(u.connectionStatus);
+                const isPending = normalizedStatus === "pending";
+                const pendingKey = u.connectionId || u.id;
+                const isCancelling = isPending && pendingKey === cancellingConnectionId;
+                return (
+                  <DiscoverUserCard
+                    user={u}
                     index={index}
-                    onPress={handleConnectionPress}
-                    onLongPress={
-                      connection.isConnected
-                        ? () => handleOpenConnectionOptions(connection)
-                        : undefined
-                    }
-                    getUserName={getUserName}
-                    getLastMessageSender={getLastMessageSender}
-                    getLastMessageContent={getLastMessageContent}
-                    getLastMessageTime={getLastMessageTime}
+                    onViewProfile={handleViewProfile}
+                    onConnectionPress={handleConnectionPress}
+                    onConnect={handleConnect}
+                    onCancelPending={handleCancelPendingConnection}
+                    onLongPress={handleOpenConnectionOptions}
+                    isPending={isPending}
+                    isCancelling={isCancelling}
+                    discoverLoading={discoverLoading}
                     styles={styles}
                   />
-                ))}
-              </Animated.View>
-          </View>
-        ) : (
-          /* Discover Tab */
-          <View style={styles.discoverList}>
-            <Animated.View style={{ opacity: discoverFadeAnim }}>
+                );
+              }}
+              ListEmptyComponent={
+                discoverLoadError
+                  ? (
+                    <View style={[styles.discoverList, styles.loadingContainer]}>
+                      <Ionicons name="cloud-offline" size={40} color="hsl(0, 0%, 50%)" />
+                      <Text style={styles.noResultsTitle}>Something went wrong</Text>
+                      <Text style={styles.noResultsSubtitle}>{discoverLoadError}</Text>
+                      <TouchableOpacity
+                        style={styles.ctaButton}
+                        onPress={() => {
+                          setDiscoverLoadError(null);
+                          loadDiscoverDJs();
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.ctaButtonText}>Try again</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )
+                  : discoverLoading
+                    ? (
+                      <View style={styles.discoverList}>
+                        {[1, 2, 3, 4].map((i) => (
+                          <View key={i} style={styles.skeletonCard}>
+                            <View style={styles.skeletonCardAvatar} />
+                            <View style={styles.skeletonCardLines}>
+                              <View style={styles.skeletonCardLine} />
+                              <View style={styles.skeletonCardLineSmall} />
+                              <View style={styles.skeletonCardLineSmall} />
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )
+                    : null
+              }
+              ListHeaderComponent={() => (
+                <View style={styles.discoverList}>
                 {/* Popular DJs - Trending DJs */}
                 {popularDJs.length > 0 && !searchQuery.trim() && (
                   <View style={styles.recommendationsSection}>
@@ -2237,7 +2290,7 @@ function ConnectionsScreenComponent({
                       contentContainerStyle={styles.recommendationsContent}
                     >
                       {popularDJs.map((dj, index) => (
-                        <AnimatedListItem key={dj.id} index={index} delay={50}>
+                        <AnimatedListItem key={dj.id} index={index} delay={30} maxStaggerIndex={6}>
                           <TouchableOpacity
                             style={styles.recommendationCard}
                             onPress={() => {
@@ -2335,7 +2388,7 @@ function ConnectionsScreenComponent({
                       contentContainerStyle={styles.recommendationsContent}
                     >
                       {nearbyDJs.map((dj, index) => (
-                        <AnimatedListItem key={dj.id} index={index} delay={50}>
+                        <AnimatedListItem key={dj.id} index={index} delay={30} maxStaggerIndex={6}>
                           <TouchableOpacity
                             style={styles.recommendationCard}
                             onPress={() => {
@@ -2434,7 +2487,7 @@ function ConnectionsScreenComponent({
                       contentContainerStyle={styles.recommendationsContent}
                     >
                       {nearbyOpportunities.map((opp, index) => (
-                        <AnimatedListItem key={opp.id} index={index} delay={80}>
+                        <AnimatedListItem key={opp.id} index={index} delay={35} maxStaggerIndex={6}>
                           <TouchableOpacity
                             style={styles.opportunityCard}
                             onPress={() => {
@@ -2638,61 +2691,14 @@ function ConnectionsScreenComponent({
                     })}
                   </View>
                 )}
-                {/* DJ List - Hide when suggestions are showing */}
-                {!showSuggestions && (
-                  <View>
-                    <Animated.View style={{ opacity: discoverFadeAnim }}>
-                      {filteredDiscoverUsers.map((user, index) => {
-                          const normalizedStatus = normalizeConnectionStatus(
-                            user.connectionStatus
-                          );
-                          const isPending = normalizedStatus === "pending";
-                          const pendingKey = user.connectionId || user.id;
-                          const isCancelling =
-                            isPending && pendingKey === cancellingConnectionId;
-                          return (
-                            <DiscoverUserCard
-                              key={user.id}
-                              user={user}
-                              index={index}
-                              onViewProfile={handleViewProfile}
-                              onConnectionPress={handleConnectionPress}
-                              onConnect={handleConnect}
-                              onCancelPending={handleCancelPendingConnection}
-                              onLongPress={handleOpenConnectionOptions}
-                              isPending={isPending}
-                              isCancelling={isCancelling}
-                              discoverLoading={discoverLoading}
-                              styles={styles}
-                            />
-                          );
-                        })}
-                      </Animated.View>
-                    </View>
-                  )}
-            </Animated.View>
-          </View>
+                </View>
+              )}
+              refreshControl={refreshControl}
+              contentContainerStyle={[styles.discoverList, styles.listContent]}
+              style={styles.flex1}
+            />
+          </Animated.View>
         )}
-
-        {/* Add Connection Call-to-Action - only show on connections tab */}
-        {activeTab === "connections" && (
-          <View style={styles.ctaSection}>
-            <View style={styles.ctaCard}>
-              <Ionicons name="person-add" size={24} color="hsl(0, 0%, 70%)" />
-              <Text style={styles.ctaTitle}>Find More Connections</Text>
-              <Text style={styles.ctaDescription}>
-                Connect with DJs and start conversations
-              </Text>
-              <TouchableOpacity
-                style={styles.ctaButton}
-                onPress={handleBrowseCommunity}
-              >
-                <Text style={styles.ctaButtonText}>Browse Communities</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </ScrollView>
 
       {/* Bottom gradient fade overlay */}
       <LinearGradient
@@ -2836,6 +2842,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "hsl(0, 0%, 0%)",
   },
+  flex1: {
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: 80,
+  },
   scrollView: {
     flex: 1,
   },
@@ -2966,6 +2978,72 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 60,
     paddingHorizontal: 40,
+  },
+  skeletonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    marginBottom: 12,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  skeletonAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "hsl(0, 0%, 18%)",
+    marginRight: 12,
+  },
+  skeletonLines: {
+    flex: 1,
+    gap: 8,
+  },
+  skeletonLine: {
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "hsl(0, 0%, 18%)",
+    width: "75%",
+  },
+  skeletonLineShort: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    width: "45%",
+  },
+  skeletonCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 16,
+    marginBottom: 16,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  skeletonCardAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "hsl(0, 0%, 18%)",
+    marginRight: 12,
+  },
+  skeletonCardLines: {
+    flex: 1,
+    gap: 6,
+  },
+  skeletonCardLine: {
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "hsl(0, 0%, 18%)",
+    width: "80%",
+  },
+  skeletonCardLineSmall: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    width: "55%",
   },
   noResultsContainer: {
     alignItems: "center",

@@ -25,7 +25,7 @@ xcrun simctl boot "$DEVICE" 2>/dev/null || true
 open -a Simulator 2>/dev/null || open /Applications/Xcode.app/Contents/Developer/Applications/Simulator.app 2>/dev/null || true
 
 echo ""
-echo "Simulator is ready."
-echo "  • First time or no app on simulator? Install dev build:  npm run ios"
-echo "  • Dev build already installed? Start Metro then press i:  npm run start"
+echo "Simulator is ready. Run these in order (separate commands):"
+echo "  1) npm run ios     # build and install the app (first time)"
+echo "  2) npm run start   # then press i to open, or tap the app icon on the simulator"
 echo "If the Simulator window did not open, launch Simulator from Spotlight first."

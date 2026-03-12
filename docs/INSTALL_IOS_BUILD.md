@@ -26,7 +26,9 @@
 ## After the first install
 
 - Start the dev server: **`npm run start`**
-- Press **`i`** to open the app on the iOS Simulator (the dev build you installed will launch).
+- Press **`i`** to open the app on the iOS Simulator, or **tap the R/HOOD app icon** on the simulator. The app will connect to Metro.
+
+**If you see "Operation timed out" (code 60) when pressing `i`:** The build and install succeeded; only opening the deep link timed out. In the simulator, **tap the R/HOOD app icon** manually. With Metro running, the app will load and connect.
 
 ## Optional: Use an older simulator (e.g. iOS 18.6)
 

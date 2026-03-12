@@ -2,30 +2,35 @@ import React, { useEffect, useRef } from "react";
 import { Animated } from "react-native";
 
 /**
- * Wrapper component that adds fade-in animation to list items
- * Each item fades in with a staggered delay based on its index
+ * Wrapper that fades in list items with optional stagger.
+ * Use maxStaggerIndex so only the first N items stagger; rest appear together (avoids long lists crawling in).
  */
-export default function AnimatedListItem({ children, index, delay = 100 }) {
+export default function AnimatedListItem({
+  children,
+  index,
+  delay = 40,
+  maxStaggerIndex = 6,
+}) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(20)).current;
+  const translateY = useRef(new Animated.Value(12)).current;
+  const staggeredDelay = Math.min(index, maxStaggerIndex) * delay;
 
   useEffect(() => {
-    // Start animation with staggered delay
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 400,
-        delay: index * delay,
+        duration: 280,
+        delay: staggeredDelay,
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
         toValue: 0,
-        duration: 400,
-        delay: index * delay,
+        duration: 280,
+        delay: staggeredDelay,
         useNativeDriver: true,
       }),
     ]).start();
-  }, [index, delay]);
+  }, [index, delay, maxStaggerIndex]);
 
   return (
     <Animated.View
