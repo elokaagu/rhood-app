@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback, startTransition } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -94,15 +94,25 @@ function ConnectionsScreenComponent({
     useState(null);
   const [connectionModalSecondaryAction, setConnectionModalSecondaryAction] =
     useState(null);
-  const [isRhoodMember, setIsRhoodMember] = useState(false);
-  const [rhoodMemberCount, setRhoodMemberCount] = useState(0);
   const [lastMessages, setLastMessages] = useState({});
-  const [rhoodGroupData, setRhoodGroupData] = useState(null);
-  const [latestGroupMessage, setLatestGroupMessage] = useState(null);
-  const [unreadGroupCount, setUnreadGroupCount] = useState(0);
-  const [userCommunities, setUserCommunities] = useState([]);
-  const [communityMessages, setCommunityMessages] = useState({}); // Map of communityId -> latest message
-  const [communityUnreadCounts, setCommunityUnreadCounts] = useState({}); // Map of communityId -> unread count
+  const [communitiesData, setCommunitiesData] = useState({
+    userCommunities: [],
+    communityMessages: {},
+    communityUnreadCounts: {},
+    rhoodGroupData: null,
+    isRhoodMember: false,
+    rhoodMemberCount: 0,
+    latestGroupMessage: null,
+    unreadGroupCount: 0,
+  });
+  const userCommunities = communitiesData.userCommunities;
+  const communityMessages = communitiesData.communityMessages;
+  const communityUnreadCounts = communitiesData.communityUnreadCounts;
+  const rhoodGroupData = communitiesData.rhoodGroupData;
+  const isRhoodMember = communitiesData.isRhoodMember;
+  const rhoodMemberCount = communitiesData.rhoodMemberCount;
+  const latestGroupMessage = communitiesData.latestGroupMessage;
+  const unreadGroupCount = communitiesData.unreadGroupCount;
   const [cancellingConnectionId, setCancellingConnectionId] = useState(null);
   const [acceptingUserId, setAcceptingUserId] = useState(null);
   const [decliningUserId, setDecliningUserId] = useState(null);
@@ -223,15 +233,15 @@ function ConnectionsScreenComponent({
         
         // Filter out brand accounts
         const filteredRecent = (recentUsers || []).filter(user => !isBrandAccount(user.email));
-        startTransition(() => setPopularDJs(filteredRecent.slice(0, 10)));
+        setPopularDJs(filteredRecent.slice(0, 10));
         return;
       }
 
       const filteredPopular = (popularUsers || []).filter(user => !isBrandAccount(user.email));
-      startTransition(() => setPopularDJs(filteredPopular.slice(0, 10)));
+      setPopularDJs(filteredPopular.slice(0, 10));
     } catch (error) {
       console.error("Error loading popular DJs:", error);
-      startTransition(() => setPopularDJs([]));
+      setPopularDJs([]);
     } finally {
       setPopularDJsLoading(false);
     }
@@ -305,7 +315,7 @@ function ConnectionsScreenComponent({
         };
       });
 
-      startTransition(() => setNearbyOpportunities(transformedOpportunities));
+      setNearbyOpportunities(transformedOpportunities);
     } catch (error) {
       console.error("Error loading nearby opportunities:", error);
       setNearbyOpportunities([]);
@@ -463,7 +473,7 @@ function ConnectionsScreenComponent({
         .filter(user => !connectedUserIds.has(user.id))
         .slice(0, 10);
 
-      startTransition(() => setNearbyDJs(filteredNearby));
+      setNearbyDJs(filteredNearby);
     } catch (error) {
       console.error("Error loading nearby DJs:", error);
       setNearbyDJs([]);
@@ -479,11 +489,25 @@ function ConnectionsScreenComponent({
     }
   }, [user?.id, user?.city]);
 
-  // Run all loads in parallel so Discover tab isn't blocked by Messages data (biggest fix for "still slow")
+  // Run all loads in parallel; Connections tab shows list only after connections + communities (no flicker)
   useEffect(() => {
     const initializeData = async () => {
+      const connectionsPromise = loadUserAndConnections({
+        showLoader: true,
+        deferLoadingEnd: true,
+      }).then(async () => {
+        await checkRhoodMembership();
+        setLoading(false);
+        setHasLoadedConnections(true);
+        lastLoadedAtRef.current = Date.now();
+        Animated.timing(connectionsFadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      });
       await Promise.all([
-        loadUserAndConnections({ showLoader: true }).then(() => checkRhoodMembership()),
+        connectionsPromise,
         loadDiscoverDJs(),
         loadPopularDJs(),
         loadNearbyDJs(),
@@ -506,7 +530,7 @@ function ConnectionsScreenComponent({
     }
   }, [activeTab, user?.id, hasLoadedConnections]);
 
-  const loadUserAndConnections = async ({ showLoader = false } = {}) => {
+  const loadUserAndConnections = async ({ showLoader = false, deferLoadingEnd = false } = {}) => {
     try {
       setConnectionsLoadError(null);
       if (showLoader || !hasLoadedConnections) {
@@ -749,18 +773,21 @@ function ConnectionsScreenComponent({
       console.error("❌ Error loading connections:", error);
       setConnections([]);
       setConnectionsLoadError(error?.message || "Couldn't load connections");
-    } finally {
-      setLoading(false);
-      if (!hasLoadedConnections) {
+      if (deferLoadingEnd) {
+        setLoading(false);
         setHasLoadedConnections(true);
       }
-      lastLoadedAtRef.current = Date.now();
-      // Always fade in connections after loading completes (even if empty)
-      Animated.timing(connectionsFadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+    } finally {
+      if (!deferLoadingEnd) {
+        setLoading(false);
+        if (!hasLoadedConnections) setHasLoadedConnections(true);
+        lastLoadedAtRef.current = Date.now();
+        Animated.timing(connectionsFadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }
     }
   };
 
@@ -888,8 +915,6 @@ function ConnectionsScreenComponent({
       if (!user?.id) return;
 
       const communities = await connectionsService.getUserCommunities();
-      setUserCommunities(communities || []);
-
       const ids = (communities || []).map((c) => c.id);
       const [messagesMap, unreadCountsMap] = await Promise.all([
         ids.length ? db.getLatestGroupMessagesBatch(ids) : Promise.resolve({}),
@@ -898,28 +923,22 @@ function ConnectionsScreenComponent({
         ),
       ]);
 
-      setCommunityMessages(messagesMap);
-      setCommunityUnreadCounts(unreadCountsMap);
-
-      // Also check R/HOOD membership for backward compatibility
       const rhoodCommunityId = "550e8400-e29b-41d4-a716-446655440000";
-      const rhoodCommunity = communities.find((c) => c.id === rhoodCommunityId);
-      
-      if (rhoodCommunity) {
-        setRhoodGroupData(rhoodCommunity);
-        setIsRhoodMember(true);
-        setRhoodMemberCount(rhoodCommunity.member_count || 0);
-        setLatestGroupMessage(messagesMap[rhoodCommunityId] || null);
-        setUnreadGroupCount(unreadCountsMap[rhoodCommunityId] || 0);
-      } else {
-        setIsRhoodMember(false);
-        setRhoodMemberCount(0);
-        setLatestGroupMessage(null);
-        setUnreadGroupCount(0);
-      }
+      const rhoodCommunity = (communities || []).find((c) => c.id === rhoodCommunityId);
+
+      setCommunitiesData({
+        userCommunities: communities || [],
+        communityMessages: messagesMap,
+        communityUnreadCounts: unreadCountsMap,
+        rhoodGroupData: rhoodCommunity || null,
+        isRhoodMember: !!rhoodCommunity,
+        rhoodMemberCount: rhoodCommunity?.member_count || 0,
+        latestGroupMessage: rhoodCommunity ? (messagesMap[rhoodCommunityId] || null) : null,
+        unreadGroupCount: rhoodCommunity ? (unreadCountsMap[rhoodCommunityId] || 0) : 0,
+      });
     } catch (error) {
       console.error("Error loading user communities:", error);
-      setUserCommunities([]);
+      setCommunitiesData((prev) => ({ ...prev, userCommunities: [] }));
     }
   };
 
@@ -1566,7 +1585,7 @@ function ConnectionsScreenComponent({
         return formattedUser;
       });
 
-      startTransition(() => setDiscoverUsers(formattedDiscoverUsers));
+      setDiscoverUsers(formattedDiscoverUsers);
     } catch (error) {
       console.error("❌ Error loading discover DJs:", error);
       setDiscoverUsers([]);
@@ -1875,6 +1894,18 @@ function ConnectionsScreenComponent({
     [userCommunities, connectionsWithMessages]
   );
 
+  const getConnectionListItemLayout = useCallback((_, index) => ({
+    length: LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT_MESSAGES,
+    offset: LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT_MESSAGES * index,
+    index,
+  }), []);
+
+  const getDiscoverItemLayout = useCallback((_, index) => ({
+    length: LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT_DISCOVER,
+    offset: LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT_DISCOVER * index,
+    index,
+  }), []);
+
   // Final safety check - ensure user is valid before rendering
   if (!user || typeof user !== 'object' || Array.isArray(user)) {
     console.warn('ConnectionsScreen: user state is invalid, returning null');
@@ -2173,6 +2204,7 @@ function ConnectionsScreenComponent({
                 maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
                 windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
                 removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+                getItemLayout={getConnectionListItemLayout}
                 ListFooterComponent={
                   <View style={styles.ctaSection}>
                     <View style={styles.ctaCard}>
@@ -2205,6 +2237,7 @@ function ConnectionsScreenComponent({
               maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
               windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
               removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+              getItemLayout={getDiscoverItemLayout}
               renderItem={({ item: u, index }) => {
                 const normalizedStatus = normalizeConnectionStatus(u.connectionStatus);
                 const isPending = normalizedStatus === "pending";
