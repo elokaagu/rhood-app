@@ -272,6 +272,10 @@ function DiscoverListHeader({
           })}
         </View>
       )}
+
+      <View style={styles.communitySubtitleSection}>
+        <Text style={styles.communitySubtitle}>Our community</Text>
+      </View>
     </View>
   );
 }

@@ -638,6 +638,15 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 20,
   },
+  communitySubtitleSection: {
+    marginBottom: 12,
+  },
+  communitySubtitle: {
+    fontSize: 15,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 65%)",
+    letterSpacing: 0.3,
+  },
   discoverCard: {
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 16,
