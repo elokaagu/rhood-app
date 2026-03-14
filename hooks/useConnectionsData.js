@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Animated, RefreshControl } from "react-native";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
-import { LIST_PERFORMANCE } from "../lib/performanceConstants";
+import { LIST_PERFORMANCE, CONNECTIONS_LIST_PERFORMANCE } from "../lib/performanceConstants";
 import {
   normalizeConnectionStatus,
   isAcceptedConnectionStatus,
@@ -264,14 +264,22 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
 
   const getConnectionListItemLayout = useCallback(
     (data, index) => {
-      const sectionIndex = connectionSections.findIndex((s) => s.data === data);
-      const prevLengths = connectionSections.slice(0, sectionIndex).reduce((sum, s) => sum + (s.data?.length ?? 0), 0);
-      const globalIndex = prevLengths + index;
-      return {
-        length: LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT_MESSAGES,
-        offset: LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT_MESSAGES * globalIndex,
-        index: globalIndex,
-      };
+      const rowHeight = CONNECTIONS_LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT_MESSAGES;
+      let globalIndex = 0;
+      for (const section of connectionSections) {
+        const arr = section.data || [];
+        const pos = arr.findIndex((item) => item === data || (item?.id != null && item.id === data?.id));
+        if (pos !== -1) {
+          globalIndex += pos;
+          return {
+            length: rowHeight,
+            offset: rowHeight * globalIndex,
+            index: globalIndex,
+          };
+        }
+        globalIndex += arr.length;
+      }
+      return { length: rowHeight, offset: rowHeight * index, index };
     },
     [connectionSections]
   );
