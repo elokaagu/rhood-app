@@ -26,6 +26,7 @@ import DiscoverUserCard from "../components/DiscoverUserCard";
 import styles from "../components/ConnectionsScreen.styles";
 
 export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchTimeoutRef = useRef(null);
