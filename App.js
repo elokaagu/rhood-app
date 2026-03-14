@@ -54,6 +54,7 @@ const loadTrackPlayer = () => {
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
 import * as Haptics from "expo-haptics";
+import { HapticPatterns } from "./lib/haptics";
 import {
   setupAudioNotificationCategories,
   setupNotificationListeners as setupAudioNotificationListeners,
@@ -93,7 +94,8 @@ import {
   trackScreenView,
   AnalyticsEvents,
 } from "./lib/analytics";
-import { useAudio } from "./context/AudioContext";
+import { useAudioActions } from "./context/AudioContext";
+import GlobalAudioPlayerUI from "./components/GlobalAudioPlayerUI";
 
 // Static Album Art Component
 const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
@@ -211,12 +213,9 @@ export default function App() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [showFadeOverlay, setShowFadeOverlay] = useState(false);
-  const [isScrubbing, setIsScrubbing] = useState(false);
-  const [scrubPosition, setScrubPosition] = useState(0);
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
   const menuSlideAnim = useRef(new Animated.Value(0)).current;
   const menuOpacityAnim = useRef(new Animated.Value(0)).current;
-  const fullScreenMenuSlideAnim = useRef(new Animated.Value(0)).current;
   const fullScreenMenuOpacityAnim = useRef(new Animated.Value(0)).current;
 
   // Authentication state
@@ -225,8 +224,8 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login"); // 'login' or 'signup'
 
-  // Global audio state from context (so only audio consumers re-render when it changes)
-  const { globalAudioState, setGlobalAudioState, actionsRef } = useAudio();
+  // Audio actions and state ref only (no subscription – only GlobalAudioPlayerUI re-renders on audio change)
+  const { setGlobalAudioState, actionsRef, stateRef } = useAudioActions();
 
   // Audio error modal state
   const [audioErrorModal, setAudioErrorModal] = useState({ visible: false, title: "", message: "" });
@@ -276,10 +275,6 @@ export default function App() {
     }
   }, [currentScreen, user]);
 
-  // Full-screen player state
-  const [showFullScreenPlayer, setShowFullScreenPlayer] = useState(false);
-  const [showQueueModal, setShowQueueModal] = useState(false);
-
   // Complete profile modal state
   const [showCompleteProfileModal, setShowCompleteProfileModal] =
     useState(false);
@@ -289,7 +284,6 @@ export default function App() {
   // Location state
   const [userLocation, setUserLocation] = useState(null);
   const [locationMismatchWarning, setLocationMismatchWarning] = useState(false);
-  const [showFullScreenMenu, setShowFullScreenMenu] = useState(false);
 
   // Opportunities state - now using live data from Supabase
   const [opportunities, setOpportunities] = useState([]);
@@ -311,43 +305,7 @@ export default function App() {
     can_apply: true,
   });
 
-  // Audio player animation values
-  const [audioPlayerOpacity] = useState(new Animated.Value(0));
-  const [audioPlayerTranslateY] = useState(new Animated.Value(50));
-
-  // Audio player animation effects
-  useEffect(() => {
-    if (globalAudioState.currentTrack) {
-      // Animate in when track is loaded - smooth ease-in
-      Animated.parallel([
-        Animated.timing(audioPlayerOpacity, {
-          toValue: 1,
-          duration: ANIMATION_DURATION.SLOW,
-          useNativeDriver: true,
-        }),
-        Animated.spring(audioPlayerTranslateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          ...SPRING_CONFIG,
-        }),
-      ]).start();
-    } else {
-      // Animate out when no track - smooth ease-out
-      Animated.parallel([
-        Animated.timing(audioPlayerOpacity, {
-          toValue: 0,
-          duration: ANIMATION_DURATION.NORMAL,
-          useNativeDriver: true,
-        }),
-        Animated.spring(audioPlayerTranslateY, {
-          toValue: 50,
-          useNativeDriver: true,
-          tension: 120,
-          friction: 9,
-        }),
-      ]).start();
-    }
-  }, [globalAudioState.currentTrack]);
+  // Audio player animation moved to GlobalAudioPlayerUI so only that subtree re-renders on audio change
 
   // Application sent modal state
 
@@ -375,23 +333,13 @@ export default function App() {
   const isPlayingAudioRef = useRef(false);
   const trackFinishedRef = useRef(false);
 
-  // Refs to store latest functions/state for background service callbacks
-  // This ensures callbacks always access the latest versions, not stale closures
-  const globalAudioStateRef = useRef(globalAudioState);
+  // Refs to store latest functions for background service callbacks
   const playNextTrackRef = useRef(null);
   const playPreviousTrackRef = useRef(null);
   const pauseGlobalAudioRef = useRef(null);
   const resumeGlobalAudioRef = useRef(null);
   const seekGlobalAudioRef = useRef(null);
-  // Refs for full-screen player gesture handlers (avoid recreating PanResponder every render)
-  const isScrubbingRef = useRef(false);
-  const skipBackwardRef = useRef(null);
-  const skipForwardRef = useRef(null);
-
-  // Keep refs in sync with current functions/state
-  useEffect(() => {
-    globalAudioStateRef.current = globalAudioState;
-  }, [globalAudioState]);
+  // stateRef from context is kept in sync by AudioProvider – use for latest audio state in callbacks
 
   // All opportunities data comes from database
 
@@ -544,9 +492,9 @@ export default function App() {
 
     // Handle app state changes for background audio
     const handleAppStateChange = (nextAppState) => {
-      if (nextAppState === "background" && globalAudioState.isPlaying) {
+      if (nextAppState === "background" && stateRef.current.isPlaying) {
         console.log("App went to background, audio should continue playing");
-      } else if (nextAppState === "active" && globalAudioState.isPlaying) {
+      } else if (nextAppState === "active" && stateRef.current.isPlaying) {
         console.log("App became active, audio is still playing");
       }
     };
@@ -724,10 +672,6 @@ export default function App() {
           });
           setGlobalAudioState((prev) => {
             if (!prev.currentTrack) return prev;
-            // Don't update progress/position during scrubbing to avoid conflicts
-            if (prev.isScrubbing) {
-              return prev;
-            }
             return {
               ...prev,
               positionMillis: data.position * 1000,
@@ -751,7 +695,7 @@ export default function App() {
             // Get the track from queue if available
             let newTrack = null;
             if (currentTrackIndex !== null) {
-              const queue = globalAudioStateRef.current.queue;
+              const queue = stateRef.current.queue;
               if (queue && queue[currentTrackIndex]) {
                 newTrack = queue[currentTrackIndex];
               } else {
@@ -823,7 +767,7 @@ export default function App() {
     let pollCount = 0;
     const progressInterval = setInterval(async () => {
       try {
-        const currentState = globalAudioStateRef.current;
+        const currentState = stateRef.current;
         if (!currentState.isPlaying || !currentState.currentTrack) {
           return; // Don't poll if not playing
         }
@@ -848,12 +792,6 @@ export default function App() {
 
           setGlobalAudioState((prev) => {
             if (!prev.currentTrack) return prev;
-            
-            // Don't update progress/position during scrubbing to avoid conflicts
-            if (prev.isScrubbing) {
-              return prev;
-            }
-            
             // Only update if values actually changed (avoid unnecessary re-renders)
             if (
               Math.abs(prev.positionMillis - positionMillis) < 100 && // Allow 100ms difference
@@ -1902,31 +1840,14 @@ export default function App() {
           }
 
           setGlobalAudioState((prev) => {
-            // Don't update progress if we're scrubbing to avoid conflicts
-            if (isScrubbing) {
-              return {
-                ...prev,
-                isPlaying: status.isPlaying,
-                isLoading: false,
-                // Keep existing progress and position during scrubbing
-                positionMillis: prev.positionMillis,
-                durationMillis: status.durationMillis || prev.durationMillis,
-              };
-            }
-
-            // Normal progress update when not scrubbing
-            // Don't update progress/position during scrubbing to avoid conflicts
             const newState = {
               ...prev,
               isPlaying: status.isPlaying,
               isLoading: false,
-              // Only update progress if not scrubbing (scrubPosition takes precedence)
-              progress: prev.isScrubbing ? prev.progress : (status.positionMillis / status.durationMillis || 0),
-              positionMillis: prev.isScrubbing ? prev.positionMillis : (status.positionMillis || 0),
+              progress: status.durationMillis ? (status.positionMillis || 0) / status.durationMillis : 0,
+              positionMillis: status.positionMillis || 0,
               durationMillis: status.durationMillis || 0,
             };
-
-            // Update lock screen notification (Android only, throttled internally)
             if (Platform.OS === "android") {
               lockScreenControls.updatePlaybackState(
                 status.isPlaying,
@@ -1934,7 +1855,6 @@ export default function App() {
                 status.durationMillis || 0
               );
             }
-
             return newState;
           });
 
@@ -2123,7 +2043,7 @@ export default function App() {
                 } else {
                   await resumeGlobalAudio();
                 }
-              } else if (globalAudioState.isPlaying) {
+              } else if (stateRef.current.isPlaying) {
                 await pauseGlobalAudio();
               } else {
                 await resumeGlobalAudio();
@@ -2208,7 +2128,7 @@ export default function App() {
           // Use TrackPlayer directly - events will update state automatically
           // This ensures lock screen and in-app stay in sync
           const TrackPlayer = trackPlayer.getTrackPlayer();
-          if (TrackPlayer && globalAudioState.currentTrack) {
+          if (TrackPlayer && stateRef.current.currentTrack) {
             await TrackPlayer.pause();
             console.log("✅ Paused via TrackPlayer - lock screen controls will sync");
             // Don't update state here - let TrackPlayer events handle it
@@ -2232,8 +2152,8 @@ export default function App() {
         if (Platform.OS === "android") {
           lockScreenControls.updatePlaybackState(
             false,
-            globalAudioState.positionMillis || 0,
-            globalAudioState.durationMillis || 0
+            stateRef.current.positionMillis || 0,
+            stateRef.current.durationMillis || 0
           );
         }
       }
@@ -2251,7 +2171,7 @@ export default function App() {
       if (Platform.OS === "ios" && trackPlayer) {
         try {
           const TrackPlayer = trackPlayer.getTrackPlayer();
-          if (TrackPlayer && globalAudioState.currentTrack) {
+          if (TrackPlayer && stateRef.current.currentTrack) {
             const state = await trackPlayer.getPlaybackState();
             const currentPosition = state.position * 1000;
             const newPosition = Math.max(
@@ -2282,12 +2202,12 @@ export default function App() {
       }
 
       // Android or iOS fallback: Use expo-av
-      if (globalAudioRef.current && globalAudioState.durationMillis) {
-        const currentPosition = globalAudioState.positionMillis || 0;
+      if (globalAudioRef.current && stateRef.current.durationMillis) {
+        const currentPosition = stateRef.current.positionMillis || 0;
         const newPosition = Math.max(
           0,
           Math.min(
-            globalAudioState.durationMillis,
+            stateRef.current.durationMillis,
             currentPosition + seekAmount
           )
         );
@@ -2300,9 +2220,9 @@ export default function App() {
         // Update lock screen notification
         if (Platform.OS === "android") {
           lockScreenControls.updatePlaybackState(
-            globalAudioState.isPlaying,
+            stateRef.current.isPlaying,
             newPosition,
-            globalAudioState.durationMillis
+            stateRef.current.durationMillis
           );
         }
 
@@ -2311,7 +2231,7 @@ export default function App() {
             newPosition / 1000
           )}s`
         );
-      } else if (!globalAudioState.durationMillis) {
+      } else if (!stateRef.current.durationMillis) {
         console.warn("⚠️ Cannot seek - no duration available");
       }
     } catch (error) {
@@ -2331,7 +2251,7 @@ export default function App() {
           // Use TrackPlayer directly - events will update state automatically
           // This ensures lock screen and in-app stay in sync
           const TrackPlayer = trackPlayer.getTrackPlayer();
-          if (TrackPlayer && globalAudioState.currentTrack) {
+          if (TrackPlayer && stateRef.current.currentTrack) {
             await TrackPlayer.play();
             console.log("✅ Resumed via TrackPlayer - lock screen controls will sync");
             // Don't update state here - let TrackPlayer events handle it
@@ -2355,8 +2275,8 @@ export default function App() {
         if (Platform.OS === "android") {
           lockScreenControls.updatePlaybackState(
             true,
-            globalAudioState.positionMillis || 0,
-            globalAudioState.durationMillis || 0
+            stateRef.current.positionMillis || 0,
+            stateRef.current.durationMillis || 0
           );
         }
       }
@@ -2443,51 +2363,6 @@ export default function App() {
     }
   };
 
-  // Memoized full-screen player gesture handlers (refs updated in render so callbacks see latest values)
-  isScrubbingRef.current = isScrubbing;
-  skipBackwardRef.current = skipBackward;
-  skipForwardRef.current = skipForward;
-  const fullScreenGestureHandlers = useMemo(() => {
-    const panResponder = PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        if (isScrubbingRef.current) return false;
-        return Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20;
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        if (isScrubbingRef.current) return;
-        if (Math.abs(gestureState.dx) > Math.abs(gestureState.dy)) {
-          if (gestureState.dx > 50) {
-            if (skipBackwardRef.current) skipBackwardRef.current();
-            Vibration.vibrate(100);
-          } else if (gestureState.dx < -50) {
-            if (skipForwardRef.current) skipForwardRef.current();
-            Vibration.vibrate(100);
-          }
-        }
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        if (isScrubbingRef.current) return;
-        if (Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && gestureState.dy > 100) {
-          setShowFullScreenPlayer(false);
-        }
-      },
-    });
-    return panResponder.panHandlers;
-  }, []);
-
-  // Repeat functionality
-  const toggleRepeat = () => {
-    setGlobalAudioState((prev) => {
-      const modes = ["none", "one", "all"];
-      const currentIndex = modes.indexOf(prev.repeatMode);
-      const nextIndex = (currentIndex + 1) % modes.length;
-      return {
-        ...prev,
-        repeatMode: modes[nextIndex],
-      };
-    });
-  };
-
   // Fetch user's liked mixes
   const fetchUserLikedMixes = async () => {
     if (!user?.id) {
@@ -2524,7 +2399,7 @@ export default function App() {
 
   // Like/Unlike functionality
   const toggleLike = async () => {
-    if (!globalAudioState.currentTrack || !user) {
+    if (!stateRef.current.currentTrack || !user) {
       Alert.alert(
         "Sign In Required",
         "You need to be signed in to like a mix.",
@@ -2536,7 +2411,7 @@ export default function App() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      const mixId = globalAudioState.currentTrack.id;
+      const mixId = stateRef.current.currentTrack.id;
       const isCurrentlyLiked = likedMixIds.has(mixId);
 
       // Optimistically update UI
@@ -2585,9 +2460,9 @@ export default function App() {
         }
 
         // Award credits to mix creator (deduct)
-        if (globalAudioState.currentTrack.user_id && globalAudioState.currentTrack.user_id !== user.id) {
+        if (stateRef.current.currentTrack.user_id && stateRef.current.currentTrack.user_id !== user.id) {
           try {
-            await db.incrementUserCredits(globalAudioState.currentTrack.user_id, -10);
+            await db.incrementUserCredits(stateRef.current.currentTrack.user_id, -10);
           } catch (creditError) {
             console.error("❌ Error rolling back credits:", creditError);
           }
@@ -2621,9 +2496,9 @@ export default function App() {
           }
         } else {
           // Award credits to mix creator
-          if (globalAudioState.currentTrack.user_id && globalAudioState.currentTrack.user_id !== user.id) {
-            try {
-              await db.incrementUserCredits(globalAudioState.currentTrack.user_id, 10);
+          if (stateRef.current.currentTrack.user_id && stateRef.current.currentTrack.user_id !== user.id) {
+              try {
+                await db.incrementUserCredits(stateRef.current.currentTrack.user_id, 10);
             } catch (creditError) {
               console.error("❌ Error awarding credits:", creditError);
             }
@@ -2639,7 +2514,7 @@ export default function App() {
         "We couldn't like this mix right now. Please try again."
       );
       // Revert optimistic update
-      const mixId = globalAudioState.currentTrack.id;
+      const mixId = stateRef.current.currentTrack.id;
       const wasLiked = likedMixIds.has(mixId);
       setLikedMixIds((prev) => {
         const updated = new Set(prev);
@@ -2671,7 +2546,7 @@ export default function App() {
     }
 
     // iOS: Try TrackPlayer first, fall back to expo-av
-    if (Platform.OS === "ios" && trackPlayer && globalAudioState.currentTrack) {
+    if (Platform.OS === "ios" && trackPlayer && stateRef.current.currentTrack) {
       try {
         const state = await trackPlayer.getPlaybackState();
         const duration = state.duration * 1000; // Convert to milliseconds
@@ -2766,217 +2641,6 @@ export default function App() {
   };
 
   // Refs for progress bar dimensions
-  const miniProgressBarRef = useRef(null);
-  const fullScreenProgressBarRef = useRef(null);
-
-  // Constants for progress bar calculations
-  const PROGRESS_BAR_PADDING = 48;
-  const getProgressBarWidth = useCallback(
-    () => Dimensions.get("window").width - PROGRESS_BAR_PADDING,
-    []
-  );
-
-  // Simple scrubbing system - visual updates during drag, seek on release
-  const pendingSeekPositionRef = useRef(null);
-  const isDraggingRef = useRef(false);
-
-  // Clean scrubbing implementation - simple and reliable
-  const createProgressBarPanResponder = useCallback(
-    (options = {}) => {
-      const {
-        enableImmediateSeek = true,
-        captureTouches = true,
-      } = options;
-
-      return PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onStartShouldSetPanResponderCapture: () => captureTouches,
-        onMoveShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponderCapture: () => captureTouches,
-        onPanResponderGrant: async (evt) => {
-          // Mark that we're starting a gesture (might be tap or drag)
-          isDraggingRef.current = false;
-          
-          // Get duration
-          let durationMillis = globalAudioState.durationMillis;
-          if (durationMillis <= 0 && globalAudioRef.current) {
-            try {
-              const status = await globalAudioRef.current.getStatusAsync();
-              if (status.isLoaded && status.durationMillis > 0) {
-                durationMillis = status.durationMillis;
-              }
-            } catch (error) {
-              // Ignore
-            }
-          }
-
-          if (durationMillis <= 0 || globalAudioState.isLoading) {
-            return;
-          }
-
-          setIsScrubbing(true);
-
-          const progressBarWidth = getProgressBarWidth();
-          if (progressBarWidth <= 0) {
-            setIsScrubbing(false);
-            return;
-          }
-
-          const percentage = Math.max(0, Math.min(1, evt.nativeEvent.locationX / progressBarWidth));
-          setScrubPosition(percentage);
-
-          // Store initial position but don't seek yet - wait to see if it's a drag or tap
-          const position = percentage * durationMillis;
-          pendingSeekPositionRef.current = position;
-
-          // Only seek immediately if this is likely a tap (not a drag)
-          // We'll detect drag in onPanResponderMove
-          // For now, don't seek in Grant - wait for Move or Release
-          
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        },
-        onPanResponderMove: (evt, gestureState) => {
-          // Mark that this is a drag, not just a tap
-          isDraggingRef.current = true;
-          
-          const durationMillis = globalAudioState.durationMillis;
-          
-          if (durationMillis <= 0 || globalAudioState.isLoading) {
-            return;
-          }
-
-          const progressBarWidth = getProgressBarWidth();
-          if (progressBarWidth <= 0) {
-            return;
-          }
-
-          // Calculate percentage - prefer event locationX (absolute position)
-          let percentage;
-          if (evt && evt.nativeEvent && typeof evt.nativeEvent.locationX === 'number') {
-            percentage = Math.max(0, Math.min(1, evt.nativeEvent.locationX / progressBarWidth));
-          } else {
-            // Fallback to gestureState.moveX
-            percentage = Math.max(0, Math.min(1, gestureState.moveX / progressBarWidth));
-          }
-          
-          // Update visual position immediately for smooth feedback
-          setScrubPosition(percentage);
-
-          // Store the latest position for final seek on release
-          // Don't seek during drag - only update visual position
-          const position = percentage * durationMillis;
-          pendingSeekPositionRef.current = position;
-        },
-        onPanResponderRelease: async (evt, gestureState) => {
-          try {
-            const wasDragging = isDraggingRef.current;
-            isDraggingRef.current = false;
-            
-            const durationMillis = globalAudioState.durationMillis;
-            if (durationMillis <= 0) {
-              setIsScrubbing(false);
-              pendingSeekPositionRef.current = null;
-              return;
-            }
-
-            // Calculate final position - use event locationX if available (most accurate)
-            const progressBarWidth = getProgressBarWidth();
-            let finalPercentage = scrubPosition; // Fallback to current scrub position
-            
-            if (progressBarWidth > 0) {
-              // Try to get absolute position from event
-              if (evt && evt.nativeEvent && typeof evt.nativeEvent.locationX === 'number') {
-                finalPercentage = Math.max(0, Math.min(1, evt.nativeEvent.locationX / progressBarWidth));
-              } else if (gestureState && typeof gestureState.moveX === 'number') {
-                // Fallback: use gestureState.moveX (should be absolute position relative to responder)
-                finalPercentage = Math.max(0, Math.min(1, gestureState.moveX / progressBarWidth));
-              }
-              // Otherwise use scrubPosition which was updated during move
-            }
-
-            // Use pending position from drag (most recent), or calculate from percentage
-            let seekPosition;
-            if (pendingSeekPositionRef.current !== null) {
-              seekPosition = pendingSeekPositionRef.current;
-            } else {
-              seekPosition = finalPercentage * durationMillis;
-            }
-            
-            // Ensure valid position
-            seekPosition = Math.max(0, Math.min(seekPosition, durationMillis - 100));
-            
-            // Seek on release
-            // If it was a tap (not a drag) and immediate seek is enabled, seek now
-            // If it was a drag, we always seek on release
-            if (!wasDragging && enableImmediateSeek) {
-              // This was a tap - seek immediately
-              await seekToPosition(seekPosition);
-            } else {
-              // This was a drag - seek to final position
-              await seekToPosition(seekPosition);
-            }
-            
-            setScrubPosition(finalPercentage);
-            pendingSeekPositionRef.current = null;
-          } catch (error) {
-            console.error('Error in onPanResponderRelease:', error);
-          } finally {
-            setIsScrubbing(false);
-          }
-        },
-        onPanResponderTerminate: async () => {
-          try {
-            // If drag was interrupted, seek to pending position if available
-            if (pendingSeekPositionRef.current !== null) {
-              const durationMillis = globalAudioState.durationMillis;
-              if (durationMillis > 0) {
-                const seekPosition = Math.max(0, Math.min(pendingSeekPositionRef.current, durationMillis - 100));
-                await seekToPosition(seekPosition);
-              }
-            }
-            setIsScrubbing(false);
-            pendingSeekPositionRef.current = null;
-          } catch (error) {
-            console.error('Error in onPanResponderTerminate:', error);
-            setIsScrubbing(false);
-            pendingSeekPositionRef.current = null;
-          }
-        },
-      });
-    },
-    [
-      globalAudioState.durationMillis,
-      globalAudioState.isLoading,
-      seekToPosition,
-      scrubPosition,
-      getProgressBarWidth,
-      setIsScrubbing,
-      setScrubPosition,
-    ]
-  );
-
-  // Full-screen progress bar pan responder
-  const fullScreenProgressBarPanResponder = useMemo(
-    () =>
-      createProgressBarPanResponder({
-        enableImmediateSeek: true,
-        enableThrottledSeek: true,
-        captureTouches: true,
-      }),
-    [createProgressBarPanResponder]
-  );
-
-  // Mini player progress bar pan responder
-  const progressBarPanResponder = useMemo(
-    () =>
-      createProgressBarPanResponder({
-        enableImmediateSeek: false, // Mini player only supports dragging, not tapping
-        enableThrottledSeek: true,
-        captureTouches: false, // Less aggressive for mini player
-      }),
-    [createProgressBarPanResponder]
-  );
-
   // Queue management functions
   const addToQueue = (track) => {
     setGlobalAudioState((prev) => {
@@ -3094,7 +2758,7 @@ export default function App() {
     }
 
     const shuffled = shuffleArray(allMixes);
-    const currentTrack = globalAudioState.currentTrack;
+    const currentTrack = stateRef.current.currentTrack;
     
     // If a track is currently playing, keep it first and shuffle the rest
     let queue = shuffled;
@@ -3131,7 +2795,7 @@ export default function App() {
     }
 
     const shuffled = shuffleArray(genreMixes);
-    const currentTrack = globalAudioState.currentTrack;
+    const currentTrack = stateRef.current.currentTrack;
     
     let queue = shuffled;
     if (currentTrack && currentTrack.genre === genre) {
@@ -3186,7 +2850,7 @@ export default function App() {
 
         // Weighted random shuffle (higher weight = more likely to appear early)
         const shuffled = weightedShuffle(weightedMixes);
-        const currentTrack = globalAudioState.currentTrack;
+        const currentTrack = stateRef.current.currentTrack;
         
         let queue = shuffled;
         if (currentTrack) {
@@ -3232,7 +2896,7 @@ export default function App() {
     }
 
     const shuffled = shuffleArray(combined);
-    const currentTrack = globalAudioState.currentTrack;
+    const currentTrack = stateRef.current.currentTrack;
     
     let queue = shuffled;
     if (currentTrack) {
@@ -3282,7 +2946,7 @@ export default function App() {
   const getRandomMix = async () => {
     try {
       const { supabase } = await import("./lib/supabase");
-      const currentTrack = globalAudioStateRef.current.currentTrack;
+      const currentTrack = stateRef.current.currentTrack;
       
       // Get a random mix, excluding the current one
       let query = supabase
@@ -3343,7 +3007,7 @@ export default function App() {
 
   const getNextTrack = () => {
     // Use ref to get latest state (not stale closure)
-    const currentState = globalAudioStateRef.current;
+    const currentState = stateRef.current;
     const { queue, currentQueueIndex, repeatMode, isShuffled } = currentState;
 
     if (queue.length === 0) {
@@ -3381,7 +3045,7 @@ export default function App() {
 
   const getPreviousTrack = () => {
     // Use ref to get latest state (not stale closure)
-    const currentState = globalAudioStateRef.current;
+    const currentState = stateRef.current;
     const { queue, currentQueueIndex, repeatMode } = currentState;
 
     if (queue.length === 0) return null;
@@ -3417,7 +3081,7 @@ export default function App() {
 
   const playNextTrack = async () => {
     // Use ref to get latest state, not closure
-    const currentState = globalAudioStateRef.current;
+    const currentState = stateRef.current;
     const nextTrack = getNextTrack();
     
     if (nextTrack) {
@@ -3462,7 +3126,7 @@ export default function App() {
 
   const playPreviousTrack = async () => {
     // Use ref to get latest state, not closure
-    const currentState = globalAudioStateRef.current;
+    const currentState = stateRef.current;
     const prevTrack = getPreviousTrack();
     if (prevTrack) {
       setGlobalAudioState((prev) => ({
@@ -3509,15 +3173,19 @@ export default function App() {
         skipForward,
         skipBackward,
         toggleLike,
+        seekToPosition,
+        moveQueueItemUp,
+        moveQueueItemDown,
+        toggleShuffle,
       };
     }
   });
 
   // Share functionality
   const shareTrack = async () => {
-    if (globalAudioState.currentTrack) {
+    if (stateRef.current.currentTrack) {
       try {
-        const shareMessage = `Check out this track: "${globalAudioState.currentTrack.title}" by ${globalAudioState.currentTrack.artist} on Rhood!`;
+        const shareMessage = `Check out this track: "${stateRef.current.currentTrack.title}" by ${stateRef.current.currentTrack.artist} on Rhood!`;
         await Share.share({
           message: shareMessage,
           title: "Share Track",
@@ -4518,14 +4186,6 @@ export default function App() {
 
   // Menu animation functions
   const openMenu = () => {
-    // Close full-screen player if it's open to prevent modal conflicts
-    if (showFullScreenPlayer) {
-      setShowFullScreenPlayer(false);
-    }
-    // Close full-screen menu if it's open
-    if (showFullScreenMenu) {
-      closeFullScreenMenu();
-    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowMenu(true);
     Animated.parallel([
@@ -4556,41 +4216,6 @@ export default function App() {
       }),
     ]).start(() => {
       setShowMenu(false);
-    });
-  };
-
-  // Full-screen menu animation functions
-  const openFullScreenMenu = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowFullScreenMenu(true);
-    Animated.parallel([
-      Animated.timing(fullScreenMenuSlideAnim, {
-        toValue: 1,
-        duration: ANIMATION_DURATION.NORMAL,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fullScreenMenuOpacityAnim, {
-        toValue: 1,
-        duration: ANIMATION_DURATION.FAST,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const closeFullScreenMenu = () => {
-    Animated.parallel([
-      Animated.timing(fullScreenMenuSlideAnim, {
-        toValue: 0,
-        duration: ANIMATION_DURATION.NORMAL,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fullScreenMenuOpacityAnim, {
-        toValue: 0,
-        duration: ANIMATION_DURATION.FAST,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setShowFullScreenMenu(false);
     });
   };
 
@@ -4634,9 +4259,9 @@ export default function App() {
 
   // Sync isLiked state when currentTrack or likedMixIds changes
   useEffect(() => {
-    if (globalAudioState.currentTrack) {
-      const isLiked = likedMixIds.has(globalAudioState.currentTrack.id);
-      if (globalAudioState.currentTrack.isLiked !== isLiked) {
+    if (stateRef.current.currentTrack) {
+      const isLiked = likedMixIds.has(stateRef.current.currentTrack.id);
+      if (stateRef.current.currentTrack.isLiked !== isLiked) {
         setGlobalAudioState((prev) => ({
           ...prev,
           currentTrack: {
@@ -4646,7 +4271,8 @@ export default function App() {
         }));
       }
     }
-  }, [likedMixIds, globalAudioState.currentTrack?.id]);
+  // Sync runs when likedMixIds changes; stateRef.current has latest track
+  }, [likedMixIds]);
 
   // Set up real-time subscriptions for notifications and opportunities
   useEffect(() => {
@@ -5002,7 +4628,6 @@ export default function App() {
         setDjProfile={setDjProfile}
         setShowAuth={setShowAuth}
         setAuthMode={setAuthMode}
-        globalAudioState={globalAudioState}
         playGlobalAudio={playGlobalAudio}
         pauseGlobalAudio={pauseGlobalAudio}
         resumeGlobalAudio={resumeGlobalAudio}
@@ -5228,849 +4853,16 @@ export default function App() {
           </Animated.View>
         </Modal>
 
-        {/* Dark Fade Overlay Above Play Bar */}
-        {globalAudioState.currentTrack &&
-          currentScreen !== "messages" &&
-          currentScreen !== "help-chat" && (
-            <View style={styles.playBarFadeOverlay} />
-          )}
+        <GlobalAudioPlayerUI
+          currentScreen={currentScreen}
+          onNavigateToProfile={(userId) => {
+            setCurrentScreen("user-profile");
+            setScreenParams({ userId });
+          }}
+          styles={styles}
+          globalAudioRef={globalAudioRef}
+        />
 
-        {/* Global Audio Player - shows when there's a current track */}
-        {globalAudioState.currentTrack &&
-          currentScreen !== "messages" &&
-          currentScreen !== "help-chat" && (
-            <Animated.View
-              style={[
-                styles.globalAudioPlayer,
-                {
-                  opacity: audioPlayerOpacity,
-                  transform: [
-                    {
-                      translateY: audioPlayerTranslateY,
-                    },
-                  ],
-                },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => setShowFullScreenPlayer(true)}
-                activeOpacity={0.9}
-                style={styles.audioPlayerContent}
-              >
-                {/* Album Art */}
-                <View style={styles.audioAlbumArt}>
-                  {globalAudioState.currentTrack.image ? (
-                    <Image
-                      source={{ uri: globalAudioState.currentTrack.image }}
-                      style={styles.albumArtImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.albumArtPlaceholder}>
-                      <Ionicons
-                        name="musical-notes"
-                        size={24}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.audioTrackInfo}>
-                  <Text style={styles.audioTrackTitle} numberOfLines={1} ellipsizeMode="tail">
-                    {globalAudioState.currentTrack.title}
-                  </Text>
-                  <Text style={styles.audioTrackArtist} numberOfLines={1}>
-                    {globalAudioState.currentTrack.artist}
-                  </Text>
-                  {/* Up Next Preview */}
-                  {(() => {
-                    const nextTrack = getNextTrack();
-                    if (nextTrack) {
-                      return (
-                        <View style={styles.upNextPreview}>
-                          <Text style={styles.upNextLabel}>Up Next:</Text>
-                          <Text style={styles.upNextTrack} numberOfLines={1}>
-                            {nextTrack.title} • {nextTrack.artist}
-                          </Text>
-                        </View>
-                      );
-                    }
-                    return null;
-                  })()}
-                </View>
-
-                {/* Timer - Compact format */}
-                <View style={styles.audioTimeContainer}>
-                  <Text style={styles.audioTimeText}>
-                    {formatTime(globalAudioState.positionMillis || 0)} /{" "}
-                    {formatTime(globalAudioState.durationMillis || 0)}
-                  </Text>
-                </View>
-
-                <View style={styles.audioControls}>
-                  {/* Play/Pause Button */}
-                  <TouchableOpacity
-                    style={styles.audioControlButton}
-                    onPress={async (e) => {
-                      e.stopPropagation();
-                      try {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-                        // iOS: Try TrackPlayer first, fall back to expo-av
-                        if (
-                          Platform.OS === "ios" &&
-                          trackPlayer &&
-                          globalAudioState.currentTrack &&
-                          typeof trackPlayer.getPlaybackState === "function"
-                        ) {
-                          try {
-                            // Use the trackPlayer wrapper which handles availability
-                            const state = await trackPlayer.getPlaybackState();
-                            const isCurrentlyPlaying = state.isPlaying;
-
-                            console.log(
-                              "🎵 Mini player - controlling playback:",
-                              {
-                                isCurrentlyPlaying,
-                                willBe: !isCurrentlyPlaying,
-                              }
-                            );
-
-                            // Use trackPlayer wrapper methods
-                            const player = loadTrackPlayer();
-                            if (isCurrentlyPlaying) {
-                              if (player && typeof player.pause === "function") {
-                                await player.pause();
-                                console.log("✅ Paused via TrackPlayer");
-                              } else {
-                                await pauseGlobalAudio();
-                              }
-
-                              // Update state
-                              setGlobalAudioState((prev) => ({
-                                ...prev,
-                                isPlaying: false,
-                              }));
-                            } else {
-                              if (player && typeof player.resume === "function") {
-                                await player.resume();
-                                console.log("✅ Started/resumed via TrackPlayer");
-                              } else {
-                                await resumeGlobalAudio();
-                              }
-
-                              // Update state
-                              setGlobalAudioState((prev) => ({
-                                ...prev,
-                                isPlaying: true,
-                              }));
-                            }
-
-                            // Re-verify after a moment
-                            setTimeout(async () => {
-                              try {
-                                const verifiedState = await trackPlayer.getPlaybackState();
-                                const verifiedPlaying = verifiedState.isPlaying;
-                                setGlobalAudioState((prev) => ({
-                                  ...prev,
-                                  isPlaying: verifiedPlaying,
-                                }));
-                                console.log("✅ Verified state:", verifiedPlaying);
-                              } catch (err) {
-                                console.warn("⚠️ Could not verify state:", err);
-                              }
-                            }, 300);
-                          } catch (error) {
-                            // TrackPlayer not available - fall back to expo-av
-                            const errorMessage = error?.message || String(error) || "";
-                            const isExpectedError = 
-                              errorMessage.includes("react-native-track-player is not available") ||
-                              errorMessage.includes("Property 'require' doesn't exist") ||
-                              (errorMessage.includes("Property") && errorMessage.includes("require") && errorMessage.includes("doesn't exist")) ||
-                              (errorMessage.includes("require") && errorMessage.includes("doesn't exist"));
-                            
-                            if (!isExpectedError) {
-                              console.warn("⚠️ Track-player error, using fallback:", errorMessage);
-                            }
-                            // Fallback to global functions
-                            if (globalAudioState.isPlaying) {
-                              await pauseGlobalAudio();
-                            } else {
-                              await resumeGlobalAudio();
-                            }
-                          }
-                        } else {
-                          // Android or TrackPlayer not available: Use expo-av
-                          if (globalAudioState.isPlaying) {
-                            await pauseGlobalAudio();
-                          } else {
-                            await resumeGlobalAudio();
-                          }
-                        }
-                      } catch (error) {
-                        console.error("❌ Error in play/pause button:", error);
-                      }
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={globalAudioState.isPlaying ? "pause" : "play"}
-                      size={22}
-                      color="hsl(0, 0%, 0%)"
-                    />
-                  </TouchableOpacity>
-
-                  {/* Close / Stop Button */}
-                  <TouchableOpacity
-                    style={styles.audioCloseButton}
-                    onPress={async (e) => {
-                      e.stopPropagation();
-                      try {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      } catch (hapticError) {
-                        console.warn("Haptics not available:", hapticError);
-                      }
-                      await stopGlobalAudio();
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Stop playback"
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="close" size={22} color="hsl(0, 0%, 60%)" />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-
-              {/* Progress Bar - Positioned at bottom */}
-              <View
-                ref={miniProgressBarRef}
-                style={styles.audioProgressContainer}
-                {...progressBarPanResponder.panHandlers}
-              >
-                <View
-                  style={styles.audioProgressBar}
-                >
-                  <View
-                    style={[
-                      styles.audioProgressFill,
-                      {
-                        width: `${(globalAudioState.progress || 0) * 100}%`,
-                      },
-                    ]}
-                  />
-                  {/* Scrubber Thumb */}
-                  <View
-                    style={[
-                      styles.scrubberThumb,
-                      {
-                        left: `${(globalAudioState.progress || 0) * 100}%`,
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            </Animated.View>
-          )}
-
-        {/* Full-Screen Audio Player Modal */}
-        {showFullScreenPlayer && globalAudioState.currentTrack && (
-          <Modal
-            visible={showFullScreenPlayer}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={() => setShowFullScreenPlayer(false)}
-          >
-            <View style={styles.fullScreenPlayerOverlay}>
-              {/* Dark overlay for better text readability */}
-              <View style={styles.fullScreenOverlay} />
-
-              <ScrollView
-                style={styles.fullScreenPlayer}
-                contentContainerStyle={styles.fullScreenPlayerContent}
-                showsVerticalScrollIndicator={false}
-                {...fullScreenGestureHandlers}
-              >
-                {/* Header with close button */}
-                <View style={styles.fullScreenHeader}>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={() => setShowFullScreenPlayer(false)}
-                  >
-                    <Ionicons
-                      name="chevron-down"
-                      size={24}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Album Art - Large centered image */}
-                <View style={styles.fullScreenAlbumArtContainer}>
-                  <Image
-                    source={{ uri: globalAudioState.currentTrack.image }}
-                    style={styles.fullScreenAlbumArt}
-                    resizeMode="cover"
-                  />
-                </View>
-
-                {/* Track Info */}
-                <View style={styles.fullScreenTrackInfo}>
-                  <View style={styles.fullScreenTrackTitleRow}>
-                    <Text style={styles.fullScreenTrackTitle}>
-                      {globalAudioState.currentTrack.title}
-                    </Text>
-                    {/* Like Button */}
-                    <TouchableOpacity
-                      style={styles.fullScreenLikeButton}
-                      onPress={toggleLike}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name={globalAudioState.currentTrack.isLiked ? "heart" : "heart-outline"}
-                        size={24}
-                        color={globalAudioState.currentTrack.isLiked ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (globalAudioState.currentTrack.user_id) {
-                        setShowFullScreenPlayer(false);
-                        setCurrentScreen("user-profile");
-                        setScreenParams({
-                          userId: globalAudioState.currentTrack.user_id,
-                        });
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.fullScreenTrackArtist}>
-                      {globalAudioState.currentTrack.artist}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Progress Bar */}
-                <View style={styles.fullScreenProgressSection}>
-                  <View
-                    ref={fullScreenProgressBarRef}
-                    style={styles.fullScreenProgressBar}
-                    {...fullScreenProgressBarPanResponder.panHandlers}
-                  >
-                    <View
-                      style={[
-                        styles.fullScreenProgressFill,
-                        {
-                          width: `${
-                            (isScrubbing
-                              ? scrubPosition
-                              : globalAudioState.progress || 0) * 100
-                          }%`,
-                        },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.fullScreenProgressThumb,
-                        {
-                          left: `${
-                            (isScrubbing
-                              ? scrubPosition
-                              : globalAudioState.progress || 0) * 100
-                          }%`,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <View style={styles.fullScreenTimeContainer}>
-                    <Text style={styles.fullScreenTimeText}>
-                      {formatTime(globalAudioState.positionMillis || 0)}
-                    </Text>
-                    <Text style={styles.fullScreenTimeText}>
-                      {formatTime(globalAudioState.durationMillis || 0)}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Control Buttons */}
-                <View style={styles.fullScreenControls}>
-                  {/* Shuffle Button */}
-                  <TouchableOpacity
-                    style={styles.fullScreenControlButton}
-                    onPress={toggleShuffle}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="shuffle"
-                      size={20}
-                      color={
-                        globalAudioState.isShuffled
-                          ? "hsl(75, 100%, 60%)"
-                          : "hsl(0, 0%, 100%)"
-                      }
-                    />
-                  </TouchableOpacity>
-
-                  {/* Previous Track Button */}
-                  <TouchableOpacity
-                    style={styles.fullScreenControlButton}
-                    onPress={skipBackward}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="play-skip-back"
-                      size={24}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
-
-                  {/* Play/Pause Button */}
-                  <TouchableOpacity
-                    style={styles.fullScreenPlayButton}
-                    onPress={async () => {
-                      try {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        if (globalAudioState.isPlaying) {
-                          await pauseGlobalAudio();
-                        } else {
-                          await resumeGlobalAudio();
-                        }
-                      } catch (error) {
-                        console.error("❌ Play/pause error:", error);
-                      }
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={globalAudioState.isPlaying ? "pause" : "play"}
-                      size={32}
-                      color="hsl(0, 0%, 0%)"
-                    />
-                  </TouchableOpacity>
-
-                  {/* Next Track Button */}
-                  <TouchableOpacity
-                    style={styles.fullScreenControlButton}
-                    onPress={skipForward}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="play-skip-forward"
-                      size={24}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
-
-                  {/* Repeat Button */}
-                  <TouchableOpacity
-                    style={styles.fullScreenControlButton}
-                    onPress={toggleRepeat}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="repeat"
-                      size={20}
-                      color={
-                        globalAudioState.repeatMode === "none"
-                          ? "hsl(0, 0%, 100%)"
-                          : "hsl(75, 100%, 60%)"
-                      }
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Secondary Actions Row */}
-                <View style={styles.fullScreenSecondaryActions}>
-                  {/* Share Button */}
-                  <TouchableOpacity
-                    style={styles.fullScreenSecondaryButton}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      shareTrack();
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="share-outline"
-                      size={20}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                    <Text style={styles.fullScreenSecondaryButtonText}>
-                      Share
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Queue Button */}
-                  <TouchableOpacity
-                    style={styles.fullScreenSecondaryButton}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowFullScreenPlayer(false);
-                      // Show queue modal or navigate to queue view
-                      setShowQueueModal(true);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="list-outline"
-                      size={20}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                    <Text style={styles.fullScreenSecondaryButtonText}>
-                      Queue
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* About the DJ Section */}
-                <TouchableOpacity
-                  style={styles.aboutDJCard}
-                  onPress={() => {
-                    console.log(
-                      "🔍 About DJ card pressed - navigating to profile"
-                    );
-                    if (globalAudioState.currentTrack?.user_id) {
-                      setShowFullScreenPlayer(false);
-                      setCurrentScreen("user-profile");
-                      setScreenParams({
-                        userId: globalAudioState.currentTrack.user_id,
-                      });
-                    } else {
-                      Alert.alert("Error", "Unable to view DJ profile");
-                    }
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.aboutDJHeader}>
-                    <View style={styles.aboutDJAvatar}>
-                      <ProgressiveImage
-                        source={
-                          globalAudioState.currentTrack?.user_image
-                            ? {
-                                uri: globalAudioState.currentTrack.user_image,
-                              }
-                            : null
-                        }
-                        style={styles.aboutDJAvatarImage}
-                        placeholder={
-                          <View
-                            style={[
-                              styles.aboutDJAvatarImage,
-                              {
-                                backgroundColor: "hsl(0, 0%, 15%)",
-                                justifyContent: "center",
-                                alignItems: "center",
-                              },
-                            ]}
-                          >
-                            <Ionicons
-                              name="person"
-                              size={24}
-                              color="hsl(0, 0%, 50%)"
-                            />
-                          </View>
-                        }
-                        onError={() => {
-                          // If image fails to load and we have user_id, try fetching from database
-                          const userId = globalAudioState.currentTrack?.user_id;
-                          if (userId && !globalAudioState.currentTrack?.user_image) {
-                            supabase
-                              .from("user_profiles")
-                              .select("profile_image_url")
-                              .eq("id", userId)
-                              .single()
-                              .then(({ data: userProfile }) => {
-                                if (userProfile?.profile_image_url) {
-                                  setGlobalAudioState((prev) => ({
-                                    ...prev,
-                                    currentTrack: {
-                                      ...prev.currentTrack,
-                                      user_image: userProfile.profile_image_url,
-                                    },
-                                  }));
-                                  console.log("✅ Fetched user image after load error");
-                                }
-                              })
-                              .catch((error) => {
-                                console.warn("⚠️ Could not fetch user image after error:", error);
-                              });
-                          }
-                        }}
-                      />
-                    </View>
-                    <View style={styles.aboutDJInfo}>
-                      <Text style={styles.aboutDJTitle}>About the DJ</Text>
-                      <Text style={styles.aboutDJName}>
-                        {globalAudioState.currentTrack?.user_dj_name ||
-                          globalAudioState.currentTrack?.artist ||
-                          "DJ"}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color="hsl(0, 0%, 50%)"
-                      style={styles.aboutDJArrow}
-                    />
-                  </View>
-                  <Text style={styles.aboutDJText}>
-                    {globalAudioState.currentTrack?.user_bio ||
-                      "Discover more about this talented DJ and their unique sound."}
-                  </Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </Modal>
-        )}
-
-        {/* Full-Screen Player Menu Bottom Sheet */}
-        <Modal
-          visible={showFullScreenMenu}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={closeFullScreenMenu}
-        >
-          <View style={styles.fullScreenMenuOverlay}>
-            <TouchableOpacity
-              style={styles.fullScreenMenuOverlayTouchable}
-              onPress={closeFullScreenMenu}
-            />
-            <View style={styles.fullScreenMenuContainer}>
-              <View style={styles.fullScreenMenuContent}>
-                <View style={styles.fullScreenMenuHeader}>
-                  <Text style={styles.tsBlockBoldHeading}>Mix Options</Text>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={closeFullScreenMenu}
-                  >
-                    <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.fullScreenMenuItems}>
-                  <TouchableOpacity
-                    style={styles.fullScreenMenuItem}
-                    onPress={() => {
-                      closeFullScreenMenu();
-                      shareTrack();
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="share-outline" size={20} color="#C2CC06" />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Share Mix</Text>
-                      <Text style={styles.menuItemDescription}>
-                        Share this mix with others
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.fullScreenMenuItem}
-                    onPress={() => {
-                      closeFullScreenMenu();
-                      if (globalAudioState.currentTrack?.user_id) {
-                        setShowFullScreenPlayer(false);
-                        setCurrentScreen("user-profile");
-                        setScreenParams({
-                          userId: globalAudioState.currentTrack.user_id,
-                        });
-                      } else {
-                        Alert.alert("Error", "Unable to view DJ profile");
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="person-add-outline"
-                      size={20}
-                      color="#C2CC06"
-                    />
-                    <View style={styles.menuItemContent}>
-                      <Text style={styles.menuItemText}>Connect with DJ</Text>
-                      <Text style={styles.menuItemDescription}>
-                        View DJ profile and connect
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Queue Modal */}
-        <Modal
-          visible={showQueueModal}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowQueueModal(false)}
-        >
-          <View style={styles.queueModalOverlay}>
-            <TouchableOpacity
-              style={styles.queueModalOverlayTouchable}
-              onPress={() => setShowQueueModal(false)}
-            />
-            <View style={styles.queueModalContainer}>
-              <View style={styles.queueModalContent}>
-                <View style={styles.queueModalHeader}>
-                  <Text style={styles.queueModalTitle}>Queue</Text>
-                  <TouchableOpacity
-                    style={styles.queueModalClose}
-                    onPress={() => setShowQueueModal(false)}
-                  >
-                    <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-                  </TouchableOpacity>
-                </View>
-
-                <ScrollView style={styles.queueModalScroll}>
-                  {globalAudioState.currentTrack && (
-                    <View style={styles.queueItemCurrent}>
-                      <View style={styles.queueItemInfo}>
-                        <Text style={styles.queueItemTitle} numberOfLines={1}>
-                          {globalAudioState.currentTrack.title}
-                        </Text>
-                        <Text style={styles.queueItemArtist} numberOfLines={1}>
-                          {globalAudioState.currentTrack.artist}
-                        </Text>
-                      </View>
-                      <View style={styles.queueItemBadge}>
-                        <Text style={styles.queueItemBadgeText}>Now Playing</Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {globalAudioState.queue && globalAudioState.queue.length > 0 ? (
-                    globalAudioState.queue.map((track, index) => (
-                      <View
-                        key={`${track.id}-${index}`}
-                        style={styles.queueItem}
-                      >
-                        <TouchableOpacity
-                          style={styles.queueItemContent}
-                          onPress={() => {
-                            // Play this track from queue
-                            playGlobalAudio(track);
-                            setGlobalAudioState((prev) => ({
-                              ...prev,
-                              currentQueueIndex: index,
-                            }));
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <View style={styles.queueItemNumber}>
-                            <Text style={styles.queueItemNumberText}>
-                              {index + 1}
-                            </Text>
-                          </View>
-                          <View style={styles.queueItemInfo}>
-                            <Text style={styles.queueItemTitle} numberOfLines={1}>
-                              {track.title}
-                            </Text>
-                            <Text style={styles.queueItemArtist} numberOfLines={1}>
-                              {track.artist}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                        <View style={styles.queueItemActions}>
-                          {/* Move Up Button */}
-                          {index > 0 && (
-                            <TouchableOpacity
-                              style={styles.queueItemReorderButton}
-                              onPress={() => moveQueueItemUp(index)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons
-                                name="chevron-up"
-                                size={18}
-                                color="hsl(75, 100%, 60%)"
-                              />
-                            </TouchableOpacity>
-                          )}
-                          {/* Move Down Button */}
-                          {index < globalAudioState.queue.length - 1 && (
-                            <TouchableOpacity
-                              style={styles.queueItemReorderButton}
-                              onPress={() => moveQueueItemDown(index)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons
-                                name="chevron-down"
-                                size={18}
-                                color="hsl(75, 100%, 60%)"
-                              />
-                            </TouchableOpacity>
-                          )}
-                          {/* Remove Button */}
-                          <TouchableOpacity
-                            style={styles.queueItemRemove}
-                            onPress={() => {
-                              setGlobalAudioState((prev) => ({
-                                ...prev,
-                                queue: prev.queue.filter((_, i) => i !== index),
-                                currentQueueIndex:
-                                  prev.currentQueueIndex > index
-                                    ? prev.currentQueueIndex - 1
-                                    : prev.currentQueueIndex === index
-                                    ? -1
-                                    : prev.currentQueueIndex,
-                              }));
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons
-                              name="close"
-                              size={18}
-                              color="hsl(0, 0%, 50%)"
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ))
-                  ) : (
-                    <View style={styles.queueEmpty}>
-                      <Ionicons
-                        name="musical-notes-outline"
-                        size={48}
-                        color="hsl(0, 0%, 30%)"
-                      />
-                      <Text style={styles.queueEmptyText}>Queue is empty</Text>
-                      <Text style={styles.queueEmptySubtext}>
-                        Add mixes to your queue to see them here
-                      </Text>
-                    </View>
-                  )}
-                </ScrollView>
-
-                {globalAudioState.queue && globalAudioState.queue.length > 0 && (
-                  <TouchableOpacity
-                    style={styles.queueClearButton}
-                    onPress={() => {
-                      Alert.alert(
-                        "Clear Queue?",
-                        "Are you sure you want to clear the queue?",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Clear",
-                            style: "destructive",
-                            onPress: () => {
-                              clearQueue();
-                              setShowQueueModal(false);
-                            },
-                          },
-                        ]
-                      );
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.queueClearButtonText}>Clear Queue</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          </View>
         </Modal>
 
         {/* Application Sent Modal */}

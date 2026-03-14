@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -13,11 +13,13 @@ import {
   Alert,
   Modal,
   TextInput,
+  SectionList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { SkeletonMix } from "./Skeleton";
+import { YOUR_LIKES_LIST_PERFORMANCE } from "../lib/performanceConstants";
 
 const extractDurationSeconds = (mix) => {
   if (!mix || typeof mix !== "object") return null;
@@ -71,6 +73,104 @@ const formatDurationLabel = (seconds) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
+const YourLikesRow = memo(function YourLikesRow({ mix, isPlaying, onPress, onLongPress }) {
+  return (
+    <TouchableOpacity
+      style={rowStyles.popularRow}
+      onPress={() => onPress(mix)}
+      onLongPress={() => onLongPress(mix)}
+      delayLongPress={500}
+      activeOpacity={0.8}
+    >
+      <View style={rowStyles.popularImageWrap}>
+        <Image
+          source={
+            mix.artwork_url || mix.image_url || mix.image
+              ? { uri: mix.artwork_url || mix.image_url || mix.image }
+              : require("../assets/rhood_logo.webp")
+          }
+          style={rowStyles.popularImage}
+          resizeMode="cover"
+        />
+        {isPlaying && (
+          <View style={rowStyles.playingOverlay}>
+            <Ionicons name="play" size={20} color="hsl(75, 100%, 60%)" />
+          </View>
+        )}
+      </View>
+      <View style={rowStyles.popularInfo}>
+        <Text style={rowStyles.popularTitle} numberOfLines={1}>
+          {mix.title}
+        </Text>
+        <Text style={rowStyles.popularSubtitle} numberOfLines={1}>
+          {mix.artist || "Unknown"}
+        </Text>
+        <View style={rowStyles.popularMetaRow}>
+          {mix.durationFormatted && (
+            <Text style={rowStyles.popularMeta}>{mix.durationFormatted}</Text>
+          )}
+          {mix.genre && (
+            <>
+              {mix.durationFormatted && (
+                <Text style={rowStyles.popularMeta}> • </Text>
+              )}
+              <Text style={rowStyles.popularMeta}>{mix.genre}</Text>
+            </>
+          )}
+        </View>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
+    </TouchableOpacity>
+  );
+});
+
+const rowStyles = StyleSheet.create({
+  popularRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  popularImageWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "hsl(0, 0%, 12%)",
+    position: "relative",
+  },
+  popularImage: { width: "100%", height: "100%" },
+  playingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  popularInfo: { flex: 1, gap: 4 },
+  popularTitle: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  popularSubtitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 80%)",
+  },
+  popularMeta: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+  },
+  popularMetaRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
+});
+
 export default function YourLikesScreen({
   globalAudioState,
   onPlayAudio,
@@ -85,6 +185,13 @@ export default function YourLikesScreen({
   const [playingMixId, setPlayingMixId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
+  const [likedMixesWithCategories, setLikedMixesWithCategories] = useState({});
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [selectedMixForCategory, setSelectedMixForCategory] = useState(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [editingCategory, setEditingCategory] = useState(null);
 
   // Fetch all mixes
   const fetchMixes = async () => {
@@ -543,6 +650,117 @@ export default function YourLikesScreen({
     );
   };
 
+  const connectionSections = useMemo(() => {
+    const keys = Object.keys(likedMixesByCategory).filter(
+      (key) => (likedMixesByCategory[key] || []).length > 0
+    );
+    return keys.map((key) => {
+      const category =
+        key === "uncategorized"
+          ? { id: "uncategorized", name: "Uncategorized" }
+          : categories.find((c) => c.id === key);
+      return {
+        id: key,
+        key,
+        title: category?.name || key,
+        categoryKey: key,
+        category,
+        data: likedMixesByCategory[key] || [],
+      };
+    });
+  }, [likedMixesByCategory, categories]);
+
+  const renderListHeader = useCallback(
+    () => (
+      <View style={styles.categoriesHeader}>
+        <Text style={styles.subtitle}>Organize your inspiration</Text>
+        <TouchableOpacity
+          style={styles.manageCategoriesButton}
+          onPress={() => setShowCategoryModal(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="folder-outline" size={18} color="hsl(75, 100%, 60%)" />
+          <Text style={styles.manageCategoriesText}>Manage Categories</Text>
+        </TouchableOpacity>
+      </View>
+    ),
+    []
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }) => {
+      const { categoryKey, category } = section;
+      return (
+        <View style={styles.categoryHeader}>
+          <View style={styles.categoryHeaderLeft}>
+            <Ionicons
+              name={categoryKey === "uncategorized" ? "folder-outline" : "folder"}
+              size={18}
+              color="hsl(75, 100%, 60%)"
+            />
+            <Text style={styles.categoryTitle}>{section.title}</Text>
+            <Text style={styles.categoryCount}>({section.data.length})</Text>
+          </View>
+          {categoryKey !== "uncategorized" && category && (
+            <TouchableOpacity
+              onPress={() => handleDeleteCategory(category.id)}
+              style={styles.deleteCategoryButton}
+            >
+              <Ionicons name="trash-outline" size={16} color="hsl(0, 100%, 50%)" />
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    },
+    [handleDeleteCategory]
+  );
+
+  const renderItem = useCallback(
+    ({ item: mix }) => (
+      <View style={styles.popularList}>
+        <YourLikesRow
+          mix={mix}
+          isPlaying={playingMixId === mix.id}
+          onPress={handleMixPress}
+          onLongPress={handleMixLongPress}
+        />
+      </View>
+    ),
+    [playingMixId, handleMixPress, handleMixLongPress]
+  );
+
+  const getItemLayout = useCallback(
+    (data, index) => {
+      const rowH = YOUR_LIKES_LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT;
+      const headerH = YOUR_LIKES_LIST_PERFORMANCE.ESTIMATED_SECTION_HEADER_HEIGHT;
+      let flat = 0;
+      for (let i = 0; i < connectionSections.length; i++) {
+        const sec = connectionSections[i];
+        const len = (sec.data || []).length;
+        if (index < flat + len) {
+          const localIndex = index - flat;
+          const offsetBefore = connectionSections
+            .slice(0, i)
+            .reduce((sum, s) => sum + headerH + (s.data || []).length * rowH, 0);
+          return {
+            length: rowH,
+            offset: offsetBefore + headerH + localIndex * rowH,
+            index,
+          };
+        }
+        flat += len;
+      }
+      return {
+        length: rowH,
+        offset: 0,
+        index,
+      };
+    },
+    [connectionSections]
+  );
+
+  const keyExtractor = useCallback((item) => `liked-${item.id}`, []);
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -567,18 +785,18 @@ export default function YourLikesScreen({
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="hsl(75, 100%, 60%)"
-          />
-        }
-      >
-        {loading ? (
+      {loading ? (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="hsl(75, 100%, 60%)"
+            />
+          }
+        >
           <View style={styles.skeletonContainer}>
             <SkeletonMix />
             <SkeletonMix />
@@ -586,150 +804,71 @@ export default function YourLikesScreen({
             <SkeletonMix />
             <SkeletonMix />
           </View>
-        ) : !user?.id ? (
-          <View style={styles.emptyState}>
-            <Ionicons
-              name="heart-outline"
-              size={64}
-              color="hsl(0, 0%, 30%)"
+        </ScrollView>
+      ) : !user?.id ? (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="hsl(75, 100%, 60%)"
             />
+          }
+        >
+          <View style={styles.emptyState}>
+            <Ionicons name="heart-outline" size={64} color="hsl(0, 0%, 30%)" />
             <Text style={styles.emptyStateTitle}>Sign in to see your likes</Text>
             <Text style={styles.emptyStateSubtitle}>
               Sign in to view mixes you've liked
             </Text>
           </View>
-        ) : Object.keys(likedMixesByCategory).length === 0 || 
-            Object.values(likedMixesByCategory).every(arr => arr.length === 0) ? (
-          <View style={styles.emptyState}>
-            <Ionicons
-              name="heart-outline"
-              size={64}
-              color="hsl(0, 0%, 30%)"
+        </ScrollView>
+      ) : connectionSections.length === 0 ? (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="hsl(75, 100%, 60%)"
             />
+          }
+        >
+          <View style={styles.emptyState}>
+            <Ionicons name="heart-outline" size={64} color="hsl(0, 0%, 30%)" />
             <Text style={styles.emptyStateTitle}>No liked mixes yet</Text>
             <Text style={styles.emptyStateSubtitle}>
               Start liking mixes to see them here
             </Text>
           </View>
-        ) : (
-          <>
-            {/* Header with Manage Categories button */}
-            <View style={styles.categoriesHeader}>
-              <Text style={styles.subtitle}>
-                Organize your inspiration
-              </Text>
-              <TouchableOpacity
-                style={styles.manageCategoriesButton}
-                onPress={() => setShowCategoryModal(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="folder-outline" size={18} color="hsl(75, 100%, 60%)" />
-                <Text style={styles.manageCategoriesText}>Manage Categories</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Render mixes grouped by category */}
-            {Object.keys(likedMixesByCategory).map((categoryKey) => {
-              const categoryMixes = likedMixesByCategory[categoryKey];
-              if (categoryMixes.length === 0) return null;
-
-              const category = categoryKey === "uncategorized" 
-                ? { id: "uncategorized", name: "Uncategorized" }
-                : categories.find((cat) => cat.id === categoryKey);
-
-              if (!category) return null;
-
-              return (
-                <View key={categoryKey} style={styles.categorySection}>
-                  <View style={styles.categoryHeader}>
-                    <View style={styles.categoryHeaderLeft}>
-                      <Ionicons
-                        name={categoryKey === "uncategorized" ? "folder-outline" : "folder"}
-                        size={18}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                      <Text style={styles.categoryTitle}>{category.name}</Text>
-                      <Text style={styles.categoryCount}>({categoryMixes.length})</Text>
-                    </View>
-                    {categoryKey !== "uncategorized" && (
-                      <TouchableOpacity
-                        onPress={() => handleDeleteCategory(category.id)}
-                        style={styles.deleteCategoryButton}
-                      >
-                        <Ionicons name="trash-outline" size={16} color="hsl(0, 100%, 50%)" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <View style={styles.popularList}>
-                    {categoryMixes.map((mix) => {
-                      const isPlaying = playingMixId === mix.id;
-                      return (
-                        <TouchableOpacity
-                          key={`liked-${mix.id}`}
-                          style={styles.popularRow}
-                          onPress={() => handleMixPress(mix)}
-                          onLongPress={() => handleMixLongPress(mix)}
-                          delayLongPress={500}
-                          activeOpacity={0.8}
-                        >
-                          <View style={styles.popularImageWrap}>
-                            <Image
-                              source={
-                                mix.artwork_url || mix.image_url || mix.image
-                                  ? { uri: mix.artwork_url || mix.image_url || mix.image }
-                                  : require("../assets/rhood_logo.webp")
-                              }
-                              style={styles.popularImage}
-                              resizeMode="cover"
-                            />
-                            {isPlaying && (
-                              <View style={styles.playingOverlay}>
-                                <Ionicons
-                                  name="play"
-                                  size={20}
-                                  color="hsl(75, 100%, 60%)"
-                                />
-                              </View>
-                            )}
-                          </View>
-                          <View style={styles.popularInfo}>
-                            <Text style={styles.popularTitle} numberOfLines={1}>
-                              {mix.title}
-                            </Text>
-                            <Text style={styles.popularSubtitle} numberOfLines={1}>
-                              {mix.artist || "Unknown"}
-                            </Text>
-                            <View style={styles.popularMetaRow}>
-                              {mix.durationFormatted && (
-                                <Text style={styles.popularMeta}>
-                                  {mix.durationFormatted}
-                                </Text>
-                              )}
-                              {mix.genre && (
-                                <>
-                                  {mix.durationFormatted && (
-                                    <Text style={styles.popularMeta}> • </Text>
-                                  )}
-                                  <Text style={styles.popularMeta}>{mix.genre}</Text>
-                                </>
-                              )}
-                            </View>
-                          </View>
-                          <Ionicons
-                            name="chevron-forward"
-                            size={18}
-                            color="hsl(0, 0%, 60%)"
-                          />
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              );
-            })}
-          </>
-        )}
-      </ScrollView>
+        </ScrollView>
+      ) : (
+        <SectionList
+          sections={connectionSections}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
+          ListHeaderComponent={renderListHeader}
+          getItemLayout={getItemLayout}
+          stickySectionHeadersEnabled={false}
+          initialNumToRender={YOUR_LIKES_LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+          maxToRenderPerBatch={YOUR_LIKES_LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+          windowSize={YOUR_LIKES_LIST_PERFORMANCE.WINDOW_SIZE}
+          removeClippedSubviews={YOUR_LIKES_LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="hsl(75, 100%, 60%)"
+            />
+          }
+          contentContainerStyle={styles.scrollContent}
+          style={styles.scrollView}
+        />
+      )}
 
       {/* Category Picker Modal */}
       <Modal

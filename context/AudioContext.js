@@ -26,23 +26,33 @@ const AudioStateContext = createContext(initialAudioState);
 const AudioActionsContext = createContext({
   setGlobalAudioState: () => {},
   actionsRef: { current: null },
+  stateRef: { current: initialAudioState },
 });
 
 export function AudioProvider({ children }) {
   const [globalAudioState, setGlobalAudioState] = useState(initialAudioState);
   const setStateRef = useRef(setGlobalAudioState);
   const actionsRef = useRef(null);
+  const stateRef = useRef(globalAudioState);
 
   useLayoutEffect(() => {
     setStateRef.current = setGlobalAudioState;
   }, []);
+
+  useLayoutEffect(() => {
+    stateRef.current = globalAudioState;
+  }, [globalAudioState]);
 
   const stableSetGlobalAudioState = useCallback((update) => {
     setStateRef.current?.(update);
   }, []);
 
   const actionsValue = useMemo(
-    () => ({ setGlobalAudioState: stableSetGlobalAudioState, actionsRef }),
+    () => ({
+      setGlobalAudioState: stableSetGlobalAudioState,
+      actionsRef,
+      stateRef,
+    }),
     [stableSetGlobalAudioState]
   );
 

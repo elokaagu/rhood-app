@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -11,11 +11,15 @@ import {
   Platform,
   ActionSheetIOS,
   Alert,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { SkeletonMix } from "./Skeleton";
+import { LIST_PERFORMANCE } from "../lib/performanceConstants";
+
+const TRENDING_ROW_HEIGHT = 96;
 
 const extractDurationSeconds = (mix) => {
   if (!mix || typeof mix !== "object") return null;
@@ -68,6 +72,104 @@ const formatDurationLabel = (seconds) => {
   const remainingSeconds = totalSeconds % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
+
+const TrendingMixRow = memo(function TrendingMixRow({ mix, isPlaying, onPress, onLongPress }) {
+  return (
+    <TouchableOpacity
+      style={rowStyles.popularRow}
+      onPress={() => onPress(mix)}
+      onLongPress={() => onLongPress(mix)}
+      delayLongPress={500}
+      activeOpacity={0.8}
+    >
+      <View style={rowStyles.popularImageWrap}>
+        <Image
+          source={
+            mix.artwork_url || mix.image_url || mix.image
+              ? { uri: mix.artwork_url || mix.image_url || mix.image }
+              : require("../assets/rhood_logo.webp")
+          }
+          style={rowStyles.popularImage}
+          resizeMode="cover"
+        />
+        {isPlaying && (
+          <View style={rowStyles.playingOverlay}>
+            <Ionicons name="play" size={20} color="hsl(75, 100%, 60%)" />
+          </View>
+        )}
+      </View>
+      <View style={rowStyles.popularInfo}>
+        <Text style={rowStyles.popularTitle} numberOfLines={1}>
+          {mix.title}
+        </Text>
+        <Text style={rowStyles.popularSubtitle} numberOfLines={1}>
+          {mix.artist || "Unknown"}
+        </Text>
+        <View style={rowStyles.popularMetaRow}>
+          {mix.durationFormatted && (
+            <Text style={rowStyles.popularMeta}>{mix.durationFormatted}</Text>
+          )}
+          {mix.genre && (
+            <>
+              {mix.durationFormatted && (
+                <Text style={rowStyles.popularMeta}> • </Text>
+              )}
+              <Text style={rowStyles.popularMeta}>{mix.genre}</Text>
+            </>
+          )}
+        </View>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
+    </TouchableOpacity>
+  );
+});
+
+const rowStyles = StyleSheet.create({
+  popularRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  popularImageWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "hsl(0, 0%, 12%)",
+    position: "relative",
+  },
+  popularImage: { width: "100%", height: "100%" },
+  playingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  popularInfo: { flex: 1, gap: 4 },
+  popularTitle: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  popularSubtitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 80%)",
+  },
+  popularMeta: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+  },
+  popularMetaRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
+});
 
 export default function TrendingMixesScreen({
   globalAudioState,
@@ -328,6 +430,37 @@ export default function TrendingMixesScreen({
     }
   };
 
+  const renderListHeader = useCallback(
+    () => (
+      <Text style={styles.subtitle}>
+        Who's hottest on the platform right now
+      </Text>
+    ),
+    []
+  );
+
+  const renderItem = useCallback(
+    ({ item: mix }) => (
+      <View style={styles.popularList}>
+        <TrendingMixRow
+          mix={mix}
+          isPlaying={playingMixId === mix.id}
+          onPress={handleMixPress}
+          onLongPress={handleMixLongPress}
+        />
+      </View>
+    ),
+    [playingMixId, handleMixPress, handleMixLongPress]
+  );
+
+  const getItemLayout = useCallback((data, index) => ({
+    length: TRENDING_ROW_HEIGHT,
+    offset: TRENDING_ROW_HEIGHT * index,
+    index,
+  }), []);
+
+  const keyExtractor = useCallback((item) => `trending-${item.id}`, []);
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -352,18 +485,18 @@ export default function TrendingMixesScreen({
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="hsl(75, 100%, 60%)"
-          />
-        }
-      >
-        {loading ? (
+      {loading ? (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="hsl(75, 100%, 60%)"
+            />
+          }
+        >
           <View style={styles.skeletonContainer}>
             <SkeletonMix />
             <SkeletonMix />
@@ -371,90 +504,49 @@ export default function TrendingMixesScreen({
             <SkeletonMix />
             <SkeletonMix />
           </View>
-        ) : trendingMixes.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons
-              name="flame-outline"
-              size={64}
-              color="hsl(0, 0%, 30%)"
+        </ScrollView>
+      ) : trendingMixes.length === 0 ? (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="hsl(75, 100%, 60%)"
             />
+          }
+        >
+          <View style={styles.emptyState}>
+            <Ionicons name="flame-outline" size={64} color="hsl(0, 0%, 30%)" />
             <Text style={styles.emptyStateTitle}>No trending mixes</Text>
             <Text style={styles.emptyStateSubtitle}>
               Check back later for trending content
             </Text>
           </View>
-        ) : (
-          <>
-            <Text style={styles.subtitle}>
-              Who's hottest on the platform right now
-            </Text>
-            <View style={styles.popularList}>
-              {trendingMixes.map((mix) => {
-                const isPlaying = playingMixId === mix.id;
-                return (
-                  <TouchableOpacity
-                    key={`trending-${mix.id}`}
-                    style={styles.popularRow}
-                    onPress={() => handleMixPress(mix)}
-                    onLongPress={() => handleMixLongPress(mix)}
-                    delayLongPress={500}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.popularImageWrap}>
-                      <Image
-                        source={
-                          mix.artwork_url || mix.image_url || mix.image
-                            ? { uri: mix.artwork_url || mix.image_url || mix.image }
-                            : require("../assets/rhood_logo.webp")
-                        }
-                        style={styles.popularImage}
-                        resizeMode="cover"
-                      />
-                      {isPlaying && (
-                        <View style={styles.playingOverlay}>
-                          <Ionicons
-                            name="play"
-                            size={20}
-                            color="hsl(75, 100%, 60%)"
-                          />
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.popularInfo}>
-                      <Text style={styles.popularTitle} numberOfLines={1}>
-                        {mix.title}
-                      </Text>
-                      <Text style={styles.popularSubtitle} numberOfLines={1}>
-                        {mix.artist || "Unknown"}
-                      </Text>
-                      <View style={styles.popularMetaRow}>
-                        {mix.durationFormatted && (
-                          <Text style={styles.popularMeta}>
-                            {mix.durationFormatted}
-                          </Text>
-                        )}
-                        {mix.genre && (
-                          <>
-                            {mix.durationFormatted && (
-                              <Text style={styles.popularMeta}> • </Text>
-                            )}
-                            <Text style={styles.popularMeta}>{mix.genre}</Text>
-                          </>
-                        )}
-                      </View>
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={18}
-                      color="hsl(0, 0%, 60%)"
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </>
-        )}
-      </ScrollView>
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={trendingMixes}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          ListHeaderComponent={renderListHeader}
+          getItemLayout={getItemLayout}
+          initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+          maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+          windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+          removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="hsl(75, 100%, 60%)"
+            />
+          }
+          contentContainerStyle={styles.scrollContent}
+          style={styles.scrollView}
+        />
+      )}
     </View>
   );
 }

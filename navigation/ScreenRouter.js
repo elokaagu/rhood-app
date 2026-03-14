@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, ScrollView, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useAudioState } from "../context/AudioContext";
 import ConnectionsScreen from "../components/ConnectionsScreen";
 import ListenScreen from "../components/ListenScreen";
 import MessagesScreen from "../components/MessagesScreen";
@@ -45,7 +46,6 @@ export default function ScreenRouter({
   setDjProfile,
   setShowAuth,
   setAuthMode,
-  globalAudioState,
   playGlobalAudio,
   pauseGlobalAudio,
   resumeGlobalAudio,
@@ -68,6 +68,7 @@ export default function ScreenRouter({
   shuffleByGenre,
   shuffleBasedOnLikes,
 }) {
+  const globalAudioState = useAudioState();
   const rp = {
     user,
     setCurrentScreen,

@@ -1798,7 +1798,7 @@ export function useListenMixes({
     renderFooter,
     renderTrending,
     renderYourLikes,
-    renderRecommendations,
+    renderRecommendations: renderYouMayLike,
     sections,
     keyExtractor,
     getSectionItemLayout,
