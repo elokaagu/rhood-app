@@ -301,6 +301,7 @@ export default function GlobalAudioPlayerUI({
               skipForwardRef.current();
               Vibration.vibrate(100);
             }
+          }
         },
         onPanResponderRelease: (_, g) => {
           if (isScrubbingRef.current) return;

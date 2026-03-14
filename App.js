@@ -4863,8 +4863,6 @@ export default function App() {
           globalAudioRef={globalAudioRef}
         />
 
-        </Modal>
-
         {/* Application Sent Modal */}
 
         {/* Edit Profile Modal */}
