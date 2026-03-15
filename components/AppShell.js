@@ -150,34 +150,6 @@ export default function AppShell({
                 Listen
               </Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                currentScreen === "profile" && styles.activeTab,
-              ]}
-              onPress={() => onTabPress("profile")}
-            >
-              <Ionicons
-                name="person-outline"
-                size={20}
-                color={
-                  currentScreen === "profile"
-                    ? "hsl(75, 100%, 60%)"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  currentScreen === "profile" && styles.activeTabText,
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-              >
-                Profile
-              </Text>
-            </TouchableOpacity>
           </LinearGradient>
         )}
       </SafeAreaView>

@@ -26,6 +26,7 @@ import {
   AccessibilityInfo,
   Vibration,
   Platform,
+  InteractionManager,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -1457,19 +1458,27 @@ export default function App() {
         user: track.user ? "User object present" : "No user object",
       });
 
-      // Show mini player immediately with current track (so UI appears before async load)
+      // Show mini player immediately; defer playback so this state can paint
+      const trackForUI = {
+        ...track,
+        image: track.image || track.artwork_url || track.image_url || null,
+        isLiked: likedMixIds.has(track.id),
+      };
       setGlobalAudioState((prev) => ({
         ...prev,
         isLoading: true,
-        currentTrack: {
-          ...track,
-          isLiked: likedMixIds.has(track.id),
-        },
+        currentTrack: trackForUI,
       }));
-      trackFinishedRef.current = false; // Reset finished flag when starting new track
+      trackFinishedRef.current = false;
 
-      // Try multiple sources for audio URL (validate once for all platforms)
-        const audioUrl =
+      InteractionManager.runAfterInteractions(() => {
+        runPlayback();
+      });
+
+      async function runPlayback() {
+        try {
+          // Validate audio URL
+          const audioUrl =
         (typeof track.audioUrl === "string" && track.audioUrl.trim()
           ? track.audioUrl.trim()
           : null) ||
@@ -1718,16 +1727,9 @@ export default function App() {
         );
         sound = loadedSound;
       } catch (loadError) {
-        // Log the actual error for debugging
-        console.error("❌ Audio loading error:", loadError);
-        console.error("❌ Audio loading error details:", {
-          message: loadError.message,
-          code: loadError.code,
-          name: loadError.name,
-          audioSource: audioSource,
-        });
-        
-        // Stop any existing playback and reset state
+        if (__DEV__) {
+          console.warn("Audio load failed:", loadError?.message || loadError?.code || "Unknown");
+        }
         setGlobalAudioState((prev) => ({
           ...prev,
           isLoading: false,
@@ -1735,16 +1737,12 @@ export default function App() {
           currentTrack: null,
           error: getAudioErrorMessage(loadError),
         }));
-        
-        // Show user-friendly error message
         const userFriendlyMessage = getAudioErrorMessage(loadError);
         setAudioErrorModal({
           visible: true,
           title: "Unable to Play Audio",
-          message: userFriendlyMessage
+          message: userFriendlyMessage,
         });
-        
-        // Prevent playback - return early
         return;
       }
 
@@ -2088,39 +2086,38 @@ export default function App() {
       }
 
       console.log("🎉 Global audio started successfully:", track.title);
-    } catch (error) {
-      console.error("❌ Error playing global audio:", error);
-      console.error("❌ Error details:", {
-        message: error.message,
-        code: error.code,
-        name: error.name,
-        trackId: track.id,
-        trackTitle: track.title,
-        audioUrl: track.audioUrl || track.file_url || track.audio_url || "missing",
-      });
-      setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
-      
-      // Provide more helpful error message
-      const errorMessage = error.message || "Unknown error occurred";
-      
-      // Don't show errors for TrackPlayer unavailability - we fall back to expo-av
-      if (errorMessage.includes("react-native-track-player is not available")) {
-        console.warn("⚠️ TrackPlayer not available, but this should have been handled by fallback");
-        isPlayingAudioRef.current = false;
-        return; // Silently return - fallback should have handled it
+        } catch (error) {
+          console.error("❌ Error playing global audio:", error);
+          console.error("❌ Error details:", {
+            message: error.message,
+            code: error.code,
+            name: error.name,
+            trackId: track.id,
+            trackTitle: track.title,
+            audioUrl: track.audioUrl || track.file_url || track.audio_url || "missing",
+          });
+          setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
+
+          const errorMessage = error.message || "Unknown error occurred";
+          if (errorMessage.includes("react-native-track-player is not available")) {
+            console.warn("⚠️ TrackPlayer not available, but this should have been handled by fallback");
+            return;
+          }
+          const userFriendlyMessage = errorMessage.includes("Audio URL is missing")
+            ? "This mix doesn't have an audio file. Please contact the artist or try another mix."
+            : errorMessage.includes("Invalid audio URL")
+            ? "The audio file URL is invalid. Please try again or contact support."
+            : errorMessage.includes("Failed to start playback")
+            ? errorMessage
+            : `Failed to play "${track.title || "this mix"}". ${errorMessage}`;
+          Alert.alert("Audio Error", userFriendlyMessage);
+        } finally {
+          isPlayingAudioRef.current = false;
+        }
       }
-      
-      const userFriendlyMessage = errorMessage.includes("Audio URL is missing")
-        ? "This mix doesn't have an audio file. Please contact the artist or try another mix."
-        : errorMessage.includes("Invalid audio URL")
-        ? "The audio file URL is invalid. Please try again or contact support."
-        : errorMessage.includes("Failed to start playback")
-        ? errorMessage
-        : `Failed to play "${track.title || "this mix"}". ${errorMessage}`;
-      
-      Alert.alert("Audio Error", userFriendlyMessage);
-    } finally {
+    } catch (syncError) {
       isPlayingAudioRef.current = false;
+      throw syncError;
     }
   };
 

@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
   Image,
@@ -21,8 +20,107 @@ import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 import * as ImagePicker from "expo-image-picker";
+import ProgressiveImage from "./ProgressiveImage";
 
-export default function PlaylistDetailScreen({
+// Memoized mix row: stable props reduce re-renders when only playing state changes
+const PlaylistDetailMixRow = memo(function PlaylistDetailMixRow({
+  mix,
+  index,
+  totalCount,
+  isPlaying,
+  isEditMode,
+  onPress,
+  onLongPress,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+}) {
+  const mixImageUri =
+    mix.artwork_url || mix.image_url || mix.image
+      ? { uri: mix.artwork_url || mix.image_url || mix.image }
+      : null;
+  return (
+    <TouchableOpacity
+      style={[styles.mixRow, isEditMode && styles.mixRowEdit]}
+      onPress={() => onPress(mix)}
+      onLongPress={() => onLongPress(mix)}
+      delayLongPress={500}
+      activeOpacity={0.8}
+    >
+      {isEditMode && (
+        <View style={styles.reorderButtons}>
+          <TouchableOpacity
+            style={[styles.reorderButton, index === 0 && styles.reorderButtonDisabled]}
+            onPress={() => onMoveUp(mix, index)}
+            disabled={index === 0}
+          >
+            <Ionicons
+              name="chevron-up"
+              size={18}
+              color={index === 0 ? "hsl(0, 0%, 30%)" : "hsl(0, 0%, 70%)"}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.reorderButton,
+              index === totalCount - 1 && styles.reorderButtonDisabled,
+            ]}
+            onPress={() => onMoveDown(mix, index)}
+            disabled={index === totalCount - 1}
+          >
+            <Ionicons
+              name="chevron-down"
+              size={18}
+              color={
+                index === totalCount - 1 ? "hsl(0, 0%, 30%)" : "hsl(0, 0%, 70%)"
+              }
+            />
+          </TouchableOpacity>
+        </View>
+      )}
+      <View style={styles.mixImageWrap}>
+        <Image
+          source={mixImageUri || require("../assets/rhood_logo.webp")}
+          style={styles.mixImage}
+          resizeMode="cover"
+        />
+        {isPlaying && !isEditMode && (
+          <View style={styles.playingOverlay}>
+            <Ionicons name="play" size={20} color="hsl(75, 100%, 60%)" />
+          </View>
+        )}
+      </View>
+      <View style={styles.mixInfo}>
+        <Text style={styles.mixTitle} numberOfLines={1} ellipsizeMode="tail">
+          {mix.title}
+        </Text>
+        <Text style={styles.mixSubtitle} numberOfLines={1}>
+          {mix.artist || mix.user_dj_name || "Unknown"}
+        </Text>
+        <View style={styles.mixMetaRow}>
+          {mix.durationFormatted && (
+            <Text style={styles.mixMeta}>{mix.durationFormatted}</Text>
+          )}
+          {mix.genre && (
+            <>
+              {mix.durationFormatted && <Text style={styles.mixMeta}> • </Text>}
+              <Text style={styles.mixMeta}>{mix.genre}</Text>
+            </>
+          )}
+        </View>
+      </View>
+      {isEditMode ? (
+        <TouchableOpacity style={styles.removeButton} onPress={() => onRemove(mix)}>
+          <Ionicons name="trash-outline" size={20} color="hsl(0, 100%, 60%)" />
+        </TouchableOpacity>
+      ) : (
+        <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
+      )}
+    </TouchableOpacity>
+  );
+});
+
+function PlaylistDetailScreen({
   globalAudioState,
   onPlayAudio,
   onPauseAudio,
@@ -128,40 +226,39 @@ export default function PlaylistDetailScreen({
         .map((id) => mixesData.find((m) => m.id === id))
         .filter(Boolean);
 
-      // Transform mixes with user profiles
-      const transformedMixes = await Promise.all(
-        sortedMixes.map(async (mix) => {
-          let userProfile = null;
-          if (mix.user_id) {
-            try {
-              const { data: profileData } = await supabase
-                .from("user_profiles")
-                .select("dj_name, profile_image_url, bio")
-                .eq("id", mix.user_id)
-                .single();
+      // Batch-fetch user profiles (one query instead of N)
+      const userIds = [...new Set(sortedMixes.map((m) => m.user_id).filter(Boolean))];
+      let profileMap = {};
+      if (userIds.length > 0) {
+        try {
+          const { data: profilesData } = await supabase
+            .from("user_profiles")
+            .select("id, dj_name, profile_image_url, bio")
+            .in("id", userIds);
+          profileMap = (profilesData || []).reduce((acc, p) => {
+            if (p?.id) acc[p.id] = p;
+            return acc;
+          }, {});
+        } catch (err) {
+          if (__DEV__) console.warn("Batch fetch user_profiles failed:", err);
+        }
+      }
 
-              if (profileData) {
-                userProfile = profileData;
-              }
-            } catch (error) {
-              console.warn("Could not fetch user profile for mix:", error);
-            }
-          }
-
-          return {
-            ...mix,
-            audioUrl: mix.file_url || mix.audio_url || null,
-            image: mix.artwork_url || mix.image_url || mix.image || null,
-            artist: mix.artist || userProfile?.dj_name || "Unknown",
-            user_dj_name: userProfile?.dj_name,
-            user_image: userProfile?.profile_image_url,
-            user_bio: userProfile?.bio,
-            user_id: mix.user_id,
-            user: userProfile,
-            position: positionMap[mix.id] ?? 0,
-          };
-        })
-      );
+      const transformedMixes = sortedMixes.map((mix) => {
+        const userProfile = mix.user_id ? profileMap[mix.user_id] ?? null : null;
+        return {
+          ...mix,
+          audioUrl: mix.file_url || mix.audio_url || null,
+          image: mix.artwork_url || mix.image_url || mix.image || null,
+          artist: mix.artist || userProfile?.dj_name || "Unknown",
+          user_dj_name: userProfile?.dj_name,
+          user_image: userProfile?.profile_image_url,
+          user_bio: userProfile?.bio,
+          user_id: mix.user_id,
+          user: userProfile,
+          position: positionMap[mix.id] ?? 0,
+        };
+      });
 
       setMixes(transformedMixes);
     } catch (error) {
@@ -185,117 +282,15 @@ export default function PlaylistDetailScreen({
     }
   }, [globalAudioState.currentTrack]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     HapticPatterns.pullToRefresh();
     setRefreshing(true);
     await fetchPlaylistMixes();
     setRefreshing(false);
-  };
+  }, [fetchPlaylistMixes]);
 
-  const handleMixPress = (mix) => {
-    if (isEditMode) return; // Disable play in edit mode
-    
-    HapticPatterns.playPause();
-    if (playingMixId === mix.id) {
-      onPauseAudio();
-    } else {
-      const normalizedMix = {
-        ...mix,
-        audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
-        image: mix.artwork_url || mix.image_url || mix.image || null,
-        user_id: mix.user_id || mix.user?.id,
-        user_image: mix.user_image || mix.user?.profile_image_url,
-        user_dj_name: mix.user_dj_name || mix.user?.dj_name,
-        user_bio: mix.user_bio || mix.user?.bio,
-        user: mix.user,
-      };
-
-      if (!normalizedMix.audioUrl) {
-        return;
-      }
-
-      onPlayAudio(normalizedMix);
-    }
-  };
-
-  const handleMixLongPress = (mix) => {
-    if (isEditMode) return; // Use edit mode actions instead
-    
-    HapticPatterns.itemPress();
-    const normalizedMix = {
-      ...mix,
-      audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
-      image: mix.artwork_url || mix.image_url || mix.image || null,
-      user_id: mix.user_id || mix.user?.id,
-      user_image: mix.user_image || mix.user?.profile_image_url,
-      user_dj_name: mix.user_dj_name || mix.user?.dj_name,
-      user_bio: mix.user_bio || mix.user?.bio,
-      user: mix.user,
-    };
-
-    if (!normalizedMix.audioUrl) {
-      return;
-    }
-
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ["Cancel", "Add to Queue", "Play Next", "Remove from Playlist"],
-          cancelButtonIndex: 0,
-          destructiveButtonIndex: 3,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            if (onAddToQueue) {
-              onAddToQueue(normalizedMix);
-              HapticPatterns.success();
-            }
-          } else if (buttonIndex === 2) {
-            if (onPlayNext) {
-              onPlayNext(normalizedMix);
-              HapticPatterns.success();
-            }
-          } else if (buttonIndex === 3) {
-            handleRemoveFromPlaylist(mix);
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        mix.title || "Mix",
-        "Choose an option",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Add to Queue",
-            onPress: () => {
-              if (onAddToQueue) {
-                onAddToQueue(normalizedMix);
-                HapticPatterns.success();
-              }
-            },
-          },
-          {
-            text: "Play Next",
-            onPress: () => {
-              if (onPlayNext) {
-                onPlayNext(normalizedMix);
-                HapticPatterns.success();
-              }
-            },
-          },
-          {
-            text: "Remove from Playlist",
-            style: "destructive",
-            onPress: () => handleRemoveFromPlaylist(mix),
-          },
-        ],
-        { cancelable: true }
-      );
-    }
-  };
-
-  const handleRemoveFromPlaylist = async (mix) => {
+  const handleRemoveFromPlaylist = useCallback(
+    async (mix) => {
     if (!playlistId || !mix.id) return;
 
     Alert.alert(
@@ -328,68 +323,151 @@ export default function PlaylistDetailScreen({
         },
       ]
     );
-  };
+    },
+    [playlistId]
+  );
 
-  // Reorder mix up
-  const handleMoveUp = async (mix, index) => {
-    if (index === 0) return;
-
-    try {
-      const newMixes = [...mixes];
-      [newMixes[index - 1], newMixes[index]] = [newMixes[index], newMixes[index - 1]];
-      setMixes(newMixes);
-
-      // Update positions in database
-      await updatePositions(newMixes);
-      HapticPatterns.success();
-    } catch (error) {
-      console.error("❌ Error moving mix up:", error);
-      Alert.alert("Error", "Failed to reorder playlist");
-      fetchPlaylistMixes(); // Revert on error
-    }
-  };
-
-  // Reorder mix down
-  const handleMoveDown = async (mix, index) => {
-    if (index === mixes.length - 1) return;
-
-    try {
-      const newMixes = [...mixes];
-      [newMixes[index], newMixes[index + 1]] = [newMixes[index + 1], newMixes[index]];
-      setMixes(newMixes);
-
-      // Update positions in database
-      await updatePositions(newMixes);
-      HapticPatterns.success();
-    } catch (error) {
-      console.error("❌ Error moving mix down:", error);
-      Alert.alert("Error", "Failed to reorder playlist");
-      fetchPlaylistMixes(); // Revert on error
-    }
-  };
-
-  // Update positions in database
-  const updatePositions = async (orderedMixes) => {
-    const updates = orderedMixes.map((mix, index) => ({
-      playlist_id: playlistId,
-      mix_id: mix.id,
-      position: index,
-    }));
-
-    // Delete all existing positions and re-insert with new positions
-    // This is simpler than individual updates
-    for (let i = 0; i < updates.length; i++) {
-      const { error } = await supabase
-        .from("playlist_mixes")
-        .update({ position: i })
-        .eq("playlist_id", playlistId)
-        .eq("mix_id", updates[i].mix_id);
-
-      if (error) {
-        throw error;
+  // Update positions in database (stable for move handlers)
+  const updatePositions = useCallback(
+    async (orderedMixes) => {
+      for (let i = 0; i < orderedMixes.length; i++) {
+        const { error } = await supabase
+          .from("playlist_mixes")
+          .update({ position: i })
+          .eq("playlist_id", playlistId)
+          .eq("mix_id", orderedMixes[i].id);
+        if (error) throw error;
       }
-    }
-  };
+    },
+    [playlistId]
+  );
+
+  const handleMoveUp = useCallback(
+    async (mix, index) => {
+      if (index === 0) return;
+      try {
+        const newMixes = [...mixes];
+        [newMixes[index - 1], newMixes[index]] = [newMixes[index], newMixes[index - 1]];
+        setMixes(newMixes);
+        await updatePositions(newMixes);
+        HapticPatterns.success();
+      } catch (error) {
+        console.error("❌ Error moving mix up:", error);
+        Alert.alert("Error", "Failed to reorder playlist");
+        fetchPlaylistMixes();
+      }
+    },
+    [mixes, updatePositions, fetchPlaylistMixes]
+  );
+
+  const handleMoveDown = useCallback(
+    async (mix, index) => {
+      if (index === mixes.length - 1) return;
+      try {
+        const newMixes = [...mixes];
+        [newMixes[index], newMixes[index + 1]] = [newMixes[index + 1], newMixes[index]];
+        setMixes(newMixes);
+        await updatePositions(newMixes);
+        HapticPatterns.success();
+      } catch (error) {
+        console.error("❌ Error moving mix down:", error);
+        Alert.alert("Error", "Failed to reorder playlist");
+        fetchPlaylistMixes();
+      }
+    },
+    [mixes, updatePositions, fetchPlaylistMixes]
+  );
+
+  const handleMixPress = useCallback(
+    (mix) => {
+      if (isEditMode) return;
+      HapticPatterns.playPause();
+      if (playingMixId === mix.id) {
+        onPauseAudio();
+      } else {
+        const normalizedMix = {
+          ...mix,
+          audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
+          image: mix.artwork_url || mix.image_url || mix.image || null,
+          user_id: mix.user_id || mix.user?.id,
+          user_image: mix.user_image || mix.user?.profile_image_url,
+          user_dj_name: mix.user_dj_name || mix.user?.dj_name,
+          user_bio: mix.user_bio || mix.user?.bio,
+          user: mix.user,
+        };
+        if (!normalizedMix.audioUrl) return;
+        onPlayAudio(normalizedMix);
+      }
+    },
+    [isEditMode, playingMixId, onPauseAudio, onPlayAudio]
+  );
+
+  const handleMixLongPress = useCallback(
+    (mix) => {
+      if (isEditMode) return;
+      HapticPatterns.itemPress();
+      const normalizedMix = {
+        ...mix,
+        audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
+        image: mix.artwork_url || mix.image_url || mix.image || null,
+        user_id: mix.user_id || mix.user?.id,
+        user_image: mix.user_image || mix.user?.profile_image_url,
+        user_dj_name: mix.user_dj_name || mix.user?.dj_name,
+        user_bio: mix.user_bio || mix.user?.bio,
+        user: mix.user,
+      };
+      if (!normalizedMix.audioUrl) return;
+      if (Platform.OS === "ios") {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            options: ["Cancel", "Add to Queue", "Play Next", "Remove from Playlist"],
+            cancelButtonIndex: 0,
+            destructiveButtonIndex: 3,
+          },
+          (buttonIndex) => {
+            if (buttonIndex === 1) {
+              onAddToQueue?.(normalizedMix);
+              HapticPatterns.success();
+            } else if (buttonIndex === 2) {
+              onPlayNext?.(normalizedMix);
+              HapticPatterns.success();
+            } else if (buttonIndex === 3) {
+              handleRemoveFromPlaylist(mix);
+            }
+          }
+        );
+      } else {
+        Alert.alert(
+          mix.title || "Mix",
+          "Choose an option",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Add to Queue",
+              onPress: () => {
+                onAddToQueue?.(normalizedMix);
+                HapticPatterns.success();
+              },
+            },
+            {
+              text: "Play Next",
+              onPress: () => {
+                onPlayNext?.(normalizedMix);
+                HapticPatterns.success();
+              },
+            },
+            {
+              text: "Remove from Playlist",
+              style: "destructive",
+              onPress: () => handleRemoveFromPlaylist(mix),
+            },
+          ],
+          { cancelable: true }
+        );
+      }
+    },
+    [isEditMode, onAddToQueue, onPlayNext, handleRemoveFromPlaylist]
+  );
 
   // Fetch available mixes for adding
   const fetchAvailableMixes = useCallback(async (query = "") => {
@@ -611,6 +689,72 @@ export default function PlaylistDetailScreen({
     HapticPatterns.itemPress();
   };
 
+  // All hooks must run unconditionally (before any early return)
+  const keyExtractor = useCallback((item) => item.id, []);
+
+  const renderMixRow = useCallback(
+    ({ item: mix, index }) => (
+      <View style={[styles.mixRowWrap, index === 0 && styles.mixRowWrapFirst]}>
+        <PlaylistDetailMixRow
+          mix={mix}
+          index={index}
+          totalCount={mixes.length}
+          isPlaying={playingMixId === mix.id && globalAudioState.isPlaying}
+          isEditMode={isEditMode}
+          onPress={handleMixPress}
+          onLongPress={handleMixLongPress}
+          onRemove={handleRemoveFromPlaylist}
+          onMoveUp={handleMoveUp}
+          onMoveDown={handleMoveDown}
+        />
+      </View>
+    ),
+    [
+      mixes.length,
+      playingMixId,
+      globalAudioState.isPlaying,
+      isEditMode,
+      handleMixPress,
+      handleMixLongPress,
+      handleRemoveFromPlaylist,
+      handleMoveUp,
+      handleMoveDown,
+    ]
+  );
+
+  const listHeader = useMemo(
+    () =>
+      playlistData?.image_url ? (
+        <View style={styles.artworkContainer}>
+          <ProgressiveImage
+            source={{ uri: playlistData.image_url }}
+            style={styles.playlistArtwork}
+            contentFit="cover"
+            placeholder={
+              <View
+                style={[
+                  styles.playlistArtwork,
+                  { justifyContent: "center", alignItems: "center" },
+                ]}
+              >
+                <Ionicons name="musical-notes" size={48} color="hsl(0, 0%, 30%)" />
+              </View>
+            }
+          />
+          {isEditMode && (
+            <TouchableOpacity
+              style={styles.artworkEditOverlay}
+              onPress={handleEditArtwork}
+            >
+              <Ionicons name="camera" size={24} color="hsl(0, 0%, 100%)" />
+              <Text style={styles.artworkEditText}>Change Artwork</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : null,
+    [playlistData?.image_url, isEditMode]
+  );
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -658,38 +802,12 @@ export default function PlaylistDetailScreen({
         </View>
       )}
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="hsl(75, 100%, 60%)"
-          />
-        }
-      >
-        {/* Playlist Artwork Header */}
-        {playlistData?.image_url && (
-          <View style={styles.artworkContainer}>
-            <Image
-              source={{ uri: playlistData.image_url }}
-              style={styles.playlistArtwork}
-              resizeMode="cover"
-            />
-            {isEditMode && (
-              <TouchableOpacity
-                style={styles.artworkEditOverlay}
-                onPress={handleEditArtwork}
-              >
-                <Ionicons name="camera" size={24} color="hsl(0, 0%, 100%)" />
-                <Text style={styles.artworkEditText}>Change Artwork</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {mixes.length === 0 ? (
+      <FlatList
+        data={mixes}
+        keyExtractor={keyExtractor}
+        renderItem={renderMixRow}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="musical-notes-outline" size={64} color="hsl(0, 0%, 30%)" />
             <Text style={styles.emptyTitle}>No mixes in this playlist</Text>
@@ -699,101 +817,21 @@ export default function PlaylistDetailScreen({
                 : "Add mixes to this playlist from the Listen tab"}
             </Text>
           </View>
-        ) : (
-          <View style={styles.mixesList}>
-            {mixes.map((mix, index) => {
-              const isPlaying = playingMixId === mix.id && globalAudioState.isPlaying;
-              return (
-                <TouchableOpacity
-                  key={mix.id}
-                  style={[styles.mixRow, isEditMode && styles.mixRowEdit]}
-                  onPress={() => handleMixPress(mix)}
-                  onLongPress={() => handleMixLongPress(mix)}
-                  delayLongPress={500}
-                  activeOpacity={0.8}
-                >
-                  {isEditMode && (
-                    <View style={styles.reorderButtons}>
-                      <TouchableOpacity
-                        style={[styles.reorderButton, index === 0 && styles.reorderButtonDisabled]}
-                        onPress={() => handleMoveUp(mix, index)}
-                        disabled={index === 0}
-                      >
-                        <Ionicons
-                          name="chevron-up"
-                          size={18}
-                          color={index === 0 ? "hsl(0, 0%, 30%)" : "hsl(0, 0%, 70%)"}
-                        />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.reorderButton,
-                          index === mixes.length - 1 && styles.reorderButtonDisabled,
-                        ]}
-                        onPress={() => handleMoveDown(mix, index)}
-                        disabled={index === mixes.length - 1}
-                      >
-                        <Ionicons
-                          name="chevron-down"
-                          size={18}
-                          color={
-                            index === mixes.length - 1 ? "hsl(0, 0%, 30%)" : "hsl(0, 0%, 70%)"
-                          }
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  <View style={styles.mixImageWrap}>
-                    <Image
-                      source={
-                        mix.artwork_url || mix.image_url || mix.image
-                          ? { uri: mix.artwork_url || mix.image_url || mix.image }
-                          : require("../assets/rhood_logo.webp")
-                      }
-                      style={styles.mixImage}
-                      resizeMode="cover"
-                    />
-                    {isPlaying && !isEditMode && (
-                      <View style={styles.playingOverlay}>
-                        <Ionicons name="play" size={20} color="hsl(75, 100%, 60%)" />
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.mixInfo}>
-                    <Text style={styles.mixTitle} numberOfLines={1} ellipsizeMode="tail">
-                      {mix.title}
-                    </Text>
-                    <Text style={styles.mixSubtitle} numberOfLines={1}>
-                      {mix.artist || mix.user_dj_name || "Unknown"}
-                    </Text>
-                    <View style={styles.mixMetaRow}>
-                      {mix.durationFormatted && (
-                        <Text style={styles.mixMeta}>{mix.durationFormatted}</Text>
-                      )}
-                      {mix.genre && (
-                        <>
-                          {mix.durationFormatted && <Text style={styles.mixMeta}> • </Text>}
-                          <Text style={styles.mixMeta}>{mix.genre}</Text>
-                        </>
-                      )}
-                    </View>
-                  </View>
-                  {isEditMode ? (
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => handleRemoveFromPlaylist(mix)}
-                    >
-                      <Ionicons name="trash-outline" size={20} color="hsl(0, 100%, 60%)" />
-                    </TouchableOpacity>
-                  ) : (
-                    <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
+        }
+        contentContainerStyle={styles.scrollContent}
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="hsl(75, 100%, 60%)"
+          />
+        }
+        initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+        maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
+        windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
+        removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+      />
 
       {/* Add Mixes Modal */}
       <Modal
@@ -882,6 +920,8 @@ export default function PlaylistDetailScreen({
     </View>
   );
 }
+
+export default memo(PlaylistDetailScreen);
 
 const styles = StyleSheet.create({
   container: {
@@ -1009,6 +1049,12 @@ const styles = StyleSheet.create({
   },
   mixesList: {
     paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  mixRowWrap: {
+    paddingHorizontal: 20,
+  },
+  mixRowWrapFirst: {
     paddingTop: 20,
   },
   mixRow: {

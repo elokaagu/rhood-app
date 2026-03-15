@@ -44,6 +44,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   sectionTitle: {
     fontSize: 18,
     fontFamily: "TS Block Bold",
@@ -702,13 +707,21 @@ const styles = StyleSheet.create({
   playlistsList: {
     marginTop: 8,
   },
+  playlistRowWrap: {
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  trendingRowWrap: {
+    paddingHorizontal: 20,
+  },
   playlistRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 10%)",
   },
   playlistIconContainer: {
     width: 48,

@@ -18,13 +18,13 @@ import { HapticPatterns } from "../lib/haptics";
 import { getRecommendedMixes } from "../lib/mixRecommendations";
 import { LIST_PERFORMANCE, LISTEN_LIST_PERFORMANCE } from "../lib/performanceConstants";
 import ListenScreenHeader from "../components/ListenScreenHeader";
+import ListenScreenFooter from "../components/ListenScreenFooter";
 import {
   ListenMixRow,
   ListenPlaylistRow,
   ListenSectionHeader,
   ListenRecommendationStrip,
-} from "../components/ListenScreen/index";
-import ListenScreenFooter from "../components/ListenScreenFooter";
+} from "../components/ListenScreenRows";
 import { extractDurationSeconds, formatDurationLabel, normalizeSearchValue } from "../lib/listenScreenUtils";
 import styles from "../components/ListenScreen.styles";
 
@@ -1440,9 +1440,7 @@ export function useListenMixes({
 
   const searchKeyExtractor = useCallback((item) => `search-${item.id}`, []);
 
-  const renderSectionHeader = useCallback(({ section }) => {
-    return <ListenSectionHeader section={section} />;
-  }, []);
+  const renderSectionHeader = useCallback(({ section }) => <ListenSectionHeader section={section} />, []);
 
   const renderMixRow = useCallback(
     (mix) => (
@@ -1496,9 +1494,7 @@ export function useListenMixes({
         );
       }
       if (section.type === "playlist") {
-        return (
-          <ListenPlaylistRow playlist={item} onPress={handlePlaylistPress} />
-        );
+        return <ListenPlaylistRow playlist={item} onPress={handlePlaylistPress} />;
       }
       return <View style={styles.sectionItemWrap}>{renderMixRow(item)}</View>;
     },
