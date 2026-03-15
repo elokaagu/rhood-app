@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   Alert,
   Image,
   RefreshControl,
-  Animated,
   Platform,
   ActionSheetIOS,
   ActivityIndicator,
@@ -18,8 +17,13 @@ import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { getRecommendedMixes } from "../lib/mixRecommendations";
 import { LIST_PERFORMANCE, LISTEN_LIST_PERFORMANCE } from "../lib/performanceConstants";
-import ProgressiveImage from "../components/ProgressiveImage";
 import ListenScreenHeader from "../components/ListenScreenHeader";
+import {
+  ListenMixRow,
+  ListenPlaylistRow,
+  ListenSectionHeader,
+  ListenRecommendationStrip,
+} from "../components/ListenScreen/index";
 import ListenScreenFooter from "../components/ListenScreenFooter";
 import { extractDurationSeconds, formatDurationLabel, normalizeSearchValue } from "../lib/listenScreenUtils";
 import styles from "../components/ListenScreen.styles";
@@ -38,7 +42,6 @@ export function useListenMixes({
   playlists = [],
 }) {
   const [mixes, setMixes] = useState([]);
-  const [playingMixId, setPlayingMixId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -56,8 +59,11 @@ export function useListenMixes({
   const [pinnedMixesCount, setPinnedMixesCount] = useState(0);
 
 
-  // Fade-in animation for content
-  const fadeAnim = useRef(new Animated.Value(1)).current; // Start visible for smooth rendering
+  // Derive from global audio: avoids sync effect and state updates when mixes change
+  const playingMixId =
+    globalAudioState.currentTrack && globalAudioState.isPlaying
+      ? globalAudioState.currentTrack.id
+      : null;
 
   const fetchMixes = useCallback(async () => {
     try {
@@ -360,22 +366,6 @@ export function useListenMixes({
   });
   }, [mixes, searchQuery]);
 
-  // Sync playingMixId with globalAudioState (check both currentTrack and isPlaying)
-  useEffect(() => {
-    if (globalAudioState.currentTrack && globalAudioState.isPlaying) {
-      const currentMix = mixes.find(
-        (mix) => mix.id === globalAudioState.currentTrack.id
-      );
-      if (currentMix) {
-        setPlayingMixId(globalAudioState.currentTrack.id);
-      }
-    } else {
-      setPlayingMixId(null);
-    }
-  }, [globalAudioState.currentTrack, globalAudioState.isPlaying, mixes]);
-  
-  // Content renders immediately for smooth experience
-
   const handleMixPress = useCallback(
     (mix) => {
       HapticPatterns.playPause();
@@ -401,7 +391,7 @@ export function useListenMixes({
         onPlayAudio(normalizedMix);
       }
     },
-    [playingMixId, globalAudioState.isPlaying, onPauseAudio, onResumeAudio, onPlayAudio]
+    [globalAudioState.currentTrack, globalAudioState.isPlaying, onPauseAudio, onResumeAudio, onPlayAudio]
   );
 
   const handleMixLongPress = useCallback(
@@ -493,29 +483,23 @@ export function useListenMixes({
     onNavigate("user-profile", { userId });
   };
 
-  const handleUploadMix = () => {
+  const handleUploadMix = useCallback(() => {
     HapticPatterns.buttonPress();
     if (hasUserMixes) {
-      // Show manage mixes modal instead of upload modal
       fetchUserMixes();
       setShowManageMixesModal(true);
     } else {
-      // Show upload modal for new users
       setShowUploadModal(true);
     }
-  };
+  }, [hasUserMixes, fetchUserMixes]);
 
-  // Fetch user's mixes for management
-  const fetchUserMixes = async () => {
+  const fetchUserMixes = useCallback(async () => {
     if (!user?.id) return;
-
     try {
       setLoadingUserMixes(true);
       const mixes = await db.getUserMixes(user.id);
       setUserMixes(mixes || []);
-      
-      // Update pinned count
-      const pinnedCount = (mixes || []).filter(m => m.is_pinned).length;
+      const pinnedCount = (mixes || []).filter((m) => m.is_pinned).length;
       setPinnedMixesCount(pinnedCount);
     } catch (error) {
       console.error("❌ Error fetching user mixes:", error);
@@ -523,7 +507,7 @@ export function useListenMixes({
     } finally {
       setLoadingUserMixes(false);
     }
-  };
+  }, [user?.id]);
 
   // Handle pin/unpin mix
   const handlePinMix = async (mix) => {
@@ -1417,7 +1401,12 @@ export function useListenMixes({
     return `mix-${item.id ?? index}`;
   }, []);
 
-  const { ESTIMATED_MIX_ROW_HEIGHT, ESTIMATED_PLAYLIST_ROW_HEIGHT, ESTIMATED_HORIZONTAL_SECTION_HEIGHT } = LISTEN_LIST_PERFORMANCE;
+  const {
+    ESTIMATED_MIX_ROW_HEIGHT,
+    ESTIMATED_PLAYLIST_ROW_HEIGHT,
+    ESTIMATED_HORIZONTAL_SECTION_HEIGHT,
+    ESTIMATED_SECTION_HEADER_HEIGHT,
+  } = LISTEN_LIST_PERFORMANCE;
 
   const getSectionItemLayout = useCallback(
     (data, index) => {
@@ -1425,6 +1414,7 @@ export function useListenMixes({
       let offset = 0;
       let idx = 0;
       for (const section of secs) {
+        offset += ESTIMATED_SECTION_HEADER_HEIGHT;
         const h =
           section.type === "horizontalMixes"
             ? ESTIMATED_HORIZONTAL_SECTION_HEIGHT
@@ -1448,137 +1438,24 @@ export function useListenMixes({
     return { length: h, offset: h * index, index };
   }, []);
 
-  const renderSectionHeader = useCallback(
-    ({ section }) => {
-      if (!section) return null;
-      if (section.type === "horizontalMixes") {
-        return (
-          <View style={styles.recommendationsSection}>
-            <View style={styles.recommendationsHeader}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Ionicons name="sparkles" size={18} color="hsl(75, 100%, 60%)" />
-                <Text style={styles.recommendationsTitle}>YOU MAY LIKE</Text>
-              </View>
-            </View>
-            <Text style={styles.recommendationExplainer}>{section.subtitle}</Text>
-          </View>
-        );
-      }
-      const isClickable = !!section.onSeeAll;
-      const content = (
-        <>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {section.id === "playlists" && (
-              <Ionicons name="musical-notes" size={18} color="hsl(75, 100%, 60%)" />
-            )}
-            {section.id === "trending" && (
-              <Ionicons name="flame" size={18} color="hsl(75, 100%, 60%)" />
-            )}
-            {section.id === "yourLikes" && (
-              <Ionicons name="heart" size={18} color="hsl(75, 100%, 60%)" />
-            )}
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-          </View>
-          {isClickable && (
-            <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
-          )}
-        </>
-      );
-      return (
-        <View style={styles.section}>
-          {isClickable ? (
-            <TouchableOpacity
-              style={styles.sectionHeader}
-              onPress={() => {
-                HapticPatterns.itemPress();
-                section.onSeeAll?.();
-              }}
-              activeOpacity={0.7}
-            >
-              {content}
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.sectionHeader}>{content}</View>
-          )}
-          <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
-        </View>
-      );
-    },
-    []
-  );
+  const searchKeyExtractor = useCallback((item) => `search-${item.id}`, []);
+
+  const renderSectionHeader = useCallback(({ section }) => {
+    return <ListenSectionHeader section={section} />;
+  }, []);
 
   const renderMixRow = useCallback(
-    (mix) => {
-      const isPlaying = playingMixId === mix.id && globalAudioState.isPlaying;
-      return (
-        <TouchableOpacity
-          style={styles.popularRow}
-          onPress={() => handleMixPress(mix)}
-          onLongPress={() => handleMixLongPress(mix)}
-          delayLongPress={500}
-          activeOpacity={0.8}
-        >
-          <View style={styles.popularImageWrap}>
-            <ProgressiveImage
-              source={
-                mix.artwork_url || mix.image_url || mix.image
-                  ? { uri: mix.artwork_url || mix.image_url || mix.image }
-                  : null
-              }
-              style={styles.popularImage}
-              contentFit="cover"
-              placeholder={
-                <View style={[styles.popularImage, { backgroundColor: "hsl(0, 0%, 12%)", justifyContent: "center", alignItems: "center" }]}>
-                  <Ionicons name="musical-notes" size={24} color="hsl(75, 100%, 60%)" />
-                </View>
-              }
-            />
-            {isPlaying && (
-              <View style={styles.recommendationPlayingOverlay}>
-                <Ionicons name="play" size={20} color="hsl(75, 100%, 60%)" />
-              </View>
-            )}
-          </View>
-          <View style={styles.popularInfo}>
-            <Text style={styles.popularTitle} numberOfLines={1}>
-              {mix.title}
-            </Text>
-            <Text style={styles.popularSubtitle} numberOfLines={1}>
-              {mix.artist || mix.user_dj_name || "Unknown"}
-            </Text>
-            <View style={styles.popularMetaRow}>
-              {mix.durationFormatted && (
-                <Text style={styles.popularMeta}>{mix.durationFormatted}</Text>
-              )}
-              {mix.genre && (
-                <>
-                  {mix.durationFormatted && (
-                    <Text style={styles.popularMeta}> • </Text>
-                  )}
-                  <Text style={styles.popularMeta}>{mix.genre}</Text>
-                </>
-              )}
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.likeButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              handleToggleLike(mix);
-            }}
-            activeOpacity={0.7}
-            disabled={likeLoadingMap[mix.id]}
-          >
-            <Ionicons
-              name={likedMixIds.has(mix.id) ? "heart" : "heart-outline"}
-              size={18}
-              color={likedMixIds.has(mix.id) ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 60%)"}
-            />
-          </TouchableOpacity>
-          <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
-        </TouchableOpacity>
-      );
-    },
+    (mix) => (
+      <ListenMixRow
+        mix={mix}
+        isPlaying={playingMixId === mix.id && globalAudioState.isPlaying}
+        isLiked={likedMixIds.has(mix.id)}
+        likeLoading={!!likeLoadingMap[mix.id]}
+        onPress={handleMixPress}
+        onLongPress={handleMixLongPress}
+        onToggleLike={handleToggleLike}
+      />
+    ),
     [
       playingMixId,
       globalAudioState.isPlaying,
@@ -1590,6 +1467,16 @@ export function useListenMixes({
     ]
   );
 
+  const handlePlaylistPress = useCallback(
+    (playlist) => {
+      onNavigate?.("playlist-detail", {
+        playlistId: playlist.id,
+        playlistName: playlist.name,
+      });
+    },
+    [onNavigate]
+  );
+
   const renderSectionItem = useCallback(
     ({ item, section }) => {
       if (!section) return null;
@@ -1597,118 +1484,20 @@ export function useListenMixes({
       if (section.type === "horizontalMixes") {
         const mixes = Array.isArray(item) ? item : [];
         return (
-          <View style={styles.recommendationsSection}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.recommendationsScroll}
-              contentContainerStyle={styles.recommendationsContent}
-            >
-              {mixes.map((mix) => {
-                const isPlaying = playingMixId === mix.id;
-                return (
-                  <TouchableOpacity
-                    key={mix.id}
-                    style={styles.recommendationCard}
-                    onPress={() => handleMixPress(mix)}
-                    onLongPress={() => handleMixLongPress(mix)}
-                    delayLongPress={500}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.recommendationImageContainer}>
-                      <ProgressiveImage
-                        source={
-                          mix.artwork_url || mix.image_url || mix.image
-                            ? { uri: mix.artwork_url || mix.image_url || mix.image }
-                            : null
-                        }
-                        style={styles.recommendationImage}
-                        contentFit="cover"
-                        placeholder={
-                          <View style={[styles.recommendationImage, { backgroundColor: "hsl(0, 0%, 12%)", justifyContent: "center", alignItems: "center" }]}>
-                            <Ionicons name="musical-notes" size={28} color="hsl(75, 100%, 60%)" />
-                          </View>
-                        }
-                      />
-                      {isPlaying && (
-                        <View style={styles.recommendationPlayingOverlay}>
-                          <Ionicons name="play" size={24} color="hsl(75, 100%, 60%)" />
-                        </View>
-                      )}
-                      <TouchableOpacity
-                        style={styles.recommendationLikeButton}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleToggleLike(mix);
-                        }}
-                        activeOpacity={0.7}
-                        disabled={likeLoadingMap[mix.id]}
-                      >
-                        <Ionicons
-                          name={likedMixIds.has(mix.id) ? "heart" : "heart-outline"}
-                          size={20}
-                          color={likedMixIds.has(mix.id) ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 100%)"}
-                        />
-                      </TouchableOpacity>
-                      <LinearGradient
-                        colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.95)"]}
-                        style={styles.recommendationGradientOverlay}
-                      />
-                      <View style={styles.recommendationInfo}>
-                        <Text style={styles.recommendationTitle} numberOfLines={1}>
-                          {mix.title}
-                        </Text>
-                        <Text style={styles.recommendationArtist} numberOfLines={1}>
-                          {mix.artist || mix.user_dj_name || "Unknown"}
-                        </Text>
-                        {mix.genre && (
-                          <Text style={styles.recommendationGenre} numberOfLines={1}>
-                            {mix.genre}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+          <ListenRecommendationStrip
+            mixes={mixes}
+            playingMixId={playingMixId}
+            likedMixIds={likedMixIds}
+            likeLoadingMap={likeLoadingMap}
+            onMixPress={handleMixPress}
+            onMixLongPress={handleMixLongPress}
+            onToggleLike={handleToggleLike}
+          />
         );
       }
       if (section.type === "playlist") {
         return (
-          <TouchableOpacity
-            style={styles.playlistRow}
-            onPress={() => {
-              HapticPatterns.itemPress();
-              onNavigate?.("playlist-detail", {
-                playlistId: item.id,
-                playlistName: item.name,
-              });
-            }}
-            activeOpacity={0.8}
-          >
-            <View style={styles.playlistIconContainer}>
-              {item.image_url ? (
-                <Image
-                  source={{ uri: item.image_url }}
-                  style={styles.playlistImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Ionicons name="musical-notes" size={24} color="hsl(75, 100%, 60%)" />
-              )}
-            </View>
-            <View style={styles.playlistInfo}>
-              <Text style={styles.playlistName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text style={styles.playlistMeta}>
-                {item.mixCount || 0} {item.mixCount === 1 ? "mix" : "mixes"}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
-          </TouchableOpacity>
+          <ListenPlaylistRow playlist={item} onPress={handlePlaylistPress} />
         );
       }
       return <View style={styles.sectionItemWrap}>{renderMixRow(item)}</View>;
@@ -1720,7 +1509,7 @@ export function useListenMixes({
       handleToggleLike,
       likeLoadingMap,
       likedMixIds,
-      onNavigate,
+      handlePlaylistPress,
       renderMixRow,
     ]
   );
@@ -1801,6 +1590,7 @@ export function useListenMixes({
     renderRecommendations: renderYouMayLike,
     sections,
     keyExtractor,
+    searchKeyExtractor,
     getSectionItemLayout,
     getSearchItemLayout,
     renderSectionHeader,

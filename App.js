@@ -1457,7 +1457,15 @@ export default function App() {
         user: track.user ? "User object present" : "No user object",
       });
 
-      setGlobalAudioState((prev) => ({ ...prev, isLoading: true }));
+      // Show mini player immediately with current track (so UI appears before async load)
+      setGlobalAudioState((prev) => ({
+        ...prev,
+        isLoading: true,
+        currentTrack: {
+          ...track,
+          isLiked: likedMixIds.has(track.id),
+        },
+      }));
       trackFinishedRef.current = false; // Reset finished flag when starting new track
 
       // Try multiple sources for audio URL (validate once for all platforms)
@@ -6297,12 +6305,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12, // Compact vertical padding
     paddingHorizontal: 16,
     zIndex: 1001, // Higher than tab bar
+    elevation: 20, // Above tab bar (elevation 15) on Android
     // Remove shadow to avoid overlapping bottom tab
     shadowColor: "transparent",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0,
     shadowRadius: 0,
-    elevation: 0,
     borderWidth: 0, // Remove border for cleaner look
     minHeight: 70, // Compact height
   },
@@ -7172,7 +7180,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
 
-  // Play Bar Fade Overlay
+  // Play Bar Fade Overlay (above tab bar, below mini player)
   playBarFadeOverlay: {
     position: "absolute",
     bottom: 90, // Position above the play bar (play bar height is ~70px)
@@ -7181,7 +7189,8 @@ const styles = StyleSheet.create({
     height: 40,
     backgroundColor: "rgba(0, 0, 0, 0.3)",
     pointerEvents: "none",
-    zIndex: 1,
+    zIndex: 1000,
+    elevation: 19,
   },
 
   // Menu Styles

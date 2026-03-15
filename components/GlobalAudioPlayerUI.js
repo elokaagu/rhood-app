@@ -379,7 +379,7 @@ export default function GlobalAudioPlayerUI({
         style={[
           styles.globalAudioPlayer,
           {
-            opacity: audioPlayerOpacity,
+            opacity: 1, // Always visible when rendered (avoids stuck-at-0 if animation delayed)
             transform: [{ translateY: audioPlayerTranslateY }],
           },
         ]}

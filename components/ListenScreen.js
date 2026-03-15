@@ -1,12 +1,14 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import { View, FlatList, SectionList } from "react-native";
-import { LIST_PERFORMANCE } from "../lib/performanceConstants";
+import { LISTEN_SECTION_LIST_PERFORMANCE } from "../lib/performanceConstants";
 import { useListenPlaylists } from "../hooks/useListenPlaylists";
 import { useListenMixes } from "../hooks/useListenMixes";
 import ListenUploadModal from "./ListenUploadModal";
 import ManageMixesModal from "./ManageMixesModal";
 import SaveToPlaylistModal from "./SaveToPlaylistModal";
 import styles from "./ListenScreen.styles";
+
+const LISTEN_PERF = LISTEN_SECTION_LIST_PERFORMANCE;
 
 export default function ListenScreen({
   globalAudioState,
@@ -16,7 +18,6 @@ export default function ListenScreen({
   onStopAudio,
   onAddToQueue,
   onPlayNext,
-  onClearQueue,
   onNavigate,
   user,
 }) {
@@ -39,12 +40,30 @@ export default function ListenScreen({
     if (user?.id) playlistState.fetchPlaylists();
   }, [user?.id, playlistState.fetchPlaylists]);
 
+  const handleCloseUploadModal = useCallback(
+    () => mixState.setShowUploadModal(false),
+    [mixState.setShowUploadModal]
+  );
+  const handleCloseManageModal = useCallback(
+    () => mixState.setShowManageMixesModal(false),
+    [mixState.setShowManageMixesModal]
+  );
+  const handleCloseSaveToPlaylist = useCallback(() => {
+    playlistState.setShowSaveToPlaylistModal(false);
+    playlistState.setSelectedMixForPlaylist(null);
+    playlistState.setNewPlaylistName("");
+  }, [
+    playlistState.setShowSaveToPlaylistModal,
+    playlistState.setSelectedMixForPlaylist,
+    playlistState.setNewPlaylistName,
+  ]);
+
   return (
     <View style={styles.container}>
       {mixState.searchQuery.trim() ? (
         <FlatList
           data={mixState.filteredMixes}
-          keyExtractor={(item) => `search-${item.id}`}
+          keyExtractor={mixState.searchKeyExtractor}
           ListHeaderComponent={mixState.renderHeader}
           renderItem={mixState.renderSearchMixItem}
           ListEmptyComponent={mixState.searchListEmptyComponent}
@@ -52,10 +71,10 @@ export default function ListenScreen({
           refreshControl={mixState.refreshControl}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
-          maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
-          windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
-          removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+          initialNumToRender={LISTEN_PERF.INITIAL_NUM_TO_RENDER}
+          maxToRenderPerBatch={LISTEN_PERF.MAX_TO_RENDER_PER_BATCH}
+          windowSize={LISTEN_PERF.WINDOW_SIZE}
+          removeClippedSubviews={LISTEN_PERF.REMOVE_CLIPPED_SUBVIEWS}
         />
       ) : (
         <SectionList
@@ -69,22 +88,22 @@ export default function ListenScreen({
           refreshControl={mixState.refreshControl}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
-          maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
-          windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
-          removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+          initialNumToRender={LISTEN_PERF.INITIAL_NUM_TO_RENDER}
+          maxToRenderPerBatch={LISTEN_PERF.MAX_TO_RENDER_PER_BATCH}
+          windowSize={LISTEN_PERF.WINDOW_SIZE}
+          removeClippedSubviews={LISTEN_PERF.REMOVE_CLIPPED_SUBVIEWS}
         />
       )}
 
       <ListenUploadModal
         visible={mixState.showUploadModal}
-        onClose={() => mixState.setShowUploadModal(false)}
+        onClose={handleCloseUploadModal}
         onNavigate={onNavigate}
       />
 
       <ManageMixesModal
         visible={mixState.showManageMixesModal}
-        onClose={() => mixState.setShowManageMixesModal(false)}
+        onClose={handleCloseManageModal}
         onUploadNew={onNavigate}
         loadingUserMixes={mixState.loadingUserMixes}
         userMixes={mixState.userMixes}
@@ -95,11 +114,7 @@ export default function ListenScreen({
 
       <SaveToPlaylistModal
         visible={playlistState.showSaveToPlaylistModal}
-        onRequestClose={() => {
-          playlistState.setShowSaveToPlaylistModal(false);
-          playlistState.setSelectedMixForPlaylist(null);
-          playlistState.setNewPlaylistName("");
-        }}
+        onRequestClose={handleCloseSaveToPlaylist}
         selectedMixForPlaylist={playlistState.selectedMixForPlaylist}
         newPlaylistName={playlistState.newPlaylistName}
         setNewPlaylistName={playlistState.setNewPlaylistName}
