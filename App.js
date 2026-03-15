@@ -1533,7 +1533,7 @@ export default function App() {
           let newIndex;
           
           setGlobalAudioState((prev) => {
-            newQueue = [...prev.queue];
+            newQueue = [...(prev.queue || [])];
             const existingIndex = newQueue.findIndex((t) => t.id === track.id);
             newIndex = existingIndex >= 0 ? existingIndex : newQueue.length;
 
@@ -1631,7 +1631,8 @@ export default function App() {
           });
 
           // Prepare all tracks for TrackPlayer queue (after state update)
-          const tracksForPlayer = newQueue.map((t) => {
+          const queueForPlayer = Array.isArray(newQueue) ? newQueue : [];
+          const tracksForPlayer = queueForPlayer.map((t) => {
             // Get artwork URL - prioritize image fields
             let artworkUrl = t.image || t.artwork_url || t.image_url || null;
             

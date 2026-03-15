@@ -73,7 +73,9 @@ export async function setupPlayer() {
     });
     optionsUpdated = true;
     console.log('✅ TrackPlayer options updated with full lock screen capabilities');
-    console.log('📱 Capabilities:', capabilities.map(c => c).join(', '));
+    if (Array.isArray(capabilities)) {
+      console.log('📱 Capabilities:', capabilities.map(c => c).join(', '));
+    }
   }
 }
 
@@ -153,6 +155,9 @@ export async function playTrack(track) {
 export async function addTracks(tracks) {
   if (!TrackPlayer) {
     throw new Error('react-native-track-player is not available');
+  }
+  if (!Array.isArray(tracks)) {
+    throw new Error('addTracks requires an array of tracks');
   }
 
   await setupPlayer();
