@@ -95,7 +95,7 @@ import {
   trackScreenView,
   AnalyticsEvents,
 } from "./lib/analytics";
-import { useAudioActions } from "./context/AudioContext";
+import { useAudioState, useAudioActions } from "./context/AudioContext";
 import GlobalAudioPlayerUI from "./components/GlobalAudioPlayerUI";
 
 // Static Album Art Component
@@ -225,8 +225,17 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login"); // 'login' or 'signup'
 
-  // Audio actions and state ref only (no subscription – only GlobalAudioPlayerUI re-renders on audio change)
+  // Audio: subscribe to currentTrack so we can pass it to the player UI (ensures mini bar shows when playback starts)
+  const audioState = useAudioState();
   const { setGlobalAudioState, actionsRef, stateRef } = useAudioActions();
+
+  // Pending track: set synchronously when user taps a mix so mini bar shows immediately (before context updates)
+  const [pendingPlayTrack, setPendingPlayTrack] = useState(null);
+  useEffect(() => {
+    if (audioState.currentTrack?.id && pendingPlayTrack?.id === audioState.currentTrack.id) {
+      setPendingPlayTrack(null);
+    }
+  }, [audioState.currentTrack?.id, pendingPlayTrack?.id]);
 
   // Audio error modal state
   const [audioErrorModal, setAudioErrorModal] = useState({ visible: false, title: "", message: "" });
@@ -868,13 +877,19 @@ export default function App() {
           setNetworkErrorCount(0); // Reset error count on success
           console.log("🔄 Refreshed daily application stats:", stats);
         } catch (error) {
-          console.error("Error refreshing daily stats:", error);
+          const isNetworkError =
+            error?.message?.includes("Network request failed") ||
+            error?.message?.includes("Failed to fetch") ||
+            error?.code === "NETWORK_ERROR";
 
-          // Only log network errors, don't spam the console
-          if (
-            error.message &&
-            error.message.includes("Network request failed")
-          ) {
+          // Use warn for network failures so we don't trigger the red error overlay (common in simulator)
+          if (isNetworkError) {
+            console.warn("⚠️ Daily stats refresh failed (network):", error?.message || error);
+          } else {
+            console.error("Error refreshing daily stats:", error);
+          }
+
+          if (isNetworkError) {
             setNetworkErrorCount((prevCount) => {
               const newCount = prevCount + 1;
               if (newCount >= 3) {
@@ -1441,7 +1456,15 @@ export default function App() {
       console.log("⚠️ playGlobalAudio already in progress, ignoring duplicate call");
       return;
     }
-    
+
+    // Show mini bar + full-screen immediately (synchronous state so UI paints before any async work)
+    const trackForUI = {
+      ...track,
+      image: track.image || track.artwork_url || track.image_url || null,
+      isLiked: likedMixIds.has(track.id),
+    };
+    setPendingPlayTrack(trackForUI);
+
     try {
       isPlayingAudioRef.current = true;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1458,12 +1481,7 @@ export default function App() {
         user: track.user ? "User object present" : "No user object",
       });
 
-      // Show mini player immediately; defer playback so this state can paint
-      const trackForUI = {
-        ...track,
-        image: track.image || track.artwork_url || track.image_url || null,
-        isLiked: likedMixIds.has(track.id),
-      };
+      // Context state so playback logic and lock screen see current track
       setGlobalAudioState((prev) => ({
         ...prev,
         isLoading: true,
@@ -1723,7 +1741,7 @@ export default function App() {
             shouldPlay: false,
             isLooping: false,
             volume: 1.0,
-            progressUpdateIntervalMillis: 500,
+            progressUpdateIntervalMillis: 250,
           }
         );
         sound = loadedSound;
@@ -1917,6 +1935,13 @@ export default function App() {
         throw playError; // Re-throw to be caught by outer catch
       }
 
+      let initialStatus = null;
+      try {
+        initialStatus = await sound.getStatusAsync();
+      } catch (statusErr) {
+        if (__DEV__) console.warn("Initial playback status for UI:", statusErr?.message);
+      }
+
       setGlobalAudioState((prev) => {
         // If this track is not in the queue, add it
         let newQueue = [...prev.queue];
@@ -2025,7 +2050,7 @@ export default function App() {
           isLiked: isLiked, // Sync with likedMixIds
         };
 
-        return {
+        const next = {
           ...prev,
           sound: sound,
           isPlaying: true,
@@ -2034,6 +2059,13 @@ export default function App() {
           queue: newQueue,
           currentQueueIndex: newIndex,
         };
+        if (initialStatus?.isLoaded && initialStatus?.durationMillis > 0) {
+          next.positionMillis = initialStatus.positionMillis ?? 0;
+          next.durationMillis = initialStatus.durationMillis ?? 0;
+          next.progress =
+            (initialStatus.positionMillis ?? 0) / initialStatus.durationMillis;
+        }
+        return next;
       });
 
       // Set up lock screen controls callbacks (Android only)
@@ -2097,6 +2129,7 @@ export default function App() {
             trackTitle: track.title,
             audioUrl: track.audioUrl || track.file_url || track.audio_url || "missing",
           });
+          setPendingPlayTrack(null);
           setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
 
           const errorMessage = error.message || "Unknown error occurred";
@@ -4861,6 +4894,8 @@ export default function App() {
 
         <GlobalAudioPlayerUI
           currentScreen={currentScreen}
+          currentTrack={audioState.currentTrack}
+          pendingTrack={pendingPlayTrack}
           onNavigateToProfile={(userId) => {
             setCurrentScreen("user-profile");
             setScreenParams({ userId });

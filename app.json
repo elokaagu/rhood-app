@@ -4,11 +4,11 @@
     "slug": "rhoodapp",
     "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/rhood_logo.png",
+    "icon": "assets/rhood_logo.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": false,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -53,7 +53,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/rhood_logo.png",
+        "foregroundImage": "assets/rhood_logo.png",
         "backgroundColor": "#000000"
       },
       "package": "com.rhoodapp.mobile",
@@ -75,7 +75,7 @@
       ]
     },
     "notification": {
-      "icon": "./assets/rhood_logo.png",
+      "icon": "assets/rhood_logo.png",
       "color": "#ffffff"
     },
     "extra": {
@@ -94,7 +94,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/rhood_logo.png",
+          "icon": "assets/rhood_logo.png",
           "color": "#ffffff",
           "iosDisplayInForeground": true
         }

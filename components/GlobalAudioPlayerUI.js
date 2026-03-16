@@ -3,7 +3,7 @@
  * Mini bar, full-screen player modal, queue modal.
  * Uses useAudioState() and actionsRef for playback; no playback logic here.
  */
-import React, { useState, useCallback, memo } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo, memo } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Image,
   Share,
   Alert,
+  PanResponder,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -26,13 +27,38 @@ const formatTime = (ms) => {
   return `${m}:${(s % 60).toString().padStart(2, "0")}`;
 };
 
-function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globalAudioRef }) {
+function GlobalAudioPlayerUI({ currentScreen, currentTrack: currentTrackProp, pendingTrack: pendingTrackProp, onNavigateToProfile, styles, globalAudioRef }) {
   const state = useAudioState();
   const { setGlobalAudioState, actionsRef } = useAudioActions();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [queueVisible, setQueueVisible] = useState(false);
+  const lastOpenedTrackIdRef = useRef(null);
+  const progressBarWidthRef = useRef(0);
+  const scrubPositionRef = useRef(null);
+  const [scrubPositionMillis, setScrubPositionMillis] = useState(null);
 
-  const track = state.currentTrack;
+  const seek = useCallback(
+    (positionMillis) => {
+      actionsRef?.current?.seekToPosition?.(positionMillis);
+    },
+    [actionsRef]
+  );
+
+  // Use pending track so mini bar + full-screen show immediately on mix press (before context/async updates)
+  const track = currentTrackProp ?? state.currentTrack ?? pendingTrackProp;
+
+  if (__DEV__ && track && !state.currentTrack && pendingTrackProp) {
+    console.log("🎵 [Player] Showing from pending track (mini bar + full-screen before context)", track.title);
+  }
+
+  // When a new mix starts (track id changes), open the full-screen player automatically
+  useEffect(() => {
+    if (track?.id && track.id !== lastOpenedTrackIdRef.current) {
+      lastOpenedTrackIdRef.current = track.id;
+      setFullScreenVisible(true);
+    }
+    if (!track?.id) lastOpenedTrackIdRef.current = null;
+  }, [track?.id]);
   const hideMini = currentScreen === "messages" || currentScreen === "help-chat";
   const showMini = track && !hideMini;
 
@@ -49,6 +75,9 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
   const toggleShuffle = () => actionsRef?.current?.toggleShuffle?.();
 
   const onPlayPause = useCallback(() => {
+    if (playPauseGuardRef.current) return;
+    playPauseGuardRef.current = true;
+    setTimeout(() => { playPauseGuardRef.current = false; }, 400);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (state.isPlaying) pause();
     else resume();
@@ -92,55 +121,105 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
 
   const nextTrack = getNextTrack();
 
+  const durationMillis = state.durationMillis ?? 0;
+  const displayPositionMillis = scrubPositionMillis ?? state.positionMillis ?? 0;
+  const rawProgress = durationMillis > 0 ? displayPositionMillis / durationMillis : 0;
+  const displayProgress = Math.max(0, Math.min(1, rawProgress));
+  const durationUnknown = track && durationMillis === 0;
+  const canScrub = durationMillis > 0;
+  const playPauseGuardRef = useRef(false);
+
+  const progressBarPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (evt) => {
+          const w = progressBarWidthRef.current;
+          if (w <= 0) return;
+          const x = evt.nativeEvent.locationX;
+          const ratio = Math.max(0, Math.min(1, x / w));
+          const pos = Math.round(ratio * durationMillis);
+          scrubPositionRef.current = pos;
+          setScrubPositionMillis(pos);
+        },
+        onPanResponderMove: (evt) => {
+          const w = progressBarWidthRef.current;
+          if (w <= 0) return;
+          const x = evt.nativeEvent.locationX;
+          const ratio = Math.max(0, Math.min(1, x / w));
+          const pos = Math.round(ratio * durationMillis);
+          scrubPositionRef.current = pos;
+          setScrubPositionMillis(pos);
+        },
+        onPanResponderRelease: () => {
+          const pos = scrubPositionRef.current;
+          setScrubPositionMillis(null);
+          scrubPositionRef.current = null;
+          if (pos != null && durationMillis > 0) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            seek(pos);
+          }
+        },
+      }),
+    [durationMillis, seek]
+  );
+
   if (!showMini) return null;
+
+  // Mini bar: single layer, bottom-anchored, tap opens full-screen
+  const miniBarWrapper = {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
+    zIndex: 10000,
+    elevation: 10000,
+    pointerEvents: "box-none",
+    justifyContent: "flex-end",
+  };
 
   return (
     <>
-      <View style={styles.playBarFadeOverlay} />
-      <View style={styles.globalAudioPlayer}>
+      <View style={miniBarWrapper}>
+        <View style={styles.playBarFadeOverlay} pointerEvents="none" />
         <TouchableOpacity
-          style={styles.audioPlayerContent}
+          style={styles.globalAudioPlayer}
           onPress={() => setFullScreenVisible(true)}
-          activeOpacity={0.9}
+          activeOpacity={1}
         >
-          <View style={styles.audioAlbumArt}>
-            {track.image ? (
-              <Image
-                source={{ uri: track.image }}
-                style={styles.albumArtImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.albumArtPlaceholder}>
-                <Ionicons name="musical-notes" size={24} color="hsl(75, 100%, 60%)" />
-              </View>
-            )}
-          </View>
-          <View style={styles.audioTrackInfo}>
-            <Text style={styles.audioTrackTitle} numberOfLines={1} ellipsizeMode="tail">
-              {track.title}
-            </Text>
-            <Text style={styles.audioTrackArtist} numberOfLines={1}>
-              {track.artist}
-            </Text>
-            {nextTrack && (
-              <View style={styles.upNextPreview}>
-                <Text style={styles.upNextLabel}>Up Next:</Text>
-                <Text style={styles.upNextTrack} numberOfLines={1}>
-                  {nextTrack.title} • {nextTrack.artist}
-                </Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.audioTimeContainer}>
+          <View style={styles.audioPlayerContent}>
+            <View style={styles.audioAlbumArt}>
+              {track.image ? (
+                <Image
+                  source={{ uri: track.image }}
+                  style={styles.albumArtImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.albumArtPlaceholder}>
+                  <Ionicons name="musical-notes" size={22} color="hsl(75, 100%, 60%)" />
+                </View>
+              )}
+            </View>
+            <View style={styles.audioTrackInfo}>
+              <Text style={styles.audioTrackTitle} numberOfLines={1} ellipsizeMode="tail">
+                {track.title}
+              </Text>
+              <Text style={styles.audioTrackArtist} numberOfLines={1}>
+                {track.artist}
+              </Text>
+            </View>
             <Text style={styles.audioTimeText}>
               {formatTime(state.positionMillis)} / {formatTime(state.durationMillis)}
             </Text>
-          </View>
-          <View style={styles.audioControls}>
             <TouchableOpacity
               style={styles.audioControlButton}
-              onPress={onPlayPause}
+              onPress={(e) => {
+                e.stopPropagation();
+                onPlayPause();
+              }}
               activeOpacity={0.8}
             >
               <Ionicons
@@ -151,23 +230,23 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.audioCloseButton}
-              onPress={onClose}
+              onPress={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
               accessibilityLabel="Stop playback"
             >
               <Ionicons name="close" size={22} color="hsl(0, 0%, 60%)" />
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-        <View style={styles.audioProgressContainer}>
-          <View style={styles.audioProgressBar}>
-            <View
-              style={[
-                styles.audioProgressFill,
-                { width: `${(state.progress ?? 0) * 100}%` },
-              ]}
-            />
+          <View style={styles.audioProgressContainer}>
+            <View style={styles.audioProgressBar}>
+              <View
+                style={[styles.audioProgressFill, { width: `${(state.progress ?? 0) * 100}%` }]}
+              />
+            </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <Modal
@@ -187,6 +266,8 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setFullScreenVisible(false)}
+                accessibilityLabel="Close player"
+                accessibilityRole="button"
               >
                 <Ionicons name="chevron-down" size={24} color="hsl(0, 0%, 100%)" />
               </TouchableOpacity>
@@ -219,6 +300,8 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
                 <TouchableOpacity
                   style={styles.fullScreenLikeButton}
                   onPress={() => toggleLike?.()}
+                  accessibilityLabel={track.isLiked ? "Unlike" : "Like"}
+                  accessibilityRole="button"
                 >
                   <Ionicons
                     name={track.isLiked ? "heart" : "heart-outline"}
@@ -239,27 +322,71 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
               </TouchableOpacity>
             </View>
             <View style={styles.fullScreenProgressSection}>
-              <View style={styles.fullScreenProgressBar}>
+              <View
+                style={styles.fullScreenProgressBar}
+                onLayout={(e) => {
+                  const w = e.nativeEvent.layout.width;
+                  progressBarWidthRef.current = w;
+                }}
+                {...(canScrub ? progressBarPanResponder.panHandlers : {})}
+                accessibilityLabel="Progress bar"
+                accessibilityRole="adjustable"
+                {...(canScrub && {
+                  accessibilityValue: {
+                    min: 0,
+                    max: durationMillis,
+                    now: displayPositionMillis,
+                    text: `${formatTime(displayPositionMillis)} of ${formatTime(durationMillis)}`,
+                  },
+                })}
+              >
                 <View
                   style={[
                     styles.fullScreenProgressFill,
-                    { width: `${(state.progress ?? 0) * 100}%` },
+                    { width: `${displayProgress * 100}%` },
                   ]}
                 />
+                {canScrub && (
+                  <View
+                    style={[
+                      styles.fullScreenProgressThumb,
+                      { left: `${displayProgress * 100}%` },
+                    ]}
+                    pointerEvents="none"
+                  />
+                )}
               </View>
               <View style={styles.fullScreenTimeContainer}>
                 <Text style={styles.fullScreenTimeText}>
-                  {formatTime(state.positionMillis)}
+                  {formatTime(displayPositionMillis)}
                 </Text>
-                <Text style={styles.fullScreenTimeText}>
-                  {formatTime(state.durationMillis)}
-                </Text>
+                {durationUnknown ? (
+                  <Text style={[styles.fullScreenTimeText, { color: "hsl(0, 0%, 50%)" }]}>
+                    –:––
+                  </Text>
+                ) : (
+                  <Text style={styles.fullScreenTimeText}>
+                    {formatTime(durationMillis)}
+                  </Text>
+                )}
               </View>
+              {durationUnknown && (
+                <Text style={[styles.fullScreenTimeText, { color: "hsl(0, 0%, 45%)", fontSize: 12, marginTop: 4 }]}>
+                  Loading…
+                </Text>
+              )}
+              {state.error ? (
+                <Text style={[styles.fullScreenTimeText, { color: "hsl(0, 80%, 55%)", fontSize: 12, marginTop: 6 }]} numberOfLines={1}>
+                  {state.error}
+                </Text>
+              ) : null}
             </View>
             <View style={styles.fullScreenControls}>
               <TouchableOpacity
                 style={styles.fullScreenControlButton}
                 onPress={() => toggleShuffle?.()}
+                accessibilityLabel={state.isShuffled ? "Shuffle on" : "Shuffle off"}
+                accessibilityRole="button"
               >
                 <Ionicons
                   name="shuffle"
@@ -270,6 +397,8 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
               <TouchableOpacity
                 style={styles.fullScreenControlButton}
                 onPress={() => skipPrev?.()}
+                accessibilityLabel="Previous track"
+                accessibilityRole="button"
               >
                 <Ionicons name="play-skip-back" size={24} color="hsl(0, 0%, 100%)" />
               </TouchableOpacity>
@@ -279,6 +408,8 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   onPlayPause();
                 }}
+                accessibilityLabel={state.isPlaying ? "Pause" : "Play"}
+                accessibilityRole="button"
               >
                 <Ionicons
                   name={state.isPlaying ? "pause" : "play"}
@@ -289,12 +420,16 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
               <TouchableOpacity
                 style={styles.fullScreenControlButton}
                 onPress={() => skipNext?.()}
+                accessibilityLabel="Next track"
+                accessibilityRole="button"
               >
                 <Ionicons name="play-skip-forward" size={24} color="hsl(0, 0%, 100%)" />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.fullScreenControlButton}
                 onPress={toggleRepeat}
+                accessibilityLabel={`Repeat ${state.repeatMode === "none" ? "off" : state.repeatMode === "one" ? "one" : "all"}`}
+                accessibilityRole="button"
               >
                 <Ionicons
                   name="repeat"
@@ -312,6 +447,8 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   shareTrack();
                 }}
+                accessibilityLabel="Share track"
+                accessibilityRole="button"
               >
                 <Ionicons name="share-outline" size={20} color="hsl(0, 0%, 100%)" />
                 <Text style={styles.fullScreenSecondaryButtonText}>Share</Text>
@@ -322,6 +459,8 @@ function GlobalAudioPlayerUI({ currentScreen, onNavigateToProfile, styles, globa
                   setFullScreenVisible(false);
                   setQueueVisible(true);
                 }}
+                accessibilityLabel="Open queue"
+                accessibilityRole="button"
               >
                 <Ionicons name="list-outline" size={20} color="hsl(0, 0%, 100%)" />
                 <Text style={styles.fullScreenSecondaryButtonText}>Queue</Text>
