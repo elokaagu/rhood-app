@@ -15,9 +15,12 @@ import styles from "./ListenScreen.styles";
 import { supabase } from "../lib/supabase";
 import { extractDurationSeconds } from "../lib/listenScreenUtils";
 import { HapticPatterns } from "../lib/haptics";
+import { createScreenCache } from "../lib/screenCache";
 
 const ICON_COLOR = "hsl(75, 100%, 60%)";
 const TRENDING_LIMIT = 15;
+const TRENDING_CACHE_KEY = "trending";
+const trendingCache = createScreenCache("trending");
 
 function formatDuration(seconds) {
   if (!seconds || seconds <= 0) return null;
@@ -93,6 +96,13 @@ function ListenScreen({
   }, []);
 
   const fetchTrending = useCallback(async () => {
+    const cached = trendingCache.getIfFresh(TRENDING_CACHE_KEY);
+    if (cached && Array.isArray(cached.trendingMixes)) {
+      setTrendingMixes(cached.trendingMixes);
+      setTrendingLoading(false);
+      setTrendingError(null);
+      return;
+    }
     setTrendingLoading(true);
     setTrendingError(null);
     try {
@@ -103,7 +113,7 @@ function ListenScreen({
         .order("created_at", { ascending: false })
         .limit(TRENDING_LIMIT);
       if (error) {
-        if (!cancelled) setTrendingError(error.message || "Failed to load trending");
+        if (mountedRef.current) setTrendingError(error.message || "Failed to load trending");
         return;
       }
       const ids = (data || []).map((m) => m.user_id).filter(Boolean);
@@ -135,7 +145,10 @@ function ListenScreen({
           user_id: mix.user_id,
         };
       });
-      if (mountedRef.current) setTrendingMixes(transformed);
+      if (mountedRef.current) {
+        setTrendingMixes(transformed);
+        trendingCache.set(TRENDING_CACHE_KEY, { trendingMixes: transformed });
+      }
     } catch (e) {
       if (mountedRef.current) setTrendingError(e?.message || "Failed to load trending");
       if (__DEV__) console.warn("Trending mixes fetch failed:", e);

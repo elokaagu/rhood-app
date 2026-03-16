@@ -2,6 +2,9 @@ import { useState, useCallback } from "react";
 import { Alert } from "react-native";
 import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
+import { createScreenCache } from "../lib/screenCache";
+
+const playlistsCache = createScreenCache("playlists");
 
 /**
  * Playlists and "Save to Playlist" modal state + handlers for Listen screen.
@@ -19,6 +22,14 @@ export function useListenPlaylists(user) {
   const fetchPlaylists = useCallback(async () => {
     if (!user?.id) {
       setPlaylists([]);
+      setPlaylistsError(null);
+      return;
+    }
+
+    const cached = playlistsCache.getIfFresh(user.id);
+    if (cached && Array.isArray(cached.playlists)) {
+      setPlaylists(cached.playlists);
+      setPlaylistsLoading(false);
       setPlaylistsError(null);
       return;
     }
@@ -71,6 +82,7 @@ export function useListenPlaylists(user) {
 
       setPlaylists(playlistsWithCounts);
       setPlaylistsError(null);
+      playlistsCache.set(user.id, { playlists: playlistsWithCounts });
     } catch (error) {
       console.error("❌ Error fetching playlists:", error);
       setPlaylistsError(error?.message || "Failed to load playlists");

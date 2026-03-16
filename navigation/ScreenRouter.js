@@ -29,6 +29,7 @@ import YourLikesScreen from "../components/YourLikesScreen";
 import PlaylistDetailScreen from "../components/PlaylistDetailScreen";
 import ResetPasswordScreen from "../components/ResetPasswordScreen";
 import { db } from "../lib/supabase";
+import { clearScreenCachesForUser } from "../lib/screenCache";
 
 /**
  * Renders the current screen based on route. Receives screen, screenParams, styles,
@@ -356,6 +357,7 @@ export default function ScreenRouter({
             rp.setScreenParams(params);
           }}
           onSignOut={() => {
+            clearScreenCachesForUser(rp.user?.id);
             rp.setUser(null);
             rp.setIsFirstTime(true);
             rp.setDjProfile({

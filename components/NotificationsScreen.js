@@ -19,6 +19,7 @@ import RhoodModal from "./RhoodModal";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
+import { createScreenCache } from "../lib/screenCache";
 
 // Helper function to format relative time
 const formatRelativeTime = (timestamp) => {
@@ -45,6 +46,8 @@ const formatRelativeTime = (timestamp) => {
 const removeCelebrateEmoji = (title = "") =>
   title.replace(/🎉/g, "").trim();
 
+const notificationsCache = createScreenCache("notifications");
+
 export default function NotificationsScreen({
   user: propUser,
   onNavigate,
@@ -66,10 +69,21 @@ export default function NotificationsScreen({
     messageNotifications: true,
   });
 
-  // Load current user and notifications on component mount
+  // Load current user and notifications on component mount (use cache if fresh)
   useEffect(() => {
+    const userId = propUser?.id;
+    if (userId) {
+      const cached = notificationsCache.getIfFresh(userId);
+      if (cached && Array.isArray(cached.notifications)) {
+        setNotifications(cached.notifications);
+        setCurrentUser(cached.user || propUser);
+        setNotificationPreferences(cached.notificationPreferences ?? { pushNotifications: true, messageNotifications: true });
+        setLoading(false);
+        return;
+      }
+    }
     loadUserAndNotifications();
-  }, []);
+  }, [propUser?.id]);
 
   // Set up real-time subscription for notifications
   useEffect(() => {
@@ -307,6 +321,13 @@ export default function NotificationsScreen({
         });
 
       setNotifications(transformedNotifications);
+      if (user?.id) {
+        notificationsCache.set(user.id, {
+          user,
+          notifications: transformedNotifications,
+          notificationPreferences: { pushNotifications: pushEnabled, messageNotifications: messageEnabled },
+        });
+      }
     } catch (error) {
       console.error("Error loading notifications:", error);
       Alert.alert("Error", "Failed to load notifications");

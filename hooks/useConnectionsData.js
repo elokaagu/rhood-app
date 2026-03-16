@@ -6,6 +6,7 @@ import { Animated, RefreshControl } from "react-native";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { LIST_PERFORMANCE, CONNECTIONS_LIST_PERFORMANCE } from "../lib/performanceConstants";
+import { SCREEN_CACHE_STALE_MS } from "../lib/cacheConstants";
 import {
   normalizeConnectionStatus,
   isAcceptedConnectionStatus,
@@ -17,9 +18,12 @@ import ConnectionListItem from "../components/ConnectionListItem";
 import CommunityListItem from "../components/CommunityListItem";
 import styles from "../components/ConnectionsScreen.styles";
 
-const STALE_MS = 60 * 1000;
+const STALE_MS = SCREEN_CACHE_STALE_MS;
 const PERIODIC_REFRESH_INTERVAL_MS = 30 * 1000;
 const REALTIME_DEBOUNCE_MS = 600;
+
+// Cache connections data by userId so revisiting the tab doesn't refetch every time (screen unmounts when switching tabs)
+const connectionsCacheByUser = {};
 
 export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoaders, modalCtx) {
   const [user, setUser] = useState(() =>
@@ -83,6 +87,38 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
 
   const checkRhoodMembership = useCallback(() => loadUserCommunities(), [loadUserCommunities]);
 
+  // If we have cached data for this user that's not stale, hydrate state and return true so caller can skip refetch.
+  const hydrateFromCacheIfAvailable = useCallback((userId) => {
+    if (!userId) return false;
+    const cached = connectionsCacheByUser[userId];
+    if (!cached || !cached.connections || !Number.isFinite(cached.lastLoadedAt)) return false;
+    if (Date.now() - cached.lastLoadedAt > STALE_MS) return false;
+    setUser((prev) => prev?.id === userId ? prev : cached.user || prev);
+    setConnections(cached.connections);
+    setLastMessages(cached.lastMessages || {});
+    setCommunitiesData(cached.communitiesData || { userCommunities: [], communityMessages: {}, communityUnreadCounts: {}, rhoodGroupData: null, isRhoodMember: false, rhoodMemberCount: 0, latestGroupMessage: null, unreadGroupCount: 0 });
+    setLoading(false);
+    setHasLoadedConnections(true);
+    setConnectionsLoadError(null);
+    lastLoadedAtRef.current = cached.lastLoadedAt;
+    Animated.timing(connectionsFadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    return true;
+  }, [connectionsFadeAnim]);
+
+  // Persist to cache after successful load so next time we open the tab we can show cached data.
+  const writeCache = useCallback(() => {
+    const uid = connectionsLoaderCtxRef.current?.user?.id || connectionsLoaderCtxRef.current?.propUser?.id;
+    if (!uid) return;
+    connectionsCacheByUser[uid] = {
+      userId: uid,
+      user: connectionsLoaderCtxRef.current.user,
+      connections,
+      lastMessages,
+      communitiesData,
+      lastLoadedAt: lastLoadedAtRef.current,
+    };
+  }, [connections, lastMessages, communitiesData]);
+
   const loadLastMessagesForConnections = useCallback(async (userId) => {
     try {
       const data = await db.getLastMessagesForAllConnections(userId);
@@ -92,6 +128,11 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
       setLastMessages({});
     }
   }, []);
+
+  // After a successful load, write to cache so revisiting the tab can show cached data without refetch.
+  useEffect(() => {
+    if (user?.id && hasLoadedConnections) writeCache();
+  }, [user?.id, hasLoadedConnections, connections, lastMessages, communitiesData, writeCache]);
 
   useEffect(() => {
     if (activeTab !== "connections" || !user?.id) return;
@@ -312,6 +353,7 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
     loadUserCommunities,
     loadLastMessagesForConnections,
     checkRhoodMembership,
+    hydrateFromCacheIfAvailable,
     handleRefresh,
     filteredConnections,
     connectionsWithMessages,

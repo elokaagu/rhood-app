@@ -66,6 +66,7 @@ import ProgressiveImage from "./components/ProgressiveImage";
 import EditProfileScreen from "./components/EditProfileScreen";
 import AuthGate from "./components/AuthGate";
 import { db, auth, supabase } from "./lib/supabase";
+import { clearScreenCachesForUser } from "./lib/screenCache";
 import { APPLICATION_LIMITS } from "./lib/performanceConstants";
 import {
   ANIMATION_DURATION,
@@ -1297,6 +1298,7 @@ export default function App() {
       await track(AnalyticsEvents.USER_LOGGED_OUT);
       await resetAnalyticsUser();
       await auth.signOut();
+      clearScreenCachesForUser(user?.id);
       setUser(null);
       setShowAuth(true);
       setAuthMode("login");

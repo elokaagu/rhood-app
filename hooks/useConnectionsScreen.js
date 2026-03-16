@@ -77,6 +77,15 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
 
   useEffect(() => {
     const initializeData = async () => {
+      const userId = propUser?.id;
+      // If we have cached connections from a recent visit (< 60s), show them immediately and skip refetch.
+      if (userId && connectionsData.hydrateFromCacheIfAvailable(userId)) {
+        discoverData.loadDiscoverDJs().catch(() => {});
+        discoverData.loadPopularDJs().catch(() => {});
+        discoverData.loadNearbyDJs().catch(() => {});
+        discoverData.loadNearbyOpportunities().catch(() => {});
+        return;
+      }
       const connectionsPromise = connectionsData.loadUserAndConnections({ showLoader: true, deferLoadingEnd: true }).then(async () => {
         await connectionsData.checkRhoodMembership();
         connectionsData.setLoading(false);

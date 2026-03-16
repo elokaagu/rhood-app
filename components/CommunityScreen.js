@@ -13,6 +13,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import { connectionsService } from "../lib/connectionsService";
+import { createScreenCache } from "../lib/screenCache";
+
+const COMMUNITY_CACHE_KEY = "list";
+const communityCache = createScreenCache("community");
 
 // All community data comes from database
 
@@ -29,6 +33,7 @@ export default function CommunityScreen({ onNavigate }) {
       setLoading(true);
       const communitiesData = await connectionsService.getAllCommunities();
       setCommunities(communitiesData);
+      communityCache.set(COMMUNITY_CACHE_KEY, { communities: communitiesData });
     } catch (error) {
       console.error("Error loading communities:", error);
       // Show empty state instead of mock data
@@ -38,8 +43,14 @@ export default function CommunityScreen({ onNavigate }) {
     }
   };
 
-  // Load communities on component mount
+  // Load communities on component mount (use cache if fresh)
   useEffect(() => {
+    const cached = communityCache.getIfFresh(COMMUNITY_CACHE_KEY);
+    if (cached && Array.isArray(cached.communities)) {
+      setCommunities(cached.communities);
+      setLoading(false);
+      return;
+    }
     loadCommunities();
   }, []);
 

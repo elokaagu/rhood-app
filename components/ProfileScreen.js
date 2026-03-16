@@ -23,6 +23,7 @@ import AnimatedListItem from "./AnimatedListItem";
 import { SkeletonProfile, SkeletonMix } from "./Skeleton";
 import { generateGenreWaveform } from "../lib/audioWaveform";
 import { HapticPatterns } from "../lib/haptics";
+import { createScreenCache } from "../lib/screenCache";
 
 // Default profile structure - all data comes from database
 const defaultProfile = {
@@ -35,6 +36,8 @@ const defaultProfile = {
     audioUrl: require("../assets/audio/unique-original-mix.mp3"),
   },
 };
+
+const profileCache = createScreenCache("profile");
 
 export default function ProfileScreen({
   onNavigate,
@@ -165,7 +168,22 @@ export default function ProfileScreen({
 
   // Load user profile from database and set up real-time subscription
   useEffect(() => {
-    loadProfile();
+    const userId = user?.id;
+    if (userId) {
+      const cached = profileCacheByUser[userId];
+      if (cached?.profile && Number.isFinite(cached.lastLoadedAt) && Date.now() - cached.lastLoadedAt <= STALE_MS) {
+        setProfile(cached.profile);
+        setConnectionsCount(cached.connectionsCount ?? 0);
+        setInviteCode(cached.inviteCode ?? null);
+        setReferralStats(cached.referralStats ?? { totalReferrals: 0, totalCreditsEarned: 0 });
+        setLoading(false);
+        // Still set up real-time subscription below
+      } else {
+        loadProfile();
+      }
+    } else {
+      loadProfile();
+    }
 
     // Set up real-time subscription for profile updates
     if (!user?.id) return;
@@ -522,7 +540,7 @@ export default function ProfileScreen({
           return "DJ";
         };
 
-        setProfile({
+        const profileData = {
           id: userProfile.id,
           name: getDisplayName(),
           username: userProfile.username
@@ -553,6 +571,13 @@ export default function ProfileScreen({
           recentGigs: recentGigs,
           achievements: achievements,
           achievementsStats: achievementsStats,
+        };
+        setProfile(profileData);
+        profileCache.set(user.id, {
+          profile: profileData,
+          connectionsCount: connections,
+          inviteCode: userInviteCode,
+          referralStats: userReferralStats,
         });
         console.log("✅ Profile loaded from database");
         console.log(
