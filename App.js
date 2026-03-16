@@ -178,7 +178,7 @@ export default function App() {
   // Use the actual font family name "TS Block Bold" (not PostScript name)
   // This matches the internal font name from the TTF file
   const [fontsLoaded, fontError] = useFonts({
-    "TS Block Bold": require("./assets/TS Block Bold.ttf"),
+    "TS Block Bold": require("assets/TS Block Bold.ttf"),
   });
 
   // Log font status (but don't block app if it fails)
@@ -338,10 +338,19 @@ export default function App() {
 
   // Global audio instance reference for cleanup
   const globalAudioRef = useRef(null);
-  
+  const progressPollIntervalRef = useRef(null);
+
   // Guards to prevent duplicate calls
   const isPlayingAudioRef = useRef(false);
   const trackFinishedRef = useRef(false);
+  const isScrubbingRef = useRef(false);
+
+  const clearProgressPoll = useCallback(() => {
+    if (progressPollIntervalRef.current) {
+      clearInterval(progressPollIntervalRef.current);
+      progressPollIntervalRef.current = null;
+    }
+  }, []);
 
   // Refs to store latest functions for background service callbacks
   const playNextTrackRef = useRef(null);
@@ -518,12 +527,13 @@ export default function App() {
     return () => {
       linkingSubscription?.remove();
       appStateSubscription?.remove();
+      clearProgressPoll();
       if (globalAudioRef.current) {
         globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       }
     };
-  }, []);
+  }, [clearProgressPoll]);
 
   // Load notification counts when user changes
   useEffect(() => {
@@ -1709,6 +1719,7 @@ export default function App() {
         console.warn("⚠️ TrackPlayer not available on iOS, using expo-av fallback");
       }
       // Stop current audio if playing
+      clearProgressPoll();
       if (globalAudioRef.current) {
         await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
@@ -1830,49 +1841,20 @@ export default function App() {
 
       // Set up status update listener
       let durationUpdated = false; // Track if we've updated duration in DB
-      sound.setOnPlaybackStatusUpdate(async (status) => {
-        if (status.isLoaded) {
-          // Check if track has finished playing (more robust detection)
-          const hasFinished =
-            status.didJustFinish ||
-            (status.positionMillis >= status.durationMillis - 50 && // Reduced threshold
-              status.durationMillis > 0 &&
-              !isScrubbing && // Don't trigger during scrubbing
-              !status.isPlaying); // Only if actually stopped playing
-
-          if (hasFinished && !trackFinishedRef.current) {
-            trackFinishedRef.current = true; // Mark as finished to prevent duplicate calls
-            console.log("🎵 Track finished, checking for next track in queue");
-
-            // Get current queue state
-            setGlobalAudioState((prev) => {
-              // Play next track if available (or auto-queue random mix)
-              setTimeout(async () => {
-                await playNextTrack();
-              }, 100); // Small delay to ensure state is updated
-
-              return {
+      sound.setOnPlaybackStatusUpdate((status) => {
+        try {
+          if (status.isLoaded) {
+            // Always push position/duration to state first so UI never stalls (expo-av callbacks can be unreliable)
+            if (status.durationMillis > 0 && !isScrubbingRef.current) {
+              setGlobalAudioState((prev) => ({
                 ...prev,
-                isPlaying: false,
+                isPlaying: status.isPlaying,
                 isLoading: false,
-                progress: 1, // Set to 100% when finished
-                positionMillis: status.durationMillis || 0,
+                progress: (status.positionMillis || 0) / status.durationMillis,
+                positionMillis: status.positionMillis || 0,
                 durationMillis: status.durationMillis || 0,
-              };
-            });
-
-            return; // Exit early since we're handling the finished state
-          }
-
-          setGlobalAudioState((prev) => {
-            const newState = {
-              ...prev,
-              isPlaying: status.isPlaying,
-              isLoading: false,
-              progress: status.durationMillis ? (status.positionMillis || 0) / status.durationMillis : 0,
-              positionMillis: status.positionMillis || 0,
-              durationMillis: status.durationMillis || 0,
-            };
+              }));
+            }
             if (Platform.OS === "android") {
               lockScreenControls.updatePlaybackState(
                 status.isPlaying,
@@ -1880,51 +1862,84 @@ export default function App() {
                 status.durationMillis || 0
               );
             }
-            return newState;
-          });
 
-          // Update duration in database if not already set and we have the duration
-          if (
-            !durationUpdated &&
-            status.durationMillis &&
-            status.durationMillis > 0 &&
-            track.id
-          ) {
-            durationUpdated = true;
-            const durationInSeconds = Math.floor(status.durationMillis / 1000);
+            // Check if track has finished playing
+            const hasFinished =
+              status.didJustFinish ||
+              (status.positionMillis >= status.durationMillis - 50 &&
+                status.durationMillis > 0 &&
+                !isScrubbingRef.current &&
+                !status.isPlaying);
 
-            try {
-              const { error } = await supabase
+            if (hasFinished && !trackFinishedRef.current) {
+              trackFinishedRef.current = true;
+              console.log("🎵 Track finished, checking for next track in queue");
+              setGlobalAudioState((prev) => {
+                setTimeout(async () => { await playNextTrack(); }, 100);
+                return {
+                  ...prev,
+                  isPlaying: false,
+                  isLoading: false,
+                  progress: 1,
+                  positionMillis: status.durationMillis || 0,
+                  durationMillis: status.durationMillis || 0,
+                };
+              });
+              return;
+            }
+
+            // Update duration in DB once (async, don't block)
+            if (!durationUpdated && status.durationMillis > 0 && track.id) {
+              durationUpdated = true;
+              const durationInSeconds = Math.floor(status.durationMillis / 1000);
+              supabase
                 .from("mixes")
                 .update({ duration: durationInSeconds })
                 .eq("id", track.id)
-                .is("duration", null); // Only update if duration is null
-
-              if (error) {
-                console.error("❌ Error updating duration:", error);
-              } else {
-                console.log(
-                  `✅ Updated duration for "${track.title}": ${durationInSeconds}s`
-                );
-              }
-            } catch (err) {
-              console.error("❌ Failed to update duration:", err);
+                .is("duration", null)
+                .then(({ error }) => {
+                  if (error) console.error("❌ Error updating duration:", error);
+                })
+                .catch(() => {});
             }
+          } else if (status.error) {
+            setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
           }
-        } else if (status.error) {
-          console.error("❌ Audio error:", status.error);
-          setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
+        } catch (err) {
+          if (__DEV__) console.warn("Playback status callback error:", err?.message);
         }
       });
 
       // Store reference for cleanup
       globalAudioRef.current = sound;
 
+      // Progress poll: primary sync for UI (expo-av status callback can be unreliable, especially on Android)
+      clearProgressPoll();
+      const runProgressPoll = async () => {
+        if (!globalAudioRef.current || isScrubbingRef.current) return;
+        try {
+          const s = await globalAudioRef.current.getStatusAsync();
+          if (s?.isLoaded && s?.durationMillis > 0) {
+            setGlobalAudioState((prev) => ({
+              ...prev,
+              positionMillis: s.positionMillis ?? 0,
+              durationMillis: s.durationMillis ?? 0,
+              progress: (s.positionMillis ?? 0) / s.durationMillis,
+            }));
+          }
+        } catch (_) {}
+      };
+      runProgressPoll(); // immediate first update
+      progressPollIntervalRef.current = setInterval(runProgressPoll, 500);
+
       // Start playing
       console.log("▶️ Starting playback...");
       try {
         await sound.playAsync();
         console.log("✅ Playback started successfully");
+        try {
+          await sound.setProgressUpdateIntervalAsync(500);
+        } catch (_) {}
       } catch (playError) {
         console.error("❌ Playback failed:", playError);
         console.error("❌ Playback error details:", {
@@ -2337,6 +2352,7 @@ export default function App() {
       }
 
       // Android: Use expo-av
+      clearProgressPoll();
       if (globalAudioRef.current) {
         await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
@@ -2628,6 +2644,7 @@ export default function App() {
     }
 
     try {
+      isScrubbingRef.current = true;
       console.log(`🎯 Attempting to seek to ${positionMillis}ms`);
 
       // Ensure the audio is loaded before seeking
@@ -2636,20 +2653,21 @@ export default function App() {
 
       if (status.isLoaded && status.durationMillis > 0) {
         // Ensure position doesn't exceed duration and leave buffer to prevent finished trigger
-        const maxSeekPosition = status.durationMillis - 100; // Leave 100ms buffer
-        const clampedPosition = Math.min(positionMillis, maxSeekPosition);
+        const maxSeekPosition = Math.max(0, status.durationMillis - 100); // Leave 100ms buffer
+        const clampedPosition = Math.min(Math.max(0, positionMillis), maxSeekPosition);
 
-        // Check if we're already close to this position
+        // Skip only if we're within 50ms (was 100ms) so user scrubs aren't ignored
         const currentPosition = status.positionMillis || 0;
         const positionDiff = Math.abs(clampedPosition - currentPosition);
-
-        if (positionDiff < 100) {
+        if (positionDiff < 50) {
+          isScrubbingRef.current = false;
           return;
         }
 
         // Don't seek if audio is in a critical state (loading, buffering, etc.)
         if (status.isBuffering || status.isLoading) {
           console.log(`⏭️ Skipping seek - audio is buffering/loading`);
+          isScrubbingRef.current = false;
           return;
         }
 
@@ -2660,7 +2678,7 @@ export default function App() {
         setGlobalAudioState((prev) => ({
           ...prev,
           positionMillis: clampedPosition,
-          progress: clampedPosition / status.durationMillis,
+          progress: status.durationMillis ? clampedPosition / status.durationMillis : 0,
         }));
       } else {
         console.error(
@@ -2673,9 +2691,11 @@ export default function App() {
         console.warn(
           "⚠️ Seek was interrupted - this is normal during rapid scrubbing"
         );
-        return;
+      } else {
+        console.error("❌ Error seeking:", error);
       }
-      console.error("❌ Error seeking:", error);
+    } finally {
+      isScrubbingRef.current = false;
     }
   };
 

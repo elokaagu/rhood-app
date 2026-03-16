@@ -254,6 +254,7 @@ export default function SwipeableOpportunityCard({
       ]}
       {...panResponder.panHandlers}
     >
+      <View style={styles.cardShadow}>
       {/* Large featured image */}
       <View style={styles.imageContainer}>
         <Image
@@ -310,29 +311,32 @@ export default function SwipeableOpportunityCard({
           },
         ]}
       />
+      </View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 16,
     marginHorizontal: 0,
     marginVertical: 0,
+    overflow: "hidden",
+    height: 400,
+    width: "100%",
+  },
+  cardShadow: {
+    flex: 1,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
     overflow: "hidden",
-    height: 400, // Fixed height instead of flex: 1
-    width: "100%", // Ensure full width
   },
   imageContainer: {
     position: "relative",

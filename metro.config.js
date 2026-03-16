@@ -2,6 +2,7 @@ const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
 
 const config = getDefaultConfig(__dirname);
+const projectRoot = __dirname;
 
 // Disable New Architecture support for now
 // config.resolver.unstable_enablePackageExports = true;
@@ -9,6 +10,12 @@ const config = getDefaultConfig(__dirname);
 // Fix asset path resolution to handle URL-encoded paths
 config.resolver.sourceExts = [...(config.resolver.sourceExts || []), "jsx", "js", "ts", "tsx"];
 config.resolver.assetExts = config.resolver.assetExts.filter(ext => ext !== "svg");
+
+// Alias "assets" -> project assets folder so require("assets/...") avoids "./" (which can become .%2F in URLs and cause ENOENT)
+config.resolver.extraNodeModules = {
+  ...config.resolver.extraNodeModules,
+  assets: path.join(projectRoot, "assets"),
+};
 
 // Ensure proper asset directory resolution
 config.watchFolders = [path.resolve(__dirname)];
