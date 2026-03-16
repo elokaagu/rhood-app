@@ -9,6 +9,8 @@ import { HapticPatterns } from "../lib/haptics";
  */
 export function useListenPlaylists(user) {
   const [playlists, setPlaylists] = useState([]);
+  const [playlistsLoading, setPlaylistsLoading] = useState(false);
+  const [playlistsError, setPlaylistsError] = useState(null);
   const [showSaveToPlaylistModal, setShowSaveToPlaylistModal] = useState(false);
   const [selectedMixForPlaylist, setSelectedMixForPlaylist] = useState(null);
   const [newPlaylistName, setNewPlaylistName] = useState("");
@@ -17,9 +19,12 @@ export function useListenPlaylists(user) {
   const fetchPlaylists = useCallback(async () => {
     if (!user?.id) {
       setPlaylists([]);
+      setPlaylistsError(null);
       return;
     }
 
+    setPlaylistsLoading(true);
+    setPlaylistsError(null);
     try {
       const { data, error } = await supabase
         .from("playlists")
@@ -65,9 +70,13 @@ export function useListenPlaylists(user) {
       }));
 
       setPlaylists(playlistsWithCounts);
+      setPlaylistsError(null);
     } catch (error) {
       console.error("❌ Error fetching playlists:", error);
+      setPlaylistsError(error?.message || "Failed to load playlists");
       setPlaylists([]);
+    } finally {
+      setPlaylistsLoading(false);
     }
   }, [user?.id]);
 
@@ -183,6 +192,8 @@ export function useListenPlaylists(user) {
 
   return {
     playlists,
+    playlistsLoading,
+    playlistsError,
     fetchPlaylists,
     showSaveToPlaylistModal,
     setShowSaveToPlaylistModal,
