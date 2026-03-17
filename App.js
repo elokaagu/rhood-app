@@ -207,6 +207,16 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [isFirstTime, setIsFirstTime] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Fast-start: skip custom splash for returning users so the app feels like a warm resume
+  const HAS_COMPLETED_SPLASH_KEY = "hasCompletedSplashOnce";
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(HAS_COMPLETED_SPLASH_KEY).then((value) => {
+      if (!cancelled && value === "true") setShowSplash(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [currentScreen, setCurrentScreen] = useState("opportunities");
   const [screenParams, setScreenParams] = useState({});
 
@@ -1174,25 +1184,20 @@ export default function App() {
   };
 
   const handleSplashFinish = () => {
-    console.log("🎬 App: Splash screen finished, starting transition");
-    // Show black overlay and fade it in
+    // Persist so next cold start skips splash (fast-start / warm-resume feel)
+    AsyncStorage.setItem(HAS_COMPLETED_SPLASH_KEY, "true");
     setShowFadeOverlay(true);
     Animated.timing(fadeOverlayAnim, {
       toValue: 1,
-      duration: 800,
+      duration: 400,
       useNativeDriver: true,
     }).start(() => {
-      console.log("🎬 App: Black overlay complete, hiding splash screen");
-      // Hide splash screen after black overlay is complete
       setShowSplash(false);
-      // Fade out the black overlay to reveal main app
       Animated.timing(fadeOverlayAnim, {
         toValue: 0,
-        duration: 600,
+        duration: 300,
         useNativeDriver: true,
       }).start(() => {
-        console.log("🎬 App: Transition complete, showing main app");
-        // Hide overlay after fade out completes
         setShowFadeOverlay(false);
       });
     });

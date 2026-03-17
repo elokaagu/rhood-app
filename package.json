@@ -11,7 +11,9 @@
     "web": "expo start --web",
     "backend:dev": "nodemon backend/index.js",
     "backend:start": "node backend/index.js",
-    "build:kb": "node scripts/build-kb.js"
+    "build:kb": "node scripts/build-kb.js",
+    "eas:build": "npx eas-cli@18 build",
+    "eas:submit": "npx eas-cli@18 submit"
   },
   "keywords": [
     "expo",

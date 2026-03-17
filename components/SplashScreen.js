@@ -69,18 +69,16 @@ const SplashScreen = ({ onFinish }) => {
     // Start rotation after a short delay
     setTimeout(startRotation, 500);
 
-    // Auto-hide splash screen after 4 seconds
+    // First-time splash: short and polished (2.2s then fade out)
     const timer = setTimeout(() => {
-      console.log("🎬 SplashScreen: Starting fade out animation");
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 600,
+        duration: 500,
         useNativeDriver: true,
       }).start(() => {
-        console.log("🎬 SplashScreen: Fade out complete, calling onFinish");
         if (onFinish) onFinish();
       });
-    }, 4000);
+    }, 2200);
 
     return () => {
       clearTimeout(timer);
