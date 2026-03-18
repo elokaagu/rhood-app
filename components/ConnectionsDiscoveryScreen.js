@@ -1,395 +1,492 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, {
+  memo,
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   TextInput,
   RefreshControl,
-  Image,
   Alert,
+  FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import ConnectionsScreen from "./ConnectionsScreen";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase } from "../lib/supabase";
 
-// All DJ data comes from database
+const GENRE_ICON_MAP = {
+  house: "home",
+  techno: "pulse",
+  "drum & bass": "musical-notes",
+  progressive: "trending-up",
+  trance: "flash",
+  "afro house": "globe",
+  electronic: "hardware-chip",
+};
+
+const getGenreIcon = (genre = "") =>
+  GENRE_ICON_MAP[String(genre).toLowerCase()] || "musical-notes";
+
+function useDebouncedValue(value, delay = 200) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
+
+function ConnectionsTabSwitcher({ activeTab, onDiscover, onMessages }) {
+  return (
+    <View style={styles.tabSwitcher}>
+      <TouchableOpacity
+        style={[
+          styles.tabSwitcherButton,
+          activeTab === "discover" && styles.tabSwitcherButtonActive,
+        ]}
+        onPress={onDiscover}
+        accessibilityRole="button"
+        accessibilityLabel="Discover DJs"
+        accessibilityState={{ selected: activeTab === "discover" }}
+      >
+        <Ionicons
+          name="compass"
+          size={16}
+          color={
+            activeTab === "discover"
+              ? "hsl(0, 0%, 0%)"
+              : "hsl(0, 0%, 70%)"
+          }
+        />
+        <Text
+          style={[
+            styles.tabSwitcherText,
+            activeTab === "discover" && styles.tabSwitcherTextActive,
+          ]}
+        >
+          Discover
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.tabSwitcherButton,
+          activeTab === "messages" && styles.tabSwitcherButtonActive,
+        ]}
+        onPress={onMessages}
+        accessibilityRole="button"
+        accessibilityLabel="Messages"
+        accessibilityState={{ selected: activeTab === "messages" }}
+      >
+        <Ionicons
+          name="chatbubbles-outline"
+          size={16}
+          color={
+            activeTab === "messages"
+              ? "hsl(0, 0%, 0%)"
+              : "hsl(0, 0%, 70%)"
+          }
+        />
+        <Text
+          style={[
+            styles.tabSwitcherText,
+            activeTab === "messages" && styles.tabSwitcherTextActive,
+          ]}
+        >
+          Messages
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function ConnectionsDiscoveryChrome({
+  subtitle,
+  activeTab,
+  onDiscoverTab,
+  onMessagesTab,
+  children,
+}) {
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerTop}>
+        <Text
+          style={styles.tsBlockBoldHeading}
+          accessibilityRole="header"
+        >
+          CONNECTIONS
+        </Text>
+      </View>
+      <Text style={styles.headerSubtitle}>{subtitle}</Text>
+      <ConnectionsTabSwitcher
+        activeTab={activeTab}
+        onDiscover={onDiscoverTab}
+        onMessages={onMessagesTab}
+      />
+      {children}
+    </View>
+  );
+}
+
+const DJCard = memo(function DJCard({ dj, onConnect, onViewProfile }) {
+  const handleConnectPress = useCallback(() => {
+    onConnect(dj.id);
+  }, [onConnect, dj.id]);
+
+  const handleViewPress = useCallback(() => {
+    onViewProfile(dj.id, dj.dj_name || dj.full_name || "");
+  }, [onViewProfile, dj.id, dj.dj_name, dj.full_name]);
+
+  const username =
+    dj.dj_name?.toLowerCase().replace(/\s+/g, "") || "dj";
+  const genres = dj.genres || ["Electronic"];
+
+  return (
+    <View style={styles.djCard}>
+      <View style={styles.djHeader}>
+        <View style={styles.djInfo}>
+          <ProgressiveImage
+            source={
+              dj.profile_image_url ? { uri: dj.profile_image_url } : null
+            }
+            style={styles.djAvatar}
+            placeholder={
+              <View style={[styles.djAvatar, styles.avatarPlaceholder]}>
+                <Ionicons name="person" size={24} color="hsl(0, 0%, 50%)" />
+              </View>
+            }
+          />
+          <View style={styles.djDetails}>
+            <View style={styles.djNameRow}>
+              <Text style={styles.djName}>
+                {dj.dj_name || dj.full_name}
+              </Text>
+              <View style={styles.onlineIndicator} />
+            </View>
+            <Text style={styles.djUsername}>@{username}</Text>
+            <Text style={styles.djLocation}>{dj.city}</Text>
+          </View>
+        </View>
+        <View style={styles.djActions}>
+          <Text style={styles.lastActive}>Recently active</Text>
+        </View>
+      </View>
+
+      <Text style={styles.djBio}>
+        {dj.bio || "Electronic music producer and DJ"}
+      </Text>
+
+      <View style={styles.genresContainer}>
+        {genres.map((genre, index) => (
+          <View
+            key={`${dj.id}-${genre}-${index}`}
+            style={styles.genreTag}
+          >
+            <Ionicons
+              name={getGenreIcon(genre)}
+              size={12}
+              color="hsl(75, 100%, 60%)"
+              style={styles.genreIcon}
+            />
+            <Text style={styles.genreText}>{genre}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={styles.viewProfileButton}
+          onPress={handleViewPress}
+          accessibilityRole="button"
+          accessibilityLabel={`View profile of ${dj.dj_name || dj.full_name || "DJ"}`}
+        >
+          <Ionicons
+            name="person-outline"
+            size={16}
+            color="hsl(0, 0%, 100%)"
+          />
+          <Text style={styles.viewProfileText}>View Profile</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.connectButton,
+            dj.isConnected && styles.connectButtonDisabled,
+          ]}
+          onPress={handleConnectPress}
+          disabled={dj.isConnected}
+          accessibilityRole="button"
+          accessibilityLabel={
+            dj.isConnected
+              ? "Already connected"
+              : `Connect with ${dj.dj_name || dj.full_name || "DJ"}`
+          }
+        >
+          <Ionicons
+            name={dj.isConnected ? "checkmark" : "add"}
+            size={16}
+            color={dj.isConnected ? "hsl(0, 0%, 50%)" : "hsl(0, 0%, 0%)"}
+          />
+          <Text
+            style={[
+              styles.connectText,
+              dj.isConnected && styles.connectTextDisabled,
+            ]}
+          >
+            {dj.isConnected ? "Connected" : "Connect"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
 
 export default function ConnectionsDiscoveryScreen({ onNavigate }) {
   const [djs, setDjs] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState("discover"); // discover, messages
+  const [activeTab, setActiveTab] = useState("discover");
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
 
-  // Load user and recommended DJs on mount
-  useEffect(() => {
-    loadUserAndRecommendedDJs();
-  }, []);
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 200);
 
-  const loadUserAndRecommendedDJs = async () => {
+  const loadUserAndRecommendedDJs = useCallback(async (options = {}) => {
+    const isRefresh = options.isRefresh === true;
     try {
-      setLoading(true);
+      if (!isRefresh) setLoading(true);
 
-      // Get current user - try both getUser and getSession for better reliability
-      let currentUser = null;
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      // Add a small delay to ensure auth state is fully initialized
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      try {
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-        if (userError) {
-          console.log("getUser error:", userError);
-        } else {
-          currentUser = user;
-        }
-      } catch (getUserError) {
-        console.log("getUser failed:", getUserError);
-      }
-
-      // If getUser didn't work, try getSession
-      if (!currentUser) {
-        try {
-          const {
-            data: { session },
-            error: sessionError,
-          } = await supabase.auth.getSession();
-          if (sessionError) {
-            console.log("getSession error:", sessionError);
-          } else if (session?.user) {
-            currentUser = session.user;
-          }
-        } catch (getSessionError) {
-          console.log("getSession failed:", getSessionError);
-        }
-      }
-
-      if (!currentUser) {
-        console.log("❌ No user found - user might not be authenticated");
+      if (sessionError || !session?.user) {
         Alert.alert("Error", "Please log in to discover connections");
+        setDjs([]);
+        setUser(null);
         return;
       }
 
-      console.log("✅ User found:", currentUser.id);
-      setUser(currentUser);
+      setUser(session.user);
 
-      // Get recommended users to follow
-      const recommended = await connectionsService.getRecommendedUsers(20);
-      setDjs(recommended);
+      const recommended = await connectionsService.getRecommendedUsers(
+        20,
+        session.user.id
+      );
+      const normalized = recommended.map((dj) => ({
+        ...dj,
+        _searchBlob: [
+          dj.dj_name,
+          dj.full_name,
+          dj.city,
+          ...(dj.genres || []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase(),
+      }));
+
+      setDjs(normalized);
     } catch (error) {
       console.error("Error loading recommended DJs:", error);
-      Alert.alert("Error", "Failed to load recommended DJs");
-      // No fallback to mock data - show empty state
-      setDjs([]);
+      if (isRefresh) {
+        Alert.alert(
+          "Couldn't refresh",
+          "Check your connection and pull to try again."
+        );
+      } else {
+        Alert.alert("Error", "Failed to load recommended DJs");
+        setDjs([]);
+      }
     } finally {
-      setLoading(false);
+      if (!isRefresh) setLoading(false);
     }
-  };
+  }, []);
 
-  const handleRefresh = async () => {
+  useEffect(() => {
+    loadUserAndRecommendedDJs();
+  }, [loadUserAndRecommendedDJs]);
+
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadUserAndRecommendedDJs();
-    setRefreshing(false);
-  };
+    try {
+      await loadUserAndRecommendedDJs({ isRefresh: true });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadUserAndRecommendedDJs]);
 
   const filteredDJs = useMemo(() => {
-    let filtered = djs; // Show all recommended DJs
+    const query = debouncedSearchQuery.trim().toLowerCase();
+    if (!query) return djs;
+    return djs.filter((dj) => dj._searchBlob?.includes(query));
+  }, [djs, debouncedSearchQuery]);
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (dj) =>
-          dj.dj_name?.toLowerCase().includes(query) ||
-          dj.full_name?.toLowerCase().includes(query) ||
-          dj.city?.toLowerCase().includes(query) ||
-          dj.genres?.some((genre) => genre.toLowerCase().includes(query))
-      );
-    }
-
-    return filtered;
-  }, [djs, searchQuery]);
-
-  const handleConnect = async (djId) => {
+  const handleConnect = useCallback(async (djId) => {
     try {
-      await connectionsService.followUser(djId);
-
-      // Update local state to show as connected
       setDjs((prev) =>
-        prev.map((dj) => (dj.id === djId ? { ...dj, isConnected: true } : dj))
+        prev.map((dj) =>
+          dj.id === djId ? { ...dj, isConnected: true } : dj
+        )
       );
-
-      Alert.alert("Success", "You're now following this DJ!");
+      await connectionsService.followUser(djId);
     } catch (error) {
       console.error("Error following user:", error);
+      setDjs((prev) =>
+        prev.map((dj) =>
+          dj.id === djId ? { ...dj, isConnected: false } : dj
+        )
+      );
       Alert.alert("Error", "Failed to follow user");
     }
-  };
+  }, []);
 
-  const handleViewProfile = (dj) => {
-    onNavigate("profile", { djId: dj.id, djName: dj.name });
-  };
+  const handleViewProfile = useCallback(
+    (dj) => {
+      onNavigate("profile", {
+        djId: dj.id,
+        djName: dj.dj_name || dj.full_name,
+      });
+    },
+    [onNavigate]
+  );
 
-  const getGenreIcon = (genre) => {
-    switch (genre.toLowerCase()) {
-      case "house":
-        return "home";
-      case "techno":
-        return "pulse";
-      case "drum & bass":
-        return "musical-notes";
-      case "progressive":
-        return "trending-up";
-      case "trance":
-        return "flash";
-      case "afro house":
-        return "globe";
-      case "electronic":
-        return "hardware-chip";
-      default:
-        return "musical-notes";
+  const renderDJItem = useCallback(
+    ({ item }) => (
+      <DJCard
+        dj={item}
+        onConnect={handleConnect}
+        onViewProfile={handleViewProfile}
+      />
+    ),
+    [handleConnect, handleViewProfile]
+  );
+
+  const keyExtractor = useCallback(
+    (item) => String(item.id),
+    []
+  );
+
+  const navigateToMessages = useCallback(() => setActiveTab("messages"), []);
+  const navigateToDiscover = useCallback(() => setActiveTab("discover"), []);
+  const clearSearch = useCallback(() => setSearchQuery(""), []);
+
+  const messagesOnNavigate = useCallback(
+    (screen, params = {}) => {
+      onNavigate(screen, params);
+    },
+    [onNavigate]
+  );
+
+  const listHeader = useMemo(
+    () => (
+      <ConnectionsDiscoveryChrome
+        subtitle="Discover and connect with DJs worldwide"
+        activeTab="discover"
+        onDiscoverTab={navigateToDiscover}
+        onMessagesTab={navigateToMessages}
+      >
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search DJs..."
+            placeholderTextColor="hsl(0, 0%, 50%)"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+            accessibilityLabel="Search DJs"
+          />
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity
+              onPress={clearSearch}
+              style={styles.clearButton}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color="hsl(0, 0%, 50%)"
+              />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </ConnectionsDiscoveryChrome>
+    ),
+    [searchQuery, navigateToDiscover, navigateToMessages, clearSearch]
+  );
+
+  const listEmpty = useMemo(() => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
+        </View>
+      );
     }
-  };
+    return (
+      <View style={styles.noResultsContainer}>
+        <Ionicons
+          name="people-outline"
+          size={48}
+          color="hsl(0, 0%, 30%)"
+        />
+        <Text style={styles.noResultsTitle}>No DJs found</Text>
+        <Text style={styles.noResultsSubtitle}>
+          {searchQuery.trim()
+            ? `No results for "${searchQuery}"`
+            : "Try adjusting your filters"}
+        </Text>
+      </View>
+    );
+  }, [loading, searchQuery]);
+
+  if (activeTab === "messages") {
+    return (
+      <View style={styles.container}>
+        <ConnectionsDiscoveryChrome
+          subtitle="Your message conversations"
+          activeTab="messages"
+          onDiscoverTab={navigateToDiscover}
+          onMessagesTab={navigateToMessages}
+        />
+        <ConnectionsScreen user={user} onNavigate={messagesOnNavigate} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
+      <FlatList
+        data={filteredDJs}
+        keyExtractor={keyExtractor}
+        renderItem={renderDJItem}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        contentContainerStyle={
+          filteredDJs.length === 0
+            ? [styles.listContent, styles.listContentGrow]
+            : styles.listContent
+        }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Text style={styles.tsBlockBoldHeading}>CONNECTIONS</Text>
-          </View>
-          <Text style={styles.headerSubtitle}>
-            {activeTab === "discover"
-              ? "Discover and connect with DJs worldwide"
-              : "Your message conversations"}
-          </Text>
-
-          {/* Tab Switcher */}
-          <View style={styles.tabSwitcher}>
-            <TouchableOpacity
-              style={[
-                styles.tabSwitcherButton,
-                activeTab === "discover" && styles.tabSwitcherButtonActive,
-              ]}
-              onPress={() => setActiveTab("discover")}
-            >
-              <Ionicons
-                name="compass"
-                size={16}
-                color={
-                  activeTab === "discover"
-                    ? "hsl(0, 0%, 0%)"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabSwitcherText,
-                  activeTab === "discover" && styles.tabSwitcherTextActive,
-                ]}
-              >
-                Discover
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.tabSwitcherButton,
-                activeTab === "messages" && styles.tabSwitcherButtonActive,
-              ]}
-              onPress={() => setActiveTab("messages")}
-            >
-              <Ionicons
-                name="chatbubbles-outline"
-                size={16}
-                color={
-                  activeTab === "messages"
-                    ? "hsl(0, 0%, 0%)"
-                    : "hsl(0, 0%, 70%)"
-                }
-              />
-              <Text
-                style={[
-                  styles.tabSwitcherText,
-                  activeTab === "messages" && styles.tabSwitcherTextActive,
-                ]}
-              >
-                Messages
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {activeTab === "discover" && (
-            <>
-              {/* Search Bar */}
-              <View style={styles.searchContainer}>
-                <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search DJs..."
-                  placeholderTextColor="hsl(0, 0%, 50%)"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => setSearchQuery("")}
-                    style={styles.clearButton}
-                  >
-                    <Ionicons
-                      name="close-circle"
-                      size={20}
-                      color="hsl(0, 0%, 50%)"
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* Content based on active tab */}
-        {activeTab === "discover" ? (
-          /* DJs List */
-          <View style={styles.djsList}>
-            {filteredDJs.length === 0 ? (
-              <View style={styles.noResultsContainer}>
-                <Ionicons
-                  name="people-outline"
-                  size={48}
-                  color="hsl(0, 0%, 30%)"
-                />
-                <Text style={styles.noResultsTitle}>No DJs found</Text>
-                <Text style={styles.noResultsSubtitle}>
-                  {searchQuery.trim()
-                    ? `No results for "${searchQuery}"`
-                    : "Try adjusting your filters"}
-                </Text>
-              </View>
-            ) : (
-              filteredDJs.map((dj) => (
-                <View key={dj.id} style={styles.djCard}>
-                  {/* DJ Header */}
-                  <View style={styles.djHeader}>
-                    <View style={styles.djInfo}>
-                      <ProgressiveImage
-                        source={
-                          dj.profile_image_url
-                            ? { uri: dj.profile_image_url }
-                            : null
-                        }
-                        style={styles.djAvatar}
-                        placeholder={
-                          <View
-                            style={[
-                              styles.djAvatar,
-                              {
-                                backgroundColor: "hsl(0, 0%, 15%)",
-                                justifyContent: "center",
-                                alignItems: "center",
-                              },
-                            ]}
-                          >
-                            <Ionicons
-                              name="person"
-                              size={24}
-                              color="hsl(0, 0%, 50%)"
-                            />
-                          </View>
-                        }
-                      />
-                      <View style={styles.djDetails}>
-                        <View style={styles.djNameRow}>
-                          <Text style={styles.djName}>
-                            {dj.dj_name || dj.full_name}
-                          </Text>
-                          {/* For now, show all as online. In a real app, you'd track online status */}
-                          <View style={styles.onlineIndicator} />
-                        </View>
-                        <Text style={styles.djUsername}>
-                          @
-                          {dj.dj_name?.toLowerCase().replace(/\s+/g, "") ||
-                            "dj"}
-                        </Text>
-                        <Text style={styles.djLocation}>{dj.city}</Text>
-                        {/* Mutual connections would need to be calculated */}
-                      </View>
-                    </View>
-                    <View style={styles.djActions}>
-                      <Text style={styles.lastActive}>Recently active</Text>
-                    </View>
-                  </View>
-
-                  {/* DJ Bio */}
-                  <Text style={styles.djBio}>
-                    {dj.bio || "Electronic music producer and DJ"}
-                  </Text>
-
-                  {/* Genres */}
-                  <View style={styles.genresContainer}>
-                    {(dj.genres || ["Electronic"]).map((genre, index) => (
-                      <View key={index} style={styles.genreTag}>
-                        <Ionicons
-                          name={getGenreIcon(genre)}
-                          size={12}
-                          color="hsl(75, 100%, 60%)"
-                          style={styles.genreIcon}
-                        />
-                        <Text style={styles.genreText}>{genre}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* Action Buttons */}
-                  <View style={styles.actionButtons}>
-                    <TouchableOpacity
-                      style={styles.viewProfileButton}
-                      onPress={() => handleViewProfile(dj)}
-                    >
-                      <Ionicons
-                        name="person-outline"
-                        size={16}
-                        color="hsl(0, 0%, 100%)"
-                      />
-                      <Text style={styles.viewProfileText}>View Profile</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.connectButton}
-                      onPress={() => handleConnect(dj.id)}
-                    >
-                      <Ionicons name="add" size={16} color="hsl(0, 0%, 0%)" />
-                      <Text style={styles.connectText}>Connect</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
-        ) : (
-          /* Messages Section */
-          <ConnectionsScreen
-            user={user}
-            onNavigate={(screen, params = {}) => {
-              onNavigate(screen, params);
-            }}
-          />
-        )}
-      </ScrollView>
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews
+        keyboardShouldPersistTaps="handled"
+      />
     </View>
   );
 }
@@ -399,8 +496,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "hsl(0, 0%, 0%)",
   },
-  scrollView: {
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  listContentGrow: {
+    flexGrow: 1,
+  },
+  loadingContainer: {
     flex: 1,
+    minHeight: 200,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 48,
   },
   header: {
     padding: 20,
@@ -412,11 +520,11 @@ const styles = StyleSheet.create({
   tsBlockBoldHeading: {
     fontFamily: "TS Block Bold",
     fontSize: 22,
-    color: "#FFFFFF", // Brand white
-    textAlign: "left", // Left aligned as per guidelines
-    textTransform: "uppercase", // Always uppercase
-    lineHeight: 26, // Tight line height for stacked effect
-    letterSpacing: 1, // Slight spacing for impact
+    color: "#FFFFFF",
+    textAlign: "left",
+    textTransform: "uppercase",
+    lineHeight: 26,
+    letterSpacing: 1,
     marginBottom: 16,
   },
   headerSubtitle: {
@@ -477,10 +585,6 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: 4,
   },
-  djsList: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
   noResultsContainer: {
     flex: 1,
     justifyContent: "center",
@@ -502,6 +606,11 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
     textAlign: "center",
     lineHeight: 20,
+  },
+  avatarPlaceholder: {
+    backgroundColor: "hsl(0, 0%, 15%)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   djCard: {
     backgroundColor: "hsl(0, 0%, 8%)",
@@ -561,12 +670,6 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
     marginBottom: 4,
-  },
-  mutualConnections: {
-    fontSize: 11,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)",
-    fontWeight: "500",
   },
   djActions: {
     alignItems: "flex-end",
@@ -638,11 +741,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 12,
   },
+  connectButtonDisabled: {
+    backgroundColor: "hsl(0, 0%, 15%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 25%)",
+  },
   connectText: {
     fontSize: 14,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 0%)",
     marginLeft: 6,
     fontWeight: "600",
+  },
+  connectTextDisabled: {
+    color: "hsl(0, 0%, 50%)",
   },
 });

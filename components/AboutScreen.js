@@ -10,10 +10,7 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import {
-  COLORS,
-  TYPOGRAPHY,
   SPACING,
   RADIUS,
   sharedStyles,
@@ -31,14 +28,6 @@ export default function AboutScreen({ onBack }) {
     {
       title: "About R/HOOD",
       items: [
-        {
-          title: "Version",
-          value: "1.1.0",
-        },
-        {
-          title: "Build Date",
-          value: "October 10th, 2025",
-        },
         {
           title: "Platform",
           value: "iOS & Android",
@@ -166,7 +155,7 @@ export default function AboutScreen({ onBack }) {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerCopyright}>
-            © 2025 R/HOOD. All rights reserved.
+            © 2026 R/HOOD. All rights reserved.
           </Text>
         </View>
       </ScrollView>

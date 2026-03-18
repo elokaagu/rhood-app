@@ -15,6 +15,7 @@ import {
   PanResponder,
   StyleSheet,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
@@ -41,13 +42,12 @@ function GlobalAudioPlayerUI({
   const [queueVisible, setQueueVisible] = useState(false);
   const [scrubPositionMillis, setScrubPositionMillis] = useState(null);
   const lastOpenedTrackIdRef = useRef(null);
-  const progressBarWidthRef = useRef(0);
+  const progressBarRef = useRef(null);
+  const progressBarLayoutRef = useRef({ x: 0, width: 0 });
   const scrubPositionRef = useRef(null);
   const playPauseGuardRef = useRef(false);
-  const lastSeekAtRef = useRef(0);
 
   const s = stylesProp || {};
-  const SEEK_DEBOUNCE_MS = 350;
 
   // Resolved track: pending (tap) > context current > pending prop
   const track = currentTrackProp ?? state.currentTrack ?? pendingTrackProp;
@@ -119,51 +119,76 @@ function GlobalAudioPlayerUI({
     }
   }, [track]);
 
-  const durationMillis = state.durationMillis ?? 0;
+  // Use track metadata duration when player hasn't reported it yet (e.g. TrackPlayer getDuration() returns 0 while loading)
+  const trackDurationMs = track?.durationMillis ?? (track?.durationSeconds != null ? track.durationSeconds * 1000 : null);
+  const durationMillis = state.durationMillis ?? trackDurationMs ?? 0;
   const displayPositionMillis = scrubPositionMillis ?? state.positionMillis ?? 0;
   const rawProgress = durationMillis > 0 ? displayPositionMillis / durationMillis : 0;
   const displayProgress = Math.max(0, Math.min(1, rawProgress));
   const durationUnknown = !!track && durationMillis === 0;
   const canScrub = durationMillis > 0;
 
+  const updateScrubPosition = useCallback(
+    (pageX) => {
+      const { x, width } = progressBarLayoutRef.current;
+      if (width <= 0 || durationMillis <= 0) return null;
+      const relativeX = Math.max(0, Math.min(width, pageX - x));
+      const ratio = relativeX / width;
+      const pos = Math.round(ratio * durationMillis);
+      scrubPositionRef.current = pos;
+      setScrubPositionMillis(pos);
+      return pos;
+    },
+    [durationMillis]
+  );
+
+  const remeasureProgressBar = useCallback(() => {
+    requestAnimationFrame(() => {
+      progressBarRef.current?.measure((fx, fy, w, h, pageX) => {
+        progressBarLayoutRef.current = { x: pageX, width: w };
+      });
+    });
+  }, []);
+
   const progressBarPanResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponder: () => canScrub,
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          canScrub && Math.abs(gestureState.dx) > 2,
         onPanResponderGrant: (evt) => {
-          const w = progressBarWidthRef.current;
-          if (w <= 0) return;
-          const x = evt.nativeEvent.locationX;
-          const ratio = Math.max(0, Math.min(1, x / w));
-          const pos = Math.round(ratio * durationMillis);
-          scrubPositionRef.current = pos;
-          setScrubPositionMillis(pos);
+          const touchPageX = evt.nativeEvent.pageX;
+          progressBarRef.current?.measure((fx, fy, w, h, pageX) => {
+            progressBarLayoutRef.current = { x: pageX, width: w };
+            updateScrubPosition(touchPageX);
+          });
         },
         onPanResponderMove: (evt) => {
-          const w = progressBarWidthRef.current;
-          if (w <= 0) return;
-          const x = evt.nativeEvent.locationX;
-          const ratio = Math.max(0, Math.min(1, x / w));
-          const pos = Math.round(ratio * durationMillis);
-          scrubPositionRef.current = pos;
-          setScrubPositionMillis(pos);
+          const touchPageX = evt.nativeEvent.pageX;
+          if (progressBarLayoutRef.current.width <= 0) {
+            progressBarRef.current?.measure((fx, fy, w, h, pageX) => {
+              progressBarLayoutRef.current = { x: pageX, width: w };
+              updateScrubPosition(touchPageX);
+            });
+          } else {
+            updateScrubPosition(touchPageX);
+          }
         },
         onPanResponderRelease: () => {
           const pos = scrubPositionRef.current;
-          setScrubPositionMillis(null);
           scrubPositionRef.current = null;
+          setScrubPositionMillis(null);
           if (pos != null && durationMillis > 0) {
-            const now = Date.now();
-            if (now - lastSeekAtRef.current >= SEEK_DEBOUNCE_MS) {
-              lastSeekAtRef.current = now;
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              seek(pos);
-            }
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            seek(pos);
           }
         },
+        onPanResponderTerminate: () => {
+          scrubPositionRef.current = null;
+          setScrubPositionMillis(null);
+        },
       }),
-    [durationMillis, seek]
+    [canScrub, durationMillis, seek, updateScrubPosition]
   );
 
   if (!showMini) return null;
@@ -175,50 +200,51 @@ function GlobalAudioPlayerUI({
         {s.playBarFadeOverlay ? (
           <View style={s.playBarFadeOverlay} pointerEvents="none" />
         ) : null}
-        <TouchableOpacity
-          style={s.globalAudioPlayer ?? localStyles.miniBar}
-          onPress={() => setFullScreenVisible(true)}
-          activeOpacity={1}
-        >
+        <View style={s.globalAudioPlayer ?? localStyles.miniBar}>
           <View style={s.audioPlayerContent ?? localStyles.miniBarContent}>
-            <View style={s.audioAlbumArt ?? localStyles.miniAlbumArt}>
-              {track.image ? (
-                <Image
-                  source={{ uri: track.image }}
-                  style={s.albumArtImage ?? localStyles.albumArtImg}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={s.albumArtPlaceholder ?? localStyles.albumArtPlaceholder}>
-                  <Ionicons name="musical-notes" size={22} color="hsl(75, 100%, 60%)" />
-                </View>
-              )}
-            </View>
-            <View style={s.audioTrackInfo ?? localStyles.miniTrackInfo}>
-              <Text
-                style={s.audioTrackTitle ?? localStyles.miniTitle}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {track.title}
-              </Text>
-              <Text
-                style={s.audioTrackArtist ?? localStyles.miniArtist}
-                numberOfLines={1}
-              >
-                {track.artist}
-              </Text>
-            </View>
+            <TouchableOpacity
+              style={[localStyles.miniMainPressArea, s.miniMainPressArea]}
+              onPress={() => setFullScreenVisible(true)}
+              activeOpacity={0.85}
+            >
+              <View style={s.audioAlbumArt ?? localStyles.miniAlbumArt}>
+                {track.image ? (
+                  <Image
+                    source={{ uri: track.image }}
+                    style={s.albumArtImage ?? localStyles.albumArtImg}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={s.albumArtPlaceholder ?? localStyles.albumArtPlaceholder}>
+                    <Ionicons name="musical-notes" size={22} color="hsl(75, 100%, 60%)" />
+                  </View>
+                )}
+              </View>
+              <View style={s.audioTrackInfo ?? localStyles.miniTrackInfo}>
+                <Text
+                  style={s.audioTrackTitle ?? localStyles.miniTitle}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {track.title}
+                </Text>
+                <Text
+                  style={s.audioTrackArtist ?? localStyles.miniArtist}
+                  numberOfLines={1}
+                >
+                  {track.artist}
+                </Text>
+              </View>
+            </TouchableOpacity>
             <Text style={s.audioTimeText ?? localStyles.miniTime}>
-              {formatTime(state.positionMillis)} / {formatTime(state.durationMillis)}
+              {formatTime(displayPositionMillis)} /{" "}
+              {durationUnknown ? "–:––" : formatTime(durationMillis)}
             </Text>
             <TouchableOpacity
               style={s.audioControlButton ?? localStyles.miniPlayBtn}
-              onPress={(e) => {
-                e.stopPropagation();
-                onPlayPause();
-              }}
+              onPress={onPlayPause}
               activeOpacity={0.8}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons
                 name={state.isPlaying ? "pause" : "play"}
@@ -228,11 +254,10 @@ function GlobalAudioPlayerUI({
             </TouchableOpacity>
             <TouchableOpacity
               style={s.audioCloseButton ?? localStyles.miniCloseBtn}
-              onPress={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityLabel="Stop playback"
+              accessibilityRole="button"
             >
               <Ionicons name="close" size={22} color="hsl(0, 0%, 60%)" />
             </TouchableOpacity>
@@ -242,12 +267,12 @@ function GlobalAudioPlayerUI({
               <View
                 style={[
                   s.audioProgressFill ?? localStyles.miniProgressFill,
-                  { width: `${(state.progress ?? 0) * 100}%` },
+                  { width: `${displayProgress * 100}%` },
                 ]}
               />
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </View>
 
       {/* ——— Full-screen player modal ——— */}
@@ -258,11 +283,12 @@ function GlobalAudioPlayerUI({
         onRequestClose={() => setFullScreenVisible(false)}
       >
         <View style={s.fullScreenPlayerOverlay ?? localStyles.fullOverlay}>
-          <View style={s.fullScreenOverlay ?? localStyles.fullOverlayInner} />
-          <ScrollView
-            style={s.fullScreenPlayer ?? localStyles.fullScroll}
-            contentContainerStyle={s.fullScreenPlayerContent ?? localStyles.fullContent}
-            showsVerticalScrollIndicator={false}
+          <SafeAreaView style={localStyles.fullSafe} edges={["top"]}>
+          <View
+            style={[
+              s.fullScreenPlayer ?? localStyles.fullScroll,
+              s.fullScreenPlayerContent ?? localStyles.fullContent,
+            ]}
           >
             <View style={s.fullScreenHeader ?? localStyles.fullHeader}>
               <TouchableOpacity
@@ -271,8 +297,10 @@ function GlobalAudioPlayerUI({
                 accessibilityLabel="Close player"
                 accessibilityRole="button"
               >
-                <Ionicons name="chevron-down" size={24} color="hsl(0, 0%, 100%)" />
+                <Ionicons name="chevron-down" size={26} color="hsl(0, 0%, 100%)" />
               </TouchableOpacity>
+              <View style={localStyles.dragHandle} />
+              <View style={localStyles.headerSpacer} />
             </View>
 
             <View style={s.fullScreenAlbumArtContainer ?? localStyles.fullArtContainer}>
@@ -328,10 +356,10 @@ function GlobalAudioPlayerUI({
 
             <View style={s.fullScreenProgressSection ?? localStyles.fullProgressSection}>
               <View
+                ref={progressBarRef}
                 style={s.fullScreenProgressBar ?? localStyles.fullProgressBar}
-                onLayout={(e) => {
-                  progressBarWidthRef.current = e.nativeEvent.layout.width;
-                }}
+                onLayout={remeasureProgressBar}
+                collapsable={false}
                 {...(canScrub ? progressBarPanResponder.panHandlers : {})}
                 accessibilityLabel="Progress bar"
                 accessibilityRole="adjustable"
@@ -367,11 +395,6 @@ function GlobalAudioPlayerUI({
                   </Text>
                 )}
               </View>
-              {durationUnknown && (
-                <Text style={[s.fullScreenTimeText ?? localStyles.fullTimeText, localStyles.preparing]}>
-                  Preparing…
-                </Text>
-              )}
               {state.error ? (
                 <Text style={[s.fullScreenTimeText ?? localStyles.fullTimeText, localStyles.error]} numberOfLines={1}>
                   {state.error}
@@ -501,7 +524,8 @@ function GlobalAudioPlayerUI({
                 {track?.user_bio || "Discover more about this DJ."}
               </Text>
             </TouchableOpacity>
-          </ScrollView>
+          </View>
+          </SafeAreaView>
         </View>
       </Modal>
 
@@ -681,6 +705,13 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  miniMainPressArea: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 12,
+    minWidth: 0,
+  },
   miniAlbumArt: {
     width: 50,
     height: 50,
@@ -754,130 +785,23 @@ const localStyles = StyleSheet.create({
     backgroundColor: "hsl(75, 100%, 60%)",
     borderRadius: 0,
   },
-  fullOverlay: { flex: 1, backgroundColor: "hsl(0, 0%, 8%)" },
-  fullOverlayInner: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-  },
-  fullScroll: { flex: 1, backgroundColor: "transparent", zIndex: 1 },
+  fullOverlay: { flex: 1, backgroundColor: "hsl(0, 0%, 6%)" },
+  fullSafe: { flex: 1 },
+  fullScroll: { flex: 1, backgroundColor: "transparent" },
   fullContent: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 48,
     minHeight: 400,
   },
   fullHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 40,
-  },
-  closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  fullArtContainer: { alignItems: "center", marginBottom: 32 },
-  fullArt: {
-    width: 320,
-    height: 320,
-    borderRadius: 12,
-    shadowColor: "hsl(75, 100%, 60%)",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  fullArtPlaceholder: {
-    backgroundColor: "hsl(0, 0%, 12%)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  fullTrackInfo: { alignItems: "flex-start", marginBottom: 32, paddingHorizontal: 20 },
-  fullTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    gap: 12,
-    marginBottom: 8,
-  },
-  fullTitle: {
-    fontSize: 24,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    fontWeight: "900",
-    textAlign: "left",
-    flex: 1,
-    lineHeight: 28,
-  },
-  fullLikeBtn: { padding: 8, justifyContent: "center", alignItems: "center" },
-  fullArtist: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    textAlign: "left",
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  fullProgressSection: { marginBottom: 32 },
-  fullProgressBar: {
-    height: 4,
-    backgroundColor: "hsla(0, 0%, 20%, 0.3)",
-    borderRadius: 2,
-    marginBottom: 16,
-    position: "relative",
-    paddingVertical: 12,
-    justifyContent: "center",
-  },
-  fullProgressFill: {
-    height: 4,
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 2,
-    position: "absolute",
-    top: 12,
-  },
-  fullProgressThumb: {
-    position: "absolute",
-    top: 8,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "hsl(75, 100%, 60%)",
-    marginLeft: -6,
-  },
-  fullTimeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    marginBottom: 24,
     paddingHorizontal: 4,
   },
-  fullTimeText: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
-    fontWeight: "500",
-  },
-  preparing: { color: "hsl(0, 0%, 45%)", fontSize: 12, marginTop: 4 },
-  error: { color: "hsl(0, 80%, 55%)", fontSize: 12, marginTop: 6 },
-  fullControls: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 8,
-    marginBottom: 32,
-    marginLeft: 40,
-    marginRight: 40,
-    gap: 40,
-  },
-  controlBtn: {
+  closeBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -885,10 +809,116 @@ const localStyles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  dragHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "hsl(0, 0%, 35%)",
+  },
+  headerSpacer: { width: 44 },
+  fullArtContainer: { alignItems: "center", marginBottom: 28 },
+  fullArt: {
+    width: 280,
+    height: 280,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "hsl(0, 0%, 14%)",
+  },
+  fullArtPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullTrackInfo: {
+    alignItems: "flex-start",
+    marginBottom: 28,
+    paddingHorizontal: 4,
+  },
+  fullTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    gap: 12,
+    marginBottom: 6,
+  },
+  fullTitle: {
+    fontSize: 22,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "800",
+    textAlign: "left",
+    flex: 1,
+    lineHeight: 26,
+  },
+  fullLikeBtn: { padding: 6, justifyContent: "center", alignItems: "center" },
+  fullArtist: {
+    fontSize: 15,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 68%)",
+    textAlign: "left",
+    fontWeight: "500",
+  },
+  fullProgressSection: { marginBottom: 28 },
+  fullProgressBar: {
+    height: 5,
+    backgroundColor: "hsl(0, 0%, 18%)",
+    borderRadius: 3,
+    marginBottom: 10,
+    position: "relative",
+    paddingVertical: 14,
+    justifyContent: "center",
+    overflow: "visible",
+  },
+  fullProgressFill: {
+    height: 5,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 3,
+    position: "absolute",
+    top: 14,
+    left: 0,
+  },
+  fullProgressThumb: {
+    position: "absolute",
+    top: 10,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    marginLeft: -7,
+  },
+  fullTimeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 2,
+  },
+  fullTimeText: {
+    fontSize: 13,
+    color: "hsl(0, 0%, 55%)",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+  },
+  error: { color: "hsl(0, 75%, 55%)", fontSize: 12, marginTop: 8 },
+  fullControls: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 4,
+    marginBottom: 28,
+    gap: 32,
+  },
+  controlBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   playBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: "hsl(75, 100%, 60%)",
     justifyContent: "center",
     alignItems: "center",
@@ -897,63 +927,68 @@ const localStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 24,
-    marginBottom: 16,
-    paddingHorizontal: 20,
-    gap: 24,
+    marginTop: 8,
+    marginBottom: 24,
+    gap: 40,
   },
   secondaryBtn: {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    minWidth: 80,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    minWidth: 72,
   },
   secondaryBtnText: {
     fontSize: 12,
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 100%)",
+    color: "hsl(0, 0%, 78%)",
     marginTop: 4,
     fontWeight: "500",
   },
   aboutCard: {
-    marginTop: 32,
-    marginHorizontal: 24,
-    backgroundColor: "hsl(0, 0%, 12%)",
-    borderRadius: 12,
-    padding: 20,
+    marginTop: 24,
+    marginHorizontal: 0,
+    backgroundColor: "hsl(0, 0%, 11%)",
+    borderRadius: 14,
+    padding: 18,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderColor: "hsl(0, 0%, 18%)",
   },
-  aboutHeader: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  aboutHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   aboutAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 16,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    marginRight: 14,
     borderWidth: 2,
     borderColor: "hsl(75, 100%, 60%)",
     overflow: "hidden",
   },
   aboutAvatarImg: { width: "100%", height: "100%" },
   aboutAvatarPlaceholder: {
-    backgroundColor: "hsl(0, 0%, 15%)",
+    backgroundColor: "hsl(0, 0%, 16%)",
     justifyContent: "center",
     alignItems: "center",
   },
-  aboutInfo: { flex: 1 },
+  aboutInfo: { flex: 1, minWidth: 0 },
   aboutTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
+    color: "hsl(0, 0%, 60%)",
     fontWeight: "600",
-    marginBottom: 4,
+    marginBottom: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  aboutName: { fontSize: 14, color: "hsl(75, 100%, 60%)", fontWeight: "500" },
+  aboutName: {
+    fontSize: 16,
+    color: "hsl(75, 100%, 60%)",
+    fontWeight: "600",
+  },
   aboutText: {
     fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
+    color: "hsl(0, 0%, 65%)",
     lineHeight: 20,
     fontWeight: "400",
   },

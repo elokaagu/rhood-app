@@ -13,9 +13,6 @@ import React from "react";
 import App from "./App";
 import { AudioProvider } from "./context/AudioContext";
 
-// TrackPlayer service registration is now handled in App.js after app initialization
-// This prevents Metro from trying to analyze the native module during bundling
-
 function Root() {
   return (
     <AudioProvider>

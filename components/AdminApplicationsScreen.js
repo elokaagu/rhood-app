@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
-  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";

@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { aiMatchmaking } from "../lib/ai-matchmaking";
-import { promptTemplates } from "../lib/ai-prompt-templates";
 
 export default function AIMatchmakingScreen({ userId, onNavigate }) {
   const [aiMatches, setAiMatches] = useState([]);

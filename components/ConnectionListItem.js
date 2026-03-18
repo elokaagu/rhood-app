@@ -1,6 +1,5 @@
 import React, { memo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
 import FadeInView from "./FadeInView";
@@ -11,7 +10,6 @@ import FadeInView from "./FadeInView";
  */
 function ConnectionListItem({
   connection,
-  index,
   onPress,
   onLongPress,
   getUserName,
