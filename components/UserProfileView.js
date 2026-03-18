@@ -530,15 +530,17 @@ export default function UserProfileView({
           onResumeAudio();
         }
       } else {
-        // If it's not playing, play it using global audio system
+        const mixUrl = profile.primaryMix?.file_url;
+        if (!mixUrl) {
+          Alert.alert("No audio", "This profile has no mix file to play.");
+          return;
+        }
         const trackData = {
           id: profile.primaryMix?.id || "audio-id",
           title: profile.primaryMix?.title || "Audio ID",
           artist: profile.dj_name || profile.full_name || "Unknown Artist",
           genre: profile.primaryMix?.genre || "Electronic",
-          audioUrl:
-            profile.primaryMix?.file_url ||
-            require("../assets/audio/unique-original-mix.mp3"),
+          audioUrl: mixUrl,
           image:
             profile.primaryMix?.artwork_url ||
             profile.profile_image_url ||

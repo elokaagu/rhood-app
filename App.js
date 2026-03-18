@@ -82,6 +82,18 @@ import {
 import { useAudioState, useAudioActions } from "./context/AudioContext";
 import GlobalAudioPlayerUI from "./components/GlobalAudioPlayerUI";
 
+/** Mix duration in ms from metadata (Listen/DB). Used when expo-av reports 0 briefly. */
+function trackMetaDurationMs(track) {
+  if (!track) return 0;
+  if (typeof track.durationMillis === "number" && track.durationMillis > 0)
+    return Math.round(track.durationMillis);
+  const raw = track.durationSeconds ?? track.duration;
+  if (raw == null || !Number.isFinite(Number(raw)) || Number(raw) <= 0) return 0;
+  const n = Number(raw);
+  if (n > 5_000_000) return Math.round(n);
+  return Math.round(n * 1000);
+}
+
 // Static Album Art Component
 const AnimatedAlbumArt = ({ image, isPlaying, style }) => {
   return (
@@ -1281,16 +1293,29 @@ export default function App() {
       sound.setOnPlaybackStatusUpdate((status) => {
         try {
           if (status.isLoaded) {
-            // Always push position/duration to state first so UI never stalls (expo-av callbacks can be unreliable)
-            if (status.durationMillis > 0 && !isScrubbingRef.current) {
-              setGlobalAudioState((prev) => ({
-                ...prev,
-                isPlaying: status.isPlaying,
-                isLoading: false,
-                progress: (status.positionMillis || 0) / status.durationMillis,
-                positionMillis: status.positionMillis || 0,
-                durationMillis: status.durationMillis || 0,
-              }));
+            const nativeDur =
+              status.durationMillis > 0 ? status.durationMillis : 0;
+            const metaMs = trackMetaDurationMs(track);
+            if (!isScrubbingRef.current) {
+              setGlobalAudioState((prev) => {
+                const durationMillis =
+                  nativeDur > 0
+                    ? nativeDur
+                    : prev.durationMillis > 0
+                      ? prev.durationMillis
+                      : metaMs;
+                const pos = status.positionMillis ?? 0;
+                const dur = durationMillis > 0 ? durationMillis : metaMs;
+                return {
+                  ...prev,
+                  isPlaying: status.isPlaying,
+                  isLoading: false,
+                  positionMillis: pos,
+                  durationMillis: dur > 0 ? dur : prev.durationMillis,
+                  progress:
+                    dur > 0 ? Math.min(1, pos / dur) : prev.progress ?? 0,
+                };
+              });
             }
             if (Platform.OS === "android") {
               lockScreenControls.updatePlaybackState(
@@ -1356,12 +1381,24 @@ export default function App() {
         if (!globalAudioRef.current || isScrubbingRef.current) return;
         try {
           const s = await globalAudioRef.current.getStatusAsync();
-          if (s?.isLoaded && s?.durationMillis > 0) {
+          if (!s?.isLoaded) return;
+          const st = stateRef.current;
+          const metaMs = trackMetaDurationMs(st.currentTrack || {});
+          const nativeDur = s.durationMillis > 0 ? s.durationMillis : 0;
+          const dur =
+            nativeDur > 0
+              ? nativeDur
+              : st.durationMillis > 0
+                ? st.durationMillis
+                : metaMs;
+          if (dur > 0) {
+            const pos = s.positionMillis ?? 0;
             setGlobalAudioState((prev) => ({
               ...prev,
-              positionMillis: s.positionMillis ?? 0,
-              durationMillis: s.durationMillis ?? 0,
-              progress: (s.positionMillis ?? 0) / s.durationMillis,
+              isPlaying: s.isPlaying ?? prev.isPlaying,
+              positionMillis: pos,
+              durationMillis: dur,
+              progress: Math.min(1, pos / dur),
             }));
           }
         } catch (_) {}
@@ -1511,19 +1548,20 @@ export default function App() {
           queue: newQueue,
           currentQueueIndex: newIndex,
         };
+        const trackDur = trackMetaDurationMs(track);
         if (initialStatus?.isLoaded && initialStatus?.durationMillis > 0) {
+          const d = Math.max(
+            initialStatus.durationMillis ?? 0,
+            trackDur || 0
+          );
           next.positionMillis = initialStatus.positionMillis ?? 0;
-          next.durationMillis = initialStatus.durationMillis ?? 0;
+          next.durationMillis = d;
           next.progress =
-            (initialStatus.positionMillis ?? 0) / initialStatus.durationMillis;
-        } else {
-          // Use track metadata so UI shows duration immediately (no "Preparing" stuck)
-          const trackDur = track.durationMillis ?? (track.durationSeconds != null ? track.durationSeconds * 1000 : 0);
-          if (trackDur > 0) {
-            next.positionMillis = 0;
-            next.durationMillis = trackDur;
-            next.progress = 0;
-          }
+            d > 0 ? (initialStatus.positionMillis ?? 0) / d : 0;
+        } else if (trackDur > 0) {
+          next.positionMillis = 0;
+          next.durationMillis = trackDur;
+          next.progress = 0;
         }
         return next;
       });

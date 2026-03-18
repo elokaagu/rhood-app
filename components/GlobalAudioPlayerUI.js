@@ -119,9 +119,23 @@ function GlobalAudioPlayerUI({
     }
   }, [track]);
 
-  // Use track metadata duration when player hasn't reported it yet (e.g. TrackPlayer getDuration() returns 0 while loading)
-  const trackDurationMs = track?.durationMillis ?? (track?.durationSeconds != null ? track.durationSeconds * 1000 : null);
-  const durationMillis = state.durationMillis ?? trackDurationMs ?? 0;
+  const trackDurationMs = (() => {
+    const t = track;
+    if (!t) return 0;
+    if (t.durationMillis > 0) return Math.round(t.durationMillis);
+    const sec = t.durationSeconds ?? t.duration;
+    if (sec != null && Number(sec) > 0) {
+      const n = Number(sec);
+      return n > 5_000_000 ? Math.round(n) : Math.round(n * 1000);
+    }
+    return 0;
+  })();
+  const durationMillis =
+    state.durationMillis > 0
+      ? state.durationMillis
+      : trackDurationMs > 0
+        ? trackDurationMs
+        : 0;
   const displayPositionMillis = scrubPositionMillis ?? state.positionMillis ?? 0;
   const rawProgress = durationMillis > 0 ? displayPositionMillis / durationMillis : 0;
   const displayProgress = Math.max(0, Math.min(1, rawProgress));
@@ -236,31 +250,33 @@ function GlobalAudioPlayerUI({
                 </Text>
               </View>
             </TouchableOpacity>
-            <Text style={s.audioTimeText ?? localStyles.miniTime}>
-              {formatTime(displayPositionMillis)} /{" "}
-              {durationUnknown ? "–:––" : formatTime(durationMillis)}
-            </Text>
-            <TouchableOpacity
-              style={s.audioControlButton ?? localStyles.miniPlayBtn}
-              onPress={onPlayPause}
-              activeOpacity={0.8}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons
-                name={state.isPlaying ? "pause" : "play"}
-                size={22}
-                color="hsl(0, 0%, 0%)"
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.audioCloseButton ?? localStyles.miniCloseBtn}
-              onPress={onClose}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel="Stop playback"
-              accessibilityRole="button"
-            >
-              <Ionicons name="close" size={22} color="hsl(0, 0%, 60%)" />
-            </TouchableOpacity>
+            <View style={localStyles.miniRightCluster}>
+              <Text style={s.audioTimeText ?? localStyles.miniTime}>
+                {formatTime(displayPositionMillis)} /{" "}
+                {durationUnknown ? "–:––" : formatTime(durationMillis)}
+              </Text>
+              <TouchableOpacity
+                style={s.audioControlButton ?? localStyles.miniPlayBtn}
+                onPress={onPlayPause}
+                activeOpacity={0.8}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons
+                  name={state.isPlaying ? "pause" : "play"}
+                  size={22}
+                  color="hsl(0, 0%, 0%)"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.audioCloseButton ?? localStyles.miniCloseBtn}
+                onPress={onClose}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Stop playback"
+                accessibilityRole="button"
+              >
+                <Ionicons name="close" size={22} color="hsl(0, 0%, 60%)" />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={s.audioProgressContainer ?? localStyles.miniProgressContainer}>
             <View style={s.audioProgressBar ?? localStyles.miniProgressBar}>
@@ -357,7 +373,10 @@ function GlobalAudioPlayerUI({
             <View style={s.fullScreenProgressSection ?? localStyles.fullProgressSection}>
               <View
                 ref={progressBarRef}
-                style={s.fullScreenProgressBar ?? localStyles.fullProgressBar}
+                style={[
+                  localStyles.fullProgressBarTrack,
+                  s.fullScreenProgressBar ?? localStyles.fullProgressBar,
+                ]}
                 onLayout={remeasureProgressBar}
                 collapsable={false}
                 {...(canScrub ? progressBarPanResponder.panHandlers : {})}
@@ -368,14 +387,21 @@ function GlobalAudioPlayerUI({
                 <View
                   style={[
                     s.fullScreenProgressFill ?? localStyles.fullProgressFill,
-                    { width: `${displayProgress * 100}%` },
+                    {
+                      width: `${Math.max(
+                        displayProgress * 100,
+                        displayProgress > 0.001 ? 1.2 : 0
+                      )}%`,
+                    },
                   ]}
                 />
-                {canScrub && (
+                {(canScrub || displayProgress > 0) && (
                   <View
                     style={[
                       s.fullScreenProgressThumb ?? localStyles.fullProgressThumb,
-                      { left: `${displayProgress * 100}%` },
+                      {
+                        left: `${Math.min(100, Math.max(0, displayProgress * 100))}%`,
+                      },
                     ]}
                     pointerEvents="none"
                   />
@@ -402,7 +428,7 @@ function GlobalAudioPlayerUI({
               ) : null}
             </View>
 
-            <View style={s.fullScreenControls ?? localStyles.fullControls}>
+            <View style={[localStyles.fullControlsRow, s.fullScreenControls ?? localStyles.fullControls]}>
               <TouchableOpacity
                 style={s.fullScreenControlButton ?? localStyles.controlBtn}
                 onPress={() => toggleShuffle?.()}
@@ -460,7 +486,7 @@ function GlobalAudioPlayerUI({
               </TouchableOpacity>
             </View>
 
-            <View style={s.fullScreenSecondaryActions ?? localStyles.secondaryActions}>
+            <View style={[localStyles.secondaryActionsRow, s.fullScreenSecondaryActions ?? localStyles.secondaryActions]}>
               <TouchableOpacity
                 style={s.fullScreenSecondaryButton ?? localStyles.secondaryBtn}
                 onPress={() => {
@@ -766,7 +792,14 @@ const localStyles = StyleSheet.create({
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
+    marginLeft: 4,
+  },
+  miniRightCluster: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 0,
     marginLeft: 8,
+    gap: 4,
   },
   miniProgressContainer: {
     position: "absolute",
@@ -793,6 +826,7 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 48,
     minHeight: 400,
+    alignItems: "center",
   },
   fullHeader: {
     flexDirection: "row",
@@ -858,33 +892,51 @@ const localStyles = StyleSheet.create({
     textAlign: "left",
     fontWeight: "500",
   },
-  fullProgressSection: { marginBottom: 28 },
+  fullProgressSection: {
+    width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
+    marginBottom: 28,
+    paddingHorizontal: 4,
+  },
+  fullProgressBarTrack: {
+    width: "100%",
+  },
   fullProgressBar: {
-    height: 5,
-    backgroundColor: "hsl(0, 0%, 18%)",
+    height: 6,
+    backgroundColor: "hsl(0, 0%, 22%)",
     borderRadius: 3,
     marginBottom: 10,
     position: "relative",
-    paddingVertical: 14,
+    paddingVertical: 16,
     justifyContent: "center",
     overflow: "visible",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 30%)",
   },
   fullProgressFill: {
-    height: 5,
+    height: 6,
     backgroundColor: "hsl(75, 100%, 60%)",
     borderRadius: 3,
     position: "absolute",
-    top: 14,
+    top: 16,
     left: 0,
   },
   fullProgressThumb: {
     position: "absolute",
-    top: 10,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    top: 11,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: "hsl(75, 100%, 60%)",
-    marginLeft: -7,
+    marginLeft: -8,
+    borderWidth: 2,
+    borderColor: "hsl(0, 0%, 8%)",
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 4,
+    elevation: 4,
   },
   fullTimeRow: {
     flexDirection: "row",
@@ -899,13 +951,18 @@ const localStyles = StyleSheet.create({
     fontWeight: "500",
   },
   error: { color: "hsl(0, 75%, 55%)", fontSize: 12, marginTop: 8 },
+  fullControlsRow: {
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 380,
+    paddingHorizontal: 8,
+  },
   fullControls: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-evenly",
     alignItems: "center",
-    marginTop: 4,
+    marginTop: 8,
     marginBottom: 28,
-    gap: 32,
   },
   controlBtn: {
     width: 48,
@@ -923,13 +980,17 @@ const localStyles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  secondaryActionsRow: {
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 320,
+  },
   secondaryActions: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-evenly",
     alignItems: "center",
     marginTop: 8,
     marginBottom: 24,
-    gap: 40,
   },
   secondaryBtn: {
     flexDirection: "column",
@@ -948,7 +1009,9 @@ const localStyles = StyleSheet.create({
   },
   aboutCard: {
     marginTop: 24,
-    marginHorizontal: 0,
+    width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
     backgroundColor: "hsl(0, 0%, 11%)",
     borderRadius: 14,
     padding: 18,

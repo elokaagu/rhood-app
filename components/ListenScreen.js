@@ -260,6 +260,7 @@ function ListenScreen({
       if (playingMixId === mix.id) {
         onPauseAudio?.();
       } else {
+        const sec = extractDurationSeconds(mix);
         onPlayAudio({
           ...mix,
           id: mix.id,
@@ -268,6 +269,8 @@ function ListenScreen({
           audioUrl: url,
           image: mix.artwork_url || mix.image_url || mix.image,
           user_id: mix.user_id,
+          durationSeconds: sec > 0 ? sec : undefined,
+          durationMillis: sec > 0 ? Math.round(sec * 1000) : undefined,
         });
       }
     },
@@ -276,6 +279,7 @@ function ListenScreen({
 
   const normalizeMixForQueue = useCallback((mix) => {
     const url = mix.file_url || mix.audio_url || mix.audioUrl;
+    const sec = extractDurationSeconds(mix);
     return {
       ...mix,
       id: mix.id,
@@ -284,6 +288,8 @@ function ListenScreen({
       audioUrl: url,
       image: mix.artwork_url || mix.image_url || mix.image,
       user_id: mix.user_id,
+      durationSeconds: sec > 0 ? sec : undefined,
+      durationMillis: sec > 0 ? Math.round(sec * 1000) : undefined,
     };
   }, []);
 

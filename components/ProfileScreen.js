@@ -25,18 +25,6 @@ import { generateGenreWaveform } from "../lib/audioWaveform";
 import { HapticPatterns } from "../lib/haptics";
 import { createScreenCache } from "../lib/screenCache";
 
-// Default profile structure - all data comes from database
-const defaultProfile = {
-  audioId: {
-    title: "Unique Original Mix",
-    duration: "5:23",
-    durationSeconds: 323,
-    genre: "Electronic",
-    waveform: [20, 35, 45, 30, 55, 40, 25, 50, 35, 60, 45, 30, 25, 40, 35, 50],
-    audioUrl: require("../assets/audio/unique-original-mix.mp3"),
-  },
-};
-
 const profileCache = createScreenCache("profile");
 
 export default function ProfileScreen({
