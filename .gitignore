@@ -98,6 +98,9 @@ yarn-error.*
 # VS Code
 .vscode/
 
+# Claude / Cursor agent (local worktrees, settings — do not commit)
+.claude/
+
 # Temporary files
 *.tmp
 *.temp
