@@ -124,6 +124,12 @@ export default function App() {
   const menuOpacityAnim = useRef(new Animated.Value(0)).current;
   const fullScreenMenuOpacityAnim = useRef(new Animated.Value(0)).current;
 
+  // Forward-declaration refs for callbacks referenced before their definition
+  const closeMenuRef = useRef(null);
+  const handleConfirmApplyRef = useRef(null);
+  const handleShareOpportunityInAppRef = useRef(null);
+  const fetchUserLocationRef = useRef(null);
+
   // Authentication state
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -227,7 +233,7 @@ export default function App() {
   });
 
   // Helper function to show custom modal
-  const showCustomModal = (config) => {
+  const showCustomModal = useCallback((config) => {
     setModalConfig({
       type: config.type || "info",
       title: config.title || "",
@@ -246,11 +252,11 @@ export default function App() {
       onShareInApp: config.onShareInApp || null,
     });
     setShowModal(true);
-  };
+  }, []);
 
-  const hideCustomModal = () => {
+  const hideCustomModal = useCallback(() => {
     setShowModal(false);
-  };
+  }, []);
 
   const [djProfile, setDjProfile] = useState({
     djName: "",
@@ -629,7 +635,7 @@ export default function App() {
     }
   };
 
-  const handleSplashFinish = () => {
+  const handleSplashFinish = useCallback(() => {
     // Persist so next cold start skips splash (fast-start / warm-resume feel)
     AsyncStorage.setItem(HAS_COMPLETED_SPLASH_KEY, "true");
     setShowFadeOverlay(true);
@@ -647,10 +653,10 @@ export default function App() {
         setShowFadeOverlay(false);
       });
     });
-  };
+  }, [fadeOverlayAnim]);
 
   // Authentication handlers
-  const handleLoginSuccess = async (user) => {
+  const handleLoginSuccess = useCallback(async (user) => {
     console.log("🔐 handleLoginSuccess called for user:", user.id);
     setUser(user);
     setShowAuth(false);
@@ -699,7 +705,7 @@ export default function App() {
         }
 
         // Fetch user location and check for mismatch
-        fetchUserLocation(profile);
+        fetchUserLocationRef.current?.(profile);
       } else {
         console.log("⚠️ No profile found after OAuth - user needs onboarding");
         console.log("🔍 Profile query returned:", profile);
@@ -712,7 +718,7 @@ export default function App() {
         code: error.code,
         details: error.details,
       });
-      
+
       // Only show onboarding if the profile truly doesn't exist
       // Error code PGRST116 means "no rows returned" (profile doesn't exist)
       // Other errors (like column doesn't exist) should not trigger onboarding
@@ -736,15 +742,15 @@ export default function App() {
     } finally {
       setAuthLoading(false); // Always stop loading when done
     }
-  };
+  }, [hasShownCompleteProfileModal]);
 
-  const handleSignupSuccess = async (user) => {
+  const handleSignupSuccess = useCallback(async (user) => {
     setUser(user);
     setShowAuth(false);
     // User will go through onboarding after signup
-  };
+  }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       await track(AnalyticsEvents.USER_LOGGED_OUT);
       await resetAnalyticsUser();
@@ -757,13 +763,13 @@ export default function App() {
       console.error("Logout error:", error);
       Alert.alert("Error", "Failed to sign out");
     }
-  };
+  }, [user?.id]);
 
-  const handleEditProfile = () => {
+  const handleEditProfile = useCallback(() => {
     setShowEditProfile(true);
-  };
+  }, []);
 
-  const handleProfileSaved = async (updatedProfile) => {
+  const handleProfileSaved = useCallback(async (updatedProfile) => {
     setShowEditProfile(false);
 
     // Track profile update
@@ -824,15 +830,15 @@ export default function App() {
         genres: updatedProfile.genres,
       })
     );
-  };
+  }, [user?.id, user?.email]);
 
-  const handleProfileCancel = () => {
+  const handleProfileCancel = useCallback(() => {
     setShowEditProfile(false);
-  };
+  }, []);
 
   // Fetch user location and check for mismatch with profile city
   // Made non-blocking to prevent app freeze on first load in new countries
-  const fetchUserLocation = async (profile) => {
+  const fetchUserLocation = useCallback(async (profile) => {
     try {
       // Don't await - let it run in background to prevent blocking app initialization
       // This is especially important in new countries where GPS might take longer
@@ -900,17 +906,18 @@ export default function App() {
       // Silently handle location errors - don't block app initialization
       console.warn("⚠️ Location fetch error (non-blocking):", error.message);
     }
-  };
+  }, [showCustomModal]);
+  fetchUserLocationRef.current = fetchUserLocation;
 
-  const showLogin = () => {
+  const showLogin = useCallback(() => {
     setAuthMode("login");
     setShowAuth(true);
-  };
+  }, []);
 
-  const showSignup = () => {
+  const showSignup = useCallback(() => {
     setAuthMode("signup");
     setShowAuth(true);
-  };
+  }, []);
 
   // Audio functions are provided by useAudioPlayback hook (see `audio` variable above)
   // Forwarding references for backwards compatibility with existing code in this file:
@@ -1085,15 +1092,15 @@ export default function App() {
     }
   };
 
-  const handleMenuNavigation = (screen, params = {}) => {
+  const handleMenuNavigation = useCallback((screen, params = {}) => {
     console.log("🎯 Navigating to screen:", screen);
     setCurrentScreen(screen);
     setScreenParams(params);
     trackScreenView(screen, params);
-    closeMenu();
-  };
+    closeMenuRef.current?.();
+  }, []);
 
-  const handleOpportunityPress = (opportunity) => {
+  const handleOpportunityPress = useCallback((opportunity) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Track opportunity viewed
@@ -1127,9 +1134,9 @@ export default function App() {
         });
       },
     });
-  };
+  }, [showCustomModal]);
 
-  const handleDismissSwipeTutorial = async () => {
+  const handleDismissSwipeTutorial = useCallback(async () => {
     try {
       await AsyncStorage.setItem("hasSeenSwipeTutorial", "true");
       setShowSwipeTutorial(false);
@@ -1137,21 +1144,21 @@ export default function App() {
       console.error("Error saving swipe tutorial state:", error);
       setShowSwipeTutorial(false);
     }
-  };
+  }, []);
 
-  const handleSwipeLeft = () => {
+  const handleSwipeLeft = useCallback(() => {
     // Pass on opportunity
     const currentOpportunity = opportunities[currentOpportunityIndex];
-    setSwipedOpportunities([
-      ...swipedOpportunities,
+    setSwipedOpportunities((prev) => [
+      ...prev,
       { ...currentOpportunity, action: "pass" },
     ]);
 
     // Move to next card immediately
-    setCurrentOpportunityIndex(currentOpportunityIndex + 1);
-  };
+    setCurrentOpportunityIndex((prev) => prev + 1);
+  }, [opportunities, currentOpportunityIndex]);
 
-  const handleSwipeRight = async () => {
+  const handleSwipeRight = useCallback(async () => {
     // Check daily application limit before showing details
     if (!dailyApplicationStats.can_apply) {
       Alert.alert(
@@ -1199,8 +1206,8 @@ export default function App() {
       showShareButton: true, // Enable share button for opportunities
       shareOpportunity: currentOpportunity, // Pass opportunity for sharing
       shareUserId: user?.id || null, // Pass user ID for referral code
-      onShareInApp: handleShareOpportunityInApp, // Handler for in-app sharing
-      onPrimaryPress: () => handleConfirmApply(currentOpportunity),
+      onShareInApp: handleShareOpportunityInAppRef.current, // Forward ref for in-app sharing
+      onPrimaryPress: () => handleConfirmApplyRef.current?.(currentOpportunity),
       onSecondaryPress: () => {
         console.log(
           "Modal cancelled. Closing modal and advancing to next opportunity."
@@ -1209,7 +1216,7 @@ export default function App() {
         setSelectedOpportunity(null);
 
         // Advance to next opportunity since card was already swiped away
-        setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+        setCurrentOpportunityIndex((prev) => prev + 1);
 
         console.log("Current opportunities length:", opportunities.length);
         console.log("Current opportunity index:", currentOpportunityIndex);
@@ -1228,9 +1235,9 @@ export default function App() {
         }
       },
     });
-  };
+  }, [dailyApplicationStats, opportunities, currentOpportunityIndex, user?.id, showCustomModal]);
 
-  const handleConfirmApply = async (opportunity) => {
+  const handleConfirmApply = useCallback(async (opportunity) => {
     try {
       console.log(
         "🎯 Starting application process for opportunity:",
@@ -1263,14 +1270,14 @@ export default function App() {
         console.error("Error refreshing daily stats:", statsError);
       }
 
-      // Add to swiped opportunities
-      setSwipedOpportunities([
-        ...swipedOpportunities,
+      // Add to swiped opportunities (functional update to avoid dep on swipedOpportunities)
+      setSwipedOpportunities((prev) => [
+        ...prev,
         { ...opportunity, action: "applied" },
       ]);
 
-      // Move to next card immediately
-      setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+      // Move to next card immediately (functional update to avoid dep on currentOpportunityIndex)
+      setCurrentOpportunityIndex((prev) => prev + 1);
 
       // Show success message with updated stats
       setTimeout(async () => {
@@ -1378,7 +1385,7 @@ export default function App() {
             "You've already applied for this opportunity. We'll notify you on the outcome soon.",
           primaryButtonText: "OK",
           onPrimaryPress: () => {
-            setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+            setCurrentOpportunityIndex((prev) => prev + 1);
             setShowModal(false);
             setSelectedOpportunity(null);
           },
@@ -1395,13 +1402,13 @@ export default function App() {
           onPrimaryPress: () => {
             setCurrentScreen("upload-mix");
             hideCustomModal();
-            setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+            setCurrentOpportunityIndex((prev) => prev + 1);
             setShowModal(false);
             setSelectedOpportunity(null);
           },
           secondaryButtonText: "OK",
           onSecondaryPress: () => {
-            setCurrentOpportunityIndex(currentOpportunityIndex + 1);
+            setCurrentOpportunityIndex((prev) => prev + 1);
             setShowModal(false);
             setSelectedOpportunity(null);
             hideCustomModal();
@@ -1421,15 +1428,16 @@ export default function App() {
     } finally {
       setSelectedOpportunity(null);
     }
-  };
+  }, [user?.id, showCustomModal, hideCustomModal]);
+  handleConfirmApplyRef.current = handleConfirmApply;
 
-  const resetOpportunities = () => {
+  const resetOpportunities = useCallback(() => {
     setCurrentOpportunityIndex(0);
     setSwipedOpportunities([]);
-  };
+  }, []);
 
   // Handle sharing opportunity via in-app DM
-  const handleShareOpportunityInApp = async (shareMessage, opportunity) => {
+  const handleShareOpportunityInApp = useCallback(async (shareMessage, opportunity) => {
     try {
       // Navigate to connections screen in share mode
       setCurrentScreen("connections");
@@ -1451,7 +1459,8 @@ export default function App() {
       console.error("Error initiating in-app share:", error);
       Alert.alert("Error", "Failed to open connections. Please try again.");
     }
-  };
+  }, []);
+  handleShareOpportunityInAppRef.current = handleShareOpportunityInApp;
 
   // Send opportunity share message to a specific user
   const sendOpportunityShareMessage = async (
@@ -1927,7 +1936,7 @@ export default function App() {
   };
 
   // Menu animation functions
-  const openMenu = () => {
+  const openMenu = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowMenu(true);
     Animated.parallel([
@@ -1942,9 +1951,9 @@ export default function App() {
         useNativeDriver: true,
       }),
     ]).start();
-  };
+  }, [menuSlideAnim, menuOpacityAnim]);
 
-  const closeMenu = () => {
+  const closeMenu = useCallback(() => {
     Animated.parallel([
       Animated.timing(menuSlideAnim, {
         toValue: 0,
@@ -1959,10 +1968,11 @@ export default function App() {
     ]).start(() => {
       setShowMenu(false);
     });
-  };
+  }, [menuSlideAnim, menuOpacityAnim]);
+  closeMenuRef.current = closeMenu;
 
   // Load notification counts
-  const loadNotificationCounts = async () => {
+  const loadNotificationCounts = useCallback(async () => {
     try {
       const {
         data: { user },
@@ -1988,7 +1998,7 @@ export default function App() {
     } catch (error) {
       console.error("Error loading notification counts:", error);
     }
-  };
+  }, []);
 
   // Set up real-time subscriptions for notifications and opportunities
   useEffect(() => {
@@ -2123,7 +2133,7 @@ export default function App() {
     };
   }, [user]);
 
-  const completeOnboarding = async () => {
+  const completeOnboarding = useCallback(async () => {
     console.log("🎉 completeOnboarding called");
     console.log("👤 djProfile:", djProfile);
 
@@ -2283,10 +2293,16 @@ export default function App() {
         onPrimaryPress: () => setShowModal(false),
       });
     }
-  };
+  }, [djProfile, user?.id, user?.email, showCustomModal]);
 
   // Fonts will load asynchronously - app continues with system fonts until ready
   // No need to block or log repeatedly
+
+  // Navigate to a user's profile from the audio player
+  const handleNavigateToProfile = useCallback((userId) => {
+    setCurrentScreen("user-profile");
+    setScreenParams({ userId });
+  }, []);
 
   // Auth gate: splash, auth loading, login/signup, onboarding, profile loading
   const authGateRender = AuthGate({
@@ -2553,10 +2569,7 @@ export default function App() {
           currentScreen={currentScreen}
           currentTrack={audio.audioState.currentTrack}
           pendingTrack={audio.pendingPlayTrack}
-          onNavigateToProfile={(userId) => {
-            setCurrentScreen("user-profile");
-            setScreenParams({ userId });
-          }}
+          onNavigateToProfile={handleNavigateToProfile}
           styles={styles}
           globalAudioRef={audio.globalAudioRef}
         />
