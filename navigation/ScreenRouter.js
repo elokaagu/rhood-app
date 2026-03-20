@@ -1,7 +1,7 @@
-import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, Modal } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useMemo } from "react";
 import { useAudioState } from "../context/AudioContext";
+import { SCREENS } from "./routes";
+import OpportunitiesScreen from "../components/OpportunitiesScreen";
 import ConnectionsScreen from "../components/ConnectionsScreen";
 import ListenScreen from "../components/ListenScreen";
 import MessagesScreen from "../components/MessagesScreen";
@@ -9,7 +9,6 @@ import NotificationsScreen from "../components/NotificationsScreen";
 import CommunityScreen from "../components/CommunityScreen";
 import ProfileScreen from "../components/ProfileScreen";
 import SettingsScreen from "../components/SettingsScreen";
-import SwipeableOpportunityCard from "../components/SwipeableOpportunityCard";
 import EditProfileScreen from "../components/EditProfileScreen";
 import UserProfileView from "../components/UserProfileView";
 import UploadMixScreen from "../components/UploadMixScreen";
@@ -32,8 +31,8 @@ import { db } from "../lib/supabase";
 import { clearScreenCachesForUser } from "../lib/screenCache";
 
 /**
- * Renders the current screen based on route. Receives screen, screenParams, styles,
- * and all router props (navigation, audio, opportunities, etc.) from App.
+ * Renders the current screen based on route. Heavy lifting (opportunities, auth) stays in App;
+ * this file only maps `screen` → component + shared navigation/audio wiring.
  */
 export default function ScreenRouter({
   screen,
@@ -70,569 +69,396 @@ export default function ScreenRouter({
   shuffleBasedOnLikes,
 }) {
   const globalAudioState = useAudioState();
-  const rp = {
-    user,
-    setCurrentScreen,
-    setScreenParams,
-    setUser,
-    setIsFirstTime,
-    setDjProfile,
-    setShowAuth,
-    setAuthMode,
-    globalAudioState,
-    playGlobalAudio,
-    pauseGlobalAudio,
-    resumeGlobalAudio,
-    stopGlobalAudio,
-    addToQueue,
-    playNextTrack,
-    clearQueue,
-    opportunities,
-    currentOpportunityIndex,
-    dailyApplicationStats,
-    handleOpportunityPress,
-    handleSwipeLeft,
-    handleSwipeRight,
-    resetOpportunities,
-    isLoadingOpportunities,
-    showSwipeTutorial,
-    handleDismissSwipeTutorial,
-    loadNotificationCounts,
-    shuffleAllMixes,
-    shuffleByGenre,
-    shuffleBasedOnLikes,
-  };
+
+  const navigate = useCallback(
+    (nextScreen, params = {}) => {
+      setCurrentScreen(nextScreen);
+      setScreenParams(params);
+    },
+    [setCurrentScreen, setScreenParams]
+  );
+
+  /** Standard navigation object for screens that expect React Navigation–like API */
+  const createNavigation = useCallback(
+    (overrides = {}) => ({
+      navigate,
+      replace: navigate,
+      goBack: overrides.goBack,
+    }),
+    [navigate]
+  );
+
+  const commonAudioProps = useMemo(
+    () => ({
+      globalAudioState,
+      onPlayAudio: playGlobalAudio,
+      onPauseAudio: pauseGlobalAudio,
+      onResumeAudio: resumeGlobalAudio,
+      onStopAudio: stopGlobalAudio,
+      onAddToQueue: addToQueue,
+      onPlayNext: playNextTrack,
+      onClearQueue: clearQueue,
+    }),
+    [
+      globalAudioState,
+      playGlobalAudio,
+      pauseGlobalAudio,
+      resumeGlobalAudio,
+      stopGlobalAudio,
+      addToQueue,
+      playNextTrack,
+      clearQueue,
+    ]
+  );
+
+  const listenScreenProps = useMemo(
+    () => ({
+      ...commonAudioProps,
+      onNavigate: navigate,
+      user,
+      onShuffleAll: shuffleAllMixes,
+      onShuffleByGenre: shuffleByGenre,
+      onShuffleBasedOnLikes: shuffleBasedOnLikes,
+    }),
+    [
+      commonAudioProps,
+      navigate,
+      user,
+      shuffleAllMixes,
+      shuffleByGenre,
+      shuffleBasedOnLikes,
+    ]
+  );
+
+  const handleSignOut = useCallback(() => {
+    clearScreenCachesForUser(user?.id);
+    setUser(null);
+    setIsFirstTime(true);
+    setDjProfile({
+      djName: "",
+      firstName: "",
+      lastName: "",
+      instagram: "",
+      soundcloud: "",
+      city: "",
+      genres: [],
+    });
+    setCurrentScreen(SCREENS.LOGIN);
+  }, [user?.id, setUser, setIsFirstTime, setDjProfile, setCurrentScreen]);
+
+  const handleEditProfileSave = useCallback(
+    async (_updatedProfile) => {
+      if (user) {
+        try {
+          const profile = await db.getUserProfile(user.id);
+          setUser((prev) => ({
+            ...prev,
+            user_metadata: {
+              ...prev.user_metadata,
+              profile_image_url: profile?.profile_image_url,
+              dj_name: profile?.dj_name,
+            },
+          }));
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      setCurrentScreen(SCREENS.PROFILE);
+      setScreenParams((prev) => ({
+        ...prev,
+        profileRefreshKey: Date.now(),
+      }));
+    },
+    [user, setUser, setCurrentScreen, setScreenParams]
+  );
 
   switch (screen) {
-    case "opportunities":
+    case SCREENS.OPPORTUNITIES:
       return (
-        <View style={[styles.screen, { backgroundColor: "hsl(0, 0%, 0%)" }]}>
-          <View style={styles.opportunitiesContainer}>
-            <View style={styles.opportunitiesHeader}>
-              <Text style={styles.tsBlockBoldHeading}>OPPORTUNITIES</Text>
-              <Text style={styles.opportunitiesSubtitle}>
-                Swipe to find your next gig
-              </Text>
-              <View style={styles.dailyApplicationCounter}>
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={16}
-                  color={
-                    rp.dailyApplicationStats?.can_apply
-                      ? "hsl(75, 100%, 60%)"
-                      : "hsl(0, 100%, 60%)"
-                  }
-                />
-                <Text
-                  style={[
-                    styles.dailyApplicationText,
-                    {
-                      color: rp.dailyApplicationStats?.can_apply
-                        ? "hsl(75, 100%, 60%)"
-                        : "hsl(0, 100%, 60%)",
-                    },
-                  ]}
-                >
-                  {rp.dailyApplicationStats?.remaining_applications ?? 0}{" "}
-                  applications remaining today
-                </Text>
-              </View>
-            </View>
-            <View style={styles.opportunitiesCardContainer}>
-              {rp.isLoadingOpportunities ? (
-                <View style={styles.loadingContainer}>
-                  <Text style={styles.loadingText}>
-                    Loading opportunities...
-                  </Text>
-                </View>
-              ) : rp.currentOpportunityIndex < (rp.opportunities?.length ?? 0) ? (
-                <SwipeableOpportunityCard
-                  key={rp.currentOpportunityIndex}
-                  opportunity={rp.opportunities[rp.currentOpportunityIndex]}
-                  onPress={() =>
-                    rp.handleOpportunityPress?.(
-                      rp.opportunities[rp.currentOpportunityIndex]
-                    )
-                  }
-                  onSwipeLeft={rp.handleSwipeLeft}
-                  onSwipeRight={rp.handleSwipeRight}
-                  isTopCard={true}
-                  dailyApplicationStats={rp.dailyApplicationStats}
-                />
-              ) : (
-                <View style={styles.noMoreOpportunities}>
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={64}
-                    color="hsl(75, 100%, 60%)"
-                  />
-                  <Text style={styles.noMoreTitle}>All Caught Up!</Text>
-                  <Text style={styles.noMoreSubtitle}>
-                    You've seen all available opportunities. Check back later for
-                    new gigs!
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.resetButton}
-                    onPress={rp.resetOpportunities}
-                  >
-                    <Text style={styles.resetButtonText}>Start Over</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-            {rp.showSwipeTutorial && (
-              <Modal
-                transparent={true}
-                visible={rp.showSwipeTutorial}
-                animationType="fade"
-                onRequestClose={rp.handleDismissSwipeTutorial}
-              >
-                <View style={styles.tutorialOverlay}>
-                  <View style={styles.tutorialContent}>
-                    <View style={styles.tutorialHeader}>
-                      <Text style={styles.tutorialTitle}>How to Use</Text>
-                      <TouchableOpacity
-                        onPress={rp.handleDismissSwipeTutorial}
-                        style={styles.tutorialCloseButton}
-                      >
-                        <Ionicons
-                          name="close"
-                          size={24}
-                          color="hsl(0, 0%, 100%)"
-                        />
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.tutorialInstructions}>
-                      <View style={styles.tutorialInstructionRow}>
-                        <View style={styles.tutorialIconContainer}>
-                          <Ionicons
-                            name="arrow-forward"
-                            size={32}
-                            color="hsl(75, 100%, 60%)"
-                          />
-                        </View>
-                        <View style={styles.tutorialTextContainer}>
-                          <Text style={styles.tutorialInstructionTitle}>
-                            Swipe Right
-                          </Text>
-                          <Text style={styles.tutorialInstructionText}>
-                            To apply for an opportunity
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.tutorialInstructionRow}>
-                        <View style={styles.tutorialIconContainer}>
-                          <Ionicons
-                            name="arrow-back"
-                            size={32}
-                            color="hsl(0, 100%, 60%)"
-                          />
-                        </View>
-                        <View style={styles.tutorialTextContainer}>
-                          <Text style={styles.tutorialInstructionTitle}>
-                            Swipe Left
-                          </Text>
-                          <Text style={styles.tutorialInstructionText}>
-                            To dismiss and see the next opportunity
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.tutorialGotItButton}
-                      onPress={rp.handleDismissSwipeTutorial}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.tutorialGotItButtonText}>
-                        Got It
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </Modal>
-            )}
-          </View>
-        </View>
+        <OpportunitiesScreen
+          styles={styles}
+          opportunities={opportunities}
+          currentOpportunityIndex={currentOpportunityIndex}
+          dailyApplicationStats={dailyApplicationStats}
+          handleOpportunityPress={handleOpportunityPress}
+          handleSwipeLeft={handleSwipeLeft}
+          handleSwipeRight={handleSwipeRight}
+          resetOpportunities={resetOpportunities}
+          isLoadingOpportunities={isLoadingOpportunities}
+          showSwipeTutorial={showSwipeTutorial}
+          handleDismissSwipeTutorial={handleDismissSwipeTutorial}
+        />
       );
 
-    case "messages":
+    case SCREENS.MESSAGES:
       return (
         <MessagesScreen
-          user={rp.user}
-          navigation={{
+          user={user}
+          navigation={createNavigation({
             goBack: () => {
-              rp.setCurrentScreen("connections");
-              rp.setScreenParams((prev) => ({
+              setCurrentScreen(SCREENS.CONNECTIONS);
+              setScreenParams((prev) => ({
                 ...prev,
                 initialTab:
-                  screenParams?.returnToConnectionsTab || "connections",
+                  screenParams?.returnToConnectionsTab || "discover",
               }));
             },
-            navigate: (s, params = {}) => {
-              rp.setCurrentScreen(s);
-              rp.setScreenParams(params);
-            },
-          }}
+          })}
           route={{ params: screenParams }}
         />
       );
 
-    case "connections":
+    case SCREENS.CONNECTIONS:
       return (
         <ConnectionsScreen
-          user={rp.user}
+          user={user}
           initialTab={screenParams.initialTab || "discover"}
           route={{ params: screenParams }}
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
-          onPlayAudio={rp.playGlobalAudio}
+          onNavigate={navigate}
+          onPlayAudio={playGlobalAudio}
         />
       );
 
-    case "messages-list":
+    case SCREENS.MESSAGES_LIST:
       return (
         <ConnectionsScreen
-          user={rp.user}
+          user={user}
           initialTab="connections"
           route={{
             params: { ...screenParams, returnToMessagesList: true },
           }}
           onNavigate={(s, params = {}) => {
-            if (s === "messages") {
+            if (s === SCREENS.MESSAGES) {
               params.returnToMessagesList = true;
             }
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
+            navigate(s, params);
           }}
         />
       );
 
-    case "notifications":
+    case SCREENS.NOTIFICATIONS:
       return (
         <NotificationsScreen
-          user={rp.user}
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
-          onNotificationRead={rp.loadNotificationCounts}
+          user={user}
+          onNavigate={navigate}
+          onNotificationRead={loadNotificationCounts}
         />
       );
 
-    case "community":
-      return (
-        <CommunityScreen
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
-        />
-      );
+    case SCREENS.COMMUNITY:
+      return <CommunityScreen onNavigate={navigate} />;
 
-    case "profile":
+    case SCREENS.PROFILE:
       return (
         <ProfileScreen
           key={screenParams.profileRefreshKey || "profile"}
-          user={rp.user}
-          globalAudioState={rp.globalAudioState}
-          onPlayAudio={rp.playGlobalAudio}
-          onPauseAudio={rp.pauseGlobalAudio}
-          onResumeAudio={rp.resumeGlobalAudio}
-          onStopAudio={rp.stopGlobalAudio}
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
+          user={user}
+          globalAudioState={globalAudioState}
+          onPlayAudio={playGlobalAudio}
+          onPauseAudio={pauseGlobalAudio}
+          onResumeAudio={resumeGlobalAudio}
+          onStopAudio={stopGlobalAudio}
+          onNavigate={navigate}
         />
       );
 
-    case "settings":
+    case SCREENS.SETTINGS:
       return (
         <SettingsScreen
-          user={rp.user}
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
-          onSignOut={() => {
-            clearScreenCachesForUser(rp.user?.id);
-            rp.setUser(null);
-            rp.setIsFirstTime(true);
-            rp.setDjProfile({
-              djName: "",
-              firstName: "",
-              lastName: "",
-              instagram: "",
-              soundcloud: "",
-              city: "",
-              genres: [],
-            });
-            rp.setCurrentScreen("login");
-          }}
-          onNotificationPreferencesChange={rp.loadNotificationCounts}
+          user={user}
+          onNavigate={navigate}
+          onSignOut={handleSignOut}
+          onNotificationPreferencesChange={loadNotificationCounts}
         />
       );
 
-    case "upload-mix":
+    case SCREENS.UPLOAD_MIX:
       return (
         <UploadMixScreen
-          user={rp.user}
-          onBack={() => rp.setCurrentScreen("profile")}
-          onUploadComplete={() => rp.setCurrentScreen("profile")}
+          user={user}
+          onBack={() => setCurrentScreen(SCREENS.PROFILE)}
+          onUploadComplete={() => setCurrentScreen(SCREENS.PROFILE)}
           existingMixId={screenParams.mixId || null}
         />
       );
 
-    case "reset-password":
+    case SCREENS.RESET_PASSWORD:
       return (
         <ResetPasswordScreen
           onBack={() => {
-            rp.setCurrentScreen("login");
-            rp.setShowAuth?.(true);
-            rp.setAuthMode?.("login");
+            setCurrentScreen(SCREENS.LOGIN);
+            setShowAuth?.(true);
+            setAuthMode?.("login");
           }}
           onSuccess={() => {
-            rp.setCurrentScreen("login");
-            rp.setShowAuth?.(true);
-            rp.setAuthMode?.("login");
+            setCurrentScreen(SCREENS.LOGIN);
+            setShowAuth?.(true);
+            setAuthMode?.("login");
           }}
         />
       );
 
-    case "edit-profile":
+    case SCREENS.EDIT_PROFILE:
       return (
         <EditProfileScreen
-          user={rp.user}
-          onSave={async (updatedProfile) => {
-            if (rp.user) {
-              try {
-                const profile = await db.getUserProfile(rp.user.id);
-                rp.setUser((prev) => ({
-                  ...prev,
-                  user_metadata: {
-                    ...prev.user_metadata,
-                    profile_image_url: profile?.profile_image_url,
-                    dj_name: profile?.dj_name,
-                  },
-                }));
-              } catch (_) {}
-            }
-            rp.setCurrentScreen("profile");
-            rp.setScreenParams((prev) => ({
-              ...prev,
-              profileRefreshKey: Date.now(),
-            }));
-          }}
-          onCancel={() => rp.setCurrentScreen("profile")}
+          user={user}
+          onSave={handleEditProfileSave}
+          onCancel={() => setCurrentScreen(SCREENS.PROFILE)}
         />
       );
 
-    case "user-profile":
+    case SCREENS.USER_PROFILE:
       return (
         <UserProfileView
           userId={screenParams.userId}
-          globalAudioState={rp.globalAudioState}
-          onPlayAudio={rp.playGlobalAudio}
-          onPauseAudio={rp.pauseGlobalAudio}
-          onResumeAudio={rp.resumeGlobalAudio}
-          onStopAudio={rp.stopGlobalAudio}
-          onBack={() => rp.setCurrentScreen("connections")}
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
+          globalAudioState={globalAudioState}
+          onPlayAudio={playGlobalAudio}
+          onPauseAudio={pauseGlobalAudio}
+          onResumeAudio={resumeGlobalAudio}
+          onStopAudio={stopGlobalAudio}
+          onBack={() => setCurrentScreen(SCREENS.CONNECTIONS)}
+          onNavigate={navigate}
         />
       );
 
-    case "community-members":
+    case SCREENS.COMMUNITY_MEMBERS:
       return (
         <CommunityMembersScreen
           communityId={screenParams.communityId}
           communityName={screenParams.communityName}
           onBack={() => {
             if (screenParams.returnToMessages) {
-              rp.setCurrentScreen("messages");
-              rp.setScreenParams({
+              setCurrentScreen(SCREENS.MESSAGES);
+              setScreenParams({
                 communityId: screenParams.communityId,
                 chatType: "group",
               });
             } else {
-              rp.setCurrentScreen("connections");
+              setCurrentScreen(SCREENS.CONNECTIONS);
             }
           }}
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
+          onNavigate={navigate}
         />
       );
 
-    case "connections-list":
+    case SCREENS.CONNECTIONS_LIST:
       return (
         <ConnectionsListScreen
-          user={rp.user}
-          onBack={() => rp.setCurrentScreen("profile")}
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
+          user={user}
+          onBack={() => setCurrentScreen(SCREENS.PROFILE)}
+          onNavigate={navigate}
         />
       );
 
-    case "achievements-list":
+    case SCREENS.ACHIEVEMENTS_LIST:
       return (
         <AchievementsListScreen
-          user={rp.user}
-          onBack={() => rp.setCurrentScreen("profile")}
+          user={user}
+          onBack={() => setCurrentScreen(SCREENS.PROFILE)}
         />
       );
 
-    case "invite":
+    case SCREENS.INVITE:
       return (
         <InviteScreen
-          user={rp.user}
-          onBack={() => rp.setCurrentScreen("profile")}
+          user={user}
+          onBack={() => setCurrentScreen(SCREENS.PROFILE)}
         />
       );
 
-    case "admin-applications":
+    case SCREENS.ADMIN_APPLICATIONS:
       return (
-        <AdminApplicationsScreen
-          user={rp.user}
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
-        />
+        <AdminApplicationsScreen user={user} onNavigate={navigate} />
       );
 
-    case "brand-gigs-portal":
+    case SCREENS.BRAND_GIGS_PORTAL:
       return (
         <BrandGigsPortal
-          user={rp.user}
-          onBack={() => rp.setCurrentScreen("admin-applications")}
+          user={user}
+          onBack={() => setCurrentScreen(SCREENS.ADMIN_APPLICATIONS)}
         />
       );
 
-    case "about":
+    case SCREENS.ABOUT:
       return (
-        <AboutScreen onBack={() => rp.setCurrentScreen("opportunities")} />
+        <AboutScreen onBack={() => setCurrentScreen(SCREENS.OPPORTUNITIES)} />
       );
 
-    case "terms":
+    case SCREENS.TERMS:
       return (
         <TermsOfServiceScreen
-          onBack={() => rp.setCurrentScreen("settings")}
+          onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
         />
       );
 
-    case "privacy":
+    case SCREENS.PRIVACY:
       return (
         <PrivacyPolicyScreen
-          onBack={() => rp.setCurrentScreen("settings")}
+          onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
         />
       );
 
-    case "help":
+    case SCREENS.HELP:
       return (
         <HelpCenterScreen
-          onBack={() => rp.setCurrentScreen("settings")}
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
+          onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
+          onNavigate={navigate}
         />
       );
 
-    case "help-chat":
+    case SCREENS.HELP_CHAT:
       return (
         <HelpChatScreen
-          user={rp.user}
-          onBack={() => rp.setCurrentScreen("help")}
+          user={user}
+          onBack={() => setCurrentScreen(SCREENS.HELP)}
         />
       );
 
-    case "listen":
-      return (
-        <ListenScreen
-          globalAudioState={rp.globalAudioState}
-          onPlayAudio={rp.playGlobalAudio}
-          onPauseAudio={rp.pauseGlobalAudio}
-          onResumeAudio={rp.resumeGlobalAudio}
-          onStopAudio={rp.stopGlobalAudio}
-          onAddToQueue={rp.addToQueue}
-          onPlayNext={rp.playNextTrack}
-          onClearQueue={rp.clearQueue}
-          onNavigate={(s, params = {}) => {
-            rp.setCurrentScreen(s);
-            rp.setScreenParams(params);
-          }}
-          user={rp.user}
-          onShuffleAll={rp.shuffleAllMixes}
-          onShuffleByGenre={rp.shuffleByGenre}
-          onShuffleBasedOnLikes={rp.shuffleBasedOnLikes}
-        />
-      );
+    case SCREENS.LISTEN:
+      return <ListenScreen {...listenScreenProps} />;
 
-    case "trending-mixes":
+    case SCREENS.TRENDING_MIXES:
       return (
         <TrendingMixesScreen
-          globalAudioState={rp.globalAudioState}
-          onPlayAudio={rp.playGlobalAudio}
-          onPauseAudio={rp.pauseGlobalAudio}
-          onBack={() => rp.setCurrentScreen("listen")}
-          user={rp.user}
-          onAddToQueue={rp.addToQueue}
-          onPlayNext={rp.playNextTrack}
+          globalAudioState={globalAudioState}
+          onPlayAudio={playGlobalAudio}
+          onPauseAudio={pauseGlobalAudio}
+          onBack={() => setCurrentScreen(SCREENS.LISTEN)}
+          user={user}
+          onAddToQueue={addToQueue}
+          onPlayNext={playNextTrack}
         />
       );
 
-    case "your-likes":
+    case SCREENS.YOUR_LIKES:
       return (
         <YourLikesScreen
-          globalAudioState={rp.globalAudioState}
-          onPlayAudio={rp.playGlobalAudio}
-          onPauseAudio={rp.pauseGlobalAudio}
-          onBack={() => rp.setCurrentScreen("listen")}
-          user={rp.user}
-          onAddToQueue={rp.addToQueue}
-          onPlayNext={rp.playNextTrack}
+          globalAudioState={globalAudioState}
+          onPlayAudio={playGlobalAudio}
+          onPauseAudio={pauseGlobalAudio}
+          onBack={() => setCurrentScreen(SCREENS.LISTEN)}
+          user={user}
+          onAddToQueue={addToQueue}
+          onPlayNext={playNextTrack}
         />
       );
 
-    case "playlist-detail":
+    case SCREENS.PLAYLIST_DETAIL:
       return (
         <PlaylistDetailScreen
-          globalAudioState={rp.globalAudioState}
-          onPlayAudio={rp.playGlobalAudio}
-          onPauseAudio={rp.pauseGlobalAudio}
-          onBack={() => rp.setCurrentScreen("listen")}
-          user={rp.user}
-          onAddToQueue={rp.addToQueue}
-          onPlayNext={rp.playNextTrack}
+          globalAudioState={globalAudioState}
+          onPlayAudio={playGlobalAudio}
+          onPauseAudio={pauseGlobalAudio}
+          onBack={() => setCurrentScreen(SCREENS.LISTEN)}
+          user={user}
+          onAddToQueue={addToQueue}
+          onPlayNext={playNextTrack}
           playlistId={screenParams.playlistId}
           playlistName={screenParams.playlistName}
         />
       );
 
     default:
-      return (
-        <ListenScreen
-          globalAudioState={rp.globalAudioState}
-          onPlayAudio={rp.playGlobalAudio}
-          onPauseAudio={rp.pauseGlobalAudio}
-          onResumeAudio={rp.resumeGlobalAudio}
-          onStopAudio={rp.stopGlobalAudio}
-          onAddToQueue={rp.addToQueue}
-          onPlayNext={rp.playNextTrack}
-          onClearQueue={rp.clearQueue}
-          user={rp.user}
-          onShuffleAll={rp.shuffleAllMixes}
-          onShuffleByGenre={rp.shuffleByGenre}
-          onShuffleBasedOnLikes={rp.shuffleBasedOnLikes}
-        />
-      );
+      return <ListenScreen {...listenScreenProps} />;
   }
 }
