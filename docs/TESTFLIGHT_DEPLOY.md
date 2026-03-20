@@ -301,6 +301,14 @@ eas build:cancel --id <BUILD_ID>
 
 ---
 
+## EAS iOS: "Install pods" / unknown build failure
+
+1. Open the build log on [expo.dev](https://expo.dev) and expand **Install pods** for the real error (the CLI often only says "Unknown error").
+2. Run **`npx expo-doctor`** locally. If you see **duplicate native module dependencies** (e.g. two versions of `@react-native-async-storage/async-storage`), fix with **`overrides`** in `package.json` so only one version is installed, then `npm install`, commit `package-lock.json`, and rebuild.
+3. From the project root, **`cd ios && pod install`** should complete without errors before you rely on EAS.
+
+---
+
 ## ✅ Checklist Before Deploy
 
 - [ ] All changes committed: `git status`
