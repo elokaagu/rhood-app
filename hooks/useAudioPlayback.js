@@ -85,7 +85,6 @@ export default function useAudioPlayback({ user }) {
 
   // ── Refs ─────────────────────────────────────────────────
   const globalAudioRef = useRef(null);
-  const progressPollIntervalRef = useRef(null);
   const isPlayingAudioRef = useRef(false);
   const trackFinishedRef = useRef(false);
   const isScrubbingRef = useRef(false);
@@ -93,13 +92,6 @@ export default function useAudioPlayback({ user }) {
   const playPreviousTrackRef = useRef(null);
 
   // ── Helpers ──────────────────────────────────────────────
-
-  const clearProgressPoll = useCallback(() => {
-    if (progressPollIntervalRef.current) {
-      clearInterval(progressPollIntervalRef.current);
-      progressPollIntervalRef.current = null;
-    }
-  }, []);
 
   // ── Fetch liked mixes ────────────────────────────────────
 
@@ -200,7 +192,6 @@ export default function useAudioPlayback({ user }) {
           }
 
           // Stop current audio if playing
-          clearProgressPoll();
           if (globalAudioRef.current) {
             await globalAudioRef.current.unloadAsync();
             globalAudioRef.current = null;
@@ -394,37 +385,6 @@ export default function useAudioPlayback({ user }) {
 
           // Store reference for cleanup
           globalAudioRef.current = sound;
-
-          // Progress poll for UI sync
-          clearProgressPoll();
-          const runProgressPoll = async () => {
-            if (!globalAudioRef.current || isScrubbingRef.current) return;
-            try {
-              const s = await globalAudioRef.current.getStatusAsync();
-              if (!s?.isLoaded) return;
-              const st = stateRef.current;
-              const metaMs = trackMetaDurationMs(st.currentTrack || {});
-              const nativeDur = s.durationMillis > 0 ? s.durationMillis : 0;
-              const dur =
-                nativeDur > 0
-                  ? nativeDur
-                  : st.durationMillis > 0
-                    ? st.durationMillis
-                    : metaMs;
-              if (dur > 0) {
-                const pos = s.positionMillis ?? 0;
-                setGlobalAudioState((prev) => ({
-                  ...prev,
-                  isPlaying: s.isPlaying ?? prev.isPlaying,
-                  positionMillis: pos,
-                  durationMillis: dur,
-                  progress: Math.min(1, pos / dur),
-                }));
-              }
-            } catch (_) {}
-          };
-          runProgressPoll();
-          progressPollIntervalRef.current = setInterval(runProgressPoll, 500);
 
           // Start playing
           if (__DEV__) console.log("▶️ Starting playback...");
@@ -626,7 +586,7 @@ export default function useAudioPlayback({ user }) {
       isPlayingAudioRef.current = false;
       throw syncError;
     }
-  }, [user?.id, likedMixIds, setGlobalAudioState, stateRef, clearProgressPoll]);
+  }, [user?.id, likedMixIds, setGlobalAudioState, stateRef]);
 
   const pauseGlobalAudio = useCallback(async () => {
     try {
@@ -668,7 +628,6 @@ export default function useAudioPlayback({ user }) {
 
   const stopGlobalAudio = useCallback(async () => {
     try {
-      clearProgressPoll();
       if (globalAudioRef.current) {
         await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
@@ -691,7 +650,7 @@ export default function useAudioPlayback({ user }) {
       queue: [],
       currentQueueIndex: -1,
     });
-  }, [setGlobalAudioState, clearProgressPoll]);
+  }, [setGlobalAudioState]);
 
   const seekGlobalAudio = useCallback(async (seekAmount) => {
     try {
@@ -1388,13 +1347,12 @@ export default function useAudioPlayback({ user }) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      clearProgressPoll();
       if (globalAudioRef.current) {
         globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       }
     };
-  }, [clearProgressPoll]);
+  }, []);
 
   // ── Return ───────────────────────────────────────────────
 
