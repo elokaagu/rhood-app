@@ -12,7 +12,6 @@ import {
   Modal,
   Animated,
   AppState,
-  Image,
   Linking,
   Alert,
   Platform,
@@ -32,7 +31,6 @@ import EditProfileScreen from "./components/EditProfileScreen";
 import AuthGate from "./components/AuthGate";
 import { db, auth, supabase } from "./lib/supabase";
 import { clearScreenCachesForUser } from "./lib/screenCache";
-import { APPLICATION_LIMITS } from "./lib/performanceConstants";
 import {
   ANIMATION_DURATION,
 } from "./lib/performanceConstants";
@@ -44,8 +42,6 @@ import {
 } from "./lib/pushNotifications";
 import {
   getCurrentLocation,
-  calculateDistance,
-  formatDistance,
   checkLocationMatch,
 } from "./lib/locationService";
 import {
@@ -90,12 +86,14 @@ export default function App() {
   useEffect(() => {
     if (fontError) {
       // Font failed to load - app will use system fonts gracefully
-      console.warn(
-        "⚠️ Custom font not available, using system fonts:",
-        fontError?.message?.substring(0, 80)
-      );
+      if (__DEV__) {
+        console.warn(
+          "⚠️ Custom font not available, using system fonts:",
+          fontError?.message?.substring(0, 80)
+        );
+      }
     } else if (fontsLoaded) {
-      console.log("✅ TS Block Bold font loaded successfully");
+      if (__DEV__) console.log("✅ TS Block Bold font loaded successfully");
     }
   }, [fontsLoaded, fontError]);
 
@@ -156,11 +154,11 @@ export default function App() {
         // On Android, this sets up MediaStyle notifications
         await lockScreenControls.initialize();
 
-        console.log("✅ Lock screen audio controls initialized");
+        if (__DEV__) console.log("✅ Lock screen audio controls initialized");
 
         return removeListeners;
       } catch (error) {
-        console.error("❌ Error initializing notifications:", error);
+        if (__DEV__) console.error("❌ Error initializing notifications:", error);
       }
     };
 
@@ -263,19 +261,23 @@ export default function App() {
 
   useEffect(() => {
     // Check if New Architecture is enabled
-    console.log("🏗️ New Architecture Check:");
-    console.log("RCT_NEW_ARCH_ENABLED:", global.RCT_NEW_ARCH_ENABLED);
-    console.log("Fabric enabled:", global.nativeFabricUIManager !== undefined);
-    console.log("TurboModules enabled:", global.RN$Bridgeless !== undefined);
-    console.log(
-      "React Native version:",
-      require("react-native").Platform.constants.reactNativeVersion
-    );
-    console.log("Expo SDK version:", require("expo/package.json").version);
-    console.log(
-      "New Architecture status:",
-      global.RCT_NEW_ARCH_ENABLED === "1" ? "✅ ENABLED" : "❌ DISABLED"
-    );
+    if (__DEV__) console.log("🏗️ New Architecture Check:");
+    if (__DEV__) console.log("RCT_NEW_ARCH_ENABLED:", global.RCT_NEW_ARCH_ENABLED);
+    if (__DEV__) console.log("Fabric enabled:", global.nativeFabricUIManager !== undefined);
+    if (__DEV__) console.log("TurboModules enabled:", global.RN$Bridgeless !== undefined);
+    if (__DEV__) {
+      console.log(
+        "React Native version:",
+        require("react-native").Platform.constants.reactNativeVersion
+      );
+    }
+    if (__DEV__) console.log("Expo SDK version:", require("expo/package.json").version);
+    if (__DEV__) {
+      console.log(
+        "New Architecture status:",
+        global.RCT_NEW_ARCH_ENABLED === "1" ? "✅ ENABLED" : "❌ DISABLED"
+      );
+    }
 
     initializeAuth();
 
@@ -283,7 +285,7 @@ export default function App() {
     const handleDeepLink = async (url) => {
       if (!url) return;
       
-      console.log("🔗 Deep link received:", url);
+      if (__DEV__) console.log("🔗 Deep link received:", url);
       
       try {
         // Handle both rhoodapp://reset-password and rhoodapp://reset-password#... formats
@@ -298,11 +300,13 @@ export default function App() {
             const refreshToken = params.get("refresh_token");
             const type = params.get("type");
             
-            console.log("🔐 Password reset link detected:", { 
-              hasAccessToken: !!accessToken, 
-              hasRefreshToken: !!refreshToken,
-              type 
-            });
+            if (__DEV__) {
+              console.log("🔐 Password reset link detected:", { 
+                hasAccessToken: !!accessToken, 
+                hasRefreshToken: !!refreshToken,
+                type 
+              });
+            }
             
             if (type === "recovery" && accessToken) {
               // Set the session using the tokens from the reset link
@@ -312,12 +316,12 @@ export default function App() {
               });
               
               if (error) {
-                console.error("❌ Error setting reset session:", error);
+                if (__DEV__) console.error("❌ Error setting reset session:", error);
                 Alert.alert("Error", "This password reset link is invalid or has expired. Please request a new one.");
                 return;
               }
               
-              console.log("✅ Reset session established, showing reset password screen");
+              if (__DEV__) console.log("✅ Reset session established, showing reset password screen");
               setShowAuth(false);
               setCurrentScreen("reset-password");
             }
@@ -326,14 +330,14 @@ export default function App() {
             // Check if there's an active recovery session
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-              console.log("✅ Active session found, showing reset password screen");
+              if (__DEV__) console.log("✅ Active session found, showing reset password screen");
               setShowAuth(false);
               setCurrentScreen("reset-password");
             }
           }
         }
       } catch (error) {
-        console.error("❌ Error handling deep link:", error);
+        if (__DEV__) console.error("❌ Error handling deep link:", error);
         // If URL parsing fails, try checking for active session
         try {
           const { data: { session } } = await supabase.auth.getSession();
@@ -342,7 +346,7 @@ export default function App() {
             setCurrentScreen("reset-password");
           }
         } catch (sessionError) {
-          console.error("❌ Error checking session:", sessionError);
+          if (__DEV__) console.error("❌ Error checking session:", sessionError);
         }
       }
     };
@@ -364,10 +368,12 @@ export default function App() {
     try {
       setupPushNotifications();
     } catch (error) {
-      console.log(
-        "Push notifications not available (running in Expo Go):",
-        error.message
-      );
+      if (__DEV__) {
+        console.log(
+          "Push notifications not available (running in Expo Go):",
+          error.message
+        );
+      }
     }
 
     // Cleanup on unmount
@@ -407,25 +413,27 @@ export default function App() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        console.log("Skipping push setup - no authenticated user");
+        if (__DEV__) console.log("Skipping push setup - no authenticated user");
         return;
       }
 
       const userSettings = await db.getUserSettings(user.id);
       if (userSettings?.push_notifications === false) {
-        console.log(
-          "Push notifications disabled in settings. Skipping registration."
-        );
+        if (__DEV__) {
+          console.log(
+            "Push notifications disabled in settings. Skipping registration."
+          );
+        }
         return;
       }
 
       const token = await registerForPushNotifications();
       if (!token) {
-        console.log("Unable to obtain push notification token");
+        if (__DEV__) console.log("Unable to obtain push notification token");
         return;
       }
 
-      console.log("Push notification token obtained:", token);
+      if (__DEV__) console.log("Push notification token obtained:", token);
 
       // Setup notification listeners
       const cleanup = setupNotificationListeners();
@@ -433,7 +441,7 @@ export default function App() {
       // Store cleanup function for later use
       return cleanup;
     } catch (error) {
-      console.error("Error setting up push notifications:", error);
+      if (__DEV__) console.error("Error setting up push notifications:", error);
     }
   };
 
@@ -444,9 +452,9 @@ export default function App() {
       try {
         const googleSignIn = require("./lib/googleSignIn");
         googleSignIn.configureGoogleSignIn();
-        console.log("✅ Google Sign-In configured");
+        if (__DEV__) console.log("✅ Google Sign-In configured");
       } catch (error) {
-        console.log("⚠️ Native Google Sign-In not available:", error.message);
+        if (__DEV__) console.log("⚠️ Native Google Sign-In not available:", error.message);
       }
 
       // Get initial session
@@ -456,20 +464,22 @@ export default function App() {
       } = await supabase.auth.getSession();
 
       if (sessionError) {
-        console.log("Session error:", sessionError.message);
+        if (__DEV__) console.log("Session error:", sessionError.message);
 
         // Handle specific refresh token errors
         if (
           sessionError.message?.includes("Refresh Token") ||
           sessionError.message?.includes("Invalid Refresh Token")
         ) {
-          console.log(
-            "🔄 Invalid refresh token detected, clearing session and signing out"
-          );
+          if (__DEV__) {
+            console.log(
+              "🔄 Invalid refresh token detected, clearing session and signing out"
+            );
+          }
           try {
             await supabase.auth.signOut();
           } catch (signOutError) {
-            console.log("Sign out error:", signOutError);
+            if (__DEV__) console.log("Sign out error:", signOutError);
           }
         }
 
@@ -489,11 +499,11 @@ export default function App() {
       } = supabase.auth.onAuthStateChange(async (event, session) => {
         // Handle token refresh errors
         if (event === "TOKEN_REFRESHED" && !session) {
-          console.log("🔄 Token refresh failed, signing out");
+          if (__DEV__) console.log("🔄 Token refresh failed, signing out");
           try {
             await supabase.auth.signOut();
           } catch (signOutError) {
-            console.log("Sign out error during token refresh:", signOutError);
+            if (__DEV__) console.log("Sign out error during token refresh:", signOutError);
           }
           setUser(null);
           setAuthLoading(false);
@@ -506,9 +516,11 @@ export default function App() {
 
         if (event === "SIGNED_IN" && session?.user) {
           // User signed in - handleLoginSuccess will manage the profile check
-          console.log(
-            "🔐 SIGNED_IN event detected, but handleLoginSuccess will manage profile check"
-          );
+          if (__DEV__) {
+            console.log(
+              "🔐 SIGNED_IN event detected, but handleLoginSuccess will manage profile check"
+            );
+          }
           setUser(session.user);
         } else if (event === "SIGNED_OUT") {
           // User signed out, reset state
@@ -527,7 +539,7 @@ export default function App() {
 
       return () => subscription.unsubscribe();
     } catch (error) {
-      console.error("Auth initialization error:", error);
+      if (__DEV__) console.error("Auth initialization error:", error);
       setAuthLoading(false);
     }
   };
@@ -554,7 +566,7 @@ export default function App() {
 
   // Authentication handlers
   const handleLoginSuccess = useCallback(async (user) => {
-    console.log("🔐 handleLoginSuccess called for user:", user.id);
+    if (__DEV__) console.log("🔐 handleLoginSuccess called for user:", user.id);
     setUser(user);
     setShowAuth(false);
     setAuthLoading(true); // Keep loading state while checking profile
@@ -563,18 +575,20 @@ export default function App() {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     try {
-      console.log("🔍 Fetching user profile for user ID:", user.id);
+      if (__DEV__) console.log("🔍 Fetching user profile for user ID:", user.id);
       const profile = await db.getUserProfile(user.id);
-      console.log("📋 Profile result:", profile ? "Found" : "Not found");
+      if (__DEV__) console.log("📋 Profile result:", profile ? "Found" : "Not found");
 
       if (profile) {
-        console.log("✅ Profile found, setting up user session");
-        console.log("👤 Profile data:", {
-          id: profile.id,
-          djName: profile.dj_name || profile.djName,
-          email: profile.email,
-          hasRequiredFields: !!(profile.dj_name || profile.djName),
-        });
+        if (__DEV__) console.log("✅ Profile found, setting up user session");
+        if (__DEV__) {
+          console.log("👤 Profile data:", {
+            id: profile.id,
+            djName: profile.dj_name || profile.djName,
+            email: profile.email,
+            hasRequiredFields: !!(profile.dj_name || profile.djName),
+          });
+        }
         setDjProfile(profile);
         setIsFirstTime(false);
 
@@ -589,7 +603,7 @@ export default function App() {
         });
 
         // For login flow, always go to opportunities page
-        console.log("🎯 Login successful - navigating to opportunities");
+        if (__DEV__) console.log("🎯 Login successful - navigating to opportunities");
         setCurrentScreen("opportunities");
         await trackScreenView("opportunities");
 
@@ -604,29 +618,31 @@ export default function App() {
         // Fetch user location and check for mismatch
         fetchUserLocationRef.current?.(profile);
       } else {
-        console.log("⚠️ No profile found after OAuth - user needs onboarding");
-        console.log("🔍 Profile query returned:", profile);
+        if (__DEV__) console.log("⚠️ No profile found after OAuth - user needs onboarding");
+        if (__DEV__) console.log("🔍 Profile query returned:", profile);
         setIsFirstTime(true);
       }
     } catch (error) {
-      console.error("❌ Error fetching profile:", error);
-      console.error("❌ Error details:", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-      });
+      if (__DEV__) console.error("❌ Error fetching profile:", error);
+      if (__DEV__) {
+        console.error("❌ Error details:", {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        });
+      }
 
       // Only show onboarding if the profile truly doesn't exist
       // Error code PGRST116 means "no rows returned" (profile doesn't exist)
       // Other errors (like column doesn't exist) should not trigger onboarding
       if (error.code === "PGRST116" || error.message?.includes("No rows returned")) {
-        console.log("⚠️ No profile found - user needs onboarding");
+        if (__DEV__) console.log("⚠️ No profile found - user needs onboarding");
         setIsFirstTime(true);
       } else {
         // For other errors (like database schema issues), try to continue with existing user
         // Don't force onboarding - this might be a temporary database issue
-        console.error("⚠️ Database error fetching profile - this may be a schema issue");
-        console.error("⚠️ User is authenticated but profile fetch failed - showing error state");
+        if (__DEV__) console.error("⚠️ Database error fetching profile - this may be a schema issue");
+        if (__DEV__) console.error("⚠️ User is authenticated but profile fetch failed - showing error state");
         // Set isFirstTime to false to avoid showing onboarding for existing users
         // The app will show a loading/error state instead
         setIsFirstTime(false);
@@ -657,7 +673,7 @@ export default function App() {
       setShowAuth(true);
       setAuthMode("login");
     } catch (error) {
-      console.error("Logout error:", error);
+      if (__DEV__) console.error("Logout error:", error);
       Alert.alert("Error", "Failed to sign out");
     }
   }, [user?.id]);
@@ -697,7 +713,7 @@ export default function App() {
         }
       }
     } catch (error) {
-      console.error("Error refreshing profile:", error);
+      if (__DEV__) console.error("Error refreshing profile:", error);
       // Fallback to using updatedProfile if refresh fails
       setDjProfile({
         djName: updatedProfile.dj_name,
@@ -789,19 +805,19 @@ export default function App() {
                   });
                 })
                 .catch((matchError) => {
-                  console.error("Error checking location match:", matchError);
+                  if (__DEV__) console.error("Error checking location match:", matchError);
                 });
             }
           }
         })
         .catch((error) => {
           // Silently handle location errors - don't block app initialization
-          console.warn("⚠️ Location fetch failed (non-blocking):", error.message);
+          if (__DEV__) console.warn("⚠️ Location fetch failed (non-blocking):", error.message);
           // Location is optional, app can continue without it
         });
     } catch (error) {
       // Silently handle location errors - don't block app initialization
-      console.warn("⚠️ Location fetch error (non-blocking):", error.message);
+      if (__DEV__) console.warn("⚠️ Location fetch error (non-blocking):", error.message);
     }
   }, [showCustomModal]);
   fetchUserLocationRef.current = fetchUserLocation;
@@ -834,73 +850,68 @@ export default function App() {
     moveQueueItemDown,
   } = audio;
 
-  // REMOVED: ~1500 lines of audio playback logic now in hooks/useAudioPlayback.js
-  // (playGlobalAudio, pauseGlobalAudio, resumeGlobalAudio, stopGlobalAudio,
-  //  seekToPosition, seekGlobalAudio, toggleLike, toggleShuffle,
-  //  skipForward, skipBackward, addToQueue, clearQueue, moveQueueItemUp/Down,
-  //  shuffleAllMixes, shuffleByGenre, shuffleBasedOnLikes,
-  //  playNextTrack, playPreviousTrack, getNextTrack, getPreviousTrack,
-  //  getRandomMix, fetchUserLikedMixes, shareTrack, and related effects)
-  // END REMOVED AUDIO BLOCK
-
-
-
   const checkFirstTime = async (currentUser = null) => {
     try {
       const userToCheck = currentUser || user;
-      console.log("🔍 Checking first time for user:", userToCheck?.id);
+      if (__DEV__) console.log("🔍 Checking first time for user:", userToCheck?.id);
 
       // If user is authenticated, they should go straight to home
       // Only show onboarding for unauthenticated users or if no profile exists
       if (userToCheck) {
         // User is signed in, check if they have a profile
-        console.log("👤 User is authenticated, checking for profile...");
+        if (__DEV__) console.log("👤 User is authenticated, checking for profile...");
         try {
           const profile = await db.getUserProfile(userToCheck.id);
-          console.log(
-            "📋 Profile lookup result:",
-            profile ? "Profile found" : "No profile"
-          );
+          if (__DEV__) {
+            console.log(
+              "📋 Profile lookup result:",
+              profile ? "Profile found" : "No profile"
+            );
+          }
 
           if (profile) {
-            console.log("✅ Profile exists, going to home screen");
-            console.log("👤 Profile data:", {
-              djName: profile.dj_name || profile.djName,
-              email: profile.email,
-              hasRequiredFields: !!(profile.dj_name || profile.djName),
-            });
+            if (__DEV__) console.log("✅ Profile exists, going to home screen");
+            if (__DEV__) {
+              console.log("👤 Profile data:", {
+                djName: profile.dj_name || profile.djName,
+                email: profile.email,
+                hasRequiredFields: !!(profile.dj_name || profile.djName),
+              });
+            }
             setDjProfile(profile);
             setIsFirstTime(false); // User has profile, go to home
           } else {
-            console.log("⚠️ No profile found, showing onboarding");
+            if (__DEV__) console.log("⚠️ No profile found, showing onboarding");
             setIsFirstTime(true); // User signed in but no profile, needs onboarding
           }
         } catch (error) {
-          console.log(
-            "❌ Error getting profile for authenticated user:",
-            error.message
-          );
+          if (__DEV__) {
+            console.log(
+              "❌ Error getting profile for authenticated user:",
+              error.message
+            );
+          }
           
           // Only show onboarding if the profile truly doesn't exist
           // Error code PGRST116 means "no rows returned" (profile doesn't exist)
           // Other errors (like column doesn't exist) should not trigger onboarding
           if (error.code === "PGRST116" || error.message?.includes("No rows returned")) {
-            console.log("📝 No profile found - will show onboarding for profile creation");
+            if (__DEV__) console.log("📝 No profile found - will show onboarding for profile creation");
             setIsFirstTime(true);
           } else {
             // For other errors (like database schema issues), we still need a profile
             // If we can't get the profile, we can't proceed - show onboarding as fallback
-            console.error("⚠️ Database error fetching profile - this may be a schema issue");
-            console.error("⚠️ User is authenticated but profile fetch failed");
-            console.error("⚠️ Error code:", error.code, "Message:", error.message);
+            if (__DEV__) console.error("⚠️ Database error fetching profile - this may be a schema issue");
+            if (__DEV__) console.error("⚠️ User is authenticated but profile fetch failed");
+            if (__DEV__) console.error("⚠️ Error code:", error.code, "Message:", error.message);
             // If it's a schema error (column doesn't exist), the fallback query should handle it
             // But if that also fails, we need to show onboarding so user can create/update their profile
-            console.log("⚠️ Will show onboarding to allow profile creation/update");
+            if (__DEV__) console.log("⚠️ Will show onboarding to allow profile creation/update");
             setIsFirstTime(true);
           }
         }
       } else {
-        console.log("🔓 No authenticated user, checking local storage...");
+        if (__DEV__) console.log("🔓 No authenticated user, checking local storage...");
         // No user, check local storage for offline access
         const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
         const profile = await AsyncStorage.getItem("djProfile");
@@ -911,14 +922,14 @@ export default function App() {
         }
       }
     } catch (error) {
-      console.error("❌ Error checking onboarding status:", error);
+      if (__DEV__) console.error("❌ Error checking onboarding status:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleMenuNavigation = useCallback((screen, params = {}) => {
-    console.log("🎯 Navigating to screen:", screen);
+    if (__DEV__) console.log("🎯 Navigating to screen:", screen);
     setCurrentScreen(screen);
     setScreenParams(params);
     trackScreenView(screen, params);
@@ -948,7 +959,7 @@ export default function App() {
 
       return user;
     } catch (error) {
-      console.error("Auth check error:", error);
+      if (__DEV__) console.error("Auth check error:", error);
       return null;
     }
   };
@@ -1015,7 +1026,7 @@ export default function App() {
       setUnreadNotificationCount(notificationCount);
       setUnreadMessageCount(messageCount || 0);
     } catch (error) {
-      console.error("Error loading notification counts:", error);
+      if (__DEV__) console.error("Error loading notification counts:", error);
     }
   }, []);
 
@@ -1023,10 +1034,12 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
-    console.log(
-      "🔔 Setting up real-time notification subscriptions for user:",
-      user.id
-    );
+    if (__DEV__) {
+      console.log(
+        "🔔 Setting up real-time notification subscriptions for user:",
+        user.id
+      );
+    }
 
     // Subscribe to new notifications
     const notificationChannel = supabase
@@ -1040,7 +1053,7 @@ export default function App() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("🔔 New notification received:", payload.new);
+          if (__DEV__) console.log("🔔 New notification received:", payload.new);
           const newNotification = payload.new;
           
           // Show in-app notification toast
@@ -1086,7 +1099,7 @@ export default function App() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("🔔 Notification updated:", payload.new);
+          if (__DEV__) console.log("🔔 Notification updated:", payload.new);
           // Refresh notification counts when notification is marked as read
           loadNotificationCounts();
         }
@@ -1105,7 +1118,7 @@ export default function App() {
           filter: `receiver_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("💬 New message received:", payload.new);
+          if (__DEV__) console.log("💬 New message received:", payload.new);
           // Refresh message counts when new message arrives
           loadNotificationCounts();
         }
@@ -1122,8 +1135,8 @@ export default function App() {
   }, [user]);
 
   const completeOnboarding = useCallback(async () => {
-    console.log("🎉 completeOnboarding called");
-    console.log("👤 djProfile:", djProfile);
+    if (__DEV__) console.log("🎉 completeOnboarding called");
+    if (__DEV__) console.log("👤 djProfile:", djProfile);
 
     // Check both property name formats for compatibility
     const djName = djProfile.dj_name || djProfile.djName;
@@ -1137,13 +1150,15 @@ export default function App() {
       !djProfile.city ||
       djProfile.genres.length === 0
     ) {
-      console.log("❌ Missing required fields:", {
-        djName: !!djName,
-        firstName: !!firstName,
-        lastName: !!lastName,
-        city: !!djProfile.city,
-        genres: djProfile.genres?.length || 0,
-      });
+      if (__DEV__) {
+        console.log("❌ Missing required fields:", {
+          djName: !!djName,
+          firstName: !!firstName,
+          lastName: !!lastName,
+          city: !!djProfile.city,
+          genres: djProfile.genres?.length || 0,
+        });
+      }
 
       showCustomModal({
         type: "error",
@@ -1157,17 +1172,17 @@ export default function App() {
     }
 
     try {
-      console.log("💾 Saving profile to database...");
-      console.log("🔑 User ID:", user.id);
-      console.log("📧 User email:", user.email);
+      if (__DEV__) console.log("💾 Saving profile to database...");
+      if (__DEV__) console.log("🔑 User ID:", user.id);
+      if (__DEV__) console.log("📧 User email:", user.email);
 
       // Check if profile already exists
       let savedProfile;
       try {
-        console.log("🔍 Checking if profile exists...");
+        if (__DEV__) console.log("🔍 Checking if profile exists...");
         savedProfile = await db.getUserProfile(user.id);
-        console.log("✅ Profile exists, updating...");
-        console.log("📝 Existing profile:", savedProfile);
+        if (__DEV__) console.log("✅ Profile exists, updating...");
+        if (__DEV__) console.log("📝 Existing profile:", savedProfile);
 
         // If profile exists, update it instead of creating new one
         const updateData = {
@@ -1184,23 +1199,25 @@ export default function App() {
           } specializing in ${djProfile.genres.join(", ")}`,
           profile_image_url: djProfile.profile_image_url || null,
         };
-        console.log("📤 Updating with data:", updateData);
+        if (__DEV__) console.log("📤 Updating with data:", updateData);
 
         savedProfile = await db.updateUserProfile(user.id, updateData);
-        console.log("✅ Update complete:", savedProfile);
+        if (__DEV__) console.log("✅ Update complete:", savedProfile);
 
         // Ensure existing profile has invite code
         try {
           await db.getUserInviteCode(user.id);
         } catch (codeError) {
-          console.warn("⚠️ Failed to ensure invite code:", codeError);
+          if (__DEV__) console.warn("⚠️ Failed to ensure invite code:", codeError);
         }
       } catch (error) {
-        console.log(
-          "🆕 Profile doesn't exist (or error checking):",
-          error.message
-        );
-        console.log("🆕 Creating new profile...");
+        if (__DEV__) {
+          console.log(
+            "🆕 Profile doesn't exist (or error checking):",
+            error.message
+          );
+        }
+        if (__DEV__) console.log("🆕 Creating new profile...");
 
         // Profile doesn't exist, create new one
         const profileData = {
@@ -1220,36 +1237,38 @@ export default function App() {
           profile_image_url: djProfile.profile_image_url || null,
         };
 
-        console.log("📤 Creating profile with data:", profileData);
+        if (__DEV__) console.log("📤 Creating profile with data:", profileData);
 
         try {
           savedProfile = await db.createUserProfile(profileData);
-          console.log("✅ Profile created successfully:", savedProfile);
+          if (__DEV__) console.log("✅ Profile created successfully:", savedProfile);
 
           // Ensure invite code is generated
           try {
             await db.getUserInviteCode(user.id);
           } catch (codeError) {
-            console.warn("⚠️ Failed to ensure invite code:", codeError);
+            if (__DEV__) console.warn("⚠️ Failed to ensure invite code:", codeError);
           }
         } catch (createError) {
-          console.error("❌ Error creating profile:", createError);
-          console.error(
-            "❌ Error details:",
-            JSON.stringify(createError, null, 2)
-          );
+          if (__DEV__) console.error("❌ Error creating profile:", createError);
+          if (__DEV__) {
+            console.error(
+              "❌ Error details:",
+              JSON.stringify(createError, null, 2)
+            );
+          }
           throw createError; // Re-throw to be caught by outer try-catch
         }
       }
 
-      console.log("✅ Profile saved successfully:", savedProfile);
+      if (__DEV__) console.log("✅ Profile saved successfully:", savedProfile);
 
       // Also save to AsyncStorage for offline access
       await AsyncStorage.setItem("hasOnboarded", "true");
       await AsyncStorage.setItem("djProfile", JSON.stringify(djProfile));
       await AsyncStorage.setItem("userId", user.id);
 
-      console.log("🎉 Onboarding completed, setting isFirstTime=false");
+      if (__DEV__) console.log("🎉 Onboarding completed, setting isFirstTime=false");
       setIsFirstTime(false);
 
       // Navigate to opportunities after onboarding completion
@@ -1271,7 +1290,7 @@ export default function App() {
         });
       }
     } catch (error) {
-      console.error("❌ Error saving profile:", error);
+      if (__DEV__) console.error("❌ Error saving profile:", error);
       showCustomModal({
         type: "error",
         title: "Error",
@@ -1711,7 +1730,6 @@ export default function App() {
           onShareInApp={modalConfig.onShareInApp || null}
         />
 
-        {/* Brief Form Modal - REMOVED (simplified to swipe-to-apply) */}
     </AppShell>
   );
 }

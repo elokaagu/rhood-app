@@ -112,7 +112,7 @@ export default function useAudioPlayback({ user }) {
           if (__DEV__) console.warn("mix_likes table not found. Skipping liked mixes fetch.");
           return;
         }
-        console.error("❌ Error fetching liked mixes:", error);
+        if (__DEV__) console.error("❌ Error fetching liked mixes:", error);
         return;
       }
 
@@ -124,7 +124,7 @@ export default function useAudioPlayback({ user }) {
 
       setLikedMixIds(likedSet);
     } catch (error) {
-      console.error("❌ Unexpected error fetching liked mixes:", error);
+      if (__DEV__) console.error("❌ Unexpected error fetching liked mixes:", error);
     }
   }, [user?.id]);
 
@@ -532,21 +532,21 @@ export default function useAudioPlayback({ user }) {
                     await resumeGlobalAudio();
                   }
                 } catch (error) {
-                  console.error("❌ Lock screen play/pause error:", error);
+                  if (__DEV__) console.error("❌ Lock screen play/pause error:", error);
                 }
               },
               onNext: async () => {
                 try {
                   if (playNextTrackRef.current) await playNextTrackRef.current();
                 } catch (error) {
-                  console.error("❌ Lock screen next error:", error);
+                  if (__DEV__) console.error("❌ Lock screen next error:", error);
                 }
               },
               onPrevious: async () => {
                 try {
                   if (playPreviousTrackRef.current) await playPreviousTrackRef.current();
                 } catch (error) {
-                  console.error("❌ Lock screen previous error:", error);
+                  if (__DEV__) console.error("❌ Lock screen previous error:", error);
                 }
               },
             });
@@ -720,7 +720,7 @@ export default function useAudioPlayback({ user }) {
       if (error.message && error.message.includes("interrupted")) {
         if (__DEV__) console.warn("⚠️ Seek was interrupted - this is normal during rapid scrubbing");
       } else {
-        console.error("❌ Error seeking:", error);
+        if (__DEV__) console.error("❌ Error seeking:", error);
       }
     } finally {
       isScrubbingRef.current = false;
@@ -882,7 +882,7 @@ export default function useAudioPlayback({ user }) {
           try {
             await db.incrementUserCredits(stateRef.current.currentTrack.user_id, -10);
           } catch (creditError) {
-            console.error("❌ Error rolling back credits:", creditError);
+            if (__DEV__) console.error("❌ Error rolling back credits:", creditError);
           }
         }
       } else {
@@ -913,13 +913,13 @@ export default function useAudioPlayback({ user }) {
             try {
               await db.incrementUserCredits(stateRef.current.currentTrack.user_id, 10);
             } catch (creditError) {
-              console.error("❌ Error awarding credits:", creditError);
+              if (__DEV__) console.error("❌ Error awarding credits:", creditError);
             }
           }
         }
       }
     } catch (error) {
-      console.error("❌ Error toggling like:", error);
+      if (__DEV__) console.error("❌ Error toggling like:", error);
       Alert.alert(
         "Error",
         "We couldn't like this mix right now. Please try again."
@@ -1022,7 +1022,7 @@ export default function useAudioPlayback({ user }) {
       const { data, error } = await query;
 
       if (error) {
-        console.error("Error fetching random mix:", error);
+        if (__DEV__) console.error("Error fetching random mix:", error);
         return null;
       }
 
@@ -1045,7 +1045,7 @@ export default function useAudioPlayback({ user }) {
         user_id: randomMix.user_id,
       };
     } catch (error) {
-      console.error("Error in getRandomMix:", error);
+      if (__DEV__) console.error("Error in getRandomMix:", error);
       return null;
     }
   }, [stateRef]);
@@ -1217,7 +1217,7 @@ export default function useAudioPlayback({ user }) {
         return;
       }
     } catch (error) {
-      console.error("Error using recommendation system for shuffle:", error);
+      if (__DEV__) console.error("Error using recommendation system for shuffle:", error);
     }
 
     // Fallback to genre-based shuffle
