@@ -1,56 +1,97 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { View, StyleSheet, Animated } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+
+const SHIMMER_DURATION_MS = 1300;
 
 /**
- * Reusable Skeleton component for loading states
- * Provides smooth shimmer animation for better UX
+ * Base skeleton: dark track + horizontal shimmer sweep (not a simple opacity pulse).
+ * Layout is measured via onLayout so percentage widths/heights work.
  */
 export default function Skeleton({ width, height, borderRadius = 8, style }) {
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const [track, setTrack] = useState({ w: 0, h: 0 });
+
+  const onLayout = useCallback((e) => {
+    const { width: w, height: h } = e.nativeEvent.layout;
+    if (w <= 0 || h <= 0) return;
+    setTrack((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+  }, []);
+
+  const bandW = useMemo(() => {
+    if (track.w <= 0) return 64;
+    return Math.min(140, Math.max(56, track.w * 0.5));
+  }, [track.w]);
 
   useEffect(() => {
-    const shimmer = Animated.loop(
+    if (track.w <= 0) return;
+
+    const start = -bandW;
+    const end = track.w + bandW;
+    translateX.setValue(start);
+
+    const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(shimmerAnim, {
-          toValue: 1,
-          duration: 1000,
+        Animated.timing(translateX, {
+          toValue: end,
+          duration: SHIMMER_DURATION_MS,
           useNativeDriver: true,
         }),
-        Animated.timing(shimmerAnim, {
-          toValue: 0,
-          duration: 1000,
+        Animated.timing(translateX, {
+          toValue: start,
+          duration: 0,
           useNativeDriver: true,
         }),
       ])
     );
 
-    shimmer.start();
-
-    return () => shimmer.stop();
-  }, [shimmerAnim]);
-
-  const opacity = shimmerAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
-  });
+    loop.start();
+    return () => loop.stop();
+  }, [track.w, bandW, translateX]);
 
   return (
-    <Animated.View
+    <View
       style={[
-        styles.skeleton,
+        styles.track,
         {
           width,
           height,
           borderRadius,
-          opacity,
         },
         style,
       ]}
-    />
+      onLayout={onLayout}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.shimmerBand,
+          {
+            width: bandW,
+            transform: [{ translateX }],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={[
+            "transparent",
+            "rgba(255, 255, 255, 0.05)",
+            "rgba(194, 204, 6, 0.22)",
+            "rgba(255, 255, 255, 0.07)",
+            "transparent",
+          ]}
+          locations={[0, 0.28, 0.5, 0.72, 1]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+    </View>
   );
 }
 
-// Pre-built skeleton components for common patterns
+// --- App-specific preset layouts (R/HOOD dark theme) ---
+
 export function SkeletonCard() {
   return (
     <View style={styles.card}>
@@ -72,8 +113,8 @@ export function SkeletonCard() {
 export function SkeletonList({ count = 3 }) {
   return (
     <>
-      {Array.from({ length: count }).map((_, index) => (
-        <SkeletonListItem key={index} />
+      {Array.from({ length: count }, (_, index) => (
+        <SkeletonListItem key={`skeleton-list-item-${index}`} />
       ))}
     </>
   );
@@ -116,6 +157,7 @@ export function SkeletonProfile() {
   );
 }
 
+/** Matches ~SwipeableOpportunityCard card height (400). */
 export function SkeletonOpportunity() {
   return (
     <View style={styles.opportunity}>
@@ -172,8 +214,15 @@ export function SkeletonMessage({ align = "left" }) {
 }
 
 const styles = StyleSheet.create({
-  skeleton: {
+  track: {
+    overflow: "hidden",
     backgroundColor: "hsl(0, 0%, 15%)",
+  },
+  shimmerBand: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
   },
 
   // Card Skeleton
@@ -244,10 +293,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
-  // Opportunity Skeleton
+  // Opportunity Skeleton (see SwipeableOpportunityCard ~400 height)
   opportunity: {
     position: "relative",
-    height: 500,
+    height: 400,
     borderRadius: 16,
     overflow: "hidden",
     marginBottom: 16,

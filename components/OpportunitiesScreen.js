@@ -1,7 +1,8 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Modal } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import SwipeableOpportunityCard from "./SwipeableOpportunityCard";
+import OpportunitiesSwipeTutorialModal from "./OpportunitiesSwipeTutorialModal";
 
 /**
  * Home swipe deck for gigs. Logic/state lives in App / useOpportunities; this is presentation only.
@@ -55,10 +56,13 @@ export default function OpportunitiesScreen({
               <Text style={styles.loadingText}>Loading opportunities...</Text>
             </View>
           ) : currentOpportunityIndex < (opportunities?.length ?? 0) ? (
+            // key=index remounts the card so swipe / entrance animations reset per opportunity
             <SwipeableOpportunityCard
               key={currentOpportunityIndex}
               opportunity={current}
-              onPress={() => handleOpportunityPress?.(current)}
+              onPress={() => {
+                if (current) handleOpportunityPress?.(current);
+              }}
               onSwipeLeft={handleSwipeLeft}
               onSwipeRight={handleSwipeRight}
               isTopCard={true}
@@ -85,75 +89,11 @@ export default function OpportunitiesScreen({
             </View>
           )}
         </View>
-        {showSwipeTutorial && (
-          <Modal
-            transparent={true}
-            visible={showSwipeTutorial}
-            animationType="fade"
-            onRequestClose={handleDismissSwipeTutorial}
-          >
-            <View style={styles.tutorialOverlay}>
-              <View style={styles.tutorialContent}>
-                <View style={styles.tutorialHeader}>
-                  <Text style={styles.tutorialTitle}>How to Use</Text>
-                  <TouchableOpacity
-                    onPress={handleDismissSwipeTutorial}
-                    style={styles.tutorialCloseButton}
-                  >
-                    <Ionicons
-                      name="close"
-                      size={24}
-                      color="hsl(0, 0%, 100%)"
-                    />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.tutorialInstructions}>
-                  <View style={styles.tutorialInstructionRow}>
-                    <View style={styles.tutorialIconContainer}>
-                      <Ionicons
-                        name="arrow-forward"
-                        size={32}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                    </View>
-                    <View style={styles.tutorialTextContainer}>
-                      <Text style={styles.tutorialInstructionTitle}>
-                        Swipe Right
-                      </Text>
-                      <Text style={styles.tutorialInstructionText}>
-                        To apply for an opportunity
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.tutorialInstructionRow}>
-                    <View style={styles.tutorialIconContainer}>
-                      <Ionicons
-                        name="arrow-back"
-                        size={32}
-                        color="hsl(0, 100%, 60%)"
-                      />
-                    </View>
-                    <View style={styles.tutorialTextContainer}>
-                      <Text style={styles.tutorialInstructionTitle}>
-                        Swipe Left
-                      </Text>
-                      <Text style={styles.tutorialInstructionText}>
-                        To dismiss and see the next opportunity
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  style={styles.tutorialGotItButton}
-                  onPress={handleDismissSwipeTutorial}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.tutorialGotItButtonText}>Got It</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
-        )}
+        <OpportunitiesSwipeTutorialModal
+          visible={!!showSwipeTutorial}
+          onDismiss={handleDismissSwipeTutorial}
+          styles={styles}
+        />
       </View>
     </View>
   );

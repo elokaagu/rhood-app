@@ -19,6 +19,7 @@ import { HapticPatterns } from "../lib/haptics";
 import { Audio } from "expo-av";
 import { supabase, db } from "../lib/supabase";
 import { track, AnalyticsEvents } from "../lib/analytics";
+import { uploadMixSubmission } from "../lib/mixUploadService";
 import { LinearGradient } from "expo-linear-gradient";
 
 // Conditionally import DocumentPicker
@@ -50,21 +51,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   const [showMixSelector, setShowMixSelector] = useState(false);
   const [loadingMixes, setLoadingMixes] = useState(false);
   
-  const slugify = (value) => {
-    if (!value) return "untitled-mix";
-    return value
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "untitled-mix";
-  };
   const [mixData, setMixData] = useState({
     title: "",
     description: "",
     genre: "",
     isPublic: true,
-    setAsPrimary: false,
+    // Default ON; user can turn off before upload (single setPrimaryMix in service)
+    setAsPrimary: true,
     isPinned: false,
   });
   const [pinnedMixesCount, setPinnedMixesCount] = useState(0);
@@ -198,7 +191,8 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       description: "",
       genre: "",
       isPublic: true,
-      setAsPrimary: existingMixes.length === 0, // Only set as primary if no mixes exist
+      // Default ON so new uploads become Audio ID unless the user turns the toggle off
+      setAsPrimary: true,
       isPinned: false,
     });
     setSelectedFile(null);
@@ -436,50 +430,15 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   };
 
   const uploadMix = async () => {
-    // When editing, audio file is optional (only update if new file is selected)
-    if (!editingMix && !selectedFile) {
-      Alert.alert("No File Selected", "Please select an audio file to upload");
-      return;
-    }
-
-    if (!mixData.title.trim()) {
-      Alert.alert("Title Required", "Please enter a title for your mix");
-      return;
-    }
-
-    // Artwork is optional when editing (keep existing if not changed)
-    if (!editingMix && !selectedArtwork) {
-      Alert.alert(
-        "Artwork Required",
-        "Please select artwork for your mix before uploading."
-      );
-      return;
-    }
-
-    if (!user?.id) {
-      Alert.alert("Error", "You must be logged in to upload mixes");
-      return;
-    }
-
-    // Get file extension - either from selected file or existing mix
-    let fileExt = null;
-    if (selectedFile) {
-      fileExt = selectedFile.name.split(".").pop().toLowerCase();
-    } else if (editingMix) {
-      const existingFileName = editingMix.file_name || editingMix.file_url || "";
-      if (existingFileName) {
-        fileExt = existingFileName.split(".").pop()?.toLowerCase() || "mp3";
-      }
-    }
-
     try {
       setUploading(true);
       setUploadProgress(0);
       HapticPatterns.primaryButtonPress();
 
-      // Validate and process file only if a new file is selected
+      // Snapshot form state — never mutate React state inside the upload pipeline
+      const mixSnapshot = { ...mixData };
+
       if (selectedFile) {
-        // Debug: Log file structure
         console.log("Selected file:", {
           name: selectedFile.name,
           hasUri: !!selectedFile.uri,
@@ -487,501 +446,63 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           size: selectedFile.size,
           type: selectedFile.mimeType,
         });
-
-        // Validate audio file format - Only MP3 or WAV allowed
-        const validFormats = ["mp3", "wav"];
-        if (!validFormats.includes(fileExt)) {
-          Alert.alert(
-            "Invalid Format",
-            "Please select an MP3 or WAV audio file only."
-          );
-          setUploading(false);
-          return;
-        }
-
-        const maxDurationMillis = 10 * 60 * 1000; // 10 minutes
-        let effectiveDurationMillis = selectedFileDuration;
-
-        if (
-          (!effectiveDurationMillis || effectiveDurationMillis === 0) &&
-          Audio?.Sound?.createAsync
-        ) {
-          try {
-            const { sound } = await Audio.Sound.createAsync(
-              { uri: selectedFile.uri || selectedFile.fileCopyUri },
-              { shouldPlay: false }
-            );
-            const status = await sound.getStatusAsync();
-            await sound.unloadAsync();
-            if (status.isLoaded && status.durationMillis) {
-              effectiveDurationMillis = status.durationMillis;
-              setSelectedFileDuration(status.durationMillis);
-            }
-          } catch (durationError) {
-            console.warn("⚠️ Unable to confirm mix duration:", durationError);
-          }
-        }
-
-        if (effectiveDurationMillis && effectiveDurationMillis > maxDurationMillis) {
-          Alert.alert(
-            "Mix Too Long",
-            "This mix is longer than 10 minutes. Please upload a shorter mix."
-          );
-          setUploading(false);
-          return;
-        }
       }
 
-      let fileName = null;
-      let urlData = null;
+      const result = await uploadMixSubmission({
+        db,
+        user,
+        editingMix,
+        selectedFile,
+        selectedArtwork,
+        selectedFileDuration,
+        mixData: mixSnapshot,
+        Audio,
+        onProgress: setUploadProgress,
+        onDurationResolved: setSelectedFileDuration,
+      });
 
-      // Generate timestamp and random string for unique filenames (used for both audio and artwork)
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(6);
+      const {
+        mixRecord,
+        becamePrimary,
+        primaryError,
+        artworkUrl,
+        fileExt,
+        effectiveDurationMillis,
+      } = result;
 
-      // Only upload new file if one is selected (or if creating new mix)
-      if (selectedFile) {
-        // Create unique filename with random string to prevent conflicts
-        const mixSlug = slugify(mixData.title || selectedFile.name);
-        fileName = `${user.id}/audio/${timestamp}_${mixSlug}_${randomStr}.${fileExt}`;
-
-        setUploadProgress(10);
-
-        // Get file URI - DocumentPicker provides this
-        const fileUri = selectedFile.uri || selectedFile.fileCopyUri;
-        if (!fileUri) {
-          throw new Error(
-            "File URI not found. Please try selecting the file again."
-          );
-        }
-
-        console.log("📁 File URI:", fileUri);
-        console.log("📁 File size:", selectedFile.size);
-        console.log("📁 MIME type:", selectedFile.mimeType);
-
-        setUploadProgress(20);
-
-        // For React Native, we need to create a FormData-compatible file object
-        // Supabase client can handle the ArrayBuffer directly
-        let fileData;
-        try {
-          const response = await fetch(fileUri);
-          const arrayBuffer = await response.arrayBuffer();
-          fileData = new Uint8Array(arrayBuffer);
-
-          console.log(
-            "✅ Converted to Uint8Array, size:",
-            fileData.length,
-            "bytes"
-          );
-
-          if (fileData.length === 0) {
-            throw new Error("File appears to be empty");
-          }
-
-          if (fileData.length !== selectedFile.size) {
-            console.warn(
-              `⚠️ Size mismatch: expected ${selectedFile.size}, got ${fileData.length}`
-            );
-          }
-        } catch (conversionError) {
-          console.error("❌ File conversion error:", conversionError);
-          throw new Error("Failed to read audio file. Please try again.");
-        }
-
-        setUploadProgress(30);
-
-        // Upload audio file to Supabase Storage with the Uint8Array
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("mixes")
-          .upload(fileName, fileData, {
-            contentType: selectedFile.mimeType || "audio/mpeg",
-            cacheControl: "3600",
-            upsert: false,
-          });
-
-        if (uploadError) {
-          console.error("❌ Upload error:", uploadError);
-
-          // Provide user-friendly error messages
-          if (
-            uploadError.message.includes("exceeded maximum size") ||
-            uploadError.message.includes("too large") ||
-            uploadError.message.includes("file size limit") ||
-            uploadError.message.includes("Object exceeded maximum size")
-          ) {
-            const fileSizeMB = (selectedFile.size / 1024 / 1024).toFixed(2);
-            throw new Error(
-              `File too large: ${fileSizeMB}MB.\n\n` +
-                `The storage bucket may have a lower limit configured.\n\n` +
-                `To fix this:\n` +
-                `1. Go to Supabase Dashboard > Storage > mixes bucket\n` +
-                `2. Click Settings and update "File size limit" to 5120 MB (5GB)\n` +
-                `3. Try uploading again\n\n` +
-                `Or check: database/check-and-fix-mixes-bucket-limit.sql`
-            );
-          } else if (uploadError.message.includes("quota")) {
-            throw new Error(
-              "Storage quota exceeded. Please delete some old mixes or contact support."
-            );
-          } else {
-            throw new Error(`Upload failed: ${uploadError.message}`);
-          }
-        }
-
-        console.log("✅ Audio file uploaded successfully:", uploadData.path);
-        setUploadProgress(40);
-
-        // Get public URL for audio file
-        const { data: url } = supabase.storage
-          .from("mixes")
-          .getPublicUrl(fileName);
-        urlData = url;
-      } else if (editingMix) {
-        // When editing without new file, use existing file URL
-        urlData = { publicUrl: editingMix.file_url };
-        setUploadProgress(40);
-      }
-
-      setUploadProgress(60);
-
-      // Upload artwork if selected
-      let artworkUrl = null;
-      if (selectedArtwork) {
-        try {
-          const artworkSourceName =
-            selectedArtwork.name ||
-            selectedArtwork.fileName ||
-            selectedArtwork.uri ||
-            "artwork";
-          const rawArtworkExt = artworkSourceName.includes(".")
-            ? artworkSourceName.split(".").pop()
-            : "jpg";
-          const safeArtworkExt =
-            rawArtworkExt
-              ?.toLowerCase()
-              .replace(/[^a-z0-9]/g, "") || "jpg";
-          const mixSlug = slugify(mixData.title || selectedFile?.name || editingMix?.title || "mix");
-          const artworkFileName = `${user.id}/artwork/${timestamp}_${mixSlug}_${randomStr}.${safeArtworkExt}`;
-
-          console.log("🖼️ Uploading artwork:", selectedArtwork.name);
-
-          // Convert artwork to Uint8Array (same as audio fix)
-          let artworkData;
-          let contentType = selectedArtwork.type || "image/jpeg";
-
-          if (selectedArtwork.uri) {
-            // Image picker format - convert URI to Uint8Array
-            const response = await fetch(selectedArtwork.uri);
-            const arrayBuffer = await response.arrayBuffer();
-            artworkData = new Uint8Array(arrayBuffer);
-            contentType = selectedArtwork.type || "image/jpeg";
-
-            console.log(
-              "✅ Artwork converted to Uint8Array, size:",
-              artworkData.length,
-              "bytes"
-            );
-          } else {
-            // Document picker format - convert to Uint8Array
-            const response = await fetch(
-              selectedArtwork.uri || selectedArtwork.fileCopyUri
-            );
-            const arrayBuffer = await response.arrayBuffer();
-            artworkData = new Uint8Array(arrayBuffer);
-            contentType = selectedArtwork.mimeType || "image/jpeg";
-          }
-
-          console.log("🖼️ Attempting to upload artwork to:", artworkFileName);
-          console.log("🖼️ Artwork data size:", artworkData.length, "bytes");
-          console.log("🖼️ Content type:", contentType);
-
-          const { data: artworkUploadData, error: artworkUploadError } =
-            await supabase.storage
-              .from("mixes")
-              .upload(artworkFileName, artworkData, {
-                contentType: contentType,
-                cacheControl: "3600",
-                upsert: false,
-              });
-
-          if (artworkUploadError) {
-            console.error(
-              "❌ Artwork upload error:",
-              artworkUploadError
-            );
-            console.error("❌ Artwork upload error details:", {
-              message: artworkUploadError.message,
-              statusCode: artworkUploadError.statusCode,
-              error: artworkUploadError.error,
-            });
-            // Artwork is required - don't allow mix upload if artwork fails
-            Alert.alert(
-              "Artwork Upload Failed",
-              `Failed to upload artwork: ${artworkUploadError.message}. Please try again or select a different image.`,
-              [{ text: "OK" }]
-            );
-            setUploading(false);
-            return; // Stop upload process
-          } else {
-            const { data: artworkUrlData } = supabase.storage
-              .from("mixes")
-              .getPublicUrl(artworkFileName);
-            artworkUrl = artworkUrlData.publicUrl;
-            console.log("✅ Artwork uploaded successfully:", artworkUrl);
-            console.log("✅ Artwork public URL:", artworkUrl);
-            
-            // Verify URL is valid
-            if (!artworkUrl || !artworkUrl.trim()) {
-              console.error("❌ Artwork URL is empty after upload");
-              Alert.alert(
-                "Artwork Upload Error",
-                "Artwork was uploaded but the URL is invalid. Please try again.",
-                [{ text: "OK" }]
-              );
-              setUploading(false);
-              return;
-            }
-          }
-        } catch (artworkError) {
-          console.error("❌ Error processing artwork:", artworkError);
-          console.error("❌ Error stack:", artworkError.stack);
-          // Artwork is required - don't allow mix upload if artwork processing fails
-          Alert.alert(
-            "Artwork Processing Error",
-            `Failed to process artwork: ${artworkError.message}. Please try again or select a different image.`,
-            [{ text: "OK" }]
-          );
-          setUploading(false);
-          return; // Stop upload process
-        }
-      }
-
-      setUploadProgress(60);
-
-      // Get user profile to get DJ name for artist field
-      const { data: userProfile, error: profileError } = await supabase
-        .from("user_profiles")
-        .select("id, dj_name, first_name, last_name")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError) {
-        console.error("Error fetching user profile:", profileError);
-        throw new Error(
-          "User profile not found. Please complete your profile first."
+      if (primaryError && mixSnapshot.setAsPrimary && !editingMix && mixRecord) {
+        Alert.alert(
+          "Upload Successful",
+          "Your mix was uploaded, but there was an issue setting it as your Audio ID. You can set it manually from your profile.",
+          [{ text: "OK" }]
         );
       }
 
-      // Determine artist name from profile
-      const artistName =
-        userProfile.dj_name ||
-        `${userProfile.first_name || ""} ${
-          userProfile.last_name || ""
-        }`.trim() ||
-        "Unknown Artist";
-
-      setUploadProgress(80);
-
-      // Prepare update data
-      const updateData = {
-        title: mixData.title.trim(),
-        description: mixData.description.trim() || null,
-        genre: mixData.genre || "Electronic",
-        is_public: mixData.isPublic,
-        is_pinned: mixData.isPinned || false,
-      };
-
-      // Persist duration when known (seconds). If editing without new file, keep existing duration.
-      if (selectedFileDuration) {
-        updateData.duration = Math.round(selectedFileDuration / 1000);
-      } else if (editingMix?.duration) {
-        updateData.duration = editingMix.duration;
-      }
-
-      // Only update file-related fields if a new file was selected
-      if (selectedFile && urlData) {
-        updateData.file_name = selectedFile.name;
-        updateData.file_url = urlData.publicUrl;
-        updateData.file_size = selectedFile.size;
-      }
-
-      // Only update artwork if a new one was successfully uploaded
-      if (artworkUrl) {
-        updateData.artwork_url = artworkUrl;
-        console.log("✅ Artwork URL will be saved to database:", artworkUrl);
-      } else if (selectedArtwork) {
-        // If artwork was selected but upload failed, log warning
-        console.warn("⚠️ Artwork was selected but upload failed - mix will be saved without artwork");
-      } else if (editingMix && !selectedArtwork) {
-        // When editing without selecting new artwork, keep existing artwork
-        const existingArtwork = editingMix.artwork_url;
-        if (existingArtwork) {
-          updateData.artwork_url = existingArtwork;
-          console.log("ℹ️ Keeping existing artwork:", existingArtwork);
-        } else {
-          console.log("ℹ️ No artwork to keep - mix has no existing artwork");
-        }
-      }
-
-      let mixRecord;
-      let dbError;
-
-      if (editingMix) {
-        // Update existing mix
-        const { data, error } = await supabase
-          .from("mixes")
-          .update(updateData)
-          .eq("id", editingMix.id)
-          .eq("user_id", userProfile.id) // Security: ensure user owns the mix
-          .select()
-          .single();
-        
-        mixRecord = data;
-        dbError = error;
-      } else {
-        // Create new mix - selectedFile and urlData must exist for new mixes
-        if (!selectedFile || !urlData) {
-          throw new Error("File upload failed. Please try again.");
-        }
-        
-        // Ensure artwork_url is set from updateData if available, otherwise use artworkUrl
-        const finalArtworkUrl = updateData.artwork_url || artworkUrl;
-        
-        console.log("💾 Saving mix to database with artwork:", {
-          artworkUrl: finalArtworkUrl,
-          hasArtwork: !!finalArtworkUrl,
-          updateDataArtwork: updateData.artwork_url,
-          directArtworkUrl: artworkUrl,
-        });
-        
-        if (!finalArtworkUrl) {
-          console.error("❌ CRITICAL: No artwork URL available for new mix!");
-          Alert.alert(
-            "Artwork Required",
-            "Artwork is required but was not uploaded successfully. Please try again.",
-            [{ text: "OK" }]
-          );
-          setUploading(false);
-          return;
-        }
-        
-        const { data, error } = await supabase
-          .from("mixes")
-          .insert({
-            user_id: userProfile.id,
-            artist: artistName,
-            ...updateData,
-            file_name: selectedFile.name,
-            file_url: urlData.publicUrl,
-            file_size: selectedFile.size,
-            artwork_url: finalArtworkUrl,
-            play_count: 0,
-            likes_count: 0,
-            duration:
-              selectedFileDuration && Number.isFinite(selectedFileDuration)
-                ? Math.round(selectedFileDuration / 1000)
-                : null,
-          })
-          .select()
-          .single();
-        
-        mixRecord = data;
-        dbError = error;
-      }
-
-      if (dbError) {
-        console.error("Database error:", dbError);
-        // If database operation fails, try to delete uploaded files (only if new files were uploaded)
-        if (fileName) {
-          try {
-            await supabase.storage.from("mixes").remove([fileName]);
-          } catch (cleanupError) {
-            console.error("Cleanup error:", cleanupError);
-          }
-        }
-        if (artworkUrl && selectedArtwork) {
-          try {
-            const artworkPath = artworkUrl.split("/mixes/")[1];
-            if (artworkPath) {
-              await supabase.storage.from("mixes").remove([artworkPath]);
-            }
-          } catch (cleanupError) {
-            console.error("Cleanup error:", cleanupError);
-          }
-        }
-        throw dbError;
-      }
-
-      // Image sync is already handled in updateData above
-
-      setUploadProgress(100);
-
-      // Automatically set uploaded mix as Audio ID (primary_mix_id)
-      if (!editingMix && mixRecord) {
-        try {
-          const { db } = await import("../lib/supabase");
-          const updatedProfile = await db.setPrimaryMix(user.id, mixRecord.id);
-          console.log("✅ Automatically set uploaded mix as Audio ID:", mixRecord.id);
-          console.log("✅ Updated profile:", updatedProfile?.primary_mix_id);
-          mixData.setAsPrimary = true; // Update flag for success message
-          
-          // Verify it was set correctly
-          if (!updatedProfile || updatedProfile.primary_mix_id !== mixRecord.id) {
-            console.warn("⚠️ Warning: primary_mix_id may not have been set correctly");
-            console.warn("⚠️ Expected:", mixRecord.id, "Got:", updatedProfile?.primary_mix_id);
-          }
-        } catch (autoPrimaryError) {
-          console.error("❌ Error auto-setting primary mix:", autoPrimaryError);
-          console.error("❌ Error details:", {
-            code: autoPrimaryError.code,
-            message: autoPrimaryError.message,
-            hint: autoPrimaryError.hint,
-            userId: user.id,
-            mixId: mixRecord.id,
-          });
-          // Don't fail the upload if auto-setting primary fails, but log it
-          Alert.alert(
-            "Upload Successful",
-            "Your mix was uploaded, but there was an issue setting it as your Audio ID. You can set it manually from your profile.",
-            [{ text: "OK" }]
-          );
-        }
-      }
-
-      // Set as primary mix if requested
-      if (mixData.setAsPrimary && mixRecord) {
-        try {
-          const { db } = await import("../lib/supabase");
-          await db.setPrimaryMix(user.id, mixRecord.id);
-          console.log("✅ Set as primary mix:", mixRecord.id);
-        } catch (primaryError) {
-          console.error("❌ Error setting primary mix:", primaryError);
-          // Don't fail the upload if setting primary fails
-        }
-      }
-
-      // Refresh pinned count after upload/update
       await fetchPinnedMixesCount();
-      
-      // If unpinning, update local count immediately
-      if (editingMix && !mixData.isPinned && editingMix.is_pinned) {
+
+      if (editingMix && !mixSnapshot.isPinned && editingMix.is_pinned) {
         setPinnedMixesCount((prev) => Math.max(0, prev - 1));
-      } else if (mixData.isPinned && (!editingMix || !editingMix.is_pinned)) {
+      } else if (
+        mixSnapshot.isPinned &&
+        (!editingMix || !editingMix.is_pinned)
+      ) {
         setPinnedMixesCount((prev) => Math.min(3, prev + 1));
       }
 
       HapticPatterns.success();
 
-      // Track mix upload
       await track(AnalyticsEvents.MIX_UPLOADED, {
         mix_id: mixRecord.id,
-        mix_title: mixData.title,
-        duration_seconds: selectedFileDuration ? Math.round(selectedFileDuration / 1000) : null,
+        mix_title: mixSnapshot.title,
+        duration_seconds: effectiveDurationMillis
+          ? Math.round(effectiveDurationMillis / 1000)
+          : null,
         file_format: fileExt || "unknown",
-        file_size_mb: selectedFile ? (selectedFile.size / (1024 * 1024)).toFixed(2) : null,
+        file_size_mb: selectedFile
+          ? (selectedFile.size / (1024 * 1024)).toFixed(2)
+          : null,
         has_artwork: !!artworkUrl,
-        set_as_primary: mixData.setAsPrimary || false,
+        set_as_primary: becamePrimary,
         is_update: !!editingMix,
       });
 
@@ -990,7 +511,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         editingMix
           ? "Your mix has been updated successfully!"
           : "Your mix has been uploaded successfully" +
-              (mixData.setAsPrimary ? " and set as your primary mix!" : "!"),
+              (becamePrimary ? " and set as your primary mix!" : "!"),
         [
           {
             text: "OK",
@@ -1008,8 +529,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     } catch (error) {
       console.error("Error uploading mix:", error);
       HapticPatterns.error();
+      const title = error.alertTitle || "Upload Failed";
       Alert.alert(
-        "Upload Failed",
+        title,
         error.message || "Failed to upload mix. Please try again."
       );
     } finally {
@@ -1027,13 +549,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
-const formatDuration = (millis) => {
-  if (!millis) return "0:00";
-  const totalSeconds = Math.floor(millis / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-};
+  const formatDuration = (millis) => {
+    if (!millis) return "0:00";
+    const totalSeconds = Math.floor(millis / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
 
   return (
     <View style={styles.container}>
@@ -1059,6 +581,13 @@ const formatDuration = (millis) => {
           </Text>
           <View style={{ width: 40 }} />
         </View>
+
+        {loadingMixes && user?.id && (
+          <View style={styles.loadingMixesRow}>
+            <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+            <Text style={styles.loadingMixesText}>Loading your mixes…</Text>
+          </View>
+        )}
 
         {/* Mix Selector - Show if user has existing mixes and not already editing */}
         {showMixSelector && !editingMix && existingMixes.length > 0 && (
@@ -1564,6 +1093,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 24,
+  },
+  loadingMixesRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  loadingMixesText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
   },
   backButton: {
     width: 40,

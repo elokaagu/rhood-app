@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,19 +8,14 @@ import {
   Image,
   Linking,
   Alert,
-  Animated,
-  ActivityIndicator,
-  Modal,
   Share,
-  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
-import { Audio } from "expo-audio";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
-import { SkeletonProfile, SkeletonMix } from "./Skeleton";
+import { SkeletonProfile } from "./Skeleton";
 import { generateGenreWaveform } from "../lib/audioWaveform";
 import { HapticPatterns } from "../lib/haptics";
 import { createScreenCache } from "../lib/screenCache";
@@ -34,21 +29,15 @@ export default function ProfileScreen({
   onPlayAudio,
   onPauseAudio,
   onResumeAudio,
-  onStopAudio,
 }) {
   const [profile, setProfile] = useState(null); // Start with null, load from database
   const [loading, setLoading] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackPosition, setPlaybackPosition] = useState(0);
-  const [playbackDuration, setPlaybackDuration] = useState(0);
   const [connectionsCount, setConnectionsCount] = useState(0);
   const [inviteCode, setInviteCode] = useState(null);
   const [referralStats, setReferralStats] = useState({
     totalReferrals: 0,
     totalCreditsEarned: 0,
   });
-  const soundRef = useRef(null);
-  const progressAnim = useRef(new Animated.Value(0)).current;
 
   const audioIdTrackId =
     profile?.audioId?.id || (profile?.id ? `audio-id-${profile.id}` : null);
@@ -154,18 +143,67 @@ export default function ProfileScreen({
     return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
+  /** Audio ID scrubber: follows global player when this profile’s Audio ID is the current track. */
+  const audioIdProgress = useMemo(() => {
+    if (!profile?.audioId) {
+      return { positionMs: 0, durationMs: 0, progressPct: 0 };
+    }
+    const tid =
+      profile.audioId.id ||
+      (profile.id ? `audio-id-${profile.id}` : null);
+    const match = !!tid && globalAudioState.currentTrack?.id === tid;
+
+    let metaMs =
+      profile.audioId.durationMillis ??
+      (Number.isFinite(profile.audioId.durationSeconds)
+        ? profile.audioId.durationSeconds * 1000
+        : null);
+    if (!metaMs || metaMs <= 0) {
+      const sec = parseDurationSeconds(
+        profile.audioId.duration ?? profile.audioId.durationSeconds ?? 0
+      );
+      metaMs = sec > 0 ? sec * 1000 : 0;
+    }
+
+    const durationMs =
+      match && Number(globalAudioState.durationMillis) > 0
+        ? globalAudioState.durationMillis
+        : metaMs;
+
+    const positionMs =
+      match && Number.isFinite(globalAudioState.positionMillis)
+        ? Math.max(0, globalAudioState.positionMillis)
+        : 0;
+
+    const progressPct =
+      durationMs > 0
+        ? Math.min(100, Math.max(0, (positionMs / durationMs) * 100))
+        : 0;
+
+    return { positionMs, durationMs, progressPct };
+  }, [
+    profile,
+    globalAudioState.currentTrack?.id,
+    globalAudioState.positionMillis,
+    globalAudioState.durationMillis,
+  ]);
+
   // Load user profile from database and set up real-time subscription
   useEffect(() => {
     const userId = user?.id;
     if (userId) {
-      const cached = profileCacheByUser[userId];
-      if (cached?.profile && Number.isFinite(cached.lastLoadedAt) && Date.now() - cached.lastLoadedAt <= STALE_MS) {
+      const cached = profileCache.getIfFresh(userId);
+      if (cached?.profile) {
         setProfile(cached.profile);
         setConnectionsCount(cached.connectionsCount ?? 0);
         setInviteCode(cached.inviteCode ?? null);
-        setReferralStats(cached.referralStats ?? { totalReferrals: 0, totalCreditsEarned: 0 });
+        setReferralStats(
+          cached.referralStats ?? {
+            totalReferrals: 0,
+            totalCreditsEarned: 0,
+          }
+        );
         setLoading(false);
-        // Still set up real-time subscription below
       } else {
         loadProfile();
       }
@@ -559,6 +597,15 @@ export default function ProfileScreen({
           recentGigs: recentGigs,
           achievements: achievements,
           achievementsStats: achievementsStats,
+          ratingDisplay: (() => {
+            const raw =
+              userProfile.average_rating ??
+              userProfile.rating ??
+              userProfile.dj_rating;
+            if (raw == null || raw === "") return null;
+            const n = Number(raw);
+            return Number.isFinite(n) ? n.toFixed(1) : null;
+          })(),
         };
         setProfile(profileData);
         profileCache.set(user.id, {
@@ -923,7 +970,7 @@ export default function ProfileScreen({
               size={24}
               color="hsl(75, 100%, 60%)"
             />
-      </View>
+          </View>
           <View style={styles.connectionsInfo}>
             <Text style={styles.connectionsTitle}>Connections</Text>
             <Text style={styles.connectionsCount}>
@@ -1065,7 +1112,9 @@ export default function ProfileScreen({
 
             <View style={styles.ratingContainer}>
               <Ionicons name="star" size={16} color="hsl(45, 100%, 60%)" />
-              <Text style={styles.ratingText}>{profile.rating}</Text>
+              <Text style={styles.ratingText}>
+                {profile.ratingDisplay ?? "—"}
+              </Text>
               <Text style={styles.gigsText}>
                 • {profile.gigsCompleted} gigs
               </Text>
@@ -1136,23 +1185,22 @@ export default function ProfileScreen({
 
               <View style={styles.progressContainer}>
                 <Text style={styles.timeText}>
-                  {formatTime(playbackPosition)}
+                  {formatTime(audioIdProgress.positionMs)}
                 </Text>
                 <View style={styles.progressBar}>
-                  <Animated.View
+                  <View
                     style={[
                       styles.progressFill,
-                      {
-                        width: progressAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ["0%", "100%"],
-                        }),
-                      },
+                      { width: `${audioIdProgress.progressPct}%` },
                     ]}
                   />
                 </View>
                 <Text style={styles.timeText}>
-                  {formatTime(formatDuration(profile.audioId.duration))}
+                  {formatTime(
+                    audioIdProgress.durationMs > 0
+                      ? audioIdProgress.durationMs
+                      : formatDuration(profile.audioId.duration)
+                  )}
                 </Text>
               </View>
             </View>

@@ -34,6 +34,7 @@ function CommunityListItem({
               <ProfileImagePlaceholder
                 size={48}
                 style={styles.profileImage}
+                name={community.name}
               />
             }
             transition={0}

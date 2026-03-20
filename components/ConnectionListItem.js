@@ -41,6 +41,7 @@ function ConnectionListItem({
                 <ProfileImagePlaceholder
                   size={48}
                   style={styles.profileImage}
+                  name={getUserName(connection)}
                 />
               }
               transition={0}

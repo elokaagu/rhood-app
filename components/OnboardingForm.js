@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,31 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { supabase } from "../lib/supabase";
+import {
+  uploadOnboardingProfileImage,
+  normalizeInstagramOnBlur,
+  normalizeSoundCloudOnBlur,
+  normalizeTikTokOnBlur,
+  normalizeYouTubeOnBlur,
+  normalizedSocialProfileForValidation,
+} from "../lib/onboardingHelpers";
+
+/** Shared animated wrapper for each onboarding step (fade + slide). */
+function StepAnimatedShell({ fadeAnim, slideAnim, style, children }) {
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
 
 // Music genres for selection
 const MUSIC_GENRES = [
@@ -84,8 +108,8 @@ export default function OnboardingForm({
 }) {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [slideAnim] = useState(new Animated.Value(50));
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
   const [errors, setErrors] = useState({});
   const [profileImage, setProfileImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -93,6 +117,8 @@ export default function OnboardingForm({
   const totalSteps = 5;
 
   useEffect(() => {
+    fadeAnim.setValue(0);
+    slideAnim.setValue(50);
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -132,21 +158,22 @@ export default function OnboardingForm({
           newErrors.genres = "Please select at least one genre";
         }
         break;
-      case 4:
-        // Optional social links validation
-        if (djProfile.instagram && !isValidInstagram(djProfile.instagram)) {
+      case 4: {
+        const soc = normalizedSocialProfileForValidation(djProfile);
+        if (djProfile.instagram?.trim() && !isValidInstagram(soc.instagram)) {
           newErrors.instagram = "Please enter a valid Instagram handle or URL";
         }
-        if (djProfile.soundcloud && !isValidSoundCloud(djProfile.soundcloud)) {
+        if (djProfile.soundcloud?.trim() && !isValidSoundCloud(soc.soundcloud)) {
           newErrors.soundcloud = "Please enter a valid SoundCloud URL";
         }
-        if (djProfile.tiktok && !isValidTikTok(djProfile.tiktok)) {
+        if (djProfile.tiktok?.trim() && !isValidTikTok(soc.tiktok)) {
           newErrors.tiktok = "Please enter a valid TikTok handle or URL";
         }
-        if (djProfile.youtube && !isValidYouTube(djProfile.youtube)) {
+        if (djProfile.youtube?.trim() && !isValidYouTube(soc.youtube)) {
           newErrors.youtube = "Please enter a valid YouTube URL";
         }
         break;
+      }
       case 5:
         if (!djProfile.profile_image_url && !profileImage) {
           newErrors.profile_image = "Profile picture is required";
@@ -188,36 +215,23 @@ export default function OnboardingForm({
   };
 
   const nextStep = () => {
-    console.log(
-      "🔄 Next step pressed, current step:",
-      currentStep,
-      "total steps:",
-      totalSteps
-    );
-    console.log("👤 Current djProfile:", djProfile);
-
     const isValid = validateStep(currentStep);
-    console.log("✅ Validation result:", isValid);
-    console.log("❌ Current errors:", errors);
+    if (!isValid) return;
 
-    if (isValid) {
-      console.log("✅ Validation passed");
+    if (currentStep === 4) {
+      setDjProfile((prev) => ({
+        ...prev,
+        instagram: normalizeInstagramOnBlur(prev.instagram),
+        soundcloud: normalizeSoundCloudOnBlur(prev.soundcloud),
+        tiktok: normalizeTikTokOnBlur(prev.tiktok),
+        youtube: normalizeYouTubeOnBlur(prev.youtube),
+      }));
+    }
 
-      if (currentStep < totalSteps) {
-        console.log("📍 Moving to next step");
-        setCurrentStep(currentStep + 1);
-      } else {
-        console.log("🎉 Completing onboarding...");
-        console.log("👤 Final user profile:", djProfile);
-        console.log("📞 Calling onComplete...");
-        onComplete();
-      }
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
     } else {
-      console.log("❌ Validation failed, errors:", errors);
-      Alert.alert(
-        "Please complete all required fields",
-        "Make sure all required information is filled in before continuing."
-      );
+      onComplete();
     }
   };
 
@@ -243,45 +257,6 @@ export default function OnboardingForm({
 
   const toggleCityDropdown = () => {
     setShowCityDropdown(!showCityDropdown);
-  };
-
-  const uploadProfileImage = async (imageUri) => {
-    try {
-      console.log("📤 Uploading profile image during onboarding...");
-
-      // Generate unique filename
-      const fileExt = imageUri.split(".").pop() || "jpg";
-      const fileName = `profile_${Date.now()}.${fileExt}`;
-
-      // Convert image to Uint8Array
-      const response = await fetch(imageUri);
-      const arrayBuffer = await response.arrayBuffer();
-      const fileData = new Uint8Array(arrayBuffer);
-
-      // Upload to Supabase storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("mixes") // Using existing mixes bucket for now
-        .upload(`profile_images/${fileName}`, fileData, {
-          contentType: `image/${fileExt}`,
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("mixes")
-        .getPublicUrl(`profile_images/${fileName}`);
-
-      console.log("✅ Profile image uploaded:", urlData.publicUrl);
-      return urlData.publicUrl;
-    } catch (error) {
-      console.error("❌ Error uploading profile image:", error);
-      throw error;
-    }
   };
 
   const handleImagePicker = () => {
@@ -347,16 +322,13 @@ export default function OnboardingForm({
 
         try {
           // Upload image to Supabase storage
-          const publicUrl = await uploadProfileImage(localUri);
+          const publicUrl = await uploadOnboardingProfileImage(localUri);
 
-          // Update profile with public URL
           setProfileImage(publicUrl);
           setDjProfile((prev) => ({
             ...prev,
             profile_image_url: publicUrl,
           }));
-
-          console.log("✅ Profile image updated with URL:", publicUrl);
         } catch (uploadError) {
           console.error("❌ Failed to upload image:", uploadError);
           Alert.alert(
@@ -389,14 +361,10 @@ export default function OnboardingForm({
   );
 
   const renderStep1 = () => (
-    <Animated.View
-      style={[
-        styles.stepContainer,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
+    <StepAnimatedShell
+      fadeAnim={fadeAnim}
+      slideAnim={slideAnim}
+      style={styles.stepContainer}
     >
       <Text style={styles.stepTitle}>Basic Information</Text>
       <Text style={styles.stepSubtitle}>Tell us about yourself</Text>
@@ -454,67 +422,66 @@ export default function OnboardingForm({
           <Text style={styles.errorText}>{errors.dj_name}</Text>
         )}
       </View>
-    </Animated.View>
+    </StepAnimatedShell>
   );
 
   const renderStep2 = () => (
-    <Animated.View
-      style={[
-        styles.stepContainer,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
+    <StepAnimatedShell
+      fadeAnim={fadeAnim}
+      slideAnim={slideAnim}
+      style={styles.stepContainer}
     >
       <Text style={styles.stepTitle}>Location</Text>
       <Text style={styles.stepSubtitle}>Where are you based?</Text>
 
-      <View style={styles.inputGroup}>
+      <View
+        style={[
+          styles.inputGroup,
+          showCityDropdown && styles.inputGroupDropdownOpen,
+        ]}
+      >
         <Text style={styles.label}>City *</Text>
-        <TouchableOpacity
-          style={[styles.dropdownButton, errors.city && styles.inputError]}
-          onPress={toggleCityDropdown}
-        >
-          <Text
-            style={[
-              styles.dropdownText,
-              !djProfile.city && styles.placeholderText,
-            ]}
+        <View style={styles.cityDropdownBlock}>
+          <TouchableOpacity
+            style={[styles.dropdownButton, errors.city && styles.inputError]}
+            onPress={toggleCityDropdown}
           >
-            {djProfile.city || "Select your city"}
-          </Text>
-          <Text style={styles.dropdownArrow}>▼</Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.dropdownText,
+                !djProfile.city && styles.placeholderText,
+              ]}
+            >
+              {djProfile.city || "Select your city"}
+            </Text>
+            <Text style={styles.dropdownArrow}>▼</Text>
+          </TouchableOpacity>
 
-        {showCityDropdown && (
-          <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
-            {MAJOR_CITIES.map((city, index) => (
-              <TouchableOpacity
-                key={`${city}-${index}`}
-                style={styles.dropdownItem}
-                onPress={() => selectCity(city)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.dropdownItemText}>{city}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
+          {showCityDropdown && (
+            <ScrollView style={styles.dropdown} nestedScrollEnabled>
+              {MAJOR_CITIES.map((city, index) => (
+                <TouchableOpacity
+                  key={`${city}-${index}`}
+                  style={styles.dropdownItem}
+                  onPress={() => selectCity(city)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.dropdownItemText}>{city}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+        </View>
         {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
       </View>
-    </Animated.View>
+    </StepAnimatedShell>
   );
 
   const renderStep3 = () => (
-    <Animated.View
-      style={[
-        styles.stepContainer,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
+    <StepAnimatedShell
+      fadeAnim={fadeAnim}
+      slideAnim={slideAnim}
+      style={styles.stepContainer}
     >
       <Text style={styles.stepTitle}>Music Genres</Text>
       <Text style={styles.stepSubtitle}>What genres do you play?</Text>
@@ -559,18 +526,14 @@ export default function OnboardingForm({
         </View>
         {errors.genres && <Text style={styles.errorText}>{errors.genres}</Text>}
       </View>
-    </Animated.View>
+    </StepAnimatedShell>
   );
 
   const renderStep4 = () => (
-    <Animated.View
-      style={[
-        styles.stepContainer,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
+    <StepAnimatedShell
+      fadeAnim={fadeAnim}
+      slideAnim={slideAnim}
+      style={styles.stepContainer}
     >
       <Text style={styles.stepTitle}>Social Links</Text>
       <Text style={styles.stepSubtitle}>Connect your profiles (optional)</Text>
@@ -587,28 +550,29 @@ export default function OnboardingForm({
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={djProfile.instagram}
             onChangeText={(text) => {
-              // Auto-prepend Instagram URL if user just enters handle
-              let processedText = text;
-              if (text && !text.startsWith("http") && !text.startsWith("@")) {
-                processedText = `https://instagram.com/${text}`;
-              } else if (text && text.startsWith("@")) {
-                processedText = `https://instagram.com/${text.substring(1)}`;
-              }
-              setDjProfile((prev) => ({ ...prev, instagram: processedText }));
+              setDjProfile((prev) => ({ ...prev, instagram: text }));
               if (errors.instagram) {
                 setErrors((prev) => ({ ...prev, instagram: null }));
               }
             }}
+            onBlur={() => {
+              setDjProfile((prev) => ({
+                ...prev,
+                instagram: normalizeInstagramOnBlur(prev.instagram),
+              }));
+            }}
             autoCapitalize="none"
             autoCorrect={false}
           />
-          {djProfile.instagram && (
+          {djProfile.instagram?.trim() ? (
             <Text style={styles.formatHint}>
-              {isValidInstagram(djProfile.instagram)
+              {isValidInstagram(
+                normalizeInstagramOnBlur(djProfile.instagram)
+              )
                 ? "✓ Valid format"
                 : "⚠ Check format"}
             </Text>
-          )}
+          ) : null}
           {errors.instagram && (
             <Text style={styles.errorText}>{errors.instagram}</Text>
           )}
@@ -625,26 +589,29 @@ export default function OnboardingForm({
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={djProfile.soundcloud}
             onChangeText={(text) => {
-              // Auto-prepend SoundCloud URL if user just enters handle
-              let processedText = text;
-              if (text && !text.startsWith("http")) {
-                processedText = `https://soundcloud.com/${text}`;
-              }
-              setDjProfile((prev) => ({ ...prev, soundcloud: processedText }));
+              setDjProfile((prev) => ({ ...prev, soundcloud: text }));
               if (errors.soundcloud) {
                 setErrors((prev) => ({ ...prev, soundcloud: null }));
               }
             }}
+            onBlur={() => {
+              setDjProfile((prev) => ({
+                ...prev,
+                soundcloud: normalizeSoundCloudOnBlur(prev.soundcloud),
+              }));
+            }}
             autoCapitalize="none"
             autoCorrect={false}
           />
-          {djProfile.soundcloud && (
+          {djProfile.soundcloud?.trim() ? (
             <Text style={styles.formatHint}>
-              {isValidSoundCloud(djProfile.soundcloud)
+              {isValidSoundCloud(
+                normalizeSoundCloudOnBlur(djProfile.soundcloud)
+              )
                 ? "✓ Valid format"
                 : "⚠ Check format"}
             </Text>
-          )}
+          ) : null}
           {errors.soundcloud && (
             <Text style={styles.errorText}>{errors.soundcloud}</Text>
           )}
@@ -661,28 +628,27 @@ export default function OnboardingForm({
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={djProfile.tiktok}
             onChangeText={(text) => {
-              // Auto-prepend TikTok URL if user just enters handle
-              let processedText = text;
-              if (text && !text.startsWith("http") && !text.startsWith("@")) {
-                processedText = `https://www.tiktok.com/@${text}`;
-              } else if (text && text.startsWith("@")) {
-                processedText = `https://www.tiktok.com/${text}`;
-              }
-              setDjProfile((prev) => ({ ...prev, tiktok: processedText }));
+              setDjProfile((prev) => ({ ...prev, tiktok: text }));
               if (errors.tiktok) {
                 setErrors((prev) => ({ ...prev, tiktok: null }));
               }
             }}
+            onBlur={() => {
+              setDjProfile((prev) => ({
+                ...prev,
+                tiktok: normalizeTikTokOnBlur(prev.tiktok),
+              }));
+            }}
             autoCapitalize="none"
             autoCorrect={false}
           />
-          {djProfile.tiktok && (
+          {djProfile.tiktok?.trim() ? (
             <Text style={styles.formatHint}>
-              {isValidTikTok(djProfile.tiktok)
+              {isValidTikTok(normalizeTikTokOnBlur(djProfile.tiktok))
                 ? "✓ Valid format"
                 : "⚠ Check format"}
             </Text>
-          )}
+          ) : null}
           {errors.tiktok && (
             <Text style={styles.errorText}>{errors.tiktok}</Text>
           )}
@@ -699,30 +665,27 @@ export default function OnboardingForm({
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={djProfile.youtube}
             onChangeText={(text) => {
-              // Auto-prepend YouTube URL if user just enters handle
-              let processedText = text;
-              if (text && !text.startsWith("http") && !text.startsWith("@") && !text.startsWith("youtube.com") && !text.startsWith("youtu.be")) {
-                processedText = `https://www.youtube.com/@${text}`;
-              } else if (text && text.startsWith("@")) {
-                processedText = `https://www.youtube.com/${text}`;
-              } else if (text && !text.startsWith("http") && (text.startsWith("youtube.com") || text.startsWith("youtu.be"))) {
-                processedText = `https://${text}`;
-              }
-              setDjProfile((prev) => ({ ...prev, youtube: processedText }));
+              setDjProfile((prev) => ({ ...prev, youtube: text }));
               if (errors.youtube) {
                 setErrors((prev) => ({ ...prev, youtube: null }));
               }
             }}
+            onBlur={() => {
+              setDjProfile((prev) => ({
+                ...prev,
+                youtube: normalizeYouTubeOnBlur(prev.youtube),
+              }));
+            }}
             autoCapitalize="none"
             autoCorrect={false}
           />
-          {djProfile.youtube && (
+          {djProfile.youtube?.trim() ? (
             <Text style={styles.formatHint}>
-              {isValidYouTube(djProfile.youtube)
+              {isValidYouTube(normalizeYouTubeOnBlur(djProfile.youtube))
                 ? "✓ Valid format"
                 : "⚠ Check format"}
             </Text>
-          )}
+          ) : null}
           {errors.youtube && (
             <Text style={styles.errorText}>{errors.youtube}</Text>
           )}
@@ -734,18 +697,14 @@ export default function OnboardingForm({
           </Text>
         </View>
       </View>
-    </Animated.View>
+    </StepAnimatedShell>
   );
 
   const renderStep5 = () => (
-    <Animated.View
-      style={[
-        styles.stepContainer,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
+    <StepAnimatedShell
+      fadeAnim={fadeAnim}
+      slideAnim={slideAnim}
+      style={styles.stepContainer}
     >
       <Text style={styles.stepTitle}>Profile Picture</Text>
       <Text style={styles.stepSubtitle}>
@@ -802,7 +761,7 @@ export default function OnboardingForm({
           )}
         </View>
       </View>
-    </Animated.View>
+    </StepAnimatedShell>
   );
 
   const renderCurrentStep = () => {
@@ -998,17 +957,12 @@ const styles = {
     color: "hsl(0, 0%, 70%)", // Muted foreground
   },
   dropdown: {
-    position: "absolute",
-    top: 95, // Increased from 80 to 95 (additional 15px down)
-    left: 0,
-    right: 0,
+    marginTop: 8,
     backgroundColor: "hsl(0, 0%, 10%)", // Dark background
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)", // Subtle border
     maxHeight: 200,
-    zIndex: 1000,
-    elevation: 1000, // Android compatibility
   },
   dropdownItem: {
     padding: 15,

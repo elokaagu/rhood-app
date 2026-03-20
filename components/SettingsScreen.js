@@ -1,4 +1,9 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -13,13 +18,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import RhoodModal from "./RhoodModal";
-import {
-  COLORS,
-  TYPOGRAPHY,
-  SPACING,
-  RADIUS,
-  sharedStyles,
-} from "../lib/sharedStyles";
+import { COLORS, SPACING, sharedStyles } from "../lib/sharedStyles";
 import { db } from "../lib/supabase";
 import {
   registerForPushNotifications,
@@ -36,18 +35,13 @@ export default function SettingsScreen({
   const [searchQuery, setSearchQuery] = useState("");
   const [showSignOutModal, setShowSignOutModal] = useState(false);
 
-  // Simple settings state - only the essential ones that need database sync
   const [settings, setSettings] = useState({
     showEmail: true,
     showPhone: false,
     pushNotifications: true,
-    emailNotifications: true,
-    gigReminders: true,
-    messageNotifications: false, // Default to false - opt-in for message notifications
-    communityUpdates: false,
+    messageNotifications: false,
   });
 
-  // Load privacy + notification settings from database
   useEffect(() => {
     let isMounted = true;
 
@@ -67,7 +61,6 @@ export default function SettingsScreen({
           showEmail: userProfile?.show_email ?? true,
           showPhone: userProfile?.show_phone ?? false,
           pushNotifications: userSettings?.push_notifications ?? true,
-          // Default to false - messages should not trigger notifications unless user opts in
           messageNotifications: userSettings?.message_notifications ?? false,
         }));
       } catch (error) {
@@ -82,206 +75,201 @@ export default function SettingsScreen({
     };
   }, [user?.id]);
 
-  // Simple toggle handler - immediate state update with background save
-  const handleToggle = async (key, value) => {
-    HapticPatterns.toggle();
-    console.log(`🔘 Toggle ${key} to ${value}`);
+  const handleToggle = useCallback(
+    async (key, value) => {
+      HapticPatterns.toggle();
 
-    // Update state immediately for instant feedback
-    setSettings((prev) => ({ ...prev, [key]: value }));
+      setSettings((prev) => ({ ...prev, [key]: value }));
 
-    const revert = () => {
-      setSettings((prev) => ({ ...prev, [key]: !value }));
-    };
+      const revert = () => {
+        setSettings((prev) => ({ ...prev, [key]: !value }));
+      };
 
-    try {
-      if (!user?.id) {
-        return;
-      }
-
-      if (key === "showEmail" || key === "showPhone") {
-        const updateData = {
-          [key === "showEmail" ? "show_email" : "show_phone"]: value,
-        };
-        await db.updateUserProfile(user.id, updateData);
-        return;
-      }
-
-      if (key === "pushNotifications" || key === "messageNotifications") {
-        if (key === "pushNotifications") {
-          if (value) {
-            const token = await registerForPushNotifications();
-            if (!token) {
-              throw new Error(
-                "Push notifications require permissions. Check your device settings."
-              );
-            }
-          } else {
-            await unregisterPushNotifications();
-          }
+      try {
+        if (!user?.id) {
+          return;
         }
 
-        const columnName =
-          key === "pushNotifications"
-            ? "push_notifications"
-            : "message_notifications";
+        if (key === "showEmail" || key === "showPhone") {
+          const updateData = {
+            [key === "showEmail" ? "show_email" : "show_phone"]: value,
+          };
+          await db.updateUserProfile(user.id, updateData);
+          return;
+        }
 
-        await db.upsertUserSettings(user.id, { [columnName]: value });
-        onNotificationPreferencesChange?.();
-        return;
+        if (key === "pushNotifications" || key === "messageNotifications") {
+          if (key === "pushNotifications") {
+            if (value) {
+              const token = await registerForPushNotifications();
+              if (!token) {
+                throw new Error(
+                  "Push notifications require permissions. Check your device settings."
+                );
+              }
+            } else {
+              await unregisterPushNotifications();
+            }
+          }
+
+          const columnName =
+            key === "pushNotifications"
+              ? "push_notifications"
+              : "message_notifications";
+
+          await db.upsertUserSettings(user.id, { [columnName]: value });
+          onNotificationPreferencesChange?.();
+          return;
+        }
+      } catch (error) {
+        console.error(`❌ Failed to save ${key}:`, error);
+        revert();
+        Alert.alert(
+          "Update Failed",
+          "We couldn't save your preference. Please try again."
+        );
       }
-    } catch (error) {
-      console.error(`❌ Failed to save ${key}:`, error);
-      revert();
-      Alert.alert(
-        "Update Failed",
-        "We couldn't save your preference. Please try again."
-      );
-    }
-  };
+    },
+    [user?.id, onNotificationPreferencesChange]
+  );
 
-  const handleSignOut = () => {
+  const handleSignOut = useCallback(() => {
     setShowSignOutModal(true);
-  };
+  }, []);
 
-  const confirmSignOut = () => {
+  const confirmSignOut = useCallback(() => {
     setShowSignOutModal(false);
-    onSignOut && onSignOut();
-  };
+    onSignOut?.();
+  }, [onSignOut]);
 
-  const handleOpenLink = (url) => {
+  const handleOpenLink = useCallback((url) => {
     Linking.openURL(url).catch(() => {
       Alert.alert("Error", "Could not open link");
     });
-  };
+  }, []);
 
-  const handleClearCache = () => {
-    Alert.alert("Clear Cache", "This will clear all cached data. Continue?", [
-      { text: "Cancel", style: "cancel" },
+  const settingsSections = useMemo(
+    () => [
       {
-        text: "Clear",
-        style: "destructive",
-        onPress: () => {
-          setSettings((prev) => ({ ...prev, cacheSize: "0MB" }));
-          Alert.alert("Success", "Cache cleared successfully");
-        },
+        id: "account",
+        title: "Account",
+        icon: "person",
+        items: [
+          {
+            id: "editProfile",
+            title: "Edit Profile",
+            subtitle: "Update your personal information",
+            icon: "create",
+            type: "navigate",
+            action: () => onNavigate?.("edit-profile"),
+          },
+          {
+            id: "showEmail",
+            title: "Show Email",
+            subtitle: "Display email on profile",
+            icon: "mail",
+            type: "toggle",
+            value: settings.showEmail,
+          },
+          {
+            id: "showPhone",
+            title: "Show Phone",
+            subtitle: "Display phone number on profile",
+            icon: "call",
+            type: "toggle",
+            value: settings.showPhone,
+          },
+        ],
       },
-    ]);
-  };
+      {
+        id: "notifications",
+        title: "Notifications",
+        icon: "notifications",
+        items: [
+          {
+            id: "pushNotifications",
+            title: "Push Notifications",
+            subtitle: "Receive push notifications",
+            icon: "phone-portrait",
+            type: "toggle",
+            value: settings.pushNotifications,
+          },
+          {
+            id: "messageNotifications",
+            title: "Message Notifications",
+            subtitle: "Get notifications for new messages (opt-in)",
+            icon: "chatbubble",
+            type: "toggle",
+            value: settings.messageNotifications,
+          },
+        ],
+      },
+      {
+        id: "support",
+        title: "Support & Info",
+        icon: "help-circle",
+        items: [
+          {
+            id: "help",
+            title: "Help Center",
+            subtitle: "Get help and support",
+            icon: "help",
+            type: "navigate",
+            action: () => onNavigate?.("help"),
+          },
+          {
+            id: "contact",
+            title: "Contact Us",
+            subtitle: "Send feedback or report issues",
+            icon: "mail",
+            type: "link",
+            url: "mailto:hello@rhood.io",
+          },
+          {
+            id: "privacyPolicy",
+            title: "Privacy Policy",
+            subtitle: "Read our privacy policy",
+            icon: "document-text",
+            type: "navigate",
+            action: () => onNavigate?.("privacy"),
+          },
+          {
+            id: "termsOfService",
+            title: "Terms of Service",
+            subtitle: "Read our terms of service",
+            icon: "document",
+            type: "navigate",
+            action: () => onNavigate?.("terms"),
+          },
+        ],
+      },
+      {
+        id: "accountActions",
+        title: "Account",
+        icon: "person-circle",
+        items: [
+          {
+            id: "signOut",
+            title: "Sign Out",
+            subtitle: "Sign out of your account",
+            icon: "log-out",
+            type: "action",
+            action: handleSignOut,
+            destructive: true,
+          },
+        ],
+      },
+    ],
+    [
+      settings.showEmail,
+      settings.showPhone,
+      settings.pushNotifications,
+      settings.messageNotifications,
+      onNavigate,
+      handleSignOut,
+    ]
+  );
 
-  const settingsSections = [
-    {
-      id: "account",
-      title: "Account",
-      icon: "person",
-      items: [
-        {
-          id: "editProfile",
-          title: "Edit Profile",
-          subtitle: "Update your personal information",
-          icon: "create",
-          type: "navigate",
-          action: () => onNavigate && onNavigate("edit-profile"),
-        },
-        {
-          id: "showEmail",
-          title: "Show Email",
-          subtitle: "Display email on profile",
-          icon: "mail",
-          type: "toggle",
-          value: settings.showEmail,
-        },
-        {
-          id: "showPhone",
-          title: "Show Phone",
-          subtitle: "Display phone number on profile",
-          icon: "call",
-          type: "toggle",
-          value: settings.showPhone,
-        },
-      ],
-    },
-    {
-      id: "notifications",
-      title: "Notifications",
-      icon: "notifications",
-      items: [
-        {
-          id: "pushNotifications",
-          title: "Push Notifications",
-          subtitle: "Receive push notifications",
-          icon: "phone-portrait",
-          type: "toggle",
-          value: settings.pushNotifications,
-        },
-        {
-          id: "messageNotifications",
-          title: "Message Notifications",
-          subtitle: "Get notifications for new messages (opt-in)",
-          icon: "chatbubble",
-          type: "toggle",
-          value: settings.messageNotifications,
-        },
-      ],
-    },
-    {
-      id: "support",
-      title: "Support & Info",
-      icon: "help-circle",
-      items: [
-        {
-          id: "help",
-          title: "Help Center",
-          subtitle: "Get help and support",
-          icon: "help",
-          type: "navigate",
-          action: () => onNavigate && onNavigate("help"),
-        },
-        {
-          id: "contact",
-          title: "Contact Us",
-          subtitle: "Send feedback or report issues",
-          icon: "mail",
-          type: "link",
-          url: "mailto:hello@rhood.io",
-        },
-        {
-          id: "privacyPolicy",
-          title: "Privacy Policy",
-          subtitle: "Read our privacy policy",
-          icon: "document-text",
-          type: "navigate",
-          action: () => onNavigate && onNavigate("privacy"),
-        },
-        {
-          id: "termsOfService",
-          title: "Terms of Service",
-          subtitle: "Read our terms of service",
-          icon: "document",
-          type: "navigate",
-          action: () => onNavigate && onNavigate("terms"),
-        },
-      ],
-    },
-    {
-      id: "accountActions",
-      title: "Account",
-      icon: "person-circle",
-      items: [
-        {
-          id: "signOut",
-          title: "Sign Out",
-          subtitle: "Sign out of your account",
-          icon: "log-out",
-          type: "action",
-          action: handleSignOut,
-          destructive: false,
-        },
-      ],
-    },
-  ];
-
-  // Filter settings based on search query
   const filteredSections = useMemo(() => {
     if (!searchQuery.trim()) {
       return settingsSections;
@@ -298,82 +286,126 @@ export default function SettingsScreen({
         ),
       }))
       .filter((section) => section.items.length > 0);
-  }, [searchQuery]);
+  }, [searchQuery, settingsSections]);
 
-  const renderSettingItem = (item) => {
-    const handlePress = () => {
-      HapticPatterns.buttonPress();
-      if (item.type === "navigate" && item.action) {
-        item.action();
-      } else if (item.type === "link" && item.url) {
-        handleOpenLink(item.url);
-      } else if (item.type === "action" && item.action) {
-        item.action();
-      } else if (item.onPress) {
-        item.onPress();
-      }
-    };
+  const renderSettingItem = useCallback(
+    (item, isLast) => {
+      const handlePress = () => {
+        HapticPatterns.buttonPress();
+        if (item.type === "navigate" && item.action) {
+          item.action();
+        } else if (item.type === "link" && item.url) {
+          handleOpenLink(item.url);
+        } else if (item.type === "action" && item.action) {
+          item.action();
+        } else if (item.onPress) {
+          item.onPress();
+        }
+      };
 
-    const SettingContainer = item.type === "toggle" ? View : TouchableOpacity;
-    const containerProps =
-      item.type === "toggle"
-        ? { style: styles.settingItem }
-        : {
-            style: styles.settingItem,
-            onPress: handlePress,
-            activeOpacity: 0.7,
-          };
+      const SettingContainer = item.type === "toggle" ? View : TouchableOpacity;
+      const containerProps =
+        item.type === "toggle"
+          ? {
+              style: [
+                styles.settingItem,
+                isLast && styles.settingItemLast,
+                item.destructive && styles.destructiveRow,
+              ],
+            }
+          : {
+              style: [
+                styles.settingItem,
+                isLast && styles.settingItemLast,
+                item.destructive && styles.destructiveRow,
+              ],
+              onPress: handlePress,
+              activeOpacity: 0.7,
+            };
 
-    return (
-      <SettingContainer key={item.id} {...containerProps}>
-        <View style={styles.settingLeft}>
-          <View style={styles.settingIcon}>
-            <Ionicons name={item.icon} size={20} color="hsl(75, 100%, 60%)" />
-          </View>
-          <View style={styles.settingContent}>
-            <Text style={styles.settingTitle}>{item.title}</Text>
-            <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
-          </View>
-        </View>
+      const iconColor = item.destructive
+        ? "hsl(0, 0%, 100%)"
+        : "hsl(75, 100%, 60%)";
 
-        <View style={styles.settingRight}>
-          {item.type === "toggle" && (
-            <Switch
-              value={settings[item.id] || false}
-              onValueChange={(newValue) => handleToggle(item.id, newValue)}
-              trackColor={{
-                false: "hsl(0, 0%, 20%)",
-                true: "hsl(75, 100%, 60%)",
-              }}
-              thumbColor={
-                settings[item.id] ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"
-              }
-            />
-          )}
-          {item.type === "select" && (
-            <View style={styles.selectContainer}>
-              <Text style={styles.selectText}>
-                {
-                  item.options.find((opt) => opt.value === item.currentValue)
-                    ?.label
-                }
-              </Text>
-              <Ionicons name="chevron-down" size={16} color="hsl(0, 0%, 50%)" />
+      return (
+        <SettingContainer key={item.id} {...containerProps}>
+          <View style={styles.settingLeft}>
+            <View
+              style={[
+                styles.settingIcon,
+                item.destructive && styles.destructiveIconWrap,
+              ]}
+            >
+              <Ionicons name={item.icon} size={20} color={iconColor} />
             </View>
-          )}
-          {(item.type === "navigate" ||
-            item.type === "link" ||
-            item.type === "action") && (
-            <Ionicons
-              name="chevron-forward"
-              size={16}
-              color="hsl(0, 0%, 50%)"
-            />
-          )}
-        </View>
-      </SettingContainer>
-    );
-  };
+            <View style={styles.settingContent}>
+              <Text
+                style={[
+                  styles.settingTitle,
+                  item.destructive && styles.destructiveTitle,
+                ]}
+              >
+                {item.title}
+              </Text>
+              <Text
+                style={[
+                  styles.settingSubtitle,
+                  item.destructive && styles.destructiveSubtitle,
+                ]}
+              >
+                {item.subtitle}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.settingRight}>
+            {item.type === "toggle" && (
+              <Switch
+                value={settings[item.id] || false}
+                onValueChange={(newValue) => handleToggle(item.id, newValue)}
+                trackColor={{
+                  false: "hsl(0, 0%, 20%)",
+                  true: "hsl(75, 100%, 60%)",
+                }}
+                thumbColor={
+                  settings[item.id] ? "hsl(0, 0%, 100%)" : "hsl(0, 0%, 70%)"
+                }
+              />
+            )}
+            {item.type === "select" && (
+              <View style={styles.selectContainer}>
+                <Text style={styles.selectText}>
+                  {
+                    item.options.find((opt) => opt.value === item.currentValue)
+                      ?.label
+                  }
+                </Text>
+                <Ionicons
+                  name="chevron-down"
+                  size={16}
+                  color="hsl(0, 0%, 50%)"
+                />
+              </View>
+            )}
+            {(item.type === "navigate" ||
+              item.type === "link" ||
+              item.type === "action") && (
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={
+                  item.destructive
+                    ? "hsl(0, 100%, 55%)"
+                    : "hsl(0, 0%, 50%)"
+                }
+              />
+            )}
+          </View>
+        </SettingContainer>
+      );
+    },
+    [settings, handleToggle, handleOpenLink]
+  );
 
   return (
     <View style={styles.container}>
@@ -381,12 +413,10 @@ export default function SettingsScreen({
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.tsBlockBoldHeading}>SETTINGS</Text>
         </View>
 
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
           <TextInput
@@ -408,7 +438,6 @@ export default function SettingsScreen({
           )}
         </View>
 
-        {/* Settings Sections */}
         <View style={styles.settingsContainer}>
           {filteredSections.map((section) => (
             <View key={section.id} style={styles.section}>
@@ -421,27 +450,26 @@ export default function SettingsScreen({
                 <Text style={styles.sectionTitle}>{section.title}</Text>
               </View>
               <View style={styles.sectionContent}>
-                {section.items.map(renderSettingItem)}
+                {section.items.map((item, index, items) =>
+                  renderSettingItem(item, index === items.length - 1)
+                )}
               </View>
             </View>
           ))}
         </View>
 
-        {/* App Version */}
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>R/HOOD</Text>
           <Text style={styles.versionSubtext}>Made with ❤️ for DJs</Text>
         </View>
       </ScrollView>
 
-      {/* Bottom gradient fade overlay */}
       <LinearGradient
         colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)"]}
         style={styles.bottomGradient}
         pointerEvents="none"
       />
 
-      {/* Sign Out Modal */}
       <RhoodModal
         visible={showSignOutModal}
         onClose={() => setShowSignOutModal(false)}
@@ -482,11 +510,11 @@ const styles = StyleSheet.create({
   tsBlockBoldHeading: {
     fontFamily: "TS Block Bold",
     fontSize: 22,
-    color: "#FFFFFF", // Brand white
-    textAlign: "left", // Left aligned as per guidelines
-    textTransform: "uppercase", // Always uppercase
-    lineHeight: 26, // Tight line height for stacked effect
-    letterSpacing: 1, // Slight spacing for impact
+    color: "#FFFFFF",
+    textAlign: "left",
+    textTransform: "uppercase",
+    lineHeight: 26,
+    letterSpacing: 1,
     marginBottom: 16,
   },
   searchContainer: {
@@ -547,9 +575,11 @@ const styles = StyleSheet.create({
     borderBottomColor: "hsl(0, 0%, 15%)",
     minHeight: 60,
   },
-  destructiveItem: {
+  settingItemLast: {
     borderBottomWidth: 0,
-    paddingVertical: 12,
+  },
+  destructiveRow: {
+    paddingVertical: 14,
   },
   settingLeft: {
     flexDirection: "row",
@@ -566,11 +596,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
-  destructiveIcon: {
-    backgroundColor: "hsl(0, 100%, 60%)",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  destructiveIconWrap: {
+    backgroundColor: "hsla(0, 100%, 55%, 0.25)",
   },
   settingContent: {
     flex: 1,
@@ -582,17 +609,16 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginBottom: 2,
   },
-  destructiveText: {
-    color: "hsl(0, 100%, 60%)",
-    fontSize: 14,
-  },
-  destructiveSubtitle: {
-    fontSize: 12,
+  destructiveTitle: {
+    color: "hsl(0, 100%, 58%)",
   },
   settingSubtitle: {
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
     fontFamily: "Helvetica Neue",
+  },
+  destructiveSubtitle: {
+    color: "hsla(0, 100%, 70%, 0.85)",
   },
   settingRight: {
     alignItems: "center",

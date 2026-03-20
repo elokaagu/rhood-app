@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, memo } from "react";
 import {
   View,
   Text,
@@ -6,15 +6,12 @@ import {
   Image,
   StyleSheet,
   Animated,
-  Dimensions,
   Modal,
   Alert,
   PanResponder,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { HapticPatterns } from "../lib/haptics";
-
-const { width } = Dimensions.get("window");
 
 const formatSecondsToLabel = (seconds) => {
   if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -57,45 +54,30 @@ const parseDurationValue = (value) => {
   return null;
 };
 
+/**
+ * Mix row with swipe-to-delete (own mixes), options menu, like, queue.
+ * TODO: lift options Modal to list parent for one modal per screen when used in long lists.
+ */
 const DJMix = ({
   mix,
   isPlaying,
-  isLoading = false,
   onPlayPause,
   onArtistPress,
   onDelete,
   onAddToQueue,
   currentUserId,
-  progress = 0,
   onLikePress,
   isLiked = false,
   likeCount = 0,
   likeDisabled = false,
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
 
-  // Check if current user owns this mix
   const isOwnMix = currentUserId && mix.user_id === currentUserId;
 
-  // Debug logging
-  useEffect(() => {
-    if (currentUserId && mix.user_id) {
-      console.log(`Mix "${mix.title}":`, {
-        currentUserId,
-        mixUserId: mix.user_id,
-        isOwnMix,
-        match: currentUserId === mix.user_id,
-      });
-    }
-  }, [currentUserId, mix.user_id, mix.title, isOwnMix]);
-
-  // Validate image URL and provide fallback
-  const getImageSource = () => {
-    // Prefer artwork_url from mixes table, then image_url, then legacy image field
+  const imageSource = useMemo(() => {
     const candidateUrl =
       (typeof mix.artwork_url === "string" && mix.artwork_url.trim()) ||
       (typeof mix.image_url === "string" && mix.image_url.trim()) ||
@@ -104,48 +86,24 @@ const DJMix = ({
 
     if (candidateUrl) {
       const trimmedUrl = candidateUrl.trim();
-      
-      // Very lenient validation - accept any string that looks like a URL
-      // React Native Image will handle invalid URLs gracefully
       if (
         trimmedUrl.length > 0 &&
         (trimmedUrl.startsWith("http://") ||
-         trimmedUrl.startsWith("https://") ||
-         trimmedUrl.includes("supabase") ||
-         trimmedUrl.includes("storage") ||
-         trimmedUrl.includes("://"))
+          trimmedUrl.startsWith("https://") ||
+          trimmedUrl.includes("supabase") ||
+          trimmedUrl.includes("storage") ||
+          trimmedUrl.includes("://"))
       ) {
         return { uri: trimmedUrl };
       }
     }
 
-    // Return branded fallback image if no valid artwork URL
     return require("../assets/rhood_logo.webp");
-  };
+  }, [mix.artwork_url, mix.image_url, mix.image]);
 
   useEffect(() => {
-    if (isPlaying) {
-      // Start pulsing animation when playing
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulse.start();
-      return () => pulse.stop();
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [isPlaying, pulseAnim]);
+    setImageError(false);
+  }, [imageSource]);
 
   // Swipe to delete gesture handler (only for own mixes)
   const panResponder = useMemo(
@@ -165,11 +123,12 @@ const DJMix = ({
           return isOwnMix && gestureState.dx < -10;
         },
         onPanResponderGrant: () => {
-          // Start of gesture
-          if (isOwnMix) {
-            swipeAnim.setOffset(swipeAnim._value);
+          if (!isOwnMix) return;
+          swipeAnim.stopAnimation((value) => {
+            const x = typeof value === "number" && Number.isFinite(value) ? value : 0;
+            swipeAnim.setOffset(x);
             swipeAnim.setValue(0);
-          }
+          });
         },
         onPanResponderMove: (_, gestureState) => {
           if (isOwnMix && gestureState.dx < 0) {
@@ -314,26 +273,30 @@ const DJMix = ({
           <View style={styles.albumArtContainer}>
             {!imageError ? (
               <Image
-                source={getImageSource()}
+                source={imageSource}
                 style={styles.albumArt}
                 resizeMode="cover"
                 onError={(error) => {
                   setImageError(true);
-                  const imageSource = getImageSource();
-                  const imageUrl = imageSource?.uri || "fallback";
-                  console.log(`❌ Failed to load image for "${mix.title}":`, {
-                    attemptedUrl: imageUrl,
-                    artwork_url: mix.artwork_url,
-                    image_url: mix.image_url,
-                    image: mix.image,
-                    error: error.nativeEvent?.error || "Unknown error",
-                  });
+                  if (__DEV__) {
+                    const imageUrl = imageSource?.uri || "fallback";
+                    console.log(`❌ Failed to load image for "${mix.title}":`, {
+                      attemptedUrl: imageUrl,
+                      artwork_url: mix.artwork_url,
+                      image_url: mix.image_url,
+                      image: mix.image,
+                      error: error.nativeEvent?.error || "Unknown error",
+                    });
+                  }
                 }}
                 onLoad={() => {
                   setImageError(false);
-                  const imageSource = getImageSource();
-                  const imageUrl = imageSource?.uri || "fallback";
-                  console.log(`✅ Successfully loaded image for "${mix.title}": ${imageUrl}`);
+                  if (__DEV__) {
+                    const imageUrl = imageSource?.uri || "fallback";
+                    console.log(
+                      `✅ Successfully loaded image for "${mix.title}": ${imageUrl}`
+                    );
+                  }
                 }}
               />
             ) : (
@@ -750,4 +713,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default DJMix;
+export default memo(DJMix);

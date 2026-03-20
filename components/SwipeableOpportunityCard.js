@@ -1,21 +1,23 @@
-import React, { useRef, useState, useMemo, useEffect } from "react";
+import React, { useRef, useMemo, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   Image,
   Animated,
   PanResponder,
   Dimensions,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
 const { width: screenWidth } = Dimensions.get("window");
 const SWIPE_THRESHOLD = screenWidth * 0.25;
 const SWIPE_OUT_DURATION = 250;
+/** Damp vertical drag so the card stays mostly horizontal */
+const VERTICAL_DRAG_SCALE = 0.15;
+const TAP_MAX_MOVEMENT = 12;
+const TAP_MAX_DURATION_MS = 280;
 
 export default function SwipeableOpportunityCard({
   opportunity,
@@ -26,13 +28,6 @@ export default function SwipeableOpportunityCard({
   isNextCard = false,
   dailyApplicationStats = null,
 }) {
-  // Debug logging for dailyApplicationStats
-  if (isTopCard) {
-    console.log(
-      "🎯 SwipeableOpportunityCard - dailyApplicationStats:",
-      dailyApplicationStats
-    );
-  }
   const position = useRef(new Animated.ValueXY()).current;
   const scale = useRef(new Animated.Value(isNextCard ? 0.95 : 1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
@@ -40,6 +35,46 @@ export default function SwipeableOpportunityCard({
   const fadeOverlay = useRef(new Animated.Value(0)).current;
   const entranceOpacity = useRef(new Animated.Value(0)).current;
   const entranceTranslateY = useRef(new Animated.Value(30)).current;
+  const grantTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (__DEV__ && isTopCard) {
+      console.log(
+        "🎯 SwipeableOpportunityCard - dailyApplicationStats:",
+        dailyApplicationStats
+      );
+    }
+  }, [isTopCard, dailyApplicationStats]);
+
+  const animateSwipeOut = useCallback(
+    (direction, endY = 0) => {
+      const x =
+        direction === "right" ? screenWidth * 1.5 : -screenWidth * 1.5;
+
+      Animated.parallel([
+        Animated.timing(position, {
+          toValue: { x, y: endY },
+          duration: SWIPE_OUT_DURATION,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: SWIPE_OUT_DURATION,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeOverlay, {
+          toValue: 1,
+          duration: SWIPE_OUT_DURATION * 0.7,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (!finished) return;
+        if (direction === "left") onSwipeLeft?.();
+        else onSwipeRight?.();
+      });
+    },
+    [position, opacity, fadeOverlay, onSwipeLeft, onSwipeRight]
+  );
 
   const panResponder = useMemo(
     () =>
@@ -53,7 +88,9 @@ export default function SwipeableOpportunityCard({
         },
         onPanResponderGrant: () => {
           if (isTopCard) {
+            grantTimeRef.current = Date.now();
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            // ValueXY has no public "current value" getter; offset must be set synchronously on grant.
             position.setOffset({
               x: position.x._value,
               y: position.y._value,
@@ -62,13 +99,14 @@ export default function SwipeableOpportunityCard({
         },
         onPanResponderMove: (_, gestureState) => {
           if (isTopCard) {
-            position.setValue({ x: gestureState.dx, y: gestureState.dy });
+            position.setValue({
+              x: gestureState.dx,
+              y: gestureState.dy * VERTICAL_DRAG_SCALE,
+            });
 
-            // Add rotation based on horizontal movement
             const rotation = (gestureState.dx / screenWidth) * 0.3;
             rotate.setValue(rotation);
 
-            // Add scale effect
             const scaleValue =
               1 - (Math.abs(gestureState.dx) / screenWidth) * 0.1;
             scale.setValue(Math.max(0.9, scaleValue));
@@ -78,60 +116,28 @@ export default function SwipeableOpportunityCard({
           if (isTopCard) {
             position.flattenOffset();
 
-            const { dx, vx } = gestureState;
+            const { dx, dy, vx } = gestureState;
             const shouldSwipeLeft = dx < -SWIPE_THRESHOLD || vx < -0.5;
             const shouldSwipeRight = dx > SWIPE_THRESHOLD || vx > 0.5;
 
             if (shouldSwipeLeft) {
-              // Swipe left (pass)
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-              // Call swipe handler immediately to show next card
-              onSwipeLeft && onSwipeLeft();
-
-              Animated.parallel([
-                Animated.timing(position, {
-                  toValue: { x: -screenWidth * 1.5, y: dx * 0.5 },
-                  duration: SWIPE_OUT_DURATION,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(opacity, {
-                  toValue: 0,
-                  duration: SWIPE_OUT_DURATION,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(fadeOverlay, {
-                  toValue: 1,
-                  duration: SWIPE_OUT_DURATION * 0.7,
-                  useNativeDriver: true,
-                }),
-              ]).start();
+              animateSwipeOut("left", dx * 0.5 * VERTICAL_DRAG_SCALE);
             } else if (shouldSwipeRight) {
-              // Swipe right (like/apply)
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-              // Call swipe handler immediately to show next card
-              onSwipeRight && onSwipeRight();
-
-              Animated.parallel([
-                Animated.timing(position, {
-                  toValue: { x: screenWidth * 1.5, y: dx * 0.5 },
-                  duration: SWIPE_OUT_DURATION,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(opacity, {
-                  toValue: 0,
-                  duration: SWIPE_OUT_DURATION,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(fadeOverlay, {
-                  toValue: 1,
-                  duration: SWIPE_OUT_DURATION * 0.7,
-                  useNativeDriver: true,
-                }),
-              ]).start();
+              animateSwipeOut("right", dx * 0.5 * VERTICAL_DRAG_SCALE);
             } else {
-              // Return to center
+              const elapsed = Date.now() - grantTimeRef.current;
+              const isTap =
+                Math.abs(dx) < TAP_MAX_MOVEMENT &&
+                Math.abs(dy) < TAP_MAX_MOVEMENT &&
+                elapsed < TAP_MAX_DURATION_MS &&
+                Math.abs(vx) < 0.15;
+
+              if (isTap && onPress) {
+                onPress();
+              }
+
               Animated.parallel([
                 Animated.spring(position, {
                   toValue: { x: 0, y: 0 },
@@ -156,12 +162,10 @@ export default function SwipeableOpportunityCard({
           }
         },
       }),
-    [isTopCard, onSwipeLeft, onSwipeRight]
+    [isTopCard, animateSwipeOut, onPress]
   );
 
-  // Entrance animation when card becomes visible
   useEffect(() => {
-    // Animate entrance when card first appears or becomes top card
     Animated.parallel([
       Animated.timing(entranceOpacity, {
         toValue: 1,
@@ -175,66 +179,18 @@ export default function SwipeableOpportunityCard({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [opportunity.id]); // Re-run when opportunity changes
-
-  const handleLike = () => {
-    if (isTopCard) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      // Call swipe handler immediately to show next card
-      onSwipeRight && onSwipeRight();
-
-      Animated.parallel([
-        Animated.timing(position, {
-          toValue: { x: screenWidth * 1.5, y: 0 },
-          duration: SWIPE_OUT_DURATION,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: SWIPE_OUT_DURATION,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeOverlay, {
-          toValue: 1,
-          duration: SWIPE_OUT_DURATION * 0.7,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  };
-
-  const handlePass = () => {
-    if (isTopCard) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      // Call swipe handler immediately to show next card
-      onSwipeLeft && onSwipeLeft();
-
-      Animated.parallel([
-        Animated.timing(position, {
-          toValue: { x: -screenWidth * 1.5, y: 0 },
-          duration: SWIPE_OUT_DURATION,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: SWIPE_OUT_DURATION,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeOverlay, {
-          toValue: 1,
-          duration: SWIPE_OUT_DURATION * 0.7,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  };
+  }, [opportunity.id, isTopCard]);
 
   const rotateInterpolate = rotate.interpolate({
     inputRange: [-1, 0, 1],
     outputRange: ["-15deg", "0deg", "15deg"],
   });
+
+  const imageUri =
+    opportunity?.image ||
+    opportunity?.image_url ||
+    opportunity?.cover_image_url ||
+    null;
 
   return (
     <Animated.View
@@ -255,62 +211,68 @@ export default function SwipeableOpportunityCard({
       {...panResponder.panHandlers}
     >
       <View style={styles.cardShadow}>
-      {/* Large featured image */}
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: opportunity.image }}
-          style={styles.featuredImage}
-        />
+        <View style={styles.imageContainer}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.featuredImage} />
+          ) : (
+            <Image
+              source={require("../assets/rhood_logo.webp")}
+              style={styles.featuredImage}
+              resizeMode="contain"
+            />
+          )}
 
-        {/* Dark fade gradient overlay */}
-        <LinearGradient
-          colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)"]}
-          locations={[0, 0.6, 1]}
-          style={styles.gradientOverlay}
-        >
-          <View style={styles.overlayContent}>
-            <View style={styles.overlayHeader}>
-              <View style={styles.overlayHeaderSpacer} />
-              <View style={styles.overlayHeaderBadges}>
-                {opportunity.status === "hot" && (
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusBadgeText}>HOT</Text>
-                  </View>
-                )}
-                {opportunity.status === "closing" && (
-                  <View style={[styles.statusBadge, styles.closingBadge]}>
-                    <Text style={styles.statusBadgeText}>CLOSING</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-            {opportunity.status === "new" && (
-              <View style={styles.newBadgeContainer}>
-                <View style={[styles.statusBadge, styles.newBadge]}>
-                  <Text style={styles.statusBadgeText}>NEW</Text>
+          <LinearGradient
+            colors={[
+              "transparent",
+              "rgba(0, 0, 0, 0.3)",
+              "rgba(0, 0, 0, 0.8)",
+            ]}
+            locations={[0, 0.6, 1]}
+            style={styles.gradientOverlay}
+          >
+            <View style={styles.overlayContent}>
+              <View style={styles.overlayHeader}>
+                <View style={styles.overlayHeaderSpacer} />
+                <View style={styles.overlayHeaderBadges}>
+                  {opportunity.status === "hot" && (
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusBadgeText}>HOT</Text>
+                    </View>
+                  )}
+                  {opportunity.status === "closing" && (
+                    <View style={[styles.statusBadge, styles.closingBadge]}>
+                      <Text style={styles.statusBadgeText}>CLOSING</Text>
+                    </View>
+                  )}
                 </View>
               </View>
-            )}
-            <Text style={styles.eventTitle}>{opportunity.title}</Text>
-            <Text style={styles.applicationsLeft}>
-              {dailyApplicationStats &&
-              dailyApplicationStats.remaining_applications !== undefined
-                ? `${dailyApplicationStats.remaining_applications} applications remaining today`
-                : "Loading..."}
-            </Text>
-          </View>
-        </LinearGradient>
-      </View>
+              {opportunity.status === "new" && (
+                <View style={styles.newBadgeContainer}>
+                  <View style={[styles.statusBadge, styles.newBadge]}>
+                    <Text style={styles.statusBadgeText}>NEW</Text>
+                  </View>
+                </View>
+              )}
+              <Text style={styles.eventTitle}>{opportunity.title}</Text>
+              <Text style={styles.applicationsLeft}>
+                {dailyApplicationStats &&
+                dailyApplicationStats.remaining_applications !== undefined
+                  ? `${dailyApplicationStats.remaining_applications} applications remaining today`
+                  : "Loading..."}
+              </Text>
+            </View>
+          </LinearGradient>
+        </View>
 
-      {/* Dark fade overlay */}
-      <Animated.View
-        style={[
-          styles.fadeOverlay,
-          {
-            opacity: fadeOverlay,
-          },
-        ]}
-      />
+        <Animated.View
+          style={[
+            styles.fadeOverlay,
+            {
+              opacity: fadeOverlay,
+            },
+          ]}
+        />
       </View>
     </Animated.View>
   );

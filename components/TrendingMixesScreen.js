@@ -7,71 +7,17 @@ import {
   StyleSheet,
   Image,
   RefreshControl,
-  ActivityIndicator,
   Platform,
   ActionSheetIOS,
   Alert,
   FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { SkeletonMix } from "./Skeleton";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
-
-const TRENDING_ROW_HEIGHT = 96;
-
-const extractDurationSeconds = (mix) => {
-  if (!mix || typeof mix !== "object") return null;
-
-  const metadataSources = [
-    mix.duration,
-    mix.duration_seconds,
-    mix.durationSeconds,
-    mix.duration_secs,
-    mix.metadata?.duration,
-    mix.metadata?.duration_seconds,
-    mix.audio_metadata?.duration,
-    mix.audio_metadata?.duration_seconds,
-  ];
-
-  for (const source of metadataSources) {
-    if (source == null || source === undefined) continue;
-    if (typeof source === "number" && Number.isFinite(source) && source > 0) {
-      return Math.round(source);
-    }
-    if (typeof source === "string" && source.trim()) {
-      const trimmed = source.trim();
-      if (trimmed === "0" || trimmed === "0:00") continue;
-      const colonParts = trimmed.split(":").map((part) => part.trim());
-      if (colonParts.length >= 2 && colonParts.length <= 3) {
-        const numbers = colonParts.map((part) => Number(part));
-        if (numbers.every((num) => Number.isFinite(num) && num >= 0)) {
-          if (numbers.length === 3) {
-            const [hours, minutes, seconds] = numbers;
-            const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-            return totalSeconds > 0 ? totalSeconds : null;
-          }
-          const [minutes, seconds] = numbers;
-          const totalSeconds = minutes * 60 + seconds;
-          return totalSeconds > 0 ? totalSeconds : null;
-        }
-      }
-    }
-  }
-
-  return null;
-};
-
-const formatDurationLabel = (seconds) => {
-  if (!Number.isFinite(seconds) || seconds <= 0) {
-    return "0:00";
-  }
-  const totalSeconds = Math.max(0, Math.round(seconds));
-  const minutes = Math.floor(totalSeconds / 60);
-  const remainingSeconds = totalSeconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-};
+import { fetchMixesWithProfilesAndLikeCounts } from "../lib/fetchMixesWithAggregates";
+import { normalizeMixForPlayback } from "../lib/yourLikesUtils";
 
 const TrendingMixRow = memo(function TrendingMixRow({ mix, isPlaying, onPress, onLongPress }) {
   return (
@@ -175,8 +121,8 @@ export default function TrendingMixesScreen({
   globalAudioState,
   onPlayAudio,
   onPauseAudio,
+  onResumeAudio,
   onBack,
-  user,
   onAddToQueue,
   onPlayNext,
 }) {
@@ -184,141 +130,42 @@ export default function TrendingMixesScreen({
   const [playingMixId, setPlayingMixId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [mixLikeCounts, setMixLikeCounts] = useState({});
 
-  // Fetch all mixes and calculate trending
-  const fetchMixes = async () => {
+  const loadMixes = useCallback(async ({ isInitial = false } = {}) => {
+    if (isInitial) setLoading(true);
     try {
-      setLoading(true);
-
-      const { data, error } = await supabase
-        .from("mixes")
-        .select("*")
-        .order("created_at", { ascending: false });
-
+      const { mixes: next, error } =
+        await fetchMixesWithProfilesAndLikeCounts();
       if (error) {
         console.error("❌ Error fetching mixes:", error);
         setMixes([]);
         return;
       }
-
-      const mixIds = data
-        .map((mix) => mix.id)
-        .filter((id) => id !== null && id !== undefined);
-      let likeCountsMap = {};
-
-      if (mixIds.length > 0) {
-        try {
-          const { data: likeRows, error: likeError } = await supabase
-            .from("mix_likes")
-            .select("mix_id")
-            .in("mix_id", mixIds);
-
-          if (!likeError && Array.isArray(likeRows)) {
-            likeCountsMap = likeRows.reduce((acc, row) => {
-              if (!row?.mix_id) return acc;
-              acc[row.mix_id] = (acc[row.mix_id] || 0) + 1;
-              return acc;
-            }, {});
-          }
-        } catch (likeFetchError) {
-          console.error("❌ Error fetching like counts:", likeFetchError);
-        }
-      }
-
-      // Transform mixes with user profiles
-      const transformedMixes = await Promise.all(
-        data.map(async (mix) => {
-          let latestArtistName = null;
-
-          let userProfile = null;
-          if (mix.user_id) {
-            const { data: profile } = await supabase
-              .from("user_profiles")
-              .select("dj_name, first_name, last_name, profile_image_url, bio")
-              .eq("id", mix.user_id)
-              .single();
-
-            if (profile) {
-              userProfile = profile;
-              latestArtistName =
-                profile.dj_name ||
-                `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
-                "Unknown Artist";
-            }
-          }
-
-          const fallbackArtist =
-            mix.artist &&
-            typeof mix.artist === "string" &&
-            mix.artist.trim().length > 0
-              ? mix.artist.trim()
-              : "Unknown Artist";
-          const resolvedArtist = latestArtistName || fallbackArtist;
-
-          const resolvedLikeCount =
-            likeCountsMap[mix.id] ??
-            mix.like_count ??
-            mix.likes_count ??
-            mix.likes ??
-            mix.likeCount ??
-            0;
-
-          const durationSeconds = extractDurationSeconds(mix);
-          const durationLabel = formatDurationLabel(durationSeconds);
-
-          return {
-            id: mix.id,
-            user_id: mix.user_id,
-            title: mix.title,
-            artist: resolvedArtist,
-            genre: mix.genre || "Electronic",
-            durationSeconds,
-            durationFormatted: durationLabel,
-            artwork_url: mix.artwork_url || mix.image_url || mix.image || null,
-            image: mix.artwork_url || mix.image_url || mix.image || null,
-            audioUrl: mix.file_url,
-            plays: mix.plays || mix.play_count || 0,
-            created_at: mix.created_at || null,
-            likeCount:
-              Number.isFinite(Number(resolvedLikeCount)) &&
-              Number(resolvedLikeCount) >= 0
-                ? Number(resolvedLikeCount)
-                : 0,
-            user: userProfile, // Include full user profile for DJ image
-            user_image: userProfile?.profile_image_url,
-            user_dj_name: userProfile?.dj_name,
-            user_bio: userProfile?.bio,
-          };
-        })
-      );
-
-      setMixLikeCounts(likeCountsMap);
-      setMixes(transformedMixes);
+      setMixes(next);
     } catch (error) {
-      console.error("❌ Error in fetchMixes:", error);
+      console.error("❌ Error in loadMixes:", error);
       setMixes([]);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
-  };
+  }, []);
 
   // Calculate trending mixes (ordered by likes + plays)
   const trendingMixes = useMemo(() => {
     return [...mixes]
       .map((mix) => {
-        const likes = mixLikeCounts[mix.id] ?? mix.likeCount ?? 0;
+        const likes = mix.likeCount ?? 0;
         const plays = mix.plays ?? mix.play_count ?? 0;
         const score = likes * 2 + plays;
         return { ...mix, trendingScore: score };
       })
       .filter((mix) => mix.trendingScore > 0)
       .sort((a, b) => b.trendingScore - a.trendingScore);
-  }, [mixes, mixLikeCounts]);
+  }, [mixes]);
 
   useEffect(() => {
-    fetchMixes();
-  }, []);
+    loadMixes({ isInitial: true });
+  }, [loadMixes]);
 
   // Sync playing state
   useEffect(() => {
@@ -329,106 +176,107 @@ export default function TrendingMixesScreen({
     }
   }, [globalAudioState.currentTrack]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     HapticPatterns.pullToRefresh();
     setRefreshing(true);
-    await fetchMixes();
-    setRefreshing(false);
-  };
+    try {
+      await loadMixes({ isInitial: false });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadMixes]);
 
-  const handleMixPress = (mix) => {
-    HapticPatterns.playPause();
-    if (playingMixId === mix.id) {
-      onPauseAudio();
-    } else {
-      const normalizedMix = {
-        ...mix,
-        audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
-        image: mix.artwork_url || mix.image_url || mix.image || null,
-        user_id: mix.user_id || mix.user?.id,
-        user_image: mix.user_image || mix.user?.profile_image_url,
-        user_dj_name: mix.user_dj_name || mix.user?.dj_name,
-        user_bio: mix.user_bio || mix.user?.bio,
-        user: mix.user,
-      };
+  const handleMixPress = useCallback(
+    (mix) => {
+      HapticPatterns.playPause();
+      const current = globalAudioState.currentTrack;
+      const sameTrack =
+        current &&
+        (String(current.id) === String(mix.id) ||
+          String(current.id) === String(mix?.id));
 
-      if (!normalizedMix.audioUrl) {
+      if (sameTrack) {
+        if (globalAudioState.isPlaying) {
+          onPauseAudio?.();
+        } else {
+          onResumeAudio?.();
+        }
         return;
       }
 
-      onPlayAudio(normalizedMix);
-    }
-  };
+      const normalized = normalizeMixForPlayback(mix);
+      if (!normalized?.audioUrl) return;
+      onPlayAudio?.(normalized);
+    },
+    [
+      globalAudioState.currentTrack,
+      globalAudioState.isPlaying,
+      onPauseAudio,
+      onResumeAudio,
+      onPlayAudio,
+    ]
+  );
 
-  const handleMixLongPress = (mix) => {
-    HapticPatterns.itemPress();
-    const normalizedMix = {
-      ...mix,
-      audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
-      image: mix.artwork_url || mix.image_url || mix.image || null,
-      user_id: mix.user_id || mix.user?.id,
-      user_image: mix.user_image || mix.user?.profile_image_url,
-      user_dj_name: mix.user_dj_name || mix.user?.dj_name,
-      user_bio: mix.user_bio || mix.user?.bio,
-      user: mix.user,
-    };
+  const handleMixLongPress = useCallback(
+    (mix) => {
+      HapticPatterns.itemPress();
+      const normalizedMix = normalizeMixForPlayback(mix);
 
-    if (!normalizedMix.audioUrl) {
-      return;
-    }
+      if (!normalizedMix?.audioUrl) {
+        return;
+      }
 
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ["Cancel", "Add to Queue", "Play Next"],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            // Add to Queue
-            if (onAddToQueue) {
-              onAddToQueue(normalizedMix);
-              HapticPatterns.success();
-            }
-          } else if (buttonIndex === 2) {
-            // Play Next
-            if (onPlayNext) {
-              onPlayNext(normalizedMix);
-              HapticPatterns.success();
-            }
-          }
-        }
-      );
-    } else {
-      // Android
-      Alert.alert(
-        mix.title || "Mix",
-        "Choose an option",
-        [
-          { text: "Cancel", style: "cancel" },
+      if (Platform.OS === "ios") {
+        ActionSheetIOS.showActionSheetWithOptions(
           {
-            text: "Add to Queue",
-            onPress: () => {
+            options: ["Cancel", "Add to Queue", "Play Next"],
+            cancelButtonIndex: 0,
+          },
+          (buttonIndex) => {
+            if (buttonIndex === 1) {
               if (onAddToQueue) {
                 onAddToQueue(normalizedMix);
                 HapticPatterns.success();
               }
-            },
-          },
-          {
-            text: "Play Next",
-            onPress: () => {
+            } else if (buttonIndex === 2) {
               if (onPlayNext) {
                 onPlayNext(normalizedMix);
                 HapticPatterns.success();
               }
+            }
+          }
+        );
+      } else {
+        Alert.alert(
+          mix.title || "Mix",
+          "Choose an option",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Add to Queue",
+              onPress: () => {
+                if (onAddToQueue) {
+                  onAddToQueue(normalizedMix);
+                  HapticPatterns.success();
+                }
+              },
             },
-          },
-        ],
-        { cancelable: true }
-      );
-    }
-  };
+            {
+              text: "Play Next",
+              onPress: () => {
+                if (onPlayNext) {
+                  onPlayNext(normalizedMix);
+                  HapticPatterns.success();
+                }
+              },
+            },
+          ],
+          { cancelable: true }
+        );
+      }
+    },
+    [onAddToQueue, onPlayNext]
+  );
 
   const renderListHeader = useCallback(
     () => (
@@ -444,20 +292,24 @@ export default function TrendingMixesScreen({
       <View style={styles.popularList}>
         <TrendingMixRow
           mix={mix}
-          isPlaying={playingMixId === mix.id}
+          isPlaying={
+            playingMixId != null &&
+            mix.id != null &&
+            String(playingMixId) === String(mix.id) &&
+            globalAudioState.isPlaying
+          }
           onPress={handleMixPress}
           onLongPress={handleMixLongPress}
         />
       </View>
     ),
-    [playingMixId, handleMixPress, handleMixLongPress]
+    [
+      playingMixId,
+      globalAudioState.isPlaying,
+      handleMixPress,
+      handleMixLongPress,
+    ]
   );
-
-  const getItemLayout = useCallback((data, index) => ({
-    length: TRENDING_ROW_HEIGHT,
-    offset: TRENDING_ROW_HEIGHT * index,
-    index,
-  }), []);
 
   const keyExtractor = useCallback((item) => `trending-${item.id}`, []);
 
@@ -531,7 +383,6 @@ export default function TrendingMixesScreen({
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           ListHeaderComponent={renderListHeader}
-          getItemLayout={getItemLayout}
           initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
           maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
           windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
@@ -596,60 +447,6 @@ const styles = StyleSheet.create({
   },
   popularList: {
     paddingHorizontal: 20,
-  },
-  popularRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
-  },
-  popularImageWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "hsl(0, 0%, 12%)",
-    position: "relative",
-  },
-  popularImage: {
-    width: "100%",
-    height: "100%",
-  },
-  playingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  popularInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  popularTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-  },
-  popularSubtitle: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 80%)",
-  },
-  popularMeta: {
-    fontSize: 13,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-  },
-  popularMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
   },
   skeletonContainer: {
     padding: 20,

@@ -257,7 +257,6 @@ export default function ScreenRouter({
           onPlayAudio={playGlobalAudio}
           onPauseAudio={pauseGlobalAudio}
           onResumeAudio={resumeGlobalAudio}
-          onStopAudio={stopGlobalAudio}
           onNavigate={navigate}
         />
       );
@@ -423,8 +422,8 @@ export default function ScreenRouter({
           globalAudioState={globalAudioState}
           onPlayAudio={playGlobalAudio}
           onPauseAudio={pauseGlobalAudio}
+          onResumeAudio={resumeGlobalAudio}
           onBack={() => setCurrentScreen(SCREENS.LISTEN)}
-          user={user}
           onAddToQueue={addToQueue}
           onPlayNext={playNextTrack}
         />
@@ -436,6 +435,7 @@ export default function ScreenRouter({
           globalAudioState={globalAudioState}
           onPlayAudio={playGlobalAudio}
           onPauseAudio={pauseGlobalAudio}
+          onResumeAudio={resumeGlobalAudio}
           onBack={() => setCurrentScreen(SCREENS.LISTEN)}
           user={user}
           onAddToQueue={addToQueue}
@@ -449,6 +449,7 @@ export default function ScreenRouter({
           globalAudioState={globalAudioState}
           onPlayAudio={playGlobalAudio}
           onPauseAudio={pauseGlobalAudio}
+          onResumeAudio={resumeGlobalAudio}
           onBack={() => setCurrentScreen(SCREENS.LISTEN)}
           user={user}
           onAddToQueue={addToQueue}

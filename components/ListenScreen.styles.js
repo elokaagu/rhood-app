@@ -1,9 +1,21 @@
 import { StyleSheet } from "react-native";
 
+/**
+ * Listen tab + related modals. Large by design; consider splitting by feature
+ * (base / recommendations / playlists / modals) and sharing tokens via lib/sharedStyles.
+ * Do not duplicate keys in this object — later entries silently override earlier ones.
+ */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "hsl(0, 0%, 0%)",
+  },
+  /** Single root for ListHeaderComponent layout */
+  listenScreenHeaderRoot: {
+    width: "100%",
+  },
+  listenScreenFooterRoot: {
+    width: "100%",
   },
   header: {
     padding: 20,
@@ -173,67 +185,6 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 160, // Increased to account for play bar height and fade overlay
-  },
-  // Recommendations Section Styles
-  recommendationsSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-  },
-  recommendationsTitle: {
-    fontSize: 16, // Reduced from 18 for consistency
-    fontFamily: "TS Block Bold",
-    fontWeight: "900",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 16,
-    textTransform: "uppercase",
-    letterSpacing: 0.5, // Added letter spacing for consistency
-  },
-  recommendationsScroll: {
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
-  },
-  recommendationCard: {
-    width: 140,
-    marginRight: 16,
-  },
-  recommendationImageContainer: {
-    position: "relative",
-    width: "100%",
-    height: 140,
-    marginBottom: 8,
-  },
-  recommendationImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 12,
-    backgroundColor: "hsl(0, 0%, 12%)",
-  },
-  recommendationPlayingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  recommendationInfo: {
-    padding: 0,
-    gap: 2,
-  },
-  recommendationTitle: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "bold", // Changed from "600" to "bold"
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 2,
-  },
-  recommendationArtist: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 85%)", // Changed from green to light gray
   },
   // Modal Styles - R/HOOD Theme
   modalOverlay: {
@@ -451,7 +402,7 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 0%)",
     textAlign: "center",
   },
-  // Enhanced Recommendations Styles
+  // Recommendations (horizontal strip + cards — single source of truth; was duplicated earlier in file)
   recommendationsSection: {
     marginBottom: 24,
     paddingHorizontal: 20,
@@ -473,7 +424,7 @@ const styles = StyleSheet.create({
   },
   recommendationsContent: {
     paddingHorizontal: 20,
-    gap: 12,
+    gap: 16,
   },
   recommendationCard: {
     width: 160,
@@ -560,10 +511,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "hsl(75, 100%, 60%)",
     marginRight: 4,
-  },
-  recommendationsContent: {
-    paddingRight: 20,
-    gap: 16,
   },
   recommendationsGrid: {
     flexDirection: "row",

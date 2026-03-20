@@ -1,50 +1,48 @@
-import React, { useEffect, useState, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  Dimensions,
-  Image,
-} from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, StyleSheet, Animated, Image } from "react-native";
 import { useFonts } from "expo-font";
+import { Video, ResizeMode } from "expo-av";
+import {
+  SPLASH_SPINNER_VIDEO,
+  SPLASH_LETTERING_WHITE,
+  SPLASH_LOGO_FALLBACK,
+} from "../lib/splashMedia";
 
-// Conditionally import Video (not available in Expo Go)
-let Video;
-let VideoAvailable = false;
-try {
-  Video = require("expo-video").Video;
-  VideoAvailable = true;
-} catch (error) {
-  // Video not available in Expo Go
-  VideoAvailable = false;
-}
-
-const { width, height } = Dimensions.get("window");
+/** Timed brand intro — not a full app-readiness gate (see AuthGate / data loading). */
+const SPLASH_VISIBLE_MS = 2200;
+const FADE_OUT_MS = 500;
+const ENTRANCE_MS = 800;
+const ROTATION_START_DELAY_MS = 500;
+const ROTATION_DURATION_MS = 4000;
 
 const SplashScreen = ({ onFinish }) => {
-  // Load custom fonts
-  // Use the actual font family name "TS Block Bold"
   const [fontsLoaded] = useFonts({
     "TS Block Bold": require("../assets/TSBlockBold.ttf"),
   });
 
-  // Animation states
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [scaleAnim] = useState(new Animated.Value(0.5));
-  const [rotateAnim] = useState(new Animated.Value(0));
-  const [videoError, setVideoError] = useState(false);
-  const [videoLoaded, setVideoLoaded] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.5)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
 
-  // Refs
-  const videoRef = useRef(null);
+  const dot1 = useRef(new Animated.Value(0.35)).current;
+  const dot2 = useRef(new Animated.Value(0.35)).current;
+  const dot3 = useRef(new Animated.Value(0.35)).current;
+
+  const onFinishRef = useRef(onFinish);
+  const introTimeoutRef = useRef(null);
+  const rotationDelayRef = useRef(null);
+  const rotationLoopRef = useRef(null);
+  const dotLoopsRef = useRef([]);
 
   useEffect(() => {
-    // Start entrance animations
+    onFinishRef.current = onFinish;
+  }, [onFinish]);
+
+  useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+        duration: ENTRANCE_MS,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
@@ -55,49 +53,94 @@ const SplashScreen = ({ onFinish }) => {
       }),
     ]).start();
 
-    // Start continuous rotation animation
-    const startRotation = () => {
+    const makeDotLoop = (anim, delayMs) =>
       Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 4000,
-          useNativeDriver: true,
-        })
-      ).start();
-    };
+        Animated.sequence([
+          Animated.delay(delayMs),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 450,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0.35,
+            duration: 450,
+            useNativeDriver: true,
+          }),
+        ])
+      );
 
-    // Start rotation after a short delay
-    setTimeout(startRotation, 500);
+    const loops = [
+      makeDotLoop(dot1, 0),
+      makeDotLoop(dot2, 160),
+      makeDotLoop(dot3, 320),
+    ];
+    dotLoopsRef.current = loops;
+    loops.forEach((l) => l.start());
 
-    // First-time splash: short and polished (2.2s then fade out)
-    const timer = setTimeout(() => {
+    introTimeoutRef.current = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 500,
+        duration: FADE_OUT_MS,
         useNativeDriver: true,
-      }).start(() => {
-        if (onFinish) onFinish();
+      }).start(({ finished }) => {
+        if (finished) onFinishRef.current?.();
       });
-    }, 2200);
+    }, SPLASH_VISIBLE_MS);
 
     return () => {
-      clearTimeout(timer);
+      if (introTimeoutRef.current != null) {
+        clearTimeout(introTimeoutRef.current);
+        introTimeoutRef.current = null;
+      }
+      if (rotationDelayRef.current != null) {
+        clearTimeout(rotationDelayRef.current);
+        rotationDelayRef.current = null;
+      }
+      rotationLoopRef.current?.stop?.();
+      rotationLoopRef.current = null;
+      dotLoopsRef.current.forEach((l) => l.stop?.());
+      dotLoopsRef.current = [];
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only intro; Animated refs are stable
   }, []);
 
-  // Handle video load
-  const handleVideoLoad = () => {
-    setVideoLoaded(true);
-  };
+  const [videoError, setVideoError] = useState(false);
 
-  // Handle video error
+  useEffect(() => {
+    if (!videoError) return;
+
+    const startRotation = () => {
+      rotateAnim.setValue(0);
+      rotationLoopRef.current = Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: ROTATION_DURATION_MS,
+          useNativeDriver: true,
+        })
+      );
+      rotationLoopRef.current.start();
+    };
+
+    rotationDelayRef.current = setTimeout(startRotation, ROTATION_START_DELAY_MS);
+
+    return () => {
+      if (rotationDelayRef.current != null) {
+        clearTimeout(rotationDelayRef.current);
+        rotationDelayRef.current = null;
+      }
+      rotationLoopRef.current?.stop?.();
+      rotationLoopRef.current = null;
+    };
+  }, [videoError, rotateAnim]);
+
   const handleVideoError = (error) => {
+    if (__DEV__) {
+      console.warn("[SplashScreen] Spinner video failed, using static logo:", error);
+    }
     setVideoError(true);
   };
 
-  // Don't block rendering if fonts aren't ready; fall back to system font
-
-  // Calculate rotation transform
   const rotateInterpolate = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
@@ -114,54 +157,55 @@ const SplashScreen = ({ onFinish }) => {
           },
         ]}
       >
-        {/* Spinning Logo Container */}
         <View style={styles.logoContainer}>
-          {VideoAvailable && Video && !videoError ? (
+          {!videoError ? (
             <Video
-              ref={videoRef}
-              source={require("../assets/RHOOD_Logo_Spinner.mov")}
+              source={SPLASH_SPINNER_VIDEO}
               style={styles.spinningVideo}
-              shouldPlay={true}
-              isLooping={true}
-              isMuted={true}
-              resizeMode="contain"
-              onLoad={handleVideoLoad}
+              resizeMode={ResizeMode.CONTAIN}
+              isLooping
+              isMuted
+              shouldPlay
               onError={handleVideoError}
             />
-          ) : (
+          ) : null}
+
+          {videoError ? (
             <Animated.View
               style={[
                 styles.fallbackContainer,
-                {
-                  transform: [{ rotate: rotateInterpolate }],
-                },
+                { transform: [{ rotate: rotateInterpolate }] },
               ]}
             >
               <Image
-                source={require("../assets/rhood_logo.png")}
+                source={SPLASH_LOGO_FALLBACK}
                 style={styles.fallbackLogo}
                 resizeMode="contain"
               />
             </Animated.View>
-          )}
+          ) : null}
         </View>
 
-        {/* R/HOOD Text */}
         <Image
-          source={require("../assets/RHOOD_Lettering_White.png")}
+          source={SPLASH_LETTERING_WHITE}
           style={styles.brandText}
           resizeMode="contain"
         />
 
-        {/* Welcome Text */}
-        <Text style={styles.welcomeText}>WELCOME TO{"\n"}R/HOOD</Text>
+        <Text
+          style={[
+            styles.welcomeText,
+            fontsLoaded ? styles.welcomeTextBranded : styles.welcomeTextSystem,
+          ]}
+        >
+          WELCOME TO{"\n"}R/HOOD
+        </Text>
 
-        {/* Loading Indicator */}
         <View style={styles.loadingContainer}>
           <View style={styles.loadingDots}>
-            <View style={[styles.dot, styles.dot1]} />
-            <View style={[styles.dot, styles.dot2]} />
-            <View style={[styles.dot, styles.dot3]} />
+            <Animated.View style={[styles.dot, { opacity: dot1 }]} />
+            <Animated.View style={[styles.dot, { opacity: dot2 }]} />
+            <Animated.View style={[styles.dot, { opacity: dot3 }]} />
           </View>
         </View>
       </Animated.View>
@@ -208,13 +252,18 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   welcomeText: {
-    fontFamily: "TS Block Bold",
     fontSize: 18,
     color: "#FFFFFF",
     textAlign: "center",
     textTransform: "uppercase",
     letterSpacing: 2,
     marginBottom: 40,
+  },
+  welcomeTextBranded: {
+    fontFamily: "TS Block Bold",
+  },
+  welcomeTextSystem: {
+    fontWeight: "700",
   },
   loadingContainer: {
     alignItems: "center",
@@ -229,15 +278,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "#C2CC06",
     marginHorizontal: 4,
-  },
-  dot1: {
-    opacity: 0.3,
-  },
-  dot2: {
-    opacity: 0.6,
-  },
-  dot3: {
-    opacity: 1,
   },
 });
 

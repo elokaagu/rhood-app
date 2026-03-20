@@ -9,14 +9,13 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
-import FadeInView from "./FadeInView";
 
 /**
- * Single user card in the discover tab. No per-item animation for smooth scroll.
+ * Single user card in the discover tab. Intentionally no per-item fade animation
+ * so the FlatList stays smooth; use header/list-level motion instead.
  */
 function DiscoverUserCard({
   user,
-  index,
   onViewProfile,
   onConnectionPress,
   onConnect,
@@ -24,16 +23,10 @@ function DiscoverUserCard({
   onLongPress,
   isPending,
   isCancelling,
-  discoverLoading,
   styles,
 }) {
-  const pressableProps = user.isConnected
-    ? { onLongPress: () => onLongPress(user), delayLongPress: 350 }
-    : {};
-
-  return (
-    <Pressable style={styles.discoverCard} {...pressableProps}>
-      <FadeInView>
+  const cardBody = (
+    <>
         <View style={styles.discoverTopRow}>
           <View style={styles.discoverProfileContainer}>
             <ProgressiveImage
@@ -49,22 +42,25 @@ function DiscoverUserCard({
                 <ProfileImagePlaceholder
                   size={80}
                   style={styles.discoverProfileImage}
+                  name={user.name}
                 />
               }
             />
-            <View style={styles.discoverOnlineIndicator} />
+            {user.isOnline === true ? (
+              <View style={styles.discoverOnlineIndicator} />
+            ) : null}
           </View>
           <View style={styles.discoverNameSection}>
             <View style={styles.discoverHeader}>
               <Text style={styles.discoverName}>
-                {String(user.name || "")}
+                {user.name != null ? String(user.name) : ""}
               </Text>
             </View>
             <Text style={styles.discoverUsername}>
-              {String(user.username || "")}
+              {user.username != null ? String(user.username) : ""}
             </Text>
             <Text style={styles.discoverLocation}>
-              {String(user.location || "")}
+              {user.location != null ? String(user.location) : ""}
             </Text>
             {user.statusMessage && String(user.statusMessage).trim() ? (
               <Text
@@ -77,7 +73,7 @@ function DiscoverUserCard({
           </View>
           <View style={styles.discoverRatingSection}>
             <Text style={styles.discoverLastActive}>
-              {String(user.lastActive || "")}
+              {user.lastActive != null ? String(user.lastActive) : ""}
             </Text>
           </View>
         </View>
@@ -141,7 +137,7 @@ function DiscoverUserCard({
               onPress={() =>
                 isPending ? onCancelPending(user) : onConnect(user)
               }
-              disabled={discoverLoading || (isPending && isCancelling)}
+              disabled={isPending && isCancelling}
             >
               {isPending && isCancelling ? (
                 <ActivityIndicator
@@ -174,9 +170,22 @@ function DiscoverUserCard({
             </TouchableOpacity>
           )}
         </View>
-      </FadeInView>
-    </Pressable>
+    </>
   );
+
+  if (user.isConnected) {
+    return (
+      <Pressable
+        style={styles.discoverCard}
+        onLongPress={() => onLongPress(user)}
+        delayLongPress={350}
+      >
+        {cardBody}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.discoverCard}>{cardBody}</View>;
 }
 
 export default memo(DiscoverUserCard);

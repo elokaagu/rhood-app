@@ -7,12 +7,9 @@ import {
   StyleSheet,
   Image,
   RefreshControl,
-  ActivityIndicator,
   Platform,
   ActionSheetIOS,
   Alert,
-  Modal,
-  TextInput,
   SectionList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,60 +17,19 @@ import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { SkeletonMix } from "./Skeleton";
 import { YOUR_LIKES_LIST_PERFORMANCE } from "../lib/performanceConstants";
+import {
+  normalizeMixForPlayback,
+} from "../lib/yourLikesUtils";
+import { fetchUserLikedMixesWithMixes } from "../lib/fetchUserLikedMixes";
+import CategoryPickerModal from "./yourLikes/CategoryPickerModal";
+import ManageCategoriesModal from "./yourLikes/ManageCategoriesModal";
 
-const extractDurationSeconds = (mix) => {
-  if (!mix || typeof mix !== "object") return null;
-
-  const metadataSources = [
-    mix.duration,
-    mix.duration_seconds,
-    mix.durationSeconds,
-    mix.duration_secs,
-    mix.metadata?.duration,
-    mix.metadata?.duration_seconds,
-    mix.audio_metadata?.duration,
-    mix.audio_metadata?.duration_seconds,
-  ];
-
-  for (const source of metadataSources) {
-    if (source == null || source === undefined) continue;
-    if (typeof source === "number" && Number.isFinite(source) && source > 0) {
-      return Math.round(source);
-    }
-    if (typeof source === "string" && source.trim()) {
-      const trimmed = source.trim();
-      if (trimmed === "0" || trimmed === "0:00") continue;
-      const colonParts = trimmed.split(":").map((part) => part.trim());
-      if (colonParts.length >= 2 && colonParts.length <= 3) {
-        const numbers = colonParts.map((part) => Number(part));
-        if (numbers.every((num) => Number.isFinite(num) && num >= 0)) {
-          if (numbers.length === 3) {
-            const [hours, minutes, seconds] = numbers;
-            const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-            return totalSeconds > 0 ? totalSeconds : null;
-          }
-          const [minutes, seconds] = numbers;
-          const totalSeconds = minutes * 60 + seconds;
-          return totalSeconds > 0 ? totalSeconds : null;
-        }
-      }
-    }
-  }
-
-  return null;
-};
-
-const formatDurationLabel = (seconds) => {
-  if (!Number.isFinite(seconds) || seconds <= 0) {
-    return "0:00";
-  }
-  const totalSeconds = Math.max(0, Math.round(seconds));
-  const minutes = Math.floor(totalSeconds / 60);
-  const remainingSeconds = totalSeconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-};
-
-const YourLikesRow = memo(function YourLikesRow({ mix, isPlaying, onPress, onLongPress }) {
+const YourLikesRow = memo(function YourLikesRow({
+  mix,
+  isPlaying,
+  onPress,
+  onLongPress,
+}) {
   return (
     <TouchableOpacity
       style={rowStyles.popularRow}
@@ -175,148 +131,24 @@ export default function YourLikesScreen({
   globalAudioState,
   onPlayAudio,
   onPauseAudio,
+  onResumeAudio,
   onBack,
   user,
   onAddToQueue,
   onPlayNext,
 }) {
   const [mixes, setMixes] = useState([]);
-  const [likedMixIds, setLikedMixIds] = useState(() => new Set());
+  const [likedMixesWithCategories, setLikedMixesWithCategories] = useState({});
   const [playingMixId, setPlayingMixId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
-  const [likedMixesWithCategories, setLikedMixesWithCategories] = useState({});
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [selectedMixForCategory, setSelectedMixForCategory] = useState(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [editingCategory, setEditingCategory] = useState(null);
 
-  // Fetch all mixes
-  const fetchMixes = async () => {
-    try {
-      setLoading(true);
-
-      const { data, error } = await supabase
-        .from("mixes")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("❌ Error fetching mixes:", error);
-        setMixes([]);
-        return;
-      }
-
-      // Transform mixes with user profiles
-      const transformedMixes = await Promise.all(
-        data.map(async (mix) => {
-          let latestArtistName = null;
-
-          let userProfile = null;
-          if (mix.user_id) {
-            const { data: profile } = await supabase
-              .from("user_profiles")
-              .select("dj_name, first_name, last_name, profile_image_url, bio")
-              .eq("id", mix.user_id)
-              .single();
-
-            if (profile) {
-              userProfile = profile;
-              latestArtistName =
-                profile.dj_name ||
-                `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
-                "Unknown Artist";
-            }
-          }
-
-          const fallbackArtist =
-            mix.artist &&
-            typeof mix.artist === "string" &&
-            mix.artist.trim().length > 0
-              ? mix.artist.trim()
-              : "Unknown Artist";
-          const resolvedArtist = latestArtistName || fallbackArtist;
-
-          const durationSeconds = extractDurationSeconds(mix);
-          const durationLabel = formatDurationLabel(durationSeconds);
-
-          return {
-            id: mix.id,
-            user_id: mix.user_id,
-            title: mix.title,
-            artist: resolvedArtist,
-            genre: mix.genre || "Electronic",
-            durationSeconds,
-            durationFormatted: durationLabel,
-            artwork_url: mix.artwork_url || mix.image_url || mix.image || null,
-            image: mix.artwork_url || mix.image_url || mix.image || null,
-            audioUrl: mix.file_url,
-            plays: mix.plays || mix.play_count || 0,
-            created_at: mix.created_at || null,
-            user: userProfile, // Include full user profile for DJ image
-            user_image: userProfile?.profile_image_url,
-            user_dj_name: userProfile?.dj_name,
-            user_bio: userProfile?.bio,
-          };
-        })
-      );
-
-      setMixes(transformedMixes);
-    } catch (error) {
-      console.error("❌ Error in fetchMixes:", error);
-      setMixes([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch user's liked mixes with categories
-  const fetchUserLikedMixes = async () => {
-    if (!user?.id) {
-      setLikedMixIds(new Set());
-      setLikedMixesWithCategories({});
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("mix_likes")
-        .select("mix_id, category_id")
-        .eq("user_id", user.id);
-
-      if (error) {
-        if (error.code === "42P01" || error.code === "PGRST205") {
-          console.warn("mix_likes table not found. Skipping liked mixes fetch.");
-          return;
-        }
-        console.error("❌ Error fetching liked mixes:", error);
-        return;
-      }
-
-      const likedSet = new Set(
-        (data || [])
-          .map((row) => row?.mix_id)
-          .filter((mixId) => mixId !== null && mixId !== undefined)
-      );
-
-      const categoryMap = {};
-      (data || []).forEach((row) => {
-        if (row.mix_id) {
-          categoryMap[row.mix_id] = row.category_id || null;
-        }
-      });
-
-      setLikedMixIds(likedSet);
-      setLikedMixesWithCategories(categoryMap);
-    } catch (error) {
-      console.error("❌ Unexpected error fetching liked mixes:", error);
-    }
-  };
-
-  // Fetch user's categories
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -328,7 +160,9 @@ export default function YourLikesScreen({
 
       if (error) {
         if (error.code === "42P01" || error.code === "PGRST205") {
-          console.warn("like_categories table not found. Skipping categories fetch.");
+          console.warn(
+            "like_categories table not found. Skipping categories fetch."
+          );
           return;
         }
         console.error("❌ Error fetching categories:", error);
@@ -339,25 +173,63 @@ export default function YourLikesScreen({
     } catch (error) {
       console.error("❌ Unexpected error fetching categories:", error);
     }
-  };
+  }, [user?.id]);
 
-  // Get user's liked mixes grouped by category
+  /** Refresh liked rows only (pull-to-refresh); does not toggle full-screen loading. */
+  const loadLikedMixes = useCallback(async () => {
+    if (!user?.id) {
+      setMixes([]);
+      setLikedMixesWithCategories({});
+      return;
+    }
+
+    const { mixes: nextMixes, categoryMap, error } =
+      await fetchUserLikedMixesWithMixes(user.id);
+
+    if (error) {
+      setMixes([]);
+    } else {
+      setMixes(nextMixes);
+      setLikedMixesWithCategories(categoryMap);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user?.id) {
+        setMixes([]);
+        setLikedMixesWithCategories({});
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      const { mixes: nextMixes, categoryMap, error } =
+        await fetchUserLikedMixesWithMixes(user.id);
+      if (cancelled) return;
+      if (error) {
+        setMixes([]);
+      } else {
+        setMixes(nextMixes);
+        setLikedMixesWithCategories(categoryMap);
+      }
+      setLoading(false);
+      if (!cancelled) await fetchCategories();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, fetchCategories]);
+
   const likedMixesByCategory = useMemo(() => {
-    if (!user?.id || likedMixIds.size === 0) return {};
+    if (!user?.id || mixes.length === 0) return {};
 
-    const likedMixes = mixes.filter((mix) => likedMixIds.has(mix.id));
-    const grouped = {};
-
-    // Initialize with "Uncategorized"
-    grouped.uncategorized = [];
-
-    // Initialize with user categories
+    const grouped = { uncategorized: [] };
     categories.forEach((cat) => {
       grouped[cat.id] = [];
     });
 
-    // Group mixes by category
-    likedMixes.forEach((mix) => {
+    mixes.forEach((mix) => {
       const categoryId = likedMixesWithCategories[mix.id] || null;
       if (categoryId && grouped[categoryId]) {
         grouped[categoryId].push(mix);
@@ -366,7 +238,6 @@ export default function YourLikesScreen({
       }
     });
 
-    // Sort mixes within each category
     Object.keys(grouped).forEach((key) => {
       grouped[key].sort(
         (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
@@ -374,18 +245,8 @@ export default function YourLikesScreen({
     });
 
     return grouped;
-  }, [mixes, likedMixIds, likedMixesWithCategories, categories, user?.id]);
+  }, [mixes, likedMixesWithCategories, categories, user?.id]);
 
-  useEffect(() => {
-    fetchMixes();
-  }, []);
-
-  useEffect(() => {
-    fetchUserLikedMixes();
-    fetchCategories();
-  }, [user?.id]);
-
-  // Sync playing state
   useEffect(() => {
     if (globalAudioState.currentTrack) {
       setPlayingMixId(globalAudioState.currentTrack.id);
@@ -394,120 +255,98 @@ export default function YourLikesScreen({
     }
   }, [globalAudioState.currentTrack]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     HapticPatterns.pullToRefresh();
     setRefreshing(true);
-    await Promise.all([fetchMixes(), fetchUserLikedMixes(), fetchCategories()]);
-    setRefreshing(false);
-  };
+    try {
+      await Promise.all([loadLikedMixes(), fetchCategories()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadLikedMixes, fetchCategories]);
 
-  const handleMixPress = (mix) => {
-    HapticPatterns.playPause();
-    if (playingMixId === mix.id) {
-      onPauseAudio();
-    } else {
-      const normalizedMix = {
-        ...mix,
-        audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
-        image: mix.artwork_url || mix.image_url || mix.image || null,
-        user_id: mix.user_id || mix.user?.id,
-        user_image: mix.user_image || mix.user?.profile_image_url,
-        user_dj_name: mix.user_dj_name || mix.user?.dj_name,
-        user_bio: mix.user_bio || mix.user?.bio,
-        user: mix.user,
-      };
+  const handleMixPress = useCallback(
+    (mix) => {
+      HapticPatterns.playPause();
+      const current = globalAudioState.currentTrack;
+      const sameTrack =
+        current &&
+        (String(current.id) === String(mix.id) ||
+          String(current.id) === String(mix?.id));
 
-      if (!normalizedMix.audioUrl) {
+      if (sameTrack) {
+        if (globalAudioState.isPlaying) {
+          onPauseAudio?.();
+        } else {
+          onResumeAudio?.();
+        }
         return;
       }
 
-      onPlayAudio(normalizedMix);
-    }
-  };
+      const normalized = normalizeMixForPlayback(mix);
+      if (!normalized?.audioUrl) return;
+      onPlayAudio?.(normalized);
+    },
+    [
+      globalAudioState.currentTrack,
+      globalAudioState.isPlaying,
+      onPauseAudio,
+      onResumeAudio,
+      onPlayAudio,
+    ]
+  );
 
-  const handleMixLongPress = (mix) => {
+  const openCategoryPickerForMix = useCallback((mix) => {
     HapticPatterns.itemPress();
-    const normalizedMix = {
-      ...mix,
-      audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
-      image: mix.artwork_url || mix.image_url || mix.image || null,
-      user_id: mix.user_id || mix.user?.id,
-      user_image: mix.user_image || mix.user?.profile_image_url,
-      user_dj_name: mix.user_dj_name || mix.user?.dj_name,
-      user_bio: mix.user_bio || mix.user?.bio,
-      user: mix.user,
-    };
-
-    if (!normalizedMix.audioUrl) {
-      return;
-    }
-
+    const normalized = normalizeMixForPlayback(mix);
+    if (!normalized?.audioUrl) return;
     setSelectedMixForCategory(mix);
 
-    if (Platform.OS === "ios") {
-      const options = ["Cancel", "Add to Queue", "Play Next", "Move to Category"];
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: options,
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            // Add to Queue
-            if (onAddToQueue) {
-              onAddToQueue(normalizedMix);
+    const runQueue = (normalizedMix) => {
+      if (Platform.OS === "ios") {
+        const options = ["Cancel", "Add to Queue", "Play Next", "Move to Category"];
+        ActionSheetIOS.showActionSheetWithOptions(
+          { options, cancelButtonIndex: 0 },
+          (buttonIndex) => {
+            if (buttonIndex === 1) {
+              onAddToQueue?.(normalizedMix);
               HapticPatterns.success();
-            }
-          } else if (buttonIndex === 2) {
-            // Play Next
-            if (onPlayNext) {
-              onPlayNext(normalizedMix);
+            } else if (buttonIndex === 2) {
+              onPlayNext?.(normalizedMix);
               HapticPatterns.success();
+            } else if (buttonIndex === 3) {
+              setShowCategoryPicker(true);
             }
-          } else if (buttonIndex === 3) {
-            // Move to Category
-            setShowCategoryPicker(true);
           }
-        }
-      );
-    } else {
-      // Android
-      Alert.alert(
-        mix.title || "Mix",
-        "Choose an option",
-        [
+        );
+      } else {
+        Alert.alert(mix.title || "Mix", "Choose an option", [
           { text: "Cancel", style: "cancel" },
           {
             text: "Add to Queue",
             onPress: () => {
-              if (onAddToQueue) {
-                onAddToQueue(normalizedMix);
-                HapticPatterns.success();
-              }
+              onAddToQueue?.(normalizedMix);
+              HapticPatterns.success();
             },
           },
           {
             text: "Play Next",
             onPress: () => {
-              if (onPlayNext) {
-                onPlayNext(normalizedMix);
-                HapticPatterns.success();
-              }
+              onPlayNext?.(normalizedMix);
+              HapticPatterns.success();
             },
           },
           {
             text: "Move to Category",
-            onPress: () => {
-              setShowCategoryPicker(true);
-            },
+            onPress: () => setShowCategoryPicker(true),
           },
-        ],
-        { cancelable: true }
-      );
-    }
-  };
+        ]);
+      }
+    };
 
-  // Assign mix to category
+    runQueue(normalized);
+  }, [onAddToQueue, onPlayNext]);
+
   const handleAssignToCategory = async (categoryId) => {
     if (!selectedMixForCategory || !user?.id) return;
 
@@ -520,7 +359,6 @@ export default function YourLikesScreen({
 
       if (error) throw error;
 
-      // Update local state
       setLikedMixesWithCategories((prev) => ({
         ...prev,
         [selectedMixForCategory.id]: categoryId,
@@ -535,7 +373,6 @@ export default function YourLikesScreen({
     }
   };
 
-  // Remove mix from category (move to uncategorized)
   const handleRemoveFromCategory = async () => {
     if (!selectedMixForCategory || !user?.id) return;
 
@@ -548,7 +385,6 @@ export default function YourLikesScreen({
 
       if (error) throw error;
 
-      // Update local state
       setLikedMixesWithCategories((prev) => ({
         ...prev,
         [selectedMixForCategory.id]: null,
@@ -563,7 +399,6 @@ export default function YourLikesScreen({
     }
   };
 
-  // Create new category
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim() || !user?.id) return;
 
@@ -593,62 +428,62 @@ export default function YourLikesScreen({
     }
   };
 
-  // Delete category
-  const handleDeleteCategory = async (categoryId) => {
-    if (!user?.id) return;
+  const handleDeleteCategory = useCallback(
+    (categoryId) => {
+      if (!user?.id) return;
 
-    Alert.alert(
-      "Delete Category",
-      "Are you sure? Mixes in this category will be moved to Uncategorized.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // First, remove category from all mixes
-              const { error: updateError } = await supabase
-                .from("mix_likes")
-                .update({ category_id: null })
-                .eq("user_id", user.id)
-                .eq("category_id", categoryId);
+      Alert.alert(
+        "Delete Category",
+        "Are you sure? Mixes in this category will be moved to Uncategorized.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const { error: updateError } = await supabase
+                  .from("mix_likes")
+                  .update({ category_id: null })
+                  .eq("user_id", user.id)
+                  .eq("category_id", categoryId);
 
-              if (updateError) throw updateError;
+                if (updateError) throw updateError;
 
-              // Then delete the category
-              const { error: deleteError } = await supabase
-                .from("like_categories")
-                .delete()
-                .eq("id", categoryId)
-                .eq("user_id", user.id);
+                const { error: deleteError } = await supabase
+                  .from("like_categories")
+                  .delete()
+                  .eq("id", categoryId)
+                  .eq("user_id", user.id);
 
-              if (deleteError) throw deleteError;
+                if (deleteError) throw deleteError;
 
-              // Update local state
-              setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
-              
-              // Update likedMixesWithCategories to remove category references
-              setLikedMixesWithCategories((prev) => {
-                const updated = { ...prev };
-                Object.keys(updated).forEach((mixId) => {
-                  if (updated[mixId] === categoryId) {
-                    updated[mixId] = null;
-                  }
+                setCategories((prev) =>
+                  prev.filter((cat) => cat.id !== categoryId)
+                );
+
+                setLikedMixesWithCategories((prev) => {
+                  const updated = { ...prev };
+                  Object.keys(updated).forEach((mixId) => {
+                    if (updated[mixId] === categoryId) {
+                      updated[mixId] = null;
+                    }
+                  });
+                  return updated;
                 });
-                return updated;
-              });
 
-              HapticPatterns.success();
-            } catch (error) {
-              console.error("❌ Error deleting category:", error);
-              Alert.alert("Error", "Failed to delete category");
-            }
+                HapticPatterns.success();
+              } catch (error) {
+                console.error("❌ Error deleting category:", error);
+                Alert.alert("Error", "Failed to delete category");
+              }
+            },
           },
-        },
-      ]
-    );
-  };
+        ]
+      );
+    },
+    [user?.id]
+  );
 
   const connectionSections = useMemo(() => {
     const keys = Object.keys(likedMixesByCategory).filter(
@@ -669,6 +504,16 @@ export default function YourLikesScreen({
       };
     });
   }, [likedMixesByCategory, categories]);
+
+  const closeCategoryPicker = useCallback(() => {
+    setShowCategoryPicker(false);
+    setSelectedMixForCategory(null);
+  }, []);
+
+  const closeManageModal = useCallback(() => {
+    setShowCategoryModal(false);
+    setNewCategoryName("");
+  }, []);
 
   const renderListHeader = useCallback(
     () => (
@@ -720,50 +565,29 @@ export default function YourLikesScreen({
       <View style={styles.popularList}>
         <YourLikesRow
           mix={mix}
-          isPlaying={playingMixId === mix.id}
+          isPlaying={
+            playingMixId != null &&
+            mix.id != null &&
+            String(playingMixId) === String(mix.id) &&
+            globalAudioState.isPlaying
+          }
           onPress={handleMixPress}
-          onLongPress={handleMixLongPress}
+          onLongPress={openCategoryPickerForMix}
         />
       </View>
     ),
-    [playingMixId, handleMixPress, handleMixLongPress]
-  );
-
-  const getItemLayout = useCallback(
-    (data, index) => {
-      const rowH = YOUR_LIKES_LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT;
-      const headerH = YOUR_LIKES_LIST_PERFORMANCE.ESTIMATED_SECTION_HEADER_HEIGHT;
-      let flat = 0;
-      for (let i = 0; i < connectionSections.length; i++) {
-        const sec = connectionSections[i];
-        const len = (sec.data || []).length;
-        if (index < flat + len) {
-          const localIndex = index - flat;
-          const offsetBefore = connectionSections
-            .slice(0, i)
-            .reduce((sum, s) => sum + headerH + (s.data || []).length * rowH, 0);
-          return {
-            length: rowH,
-            offset: offsetBefore + headerH + localIndex * rowH,
-            index,
-          };
-        }
-        flat += len;
-      }
-      return {
-        length: rowH,
-        offset: 0,
-        index,
-      };
-    },
-    [connectionSections]
+    [
+      playingMixId,
+      globalAudioState.isPlaying,
+      handleMixPress,
+      openCategoryPickerForMix,
+    ]
   );
 
   const keyExtractor = useCallback((item) => `liked-${item.id}`, []);
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -775,11 +599,7 @@ export default function YourLikesScreen({
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Ionicons
-            name="heart"
-            size={20}
-            color="hsl(75, 100%, 60%)"
-          />
+          <Ionicons name="heart" size={20} color="hsl(75, 100%, 60%)" />
           <Text style={styles.headerTitle}>YOUR LIKES</Text>
         </View>
         <View style={styles.headerSpacer} />
@@ -852,7 +672,6 @@ export default function YourLikesScreen({
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
           ListHeaderComponent={renderListHeader}
-          getItemLayout={getItemLayout}
           stickySectionHeadersEnabled={false}
           initialNumToRender={YOUR_LIKES_LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
           maxToRenderPerBatch={YOUR_LIKES_LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
@@ -870,139 +689,29 @@ export default function YourLikesScreen({
         />
       )}
 
-      {/* Category Picker Modal */}
-      <Modal
+      <CategoryPickerModal
         visible={showCategoryPicker}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => {
+        onClose={closeCategoryPicker}
+        styles={styles}
+        categories={categories}
+        onRemoveFromCategory={handleRemoveFromCategory}
+        onAssignToCategory={handleAssignToCategory}
+        onOpenCreateCategory={() => {
           setShowCategoryPicker(false);
-          setSelectedMixForCategory(null);
+          setShowCategoryModal(true);
         }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Move to Category</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowCategoryPicker(false);
-                  setSelectedMixForCategory(null);
-                }}
-              >
-                <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.categoryPickerList}>
-              <TouchableOpacity
-                style={styles.categoryPickerItem}
-                onPress={() => handleRemoveFromCategory()}
-              >
-                <Ionicons name="folder-outline" size={20} color="hsl(0, 0%, 60%)" />
-                <Text style={styles.categoryPickerText}>Uncategorized</Text>
-              </TouchableOpacity>
-              {categories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={styles.categoryPickerItem}
-                  onPress={() => handleAssignToCategory(category.id)}
-                >
-                  <Ionicons name="folder" size={20} color="hsl(75, 100%, 60%)" />
-                  <Text style={styles.categoryPickerText}>{category.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.createCategoryButton}
-              onPress={() => {
-                setShowCategoryPicker(false);
-                setShowCategoryModal(true);
-              }}
-            >
-              <Ionicons name="add-circle-outline" size={20} color="hsl(75, 100%, 60%)" />
-              <Text style={styles.createCategoryButtonText}>Create New Category</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      />
 
-      {/* Manage Categories Modal */}
-      <Modal
+      <ManageCategoriesModal
         visible={showCategoryModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => {
-          setShowCategoryModal(false);
-          setNewCategoryName("");
-          setEditingCategory(null);
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Manage Categories</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowCategoryModal(false);
-                  setNewCategoryName("");
-                  setEditingCategory(null);
-                }}
-              >
-                <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Create New Category */}
-            <View style={styles.createCategorySection}>
-              <Text style={styles.createCategoryLabel}>Create New Category</Text>
-              <View style={styles.createCategoryInputRow}>
-                <TextInput
-                  style={styles.createCategoryInput}
-                  placeholder="e.g., Afrobeats, House, Techno"
-                  placeholderTextColor="hsl(0, 0%, 50%)"
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                  maxLength={50}
-                  autoCapitalize="words"
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.createCategorySubmitButton,
-                    !newCategoryName.trim() && styles.createCategorySubmitButtonDisabled,
-                  ]}
-                  onPress={handleCreateCategory}
-                  disabled={!newCategoryName.trim()}
-                >
-                  <Text style={styles.createCategorySubmitText}>Create</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Existing Categories */}
-            <ScrollView style={styles.categoriesList}>
-              <Text style={styles.categoriesListTitle}>Your Categories</Text>
-              {categories.length === 0 ? (
-                <Text style={styles.noCategoriesText}>No categories yet. Create one above!</Text>
-              ) : (
-                categories.map((category) => (
-                  <View key={category.id} style={styles.categoryListItem}>
-                    <View style={styles.categoryListItemLeft}>
-                      <Ionicons name="folder" size={20} color="hsl(75, 100%, 60%)" />
-                      <Text style={styles.categoryListItemText}>{category.name}</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteCategory(category.id)}
-                      style={styles.categoryDeleteButton}
-                    >
-                      <Ionicons name="trash-outline" size={18} color="hsl(0, 100%, 50%)" />
-                    </TouchableOpacity>
-                  </View>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={closeManageModal}
+        styles={styles}
+        categories={categories}
+        newCategoryName={newCategoryName}
+        onChangeNewCategoryName={setNewCategoryName}
+        onCreateCategory={handleCreateCategory}
+        onDeleteCategory={handleDeleteCategory}
+      />
     </View>
   );
 }
@@ -1053,60 +762,6 @@ const styles = StyleSheet.create({
   popularList: {
     paddingHorizontal: 20,
   },
-  popularRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
-  },
-  popularImageWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "hsl(0, 0%, 12%)",
-    position: "relative",
-  },
-  popularImage: {
-    width: "100%",
-    height: "100%",
-  },
-  playingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  popularInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  popularTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-  },
-  popularSubtitle: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 80%)",
-  },
-  popularMeta: {
-    fontSize: 13,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-  },
-  popularMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
-  },
   skeletonContainer: {
     padding: 20,
   },
@@ -1150,9 +805,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Helvetica Neue",
     color: "hsl(75, 100%, 60%)",
-  },
-  categorySection: {
-    marginBottom: 32,
   },
   categoryHeader: {
     flexDirection: "row",
@@ -1318,4 +970,3 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
 });
-

@@ -1,85 +1,47 @@
-import React, { useState } from "react";
-import { View, Image, StyleSheet } from "react-native";
+import React from "react";
+import { View, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import ProgressiveImage from "./ProgressiveImage";
 
-const LazyImage = ({ source, style, placeholder = null, ...props }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [hasError, setHasError] = useState(false);
+const defaultIconPlaceholder = (
+  <View style={styles.iconPlaceholder}>
+    <Ionicons
+      name="musical-notes-outline"
+      size={24}
+      color="hsl(0, 0%, 30%)"
+    />
+  </View>
+);
 
-  const handleLoad = () => {
-    setIsLoaded(true);
-  };
-
-  const handleError = () => {
-    setHasError(true);
-  };
-
-  const renderPlaceholder = () => {
-    if (placeholder) {
-      return placeholder;
-    }
-
-    return (
-      <View style={[styles.placeholder, style]}>
-        <Ionicons
-          name="musical-notes-outline"
-          size={24}
-          color="hsl(0, 0%, 30%)"
-        />
-      </View>
-    );
-  };
-
-  if (hasError) {
-    return renderPlaceholder();
-  }
-
+/**
+ * Back-compat alias: same behavior as {@link ProgressiveImage} (one `Image`, layered
+ * placeholder, fade-in). Prefer importing `ProgressiveImage` directly in new code.
+ *
+ * @param {object|number|null} source — RN `Image` source
+ * @param {object} style — layout on the outer container (size, radius, margin, overflow)
+ * @param {React.ReactNode} [placeholder] — optional; defaults to musical-notes icon
+ * @param {object} ...imageProps — forwarded to the underlying `Image` (e.g. `accessibilityLabel`)
+ */
+function LazyImage({ source, style, placeholder = null, ...imageProps }) {
   return (
-    <View style={style}>
-      {/* Show placeholder while loading */}
-      {!isLoaded && renderPlaceholder()}
-
-      {/* Show image when loaded */}
-      {isLoaded && (
-        <Image
-          source={source}
-          style={[styles.image, style]}
-          onError={handleError}
-          {...props}
-        />
-      )}
-
-      {/* Hidden image to trigger load event */}
-      <Image
-        source={source}
-        style={styles.hiddenImage}
-        onLoad={handleLoad}
-        onError={handleError}
-        {...props}
-      />
-    </View>
+    <ProgressiveImage
+      source={source}
+      style={style}
+      placeholder={placeholder ?? defaultIconPlaceholder}
+      contentFit="cover"
+      {...imageProps}
+    />
   );
-};
+}
 
 const styles = StyleSheet.create({
-  placeholder: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  iconPlaceholder: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "hsl(0, 0%, 15%)",
-  },
-  image: {
-    flex: 1,
-  },
-  hiddenImage: {
-    position: "absolute",
-    width: 1,
-    height: 1,
-    opacity: 0,
   },
 });
 

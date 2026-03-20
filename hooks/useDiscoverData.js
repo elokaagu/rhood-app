@@ -88,7 +88,6 @@ export function useDiscoverData(user, searchQuery) {
 }
 
 export function useDiscoverRenderItem(discoverData, actions) {
-  const { discoverLoading } = discoverData;
   const {
     handleViewProfile,
     handleConnectionPress,
@@ -98,14 +97,13 @@ export function useDiscoverRenderItem(discoverData, actions) {
     cancellingConnectionId,
   } = actions;
   return useCallback(
-    ({ item: u, index }) => {
+    ({ item: u }) => {
       const normalizedStatus = normalizeConnectionStatus(u.connectionStatus);
       const isPending = normalizedStatus === "pending";
       const isCancelling = isPending && (u.connectionId || u.id) === cancellingConnectionId;
       return (
         <DiscoverUserCard
           user={u}
-          index={index}
           onViewProfile={handleViewProfile}
           onConnectionPress={handleConnectionPress}
           onConnect={handleConnect}
@@ -113,13 +111,11 @@ export function useDiscoverRenderItem(discoverData, actions) {
           onLongPress={handleOpenConnectionOptions}
           isPending={isPending}
           isCancelling={isCancelling}
-          discoverLoading={discoverLoading}
           styles={styles}
         />
       );
     },
     [
-      discoverLoading,
       cancellingConnectionId,
       handleViewProfile,
       handleConnectionPress,

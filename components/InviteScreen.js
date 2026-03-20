@@ -8,19 +8,23 @@ import {
   Alert,
   Linking,
   Share,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import { db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 
 export default function InviteScreen({ user, onBack }) {
+  const insets = useSafeAreaInsets();
   const [inviteCode, setInviteCode] = useState(null);
   const [referralStats, setReferralStats] = useState({
     totalReferrals: 0,
     totalCreditsEarned: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     loadInviteData();
@@ -29,11 +33,13 @@ export default function InviteScreen({ user, onBack }) {
   const loadInviteData = async () => {
     if (!user?.id) {
       setLoading(false);
+      setLoadError(null);
       return;
     }
 
     try {
       setLoading(true);
+      setLoadError(null);
       const [fetchedInviteCode, fetchedReferralStats] = await Promise.all([
         db.getUserInviteCode(user.id),
         db.getReferralStats(user.id),
@@ -46,9 +52,20 @@ export default function InviteScreen({ user, onBack }) {
       });
     } catch (error) {
       console.error("Error loading invite data:", error);
+      setLoadError(
+        "Couldn’t load your invite. Check your connection and try again."
+      );
     } finally {
       setLoading(false);
     }
+  };
+
+  const ensureInviteReady = () => {
+    if (!inviteCode) {
+      Alert.alert("Error", "Invite code not available");
+      return false;
+    }
+    return true;
   };
 
   // Generate referral link
@@ -66,10 +83,7 @@ export default function InviteScreen({ user, onBack }) {
 
   // Copy invite code
   const handleCopyCode = async () => {
-    if (!inviteCode) {
-      Alert.alert("Error", "Invite code not available");
-      return;
-    }
+    if (!ensureInviteReady()) return;
     try {
       await Clipboard.setStringAsync(inviteCode);
       HapticPatterns.success();
@@ -82,11 +96,9 @@ export default function InviteScreen({ user, onBack }) {
 
   // Copy referral link
   const handleCopyLink = async () => {
+    if (!ensureInviteReady()) return;
     const link = getReferralLink();
-    if (!link) {
-      Alert.alert("Error", "Invite code not available");
-      return;
-    }
+    if (!link) return;
     try {
       await Clipboard.setStringAsync(link);
       HapticPatterns.success();
@@ -97,39 +109,33 @@ export default function InviteScreen({ user, onBack }) {
     }
   };
 
-  // Share via Email
-  const handleShareEmail = async () => {
+  /** Opens system share sheet with subject line (Mail and other apps can use it). Not a dedicated mailto: composer. */
+  const handleShareWithEmailSubject = async () => {
+    if (!ensureInviteReady()) return;
     const message = getReferralShareMessage();
     const link = getReferralLink();
-    if (!message || !link) {
-      Alert.alert("Error", "Invite code not available");
-      return;
-    }
-    
+    if (!message || !link) return;
+
     const subject = "Join R/HOOD - The DJ Community";
     const body = `${message}\n\n${link}`;
-    
+
     try {
-      // Use native Share API which will show email as an option
-      // This is more reliable than mailto: URLs on iOS
       await Share.share({
         message: body,
-        subject: subject, // iOS will use this as email subject
+        subject,
         title: subject,
       });
     } catch (error) {
-      console.error("Error sharing via Email:", error);
+      console.error("Error opening share sheet (email subject):", error);
       Alert.alert("Error", "Could not open share sheet. Please try again.");
     }
   };
 
   // Share via SMS
   const handleShareSMS = async () => {
+    if (!ensureInviteReady()) return;
     const message = getReferralShareMessage();
-    if (!message) {
-      Alert.alert("Error", "Invite code not available");
-      return;
-    }
+    if (!message) return;
     const url = `sms:?body=${encodeURIComponent(message)}`;
     try {
       await Linking.openURL(url);
@@ -141,12 +147,10 @@ export default function InviteScreen({ user, onBack }) {
 
   // Share via native share sheet
   const handleShareNative = async () => {
+    if (!ensureInviteReady()) return;
     const message = getReferralShareMessage();
     const link = getReferralLink();
-    if (!message || !link) {
-      Alert.alert("Error", "Invite code not available");
-      return;
-    }
+    if (!message || !link) return;
     try {
       await Share.share({
         message: `${message}\n\n${link}`,
@@ -159,8 +163,13 @@ export default function InviteScreen({ user, onBack }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header — safe area replaces fixed paddingTop */}
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(insets.top, 12) + 8 },
+        ]}
+      >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
@@ -179,6 +188,26 @@ export default function InviteScreen({ user, onBack }) {
         contentContainerStyle={styles.scrollViewContent}
         showsVerticalScrollIndicator={false}
       >
+        {loadError ? (
+          <View style={styles.errorBanner}>
+            <Ionicons
+              name="warning-outline"
+              size={22}
+              color="hsl(45, 100%, 55%)"
+            />
+            <Text style={styles.errorBannerText}>{loadError}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => {
+                HapticPatterns.itemPress();
+                loadInviteData();
+              }}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         {/* Invite Code Card */}
         <View style={styles.inviteCodeCard}>
           <View style={styles.inviteCodeHeader}>
@@ -189,9 +218,16 @@ export default function InviteScreen({ user, onBack }) {
             style={styles.inviteCodeContainer}
             onPress={handleCopyCode}
           >
-            <Text style={styles.inviteCodeText}>
-              {loading ? "Loading..." : inviteCode || "Not available"}
-            </Text>
+            {loading ? (
+              <View style={styles.codeLoadingRow}>
+                <ActivityIndicator color="hsl(75, 100%, 60%)" />
+                <Text style={styles.inviteCodeTextMuted}>Loading…</Text>
+              </View>
+            ) : (
+              <Text style={styles.inviteCodeText}>
+                {inviteCode || "Not available"}
+              </Text>
+            )}
             <Ionicons
               name="copy-outline"
               size={18}
@@ -214,9 +250,18 @@ export default function InviteScreen({ user, onBack }) {
             style={styles.referralLinkContainer}
             onPress={handleCopyLink}
           >
-            <Text style={styles.referralLinkText} numberOfLines={1}>
-              {loading ? "Loading..." : getReferralLink() || "Not available"}
-            </Text>
+            {loading ? (
+              <View style={styles.codeLoadingRow}>
+                <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+                <Text style={styles.referralLinkTextMuted} numberOfLines={1}>
+                  Loading…
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.referralLinkText} numberOfLines={1}>
+                {getReferralLink() || "Not available"}
+              </Text>
+            )}
             <Ionicons
               name="copy-outline"
               size={18}
@@ -245,7 +290,8 @@ export default function InviteScreen({ user, onBack }) {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.shareButton}
-              onPress={handleShareEmail}
+              onPress={handleShareWithEmailSubject}
+              accessibilityLabel="Share with email subject"
             >
               <Ionicons name="mail" size={24} color="hsl(75, 100%, 60%)" />
               <Text style={styles.shareButtonText}>Email</Text>
@@ -295,10 +341,57 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 20,
-    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "hsl(45, 30%, 12%)",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "hsl(45, 60%, 30%)",
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 85%)",
+    lineHeight: 18,
+  },
+  retryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "700",
+    color: "hsl(0, 0%, 0%)",
+  },
+  codeLoadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  inviteCodeTextMuted: {
+    fontSize: 15,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 50%)",
+  },
+  referralLinkTextMuted: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 50%)",
   },
   backButton: {
     padding: 8,

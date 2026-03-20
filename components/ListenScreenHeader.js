@@ -13,7 +13,7 @@ export default function ListenScreenHeader({
   availableGenres,
 }) {
   return (
-    <>
+    <View style={styles.listenScreenHeaderRoot}>
       <View style={styles.header}>
         <Text style={styles.tsBlockBoldHeading}>LISTEN</Text>
         <Text style={styles.headerSubtitle}>
@@ -38,14 +38,21 @@ export default function ListenScreenHeader({
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.clearButton}>
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery("");
+                setSelectedGenre(null);
+              }}
+              style={styles.clearButton}
+              accessibilityLabel="Clear search and genre filter"
+            >
               <Ionicons name="close-circle" size={20} color="hsl(0, 0%, 50%)" />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {availableGenres.length > 0 && (
+      {Array.isArray(availableGenres) && availableGenres.length > 0 && (
         <View style={styles.genreFilterContainer}>
           <ScrollView
             horizontal
@@ -79,6 +86,6 @@ export default function ListenScreenHeader({
           </ScrollView>
         </View>
       )}
-    </>
+    </View>
   );
 }

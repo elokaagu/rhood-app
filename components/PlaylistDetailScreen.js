@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  memo,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -21,6 +28,9 @@ import { HapticPatterns } from "../lib/haptics";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 import * as ImagePicker from "expo-image-picker";
 import ProgressiveImage from "./ProgressiveImage";
+import { normalizeMixForPlayback } from "../lib/yourLikesUtils";
+
+const SEARCH_DEBOUNCE_MS = 350;
 
 // Memoized mix row: stable props reduce re-renders when only playing state changes
 const PlaylistDetailMixRow = memo(function PlaylistDetailMixRow({
@@ -124,6 +134,7 @@ function PlaylistDetailScreen({
   globalAudioState,
   onPlayAudio,
   onPauseAudio,
+  onResumeAudio,
   onBack,
   user,
   onAddToQueue,
@@ -141,9 +152,21 @@ function PlaylistDetailScreen({
   const [availableMixes, setAvailableMixes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loadingMixes, setLoadingMixes] = useState(false);
-  const [playlistMixesMap, setPlaylistMixesMap] = useState({}); // Map of mix_id to position
   const [playlistData, setPlaylistData] = useState(null);
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
+  const searchDebounceRef = useRef(null);
+
+  const displayPlaylistName =
+    playlistData?.name || playlistName || "Playlist";
+
+  useEffect(
+    () => () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    },
+    []
+  );
 
   // Fetch mixes in playlist
   const fetchPlaylistMixes = useCallback(async () => {
@@ -194,17 +217,14 @@ function PlaylistDetailScreen({
       if (!playlistMixesData || playlistMixesData.length === 0) {
         console.log("ℹ️ No mixes found in playlist");
         setMixes([]);
-        setPlaylistMixesMap({});
         setLoading(false);
         return;
       }
 
-      // Create map of mix_id to position
       const positionMap = {};
       playlistMixesData.forEach((pm) => {
         positionMap[pm.mix_id] = pm.position ?? 0;
       });
-      setPlaylistMixesMap(positionMap);
 
       const mixIds = playlistMixesData.map((pm) => pm.mix_id).filter(Boolean);
 
@@ -330,14 +350,17 @@ function PlaylistDetailScreen({
   // Update positions in database (stable for move handlers)
   const updatePositions = useCallback(
     async (orderedMixes) => {
-      for (let i = 0; i < orderedMixes.length; i++) {
-        const { error } = await supabase
-          .from("playlist_mixes")
-          .update({ position: i })
-          .eq("playlist_id", playlistId)
-          .eq("mix_id", orderedMixes[i].id);
-        if (error) throw error;
-      }
+      const results = await Promise.all(
+        orderedMixes.map((mix, i) =>
+          supabase
+            .from("playlist_mixes")
+            .update({ position: i })
+            .eq("playlist_id", playlistId)
+            .eq("mix_id", mix.id)
+        )
+      );
+      const err = results.find((r) => r.error)?.error;
+      if (err) throw err;
     },
     [playlistId]
   );
@@ -382,41 +405,41 @@ function PlaylistDetailScreen({
     (mix) => {
       if (isEditMode) return;
       HapticPatterns.playPause();
-      if (playingMixId === mix.id) {
-        onPauseAudio();
-      } else {
-        const normalizedMix = {
-          ...mix,
-          audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
-          image: mix.artwork_url || mix.image_url || mix.image || null,
-          user_id: mix.user_id || mix.user?.id,
-          user_image: mix.user_image || mix.user?.profile_image_url,
-          user_dj_name: mix.user_dj_name || mix.user?.dj_name,
-          user_bio: mix.user_bio || mix.user?.bio,
-          user: mix.user,
-        };
-        if (!normalizedMix.audioUrl) return;
-        onPlayAudio(normalizedMix);
+      const current = globalAudioState.currentTrack;
+      const sameTrack =
+        current &&
+        (String(current.id) === String(mix.id) ||
+          String(current.id) === String(mix?.id));
+
+      if (sameTrack) {
+        if (globalAudioState.isPlaying) {
+          onPauseAudio?.();
+        } else {
+          onResumeAudio?.();
+        }
+        return;
       }
+
+      const normalized = normalizeMixForPlayback(mix);
+      if (!normalized?.audioUrl) return;
+      onPlayAudio?.(normalized);
     },
-    [isEditMode, playingMixId, onPauseAudio, onPlayAudio]
+    [
+      isEditMode,
+      globalAudioState.currentTrack,
+      globalAudioState.isPlaying,
+      onPauseAudio,
+      onResumeAudio,
+      onPlayAudio,
+    ]
   );
 
   const handleMixLongPress = useCallback(
     (mix) => {
       if (isEditMode) return;
       HapticPatterns.itemPress();
-      const normalizedMix = {
-        ...mix,
-        audioUrl: mix.audioUrl || mix.file_url || mix.audio_url || null,
-        image: mix.artwork_url || mix.image_url || mix.image || null,
-        user_id: mix.user_id || mix.user?.id,
-        user_image: mix.user_image || mix.user?.profile_image_url,
-        user_dj_name: mix.user_dj_name || mix.user?.dj_name,
-        user_bio: mix.user_bio || mix.user?.bio,
-        user: mix.user,
-      };
-      if (!normalizedMix.audioUrl) return;
+      const normalizedMix = normalizeMixForPlayback(mix);
+      if (!normalizedMix?.audioUrl) return;
       if (Platform.OS === "ios") {
         ActionSheetIOS.showActionSheetWithOptions(
           {
@@ -699,7 +722,10 @@ function PlaylistDetailScreen({
           mix={mix}
           index={index}
           totalCount={mixes.length}
-          isPlaying={playingMixId === mix.id && globalAudioState.isPlaying}
+          isPlaying={
+            String(playingMixId) === String(mix.id) &&
+            globalAudioState.isPlaying
+          }
           isEditMode={isEditMode}
           onPress={handleMixPress}
           onLongPress={handleMixLongPress}
@@ -762,7 +788,7 @@ function PlaylistDetailScreen({
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
             <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{playlistName || "Playlist"}</Text>
+          <Text style={styles.headerTitle}>{displayPlaylistName}</Text>
           <View style={styles.backButton} />
         </View>
         <View style={styles.loadingContainer}>
@@ -780,7 +806,7 @@ function PlaylistDetailScreen({
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {playlistName || "Playlist"}
+          {displayPlaylistName}
         </Text>
         <TouchableOpacity style={styles.backButton} onPress={toggleEditMode}>
           <Text style={[styles.editButton, isEditMode && styles.editButtonActive]}>
@@ -864,7 +890,13 @@ function PlaylistDetailScreen({
               value={searchQuery}
               onChangeText={(text) => {
                 setSearchQuery(text);
-                fetchAvailableMixes(text);
+                if (searchDebounceRef.current) {
+                  clearTimeout(searchDebounceRef.current);
+                }
+                searchDebounceRef.current = setTimeout(() => {
+                  searchDebounceRef.current = null;
+                  fetchAvailableMixes(text);
+                }, SEARCH_DEBOUNCE_MS);
               }}
             />
           </View>
@@ -1046,10 +1078,6 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
     textAlign: "center",
-  },
-  mixesList: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
   },
   mixRowWrap: {
     paddingHorizontal: 20,

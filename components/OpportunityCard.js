@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -9,18 +9,65 @@ import {
   sharedStyles,
 } from "../lib/sharedStyles";
 
+function resolveImageUri(image) {
+  if (typeof image !== "string") return null;
+  const trimmed = image.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export default function OpportunityCard({ opportunity, onPress }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUri = opportunity ? resolveImageUri(opportunity.image) : null;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUri]);
+
+  if (!opportunity) {
+    return null;
+  }
+
+  const showImage = Boolean(imageUri && !imageFailed);
+  const venue =
+    String(opportunity.venue ?? "")
+      .trim() || "Venue";
+  const title =
+    String(opportunity.title ?? "")
+      .trim() || "DJ Opportunity";
+  const applicationsLine =
+    typeof opportunity.applicationsLeft === "number"
+      ? `${opportunity.applicationsLeft} applications left`
+      : "Applications open";
+
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => onPress?.(opportunity)}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+    >
       {/* Large featured image */}
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: opportunity.image }}
-          style={styles.featuredImage}
-        />
+        {showImage ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.featuredImage}
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <View style={[styles.imageArea, styles.imagePlaceholder]}>
+            <Ionicons
+              name="image-outline"
+              size={48}
+              color={COLORS.textTertiary}
+            />
+          </View>
+        )}
         <View style={styles.imageOverlay}>
           <View style={styles.overlayHeader}>
-            <Text style={styles.venueName}>{opportunity.venue}</Text>
+            <Text style={styles.venueName} numberOfLines={1}>
+              {venue}
+            </Text>
             {opportunity.status === "hot" && (
               <View style={styles.statusBadge}>
                 <Text style={styles.statusBadgeText}>HOT</Text>
@@ -37,9 +84,11 @@ export default function OpportunityCard({ opportunity, onPress }) {
               </View>
             )}
           </View>
-          <Text style={styles.eventTitle}>{opportunity.title}</Text>
-          <Text style={styles.applicationsLeft}>
-            {opportunity.applicationsLeft} applications left
+          <Text style={styles.eventTitle} numberOfLines={2}>
+            {title}
+          </Text>
+          <Text style={styles.applicationsLeft} numberOfLines={1}>
+            {applicationsLine}
           </Text>
         </View>
       </View>
@@ -63,10 +112,21 @@ const styles = StyleSheet.create({
     position: "relative",
     flex: 1,
   },
+  imageArea: {
+    width: "100%",
+    height: "100%",
+    minHeight: 200,
+  },
   featuredImage: {
     width: "100%",
     height: "100%",
+    minHeight: 200,
     resizeMode: "cover",
+  },
+  imagePlaceholder: {
+    backgroundColor: COLORS.backgroundTertiary,
+    justifyContent: "center",
+    alignItems: "center",
   },
   imageOverlay: {
     position: "absolute",

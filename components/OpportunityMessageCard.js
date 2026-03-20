@@ -3,23 +3,12 @@
  * Displays an opportunity as a card within a chat message
  */
 
-import React from "react";
+import React, { memo } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 
-export default function OpportunityMessageCard({
-  opportunity,
-  isOwn = false,
-  onPress,
-}) {
+function OpportunityMessageCard({ opportunity, isOwn = false, onPress }) {
   if (!opportunity) return null;
-
-  const handlePress = () => {
-    if (onPress) {
-      onPress(opportunity);
-    }
-  };
 
   return (
     <TouchableOpacity
@@ -27,7 +16,7 @@ export default function OpportunityMessageCard({
         styles.card,
         isOwn ? styles.ownCard : styles.otherCard,
       ]}
-      onPress={handlePress}
+      onPress={() => onPress?.(opportunity)}
       activeOpacity={0.8}
     >
       <View style={styles.cardContent}>
@@ -78,6 +67,7 @@ export default function OpportunityMessageCard({
                   styles.detailText,
                   isOwn ? styles.ownDetailText : styles.otherDetailText,
                 ]}
+                numberOfLines={1}
               >
                 {opportunity.date}
               </Text>
@@ -96,6 +86,7 @@ export default function OpportunityMessageCard({
                   styles.detailText,
                   isOwn ? styles.ownDetailText : styles.otherDetailText,
                 ]}
+                numberOfLines={1}
               >
                 {opportunity.time}
               </Text>
@@ -133,6 +124,7 @@ export default function OpportunityMessageCard({
                   styles.detailText,
                   isOwn ? styles.ownDetailText : styles.otherDetailText,
                 ]}
+                numberOfLines={1}
               >
                 {opportunity.compensation}
               </Text>
@@ -163,11 +155,12 @@ export default function OpportunityMessageCard({
   );
 }
 
+export default memo(OpportunityMessageCard);
+
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     overflow: "hidden",
-    maxWidth: "100%",
     marginVertical: 4,
   },
   ownCard: {
