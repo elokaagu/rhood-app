@@ -5,6 +5,7 @@
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
+    "start:localhost": "EXPO_USE_LOCALHOST=1 expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "ios:sim": "bash scripts/start-ios-simulator.sh",
@@ -12,8 +13,8 @@
     "backend:dev": "nodemon backend/index.js",
     "backend:start": "node backend/index.js",
     "build:kb": "node scripts/build-kb.js",
-    "eas:build": "npx eas-cli@18 build",
-    "eas:submit": "npx eas-cli@18 submit"
+    "eas:build": "npx eas-cli@latest build",
+    "eas:submit": "npx eas-cli@latest submit"
   },
   "keywords": [
     "expo",
@@ -77,6 +78,7 @@
     "@babel/core": "^7.20.0",
     "@react-native-community/cli": "^20.0.2",
     "@types/react": "~19.1.10",
+    "baseline-browser-mapping": "^2.10.9",
     "nodemon": "^3.1.10",
     "typescript": "~5.9.2"
   },

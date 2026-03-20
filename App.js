@@ -15,6 +15,7 @@ import {
   Linking,
   Alert,
   Platform,
+  Dimensions,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -79,7 +80,8 @@ export default function App() {
   // Use the actual font family name "TS Block Bold" (not PostScript name)
   // This matches the internal font name from the TTF file
   const [fontsLoaded, fontError] = useFonts({
-    "TS Block Bold": require("assets/TS Block Bold.ttf"),
+    // Filename without spaces avoids broken Metro asset URLs (.%2Fassets) and load issues.
+    "TS Block Bold": require("./assets/TSBlockBold.ttf"),
   });
 
   // Log font status (but don't block app if it fails)

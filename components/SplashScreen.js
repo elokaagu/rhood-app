@@ -26,7 +26,7 @@ const SplashScreen = ({ onFinish }) => {
   // Load custom fonts
   // Use the actual font family name "TS Block Bold"
   const [fontsLoaded] = useFonts({
-    "TS Block Bold": require("../assets/TS Block Bold.ttf"),
+    "TS Block Bold": require("../assets/TSBlockBold.ttf"),
   });
 
   // Animation states

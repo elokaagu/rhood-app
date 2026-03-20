@@ -1,210 +1,228 @@
 // src/audio/playbackService.js
-// Playback service for react-native-track-player
-// This service runs in the background and handles remote control events
-// (lock screen, Control Center, Bluetooth headsets, CarPlay, etc.)
+// Playback service for react-native-track-player (see Podfile / project for version; typically v4.x).
+// Handles remote events: lock screen, Control Center, BT, CarPlay.
 
-module.exports = async function() {
-  console.log('🎧 [SERVICE] Playback service starting...');
-  
-  // Defensively require TrackPlayer inside the function to avoid build-time errors
+/** Dev-only logs; avoids flooding production / device logs from progress & state. */
+const log = __DEV__ ? (...args) => console.log(...args) : () => {};
+const logWarn = __DEV__ ? (...args) => console.warn(...args) : () => {};
+
+/** Subscriptions from the last service run — removed if the service entry runs again (e.g. dev reload). */
+let activeSubscriptions = [];
+
+function clearSubscriptions() {
+  for (const sub of activeSubscriptions) {
+    try {
+      if (sub && typeof sub.remove === "function") sub.remove();
+    } catch (_e) {
+      /* ignore */
+    }
+  }
+  activeSubscriptions = [];
+}
+
+function subscribe(TrackPlayer, event, handler) {
+  const sub = TrackPlayer.addEventListener(event, handler);
+  if (sub && typeof sub.remove === "function") {
+    activeSubscriptions.push(sub);
+  }
+}
+
+/**
+ * Clamp seek position when duration is known; otherwise allow any non-negative seek.
+ */
+function clampSeekPosition(position, duration) {
+  const p = Number(position);
+  if (!Number.isFinite(p) || p < 0) return null;
+  if (
+    typeof duration === "number" &&
+    Number.isFinite(duration) &&
+    duration > 0
+  ) {
+    return Math.min(p, Math.max(0, duration));
+  }
+  return p;
+}
+
+module.exports = async function playbackService() {
+  log("🎧 [SERVICE] Playback service starting...");
+
+  clearSubscriptions();
+
   let TrackPlayer;
   let Event;
   let State;
-  
+
   try {
-    // Use eval to prevent Metro from statically analyzing this require
-    // This is safe because the function only runs at runtime when TrackPlayer calls it
-    // eslint-disable-next-line no-eval
-    const trackPlayerModule = eval('require')('react-native-track-player');
-    
+    // Plain require: service runs only in native dev/prod builds where the module exists.
+    const trackPlayerModule = require("react-native-track-player");
+
     if (!trackPlayerModule) {
-      console.warn('⚠️ [SERVICE] TrackPlayer module not available');
+      logWarn("⚠️ [SERVICE] TrackPlayer module not available");
       return;
     }
-    
+
     TrackPlayer = trackPlayerModule.default || trackPlayerModule;
     Event = trackPlayerModule.Event;
     State = trackPlayerModule.State;
-    
+
     if (!TrackPlayer || !Event) {
-      console.warn('⚠️ [SERVICE] TrackPlayer or Event not available');
+      logWarn("⚠️ [SERVICE] TrackPlayer or Event not available");
       return;
     }
-    
-    console.log('✅ [SERVICE] TrackPlayer module loaded successfully');
+
+    log("✅ [SERVICE] TrackPlayer module loaded successfully");
   } catch (error) {
-    console.warn('⚠️ [SERVICE] Failed to load TrackPlayer:', error.message);
+    logWarn("⚠️ [SERVICE] Failed to load TrackPlayer:", error?.message);
     return;
   }
 
-  // ============================================
-  // REMOTE PLAY - Resume playback
-  // ============================================
-  TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    console.log('🎧 [SERVICE] 🔵🔵🔵 RemotePlay event received from lock screen');
+  // REMOTE PLAY
+  subscribe(TrackPlayer, Event.RemotePlay, async () => {
+    log("🎧 [SERVICE] RemotePlay");
     try {
-      const state = await TrackPlayer.getState();
-      if (state === State.Paused || state === State.Ready) {
-        await TrackPlayer.play();
-        console.log('✅ [SERVICE] Playback resumed via lock screen');
-      }
+      await TrackPlayer.play();
+      log("✅ [SERVICE] Playback resumed (RemotePlay)");
     } catch (error) {
-      console.error('❌ [SERVICE] Error handling RemotePlay:', error);
+      console.error("❌ [SERVICE] RemotePlay error:", error);
     }
   });
 
-  // ============================================
-  // REMOTE PAUSE - Pause playback
-  // ============================================
-  TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    console.log('🎧 [SERVICE] ⏸️⏸️⏸️ RemotePause event received from lock screen');
+  // REMOTE PAUSE
+  subscribe(TrackPlayer, Event.RemotePause, async () => {
+    log("🎧 [SERVICE] RemotePause");
     try {
-      const state = await TrackPlayer.getState();
-      if (state === State.Playing) {
-        await TrackPlayer.pause();
-        console.log('✅ [SERVICE] Playback paused via lock screen');
-      }
+      await TrackPlayer.pause();
+      log("✅ [SERVICE] Playback paused (RemotePause)");
     } catch (error) {
-      console.error('❌ [SERVICE] Error handling RemotePause:', error);
+      console.error("❌ [SERVICE] RemotePause error:", error);
     }
   });
 
-  // ============================================
-  // REMOTE STOP - Stop playback
-  // ============================================
-  TrackPlayer.addEventListener(Event.RemoteStop, async () => {
-    console.log('🎧 [SERVICE] ⏹️⏹️⏹️ RemoteStop event received from lock screen');
+  // REMOTE STOP
+  subscribe(TrackPlayer, Event.RemoteStop, async () => {
+    log("🎧 [SERVICE] RemoteStop");
     try {
       await TrackPlayer.stop();
-      console.log('✅ [SERVICE] Playback stopped via lock screen');
+      log("✅ [SERVICE] Playback stopped (RemoteStop)");
     } catch (error) {
-      console.error('❌ [SERVICE] Error handling RemoteStop:', error);
+      console.error("❌ [SERVICE] RemoteStop error:", error);
     }
   });
 
-  // ============================================
-  // REMOTE NEXT - Skip to next track
-  // ============================================
-  TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-    console.log('🎧 [SERVICE] ⏭️⏭️⏭️ RemoteNext event received from lock screen');
+  // REMOTE NEXT
+  subscribe(TrackPlayer, Event.RemoteNext, async () => {
+    log("🎧 [SERVICE] RemoteNext");
     try {
       const queue = await TrackPlayer.getQueue();
       const currentIndex = await TrackPlayer.getCurrentTrack();
-      
-      if (queue.length > 0 && currentIndex !== null && currentIndex < queue.length - 1) {
+
+      if (
+        queue.length > 0 &&
+        currentIndex !== null &&
+        currentIndex !== undefined &&
+        currentIndex < queue.length - 1
+      ) {
         await TrackPlayer.skipToNext();
-        console.log('✅ [SERVICE] Skipped to next track via lock screen');
+        log("✅ [SERVICE] Skipped to next");
       } else {
-        console.log('⚠️ [SERVICE] No next track available');
+        log("⚠️ [SERVICE] No next track");
       }
     } catch (error) {
-      console.error('❌ [SERVICE] Error handling RemoteNext:', error);
+      console.error("❌ [SERVICE] RemoteNext error:", error);
     }
   });
 
-  // ============================================
-  // REMOTE PREVIOUS - Skip to previous track
-  // ============================================
-  TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-    console.log('🎧 [SERVICE] ⏮️⏮️⏮️ RemotePrevious event received from lock screen');
+  // REMOTE PREVIOUS — never skipToPrevious on first track when position ≤ 3s
+  subscribe(TrackPlayer, Event.RemotePrevious, async () => {
+    log("🎧 [SERVICE] RemotePrevious");
     try {
-      const queue = await TrackPlayer.getQueue();
       const currentIndex = await TrackPlayer.getCurrentTrack();
-      
-      if (queue.length > 0 && currentIndex !== null && currentIndex > 0) {
-        await TrackPlayer.skipToPrevious();
-        console.log('✅ [SERVICE] Skipped to previous track via lock screen');
-      } else {
-        // If at the beginning, restart current track
-        const position = await TrackPlayer.getPosition();
+      const position = await TrackPlayer.getPosition();
+      const idx =
+        currentIndex === null || currentIndex === undefined ? -1 : currentIndex;
+
+      if (idx > 0) {
         if (position > 3) {
-          // If more than 3 seconds in, restart track
           await TrackPlayer.seekTo(0);
-          console.log('✅ [SERVICE] Restarted current track via lock screen');
+          log("✅ [SERVICE] Seek to start (same track, >3s)");
         } else {
           await TrackPlayer.skipToPrevious();
-          console.log('✅ [SERVICE] Skipped to previous track via lock screen');
+          log("✅ [SERVICE] Skipped to previous");
         }
+      } else {
+        await TrackPlayer.seekTo(0);
+        log("✅ [SERVICE] First track — seek to 0");
       }
     } catch (error) {
-      console.error('❌ [SERVICE] Error handling RemotePrevious:', error);
+      console.error("❌ [SERVICE] RemotePrevious error:", error);
     }
   });
 
-  // ============================================
-  // REMOTE SEEK - Seek to position
-  // ============================================
-  TrackPlayer.addEventListener(Event.RemoteSeek, async ({ position }) => {
-    console.log(`🎧 [SERVICE] ⏩⏩⏩ RemoteSeek event received: ${position}s`);
+  // REMOTE SEEK — seek if position valid; clamp only when duration is known
+  subscribe(TrackPlayer, Event.RemoteSeek, async ({ position }) => {
+    log(`🎧 [SERVICE] RemoteSeek ${position}s`);
     try {
       const duration = await TrackPlayer.getDuration();
-      if (duration && position >= 0 && position <= duration) {
-        await TrackPlayer.seekTo(position);
-        console.log(`✅ [SERVICE] Seeked to ${position}s via lock screen`);
-      } else {
-        console.warn(`⚠️ [SERVICE] Invalid seek position: ${position}s (duration: ${duration}s)`);
+      const target = clampSeekPosition(position, duration);
+      if (target === null) {
+        logWarn(`⚠️ [SERVICE] Invalid seek: ${position}`);
+        return;
       }
+      await TrackPlayer.seekTo(target);
+      log(`✅ [SERVICE] Seeked to ${target}s`);
     } catch (error) {
-      console.error('❌ [SERVICE] Error handling RemoteSeek:', error);
+      console.error("❌ [SERVICE] RemoteSeek error:", error);
     }
   });
 
-  // ============================================
-  // REMOTE JUMP FORWARD - Jump forward 15 seconds
-  // ============================================
-  TrackPlayer.addEventListener(Event.RemoteJumpForward, async () => {
-    console.log('🎧 [SERVICE] ⏩⏩⏩ RemoteJumpForward event received from lock screen');
+  // REMOTE JUMP FORWARD — do not use duration || 0 (would jump to 0 when unknown)
+  subscribe(TrackPlayer, Event.RemoteJumpForward, async () => {
+    log("🎧 [SERVICE] RemoteJumpForward");
     try {
       const position = await TrackPlayer.getPosition();
       const duration = await TrackPlayer.getDuration();
-      const newPosition = Math.min(position + 15, duration || 0);
+      const newPosition =
+        typeof duration === "number" &&
+        Number.isFinite(duration) &&
+        duration > 0
+          ? Math.min(position + 15, duration)
+          : position + 15;
       await TrackPlayer.seekTo(newPosition);
-      console.log(`✅ [SERVICE] Jumped forward 15s to ${newPosition}s via lock screen`);
+      log(`✅ [SERVICE] Jump forward → ${newPosition}s`);
     } catch (error) {
-      console.error('❌ [SERVICE] Error handling RemoteJumpForward:', error);
+      console.error("❌ [SERVICE] RemoteJumpForward error:", error);
     }
   });
 
-  // ============================================
-  // REMOTE JUMP BACKWARD - Jump backward 15 seconds
-  // ============================================
-  TrackPlayer.addEventListener(Event.RemoteJumpBackward, async () => {
-    console.log('🎧 [SERVICE] ⏪⏪⏪ RemoteJumpBackward event received from lock screen');
+  // REMOTE JUMP BACKWARD
+  subscribe(TrackPlayer, Event.RemoteJumpBackward, async () => {
+    log("🎧 [SERVICE] RemoteJumpBackward");
     try {
       const position = await TrackPlayer.getPosition();
       const newPosition = Math.max(position - 15, 0);
       await TrackPlayer.seekTo(newPosition);
-      console.log(`✅ [SERVICE] Jumped backward 15s to ${newPosition}s via lock screen`);
+      log(`✅ [SERVICE] Jump backward → ${newPosition}s`);
     } catch (error) {
-      console.error('❌ [SERVICE] Error handling RemoteJumpBackward:', error);
+      console.error("❌ [SERVICE] RemoteJumpBackward error:", error);
     }
   });
 
-  // ============================================
-  // PLAYBACK STATE CHANGED - Sync with app state
-  // ============================================
-  TrackPlayer.addEventListener(Event.PlaybackState, async ({ state }) => {
-    console.log(`🎧 [SERVICE] 📊 PlaybackState changed: ${state}`);
-    // This event helps track state changes for debugging
-    // The actual state sync happens via App.js event listeners
+  // PLAYBACK STATE — debug only (fires occasionally)
+  subscribe(TrackPlayer, Event.PlaybackState, async ({ state }) => {
+    log(`🎧 [SERVICE] PlaybackState: ${state}`);
   });
 
-  // ============================================
-  // PLAYBACK TRACK CHANGED - Track changed
-  // ============================================
-  TrackPlayer.addEventListener(Event.PlaybackTrackChanged, async ({ track, position }) => {
-    console.log(`🎧 [SERVICE] 🎵 PlaybackTrackChanged: track=${track?.id}, position=${position}`);
-    // This event is handled in App.js to sync queue state
+  // TRACK CHANGED — debug only
+  subscribe(TrackPlayer, Event.PlaybackTrackChanged, async (payload) => {
+    const track = payload?.track;
+    log(
+      `🎧 [SERVICE] PlaybackTrackChanged: track=${track?.id ?? track}, position=${payload?.position}`
+    );
   });
 
-  // ============================================
-  // PLAYBACK PROGRESS - Position updates
-  // ============================================
-  TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, async ({ position, buffered, duration }) => {
-    // This event fires frequently for progress updates
-    // Handled in App.js for UI updates
-  });
+  // PROGRESS — very frequent; no logging (App.js may listen separately)
+  subscribe(TrackPlayer, Event.PlaybackProgressUpdated, async () => {});
 
-  console.log('✅ [SERVICE] All remote event handlers registered successfully');
-  console.log('🎧 [SERVICE] Lock screen controls are now active');
+  log("✅ [SERVICE] Remote handlers registered");
+  log("🎧 [SERVICE] Lock screen controls active");
 };

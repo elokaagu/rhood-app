@@ -1,40 +1,87 @@
 // src/audio/player.js
-// TrackPlayer setup and playback functions
+// Wrapper around react-native-track-player (v4.x — see ios/Podfile.lock).
+// Prefer getPlaybackSnapshot() for app UI; it composes RNTP’s getPlaybackState + getProgress.
 
 let TrackPlayer = null;
 let Capability = null;
 let State = null;
 
-try {
-  // Use eval to prevent Metro from statically analyzing this require
-  // eslint-disable-next-line no-eval
-  const trackPlayerModule = eval('require')('react-native-track-player');
-  TrackPlayer = trackPlayerModule.default || trackPlayerModule;
-  Capability = trackPlayerModule.Capability;
-  State = trackPlayerModule.State;
-} catch (error) {
-  console.warn('react-native-track-player not available:', error.message);
+function loadTrackPlayerModule() {
+  if (TrackPlayer) return true;
+  try {
+    const trackPlayerModule = require("react-native-track-player");
+    TrackPlayer = trackPlayerModule.default || trackPlayerModule;
+    Capability = trackPlayerModule.Capability;
+    State = trackPlayerModule.State;
+    return !!TrackPlayer;
+  } catch (error) {
+    console.warn("react-native-track-player not available:", error?.message);
+    return false;
+  }
 }
+
+loadTrackPlayerModule();
 
 let isInitialized = false;
 let optionsUpdated = false;
 
+function assertTrackPlayer() {
+  if (!loadTrackPlayerModule() || !TrackPlayer) {
+    throw new Error("react-native-track-player is not available");
+  }
+}
+
 /**
- * Initialize TrackPlayer with capabilities
+ * Best-effort: iOS lock screen prefers HTTPS artwork. Only works if the host serves TLS.
+ */
+function normalizeArtworkUrl(raw) {
+  if (!raw || typeof raw !== "string") return undefined;
+  let url = raw.trim();
+  if (!url) return undefined;
+  if (url.startsWith("http://")) {
+    url = url.replace("http://", "https://");
+  }
+  return url;
+}
+
+/** Prefer stable IDs from the app; fall back to URL or a one-off key. */
+function stableTrackId(track, index = 0) {
+  if (track.id != null && String(track.id).length > 0) {
+    return String(track.id);
+  }
+  if (track.url && String(track.url).length > 0) {
+    return `url:${String(track.url)}`;
+  }
+  return `rhood-${Date.now()}-${index}`;
+}
+
+function buildTrackObject(track, index = 0) {
+  return {
+    id: stableTrackId(track, index),
+    url: track.url,
+    title: track.title || "R/HOOD Mix",
+    artist: track.artist || "Unknown Artist",
+    artwork: normalizeArtworkUrl(track.artwork),
+    duration: track.duration || undefined,
+    album: track.album || track.genre || "R/HOOD",
+    genre: track.genre || "Electronic",
+  };
+}
+
+/**
+ * Idempotent: call before any TrackPlayer queue API.
+ * Per RNTP docs, setupPlayer() should run once per app lifetime.
  */
 export async function setupPlayer() {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
+  assertTrackPlayer();
 
   if (!isInitialized) {
     await TrackPlayer.setupPlayer();
     isInitialized = true;
-    console.log('✅ TrackPlayer initialized');
+    console.log("✅ TrackPlayer initialized");
   }
 
   if (!optionsUpdated) {
-    // Configure all available capabilities for full lock screen control
     const capabilities = [
       Capability.Play,
       Capability.Pause,
@@ -46,7 +93,6 @@ export async function setupPlayer() {
       Capability.JumpBackward,
     ];
 
-    // Compact capabilities for Android notification (limited space)
     const compactCapabilities = [
       Capability.Play,
       Capability.Pause,
@@ -55,348 +101,265 @@ export async function setupPlayer() {
     ];
 
     await TrackPlayer.updateOptions({
-      // Full capabilities for lock screen and Control Center
       capabilities,
-      // Compact capabilities for Android notification
       compactCapabilities,
-      // iOS specific options - CRITICAL for lock screen controls
-      iosCategory: 'playback', // Allows background audio and remote controls
-      // Jump intervals in seconds (for skip forward/backward)
+      iosCategory: "playback",
       forwardJumpInterval: 15,
       backwardJumpInterval: 15,
-      // Android notification options
       android: {
-        // Show notification on lock screen
         alwaysShowNotification: true,
-        // Notification icon (uses app icon if not specified)
       },
     });
     optionsUpdated = true;
-    console.log('✅ TrackPlayer options updated with full lock screen capabilities');
-    if (Array.isArray(capabilities)) {
-      console.log('📱 Capabilities:', capabilities.map(c => c).join(', '));
+    console.log("✅ TrackPlayer options updated with full lock screen capabilities");
+    if (__DEV__ && Array.isArray(capabilities)) {
+      console.log("📱 Capabilities:", capabilities.join(", "));
     }
   }
 }
 
 /**
- * Add a track to the queue
+ * Add one track to the queue (does not clear queue).
  */
 export async function addTrack(track) {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
-
+  assertTrackPlayer();
   await setupPlayer();
 
-  // Ensure artwork URL is valid (must be HTTPS for iOS lock screen)
-  let artworkUrl = track.artwork;
-  if (artworkUrl && typeof artworkUrl === 'string') {
-    // Convert HTTP to HTTPS if needed (iOS requires HTTPS for artwork)
-    if (artworkUrl.startsWith('http://')) {
-      artworkUrl = artworkUrl.replace('http://', 'https://');
-    }
-    // Remove undefined if empty string
-    if (!artworkUrl.trim()) {
-      artworkUrl = undefined;
-    }
-  } else {
-    artworkUrl = undefined;
+  const trackObject = buildTrackObject(track, 0);
+  if (__DEV__) {
+    console.log("📱 Adding track to TrackPlayer:", {
+      id: trackObject.id,
+      title: trackObject.title,
+      artist: trackObject.artist,
+      hasArtwork: !!trackObject.artwork,
+      duration: trackObject.duration,
+    });
   }
-
-  const trackObject = {
-    id: track.id || String(Date.now()),
-    url: track.url,
-    title: track.title || 'R/HOOD Mix',
-    artist: track.artist || 'Unknown Artist',
-    artwork: artworkUrl,
-    duration: track.duration || undefined,
-    album: track.album || track.genre || 'R/HOOD',
-    genre: track.genre || 'Electronic',
-  };
-
-  console.log('📱 Adding track to TrackPlayer:', {
-    id: trackObject.id,
-    title: trackObject.title,
-    artist: trackObject.artist,
-    hasArtwork: !!trackObject.artwork,
-    artwork: trackObject.artwork,
-    duration: trackObject.duration,
-  });
 
   await TrackPlayer.add(trackObject);
-  console.log('✅ Track added to queue:', trackObject.title);
+  console.log("✅ Track added to queue:", trackObject.title);
 }
 
 /**
- * Replace queue with a track and start playing
+ * Replace queue with a single track and play (typical “play this mix now” flow).
  */
 export async function playTrack(track) {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
-
+  assertTrackPlayer();
   await setupPlayer();
-  
-  // Reset the queue
+
   await TrackPlayer.reset();
-  
-  // Add the track
-  await addTrack(track);
-  
-  // Start playing
+  const trackObject = buildTrackObject(track, 0);
+  if (__DEV__) {
+    console.log("📱 playTrack:", {
+      id: trackObject.id,
+      title: trackObject.title,
+      hasArtwork: !!trackObject.artwork,
+    });
+  }
+  await TrackPlayer.add(trackObject);
   await TrackPlayer.play();
-  console.log('✅ Track started playing:', track.title);
+  console.log("✅ Track started playing:", track.title);
 }
 
 /**
- * Add multiple tracks to the queue
+ * Append multiple tracks (does not reset queue).
  */
 export async function addTracks(tracks) {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
+  assertTrackPlayer();
   if (!Array.isArray(tracks)) {
-    throw new Error('addTracks requires an array of tracks');
+    throw new Error("addTracks requires an array of tracks");
   }
 
   await setupPlayer();
 
-  const trackObjects = tracks.map((track, index) => {
-    // Ensure artwork URL is valid (must be HTTPS for iOS lock screen)
-    let artworkUrl = track.artwork;
-    if (artworkUrl && typeof artworkUrl === 'string') {
-      // Convert HTTP to HTTPS if needed (iOS requires HTTPS for artwork)
-      if (artworkUrl.startsWith('http://')) {
-        artworkUrl = artworkUrl.replace('http://', 'https://');
-      }
-      // Remove undefined if empty string
-      if (!artworkUrl.trim()) {
-        artworkUrl = undefined;
-      }
-    } else {
-      artworkUrl = undefined;
-    }
+  const trackObjects = tracks.map((t, index) => buildTrackObject(t, index));
 
-    return {
-      id: track.id || String(Date.now() + index),
-      url: track.url,
-      title: track.title || 'R/HOOD Mix',
-      artist: track.artist || 'Unknown Artist',
-      artwork: artworkUrl,
-      duration: track.duration || undefined,
-      album: track.album || track.genre || 'R/HOOD',
-      genre: track.genre || 'Electronic',
-    };
-  });
-
-  console.log(`📱 Adding ${trackObjects.length} tracks to TrackPlayer queue`);
-  trackObjects.forEach((track, index) => {
-    console.log(`  Track ${index + 1}:`, {
-      title: track.title,
-      artist: track.artist,
-      hasArtwork: !!track.artwork,
+  if (__DEV__) {
+    console.log(`📱 Adding ${trackObjects.length} tracks to TrackPlayer queue`);
+    trackObjects.forEach((tr, i) => {
+      console.log(`  Track ${i + 1}:`, {
+        title: tr.title,
+        artist: tr.artist,
+        hasArtwork: !!tr.artwork,
+      });
     });
-  });
+  }
 
   await TrackPlayer.add(trackObjects);
   console.log(`✅ Added ${trackObjects.length} tracks to queue`);
 }
 
 /**
- * Replace queue with multiple tracks and start playing the first one
+ * Replace queue, optionally start at startIndex, then play.
  */
 export async function playTracks(tracks, startIndex = 0) {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
+  assertTrackPlayer();
 
   if (!tracks || tracks.length === 0) {
-    throw new Error('No tracks provided');
+    throw new Error("No tracks provided");
   }
 
   await setupPlayer();
-  
-  // Reset the queue
+
   await TrackPlayer.reset();
-  
-  // Add all tracks
-  await addTracks(tracks);
-  
-  // Skip to the starting track if not the first one
-  if (startIndex > 0 && startIndex < tracks.length) {
+
+  const trackObjects = tracks.map((t, index) => buildTrackObject(t, index));
+  if (__DEV__) {
+    console.log(`📱 playTracks: ${trackObjects.length} tracks`);
+  }
+  await TrackPlayer.add(trackObjects);
+
+  if (startIndex > 0 && startIndex < trackObjects.length) {
     await TrackPlayer.skip(startIndex);
   }
-  
-  // Start playing
+
   await TrackPlayer.play();
-  
-  // Verify the current track metadata
-  try {
-    const currentTrackIndex = await TrackPlayer.getCurrentTrack();
-    if (currentTrackIndex !== null) {
-      const currentTrack = await TrackPlayer.getTrack(currentTrackIndex);
-      console.log('📱 Current track metadata on lock screen:', {
-        title: currentTrack?.title,
-        artist: currentTrack?.artist,
-        hasArtwork: !!currentTrack?.artwork,
-        artwork: currentTrack?.artwork,
-        duration: currentTrack?.duration,
-      });
+
+  if (__DEV__) {
+    try {
+      const currentTrackIndex = await TrackPlayer.getCurrentTrack();
+      if (currentTrackIndex !== null && currentTrackIndex !== undefined) {
+        const currentTrack = await TrackPlayer.getTrack(currentTrackIndex);
+        console.log("📱 Current track metadata on lock screen:", {
+          title: currentTrack?.title,
+          artist: currentTrack?.artist,
+          hasArtwork: !!currentTrack?.artwork,
+          duration: currentTrack?.duration,
+        });
+      }
+    } catch (error) {
+      console.warn("⚠️ Could not verify current track metadata:", error);
     }
-  } catch (error) {
-    console.warn('⚠️ Could not verify current track metadata:', error);
   }
-  
-  console.log(`✅ Started playing track ${startIndex + 1} of ${tracks.length}: ${tracks[startIndex].title}`);
+
+  console.log(
+    `✅ Started playing track ${startIndex + 1} of ${tracks.length}: ${tracks[startIndex]?.title}`
+  );
 }
 
-/**
- * Pause playback
- */
 export async function pause() {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
+  assertTrackPlayer();
   await TrackPlayer.pause();
-  console.log('⏸️ Playback paused');
+  console.log("⏸️ Playback paused");
 }
 
-/**
- * Resume playback
- */
 export async function resume() {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
+  assertTrackPlayer();
   await TrackPlayer.play();
-  console.log('▶️ Playback resumed');
+  console.log("▶️ Playback resumed");
 }
 
-/**
- * Stop playback and clear queue
- */
 export async function stop() {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
+  assertTrackPlayer();
   await TrackPlayer.stop();
   await TrackPlayer.reset();
-  console.log('⏹️ Playback stopped');
+  console.log("⏹️ Playback stopped");
 }
 
-/**
- * Seek to position (in seconds)
- */
 export async function seekTo(position) {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
+  assertTrackPlayer();
   await TrackPlayer.seekTo(position);
   console.log(`⏩ Seeked to ${position}s`);
 }
 
 /**
- * Get playback state
+ * App-level snapshot: RNTP playback state + progress + active track metadata.
+ * Not the same object as TrackPlayer.getPlaybackState() (library type).
  */
-export async function getPlaybackState() {
-  if (!TrackPlayer) {
-    return {
-      isPlaying: false,
-      position: 0,
-      duration: 0,
-      track: null,
-      state: State?.None || 'none',
-    };
+export async function getPlaybackSnapshot() {
+  const empty = {
+    isPlaying: false,
+    position: 0,
+    duration: 0,
+    buffered: 0,
+    track: null,
+    state: State?.None ?? State?.Stopped ?? "none",
+  };
+
+  if (!loadTrackPlayerModule() || !TrackPlayer) {
+    return empty;
   }
 
   try {
-    const state = await TrackPlayer.getState();
-    const position = await TrackPlayer.getPosition();
-    const duration = await TrackPlayer.getDuration();
+    const playbackState = await TrackPlayer.getPlaybackState();
+    const progress = await TrackPlayer.getProgress();
     const trackIndex = await TrackPlayer.getCurrentTrack();
-    const track = trackIndex !== null ? await TrackPlayer.getTrack(trackIndex) : null;
+    const track =
+      trackIndex !== null && trackIndex !== undefined
+        ? await TrackPlayer.getTrack(trackIndex)
+        : null;
 
+    const state = playbackState?.state ?? playbackState;
     return {
       isPlaying: state === State.Playing,
-      position,
-      duration,
+      position: progress?.position ?? 0,
+      duration: progress?.duration ?? 0,
+      buffered: progress?.buffered ?? 0,
       track,
       state,
     };
   } catch (error) {
-    console.error('Error getting playback state:', error);
+    console.error("Error getting playback snapshot:", error);
     return {
-      isPlaying: false,
-      position: 0,
-      duration: 0,
-      track: null,
-      state: State.None,
+      ...empty,
+      state: State?.None ?? empty.state,
     };
   }
 }
 
 /**
- * Skip to next track
+ * @deprecated Prefer {@link getPlaybackSnapshot} — name overlapped with RNTP’s getPlaybackState().
+ * Behavior is identical to getPlaybackSnapshot().
  */
+export async function getPlaybackState() {
+  return getPlaybackSnapshot();
+}
+
 export async function skipToNext() {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
+  assertTrackPlayer();
   await TrackPlayer.skipToNext();
-  console.log('⏭️ Skipped to next track');
+  console.log("⏭️ Skipped to next track");
 }
 
-/**
- * Skip to previous track
- */
 export async function skipToPrevious() {
-  if (!TrackPlayer) {
-    throw new Error('react-native-track-player is not available');
-  }
+  assertTrackPlayer();
   await TrackPlayer.skipToPrevious();
-  console.log('⏮️ Skipped to previous track');
+  console.log("⏮️ Skipped to previous track");
 }
 
-/**
- * Get the current track
- */
 export async function getCurrentTrack() {
-  if (!TrackPlayer) {
+  if (!loadTrackPlayerModule() || !TrackPlayer) {
     return null;
   }
   try {
     const trackIndex = await TrackPlayer.getCurrentTrack();
-    if (trackIndex !== null) {
+    if (trackIndex !== null && trackIndex !== undefined) {
       return await TrackPlayer.getTrack(trackIndex);
     }
     return null;
   } catch (error) {
-    console.error('Error getting current track:', error);
+    console.error("Error getting current track:", error);
     return null;
   }
 }
 
-/**
- * Get the queue
- */
 export async function getQueue() {
-  if (!TrackPlayer) {
+  if (!loadTrackPlayerModule() || !TrackPlayer) {
     return [];
   }
   try {
     return await TrackPlayer.getQueue();
   } catch (error) {
-    console.error('Error getting queue:', error);
+    console.error("Error getting queue:", error);
     return [];
   }
 }
 
-// Export TrackPlayer and State for use in other files (if available)
 export function getTrackPlayer() {
   return TrackPlayer;
 }
 
+/** Track Player `State` enum (e.g. Playing, Paused). */
 export function getState() {
   return State;
 }

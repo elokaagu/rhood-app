@@ -5740,7 +5740,7 @@
     {
       "source": "docs/SETUP_GUIDE.md",
       "title": "Required Assets",
-      "text": "### Required Assets\nEnsure these files exist in `assets/`:\n- `rhood_logo.webp` - Main logo\n- `rhood_logo.png` - Fallback logo\n- `splash.png` - Splash screen image\n- `icon.png` - App icon\n- `TS Block Bold.ttf` - Custom font"
+      "text": "### Required Assets\nEnsure these files exist in `assets/`:\n- `rhood_logo.webp` - Main logo\n- `rhood_logo.png` - Fallback logo\n- `splash.png` - Splash screen image\n- `icon.png` - App icon\n- `TSBlockBold.ttf` - Custom font (family name: TS Block Bold)"
     },
     {
       "source": "docs/SETUP_GUIDE.md",

@@ -277,7 +277,7 @@ Ensure these files exist in `assets/`:
 - `rhood_logo.png` - Fallback logo
 - `splash.png` - Splash screen image
 - `icon.png` - App icon
-- `TS Block Bold.ttf` - Custom font
+- `TSBlockBold.ttf` - Custom font (registered in app as **TS Block Bold**)
 
 ### Asset Optimization
 ```bash

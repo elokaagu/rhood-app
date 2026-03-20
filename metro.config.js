@@ -11,31 +11,52 @@ const projectRoot = __dirname;
 config.resolver.sourceExts = [...(config.resolver.sourceExts || []), "jsx", "js", "ts", "tsx"];
 config.resolver.assetExts = config.resolver.assetExts.filter(ext => ext !== "svg");
 
-// Alias "assets" -> project assets folder so require("assets/...") avoids "./" (which can become .%2F in URLs and cause ENOENT)
-config.resolver.extraNodeModules = {
-  ...config.resolver.extraNodeModules,
-  assets: path.join(projectRoot, "assets"),
+// Normalize module paths where "./" was encoded as ".%2F" (fixes ENOENT scandir '.%2Fassets')
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  let next = moduleName;
+  if (typeof next === "string") {
+    next = next.replace(/\.%2F/gi, "./");
+    if (next.includes("%")) {
+      try {
+        next = decodeURIComponent(next);
+      } catch (_e) {
+        /* keep next */
+      }
+    }
+  }
+  if (next !== moduleName) {
+    try {
+      return context.resolveRequest(context, next, platform);
+    } catch (_e) {
+      /* fall through */
+    }
+  }
+  return context.resolveRequest(context, moduleName, platform);
 };
 
 // Ensure proper asset directory resolution
 config.watchFolders = [path.resolve(__dirname)];
 
-// Add custom server middleware to decode URL-encoded asset paths
+// Add custom server middleware to fix malformed asset URLs (e.g. ./ encoded as .%2F)
 config.server = config.server || {};
 const originalEnhanceMiddleware = config.server.enhanceMiddleware;
 config.server.enhanceMiddleware = (middleware) => {
   return (req, res, next) => {
-    // Decode URL-encoded paths in asset requests before processing
-    if (req.url && req.url.includes("%2F")) {
-      try {
-        const decodedUrl = decodeURIComponent(req.url);
-        // Only update if decoding succeeds and changes the URL
-        if (decodedUrl !== req.url) {
-          req.url = decodedUrl;
+    if (req.url) {
+      const qIndex = req.url.indexOf("?");
+      const pathPart = qIndex >= 0 ? req.url.slice(0, qIndex) : req.url;
+      const queryPart = qIndex >= 0 ? req.url.slice(qIndex) : "";
+      let fixed = pathPart.replace(/\.%2F/gi, "./");
+      if (fixed.includes("%")) {
+        try {
+          const once = decodeURIComponent(fixed);
+          if (once !== fixed) fixed = once;
+        } catch (e) {
+          /* keep fixed */
         }
-      } catch (e) {
-        // If decoding fails, continue with original URL
-        console.warn("Failed to decode URL:", req.url, e);
+      }
+      if (fixed + queryPart !== req.url) {
+        req.url = fixed + queryPart;
       }
     }
     
