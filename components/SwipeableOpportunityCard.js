@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import ProgressiveImage from "./ProgressiveImage";
 
 const { width: screenWidth } = Dimensions.get("window");
 const SWIPE_THRESHOLD = screenWidth * 0.25;
@@ -213,7 +214,13 @@ export default function SwipeableOpportunityCard({
       <View style={styles.cardShadow}>
         <View style={styles.imageContainer}>
           {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.featuredImage} />
+            <ProgressiveImage
+              source={{ uri: imageUri }}
+              style={styles.progressiveImageWrap}
+              imageStyle={styles.featuredImage}
+              contentFit="cover"
+              transition={420}
+            />
           ) : (
             <Image
               source={require("../assets/rhood_logo.webp")}
@@ -303,6 +310,12 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: "relative",
     flex: 1,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    overflow: "hidden",
+  },
+  /** Fills the image area so ProgressiveImage placeholder + fade have a bounded box */
+  progressiveImageWrap: {
+    ...StyleSheet.absoluteFillObject,
   },
   featuredImage: {
     width: "100%",

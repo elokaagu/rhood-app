@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Alert } from "react-native";
+import { Alert, Image } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { db, supabase } from "../lib/supabase";
@@ -181,6 +181,27 @@ export default function useOpportunities({
       setIsLoadingOpportunities(false);
     }
   }, [user?.id, userLocation]);
+
+  /** Warm the image cache for the visible card + next cards so the deck doesn’t pop in after text. */
+  useEffect(() => {
+    if (!opportunities?.length) return;
+    const uris = new Set();
+    const addUri = (opp) => {
+      const raw =
+        opp?.image || opp?.image_url || opp?.cover_image_url || null;
+      if (typeof raw === "string" && /^https?:\/\//i.test(raw.trim())) {
+        uris.add(raw.trim());
+      }
+    };
+    for (let i = 0; i < 4; i++) {
+      const idx = currentOpportunityIndex + i;
+      if (idx >= opportunities.length) break;
+      addUri(opportunities[idx]);
+    }
+    uris.forEach((uri) => {
+      Image.prefetch(uri).catch(() => {});
+    });
+  }, [opportunities, currentOpportunityIndex]);
 
   // ── Swipe / apply handlers ─────────────────────────────
 
@@ -370,6 +391,7 @@ export default function useOpportunities({
             "You've already applied for this opportunity. We'll notify you on the outcome soon.",
           primaryButtonText: "OK",
           onPrimaryPress: () => {
+            hideCustomModal();
             setCurrentOpportunityIndex((prev) => prev + 1);
             setSelectedOpportunity(null);
           },
@@ -538,6 +560,7 @@ export default function useOpportunities({
       onPrimaryPress: () => handleConfirmApply(currentOpportunity),
       onSecondaryPress: () => {
         if (__DEV__) console.log("Modal cancelled, advancing to next opportunity.");
+        hideCustomModal();
         setSelectedOpportunity(null);
         setCurrentOpportunityIndex((prev) => prev + 1);
       },
@@ -548,6 +571,7 @@ export default function useOpportunities({
     currentOpportunityIndex,
     user?.id,
     showCustomModal,
+    hideCustomModal,
     handleConfirmApply,
     handleShareOpportunityInApp,
   ]);
