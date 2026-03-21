@@ -2994,12 +2994,12 @@ const styles = StyleSheet.create({
     color: "hsl(0, 100%, 60%)",
   },
 
-  // Global Audio Player Styles
+  // Global Audio Player — mini bar UI is components/MiniPlayerBar.js (tokens kept here for reference / future use)
   globalAudioPlayer: {
     position: "absolute",
     // left / right / bottom come from GlobalAudioPlayerUI (safe area + tab offset)
     backgroundColor: "hsl(0, 0%, 8%)", // Dark background
-    borderRadius: 12, // Reduced from 50 to match other elements
+    borderRadius: 16,
     paddingVertical: 12, // Compact vertical padding
     paddingHorizontal: 16,
     overflow: "hidden",

@@ -9,17 +9,16 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Image,
-  Share,
   Alert,
   PanResponder,
   StyleSheet,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
-import ProgressiveImage from "./ProgressiveImage";
+import MiniPlayerBar from "./MiniPlayerBar";
+import FullScreenPlayerModal from "./FullScreenPlayerModal";
 
 /** Horizontal inset beyond safe-area left/right — aligns with tab bar margin in AppShell (~16 + insets). */
 const MINI_PLAYER_GUTTER = 16;
@@ -116,18 +115,6 @@ function GlobalAudioPlayerUI({
       return { ...prev, repeatMode: modes[i] };
     });
   }, [setGlobalAudioState]);
-
-  const shareTrack = useCallback(async () => {
-    if (!track) return;
-    try {
-      await Share.share({
-        message: `Check out "${track.title}" by ${track.artist} on Rhood!`,
-        title: "Share Track",
-      });
-    } catch (e) {
-      Alert.alert("Error", "Failed to share");
-    }
-  }, [track]);
 
   const trackDurationMs = (() => {
     const t = track;
@@ -244,360 +231,54 @@ function GlobalAudioPlayerUI({
 
   return (
     <>
-      {/* ——— Play bar (mini) ——— */}
-      <View
-        style={localStyles.miniBarWrapper}
-        collapsable={false}
-        pointerEvents={miniBarPointerEvents}
-      >
-        {playBarFadeStyle ? (
-          <View style={playBarFadeStyle} pointerEvents="none" />
-        ) : null}
-        <View
-          style={[
-            s.globalAudioPlayer ?? localStyles.miniBar,
-            miniBarLayoutStyle,
-          ]}
-        >
-          <View style={s.audioPlayerContent ?? localStyles.miniBarContent}>
-            <TouchableOpacity
-              style={[localStyles.miniMainPressArea, s.miniMainPressArea]}
-              onPress={() => setFullScreenVisible(true)}
-              activeOpacity={0.85}
-            >
-              <View style={s.audioAlbumArt ?? localStyles.miniAlbumArt}>
-                {track.image ? (
-                  <Image
-                    source={{ uri: track.image }}
-                    style={s.albumArtImage ?? localStyles.albumArtImg}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={s.albumArtPlaceholder ?? localStyles.albumArtPlaceholder}>
-                    <Ionicons name="musical-notes" size={22} color="hsl(75, 100%, 60%)" />
-                  </View>
-                )}
-              </View>
-              <View style={s.audioTrackInfo ?? localStyles.miniTrackInfo}>
-                <Text
-                  style={s.audioTrackTitle ?? localStyles.miniTitle}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {track.title}
-                </Text>
-                <Text
-                  style={s.audioTrackArtist ?? localStyles.miniArtist}
-                  numberOfLines={1}
-                >
-                  {track.artist}
-                </Text>
-              </View>
-            </TouchableOpacity>
-            <View style={localStyles.miniRightCluster}>
-              <Text style={s.audioTimeText ?? localStyles.miniTime}>
-                {formatTime(displayPositionMillis)} /{" "}
-                {durationUnknown ? "–:––" : formatTime(durationMillis)}
-              </Text>
-              <TouchableOpacity
-                style={s.audioControlButton ?? localStyles.miniPlayBtn}
-                onPress={onPlayPause}
-                activeOpacity={0.8}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <Ionicons
-                  name={state.isPlaying ? "pause" : "play"}
-                  size={22}
-                  color="hsl(0, 0%, 0%)"
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.audioCloseButton ?? localStyles.miniCloseBtn}
-                onPress={onClose}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                accessibilityLabel="Stop playback"
-                accessibilityRole="button"
-              >
-                <Ionicons name="close" size={22} color="hsl(0, 0%, 60%)" />
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={s.audioProgressContainer ?? localStyles.miniProgressContainer}>
-            <View style={s.audioProgressBar ?? localStyles.miniProgressBar}>
-              <View
-                style={[
-                  s.audioProgressFill ?? localStyles.miniProgressFill,
-                  { width: `${displayProgress * 100}%` },
-                ]}
-              />
-            </View>
-          </View>
-        </View>
-      </View>
+      <MiniPlayerBar
+        track={track}
+        isPlaying={!!state.isPlaying}
+        positionMillis={displayPositionMillis}
+        durationMillis={durationMillis}
+        durationUnknown={durationUnknown}
+        onOpenFullScreen={() => setFullScreenVisible(true)}
+        onPlayPause={onPlayPause}
+        onClose={onClose}
+        layoutStyle={miniBarLayoutStyle}
+        wrapperPointerEvents={miniBarPointerEvents}
+        fadeOverlayStyle={playBarFadeStyle}
+      />
 
-      {/* ——— Full-screen player modal ——— */}
-      <Modal
+      <FullScreenPlayerModal
         visible={fullScreenVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setFullScreenVisible(false)}
-      >
-        <View style={s.fullScreenPlayerOverlay ?? localStyles.fullOverlay}>
-          <SafeAreaView style={localStyles.fullSafe} edges={["top"]}>
-          <View
-            style={[
-              s.fullScreenPlayer ?? localStyles.fullScroll,
-              s.fullScreenPlayerContent ?? localStyles.fullContent,
-            ]}
-          >
-            <View style={s.fullScreenHeader ?? localStyles.fullHeader}>
-              <TouchableOpacity
-                style={s.closeButton ?? localStyles.closeBtn}
-                onPress={() => setFullScreenVisible(false)}
-                accessibilityLabel="Close player"
-                accessibilityRole="button"
-              >
-                <Ionicons name="chevron-down" size={26} color="hsl(0, 0%, 100%)" />
-              </TouchableOpacity>
-              <View style={localStyles.dragHandle} />
-              <View style={localStyles.headerSpacer} />
-            </View>
-
-            <View style={s.fullScreenAlbumArtContainer ?? localStyles.fullArtContainer}>
-              {track.image ? (
-                <Image
-                  source={{ uri: track.image }}
-                  style={s.fullScreenAlbumArt ?? localStyles.fullArt}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View
-                  style={[
-                    s.fullScreenAlbumArt ?? localStyles.fullArt,
-                    localStyles.fullArtPlaceholder,
-                  ]}
-                >
-                  <Ionicons name="musical-notes" size={80} color="hsl(75, 100%, 60%)" />
-                </View>
-              )}
-            </View>
-
-            <View style={s.fullScreenTrackInfo ?? localStyles.fullTrackInfo}>
-              <View style={s.fullScreenTrackTitleRow ?? localStyles.fullTitleRow}>
-                <Text style={s.fullScreenTrackTitle ?? localStyles.fullTitle}>
-                  {track.title}
-                </Text>
-                <TouchableOpacity
-                  style={s.fullScreenLikeButton ?? localStyles.fullLikeBtn}
-                  onPress={() => toggleLike?.()}
-                  accessibilityLabel={track.isLiked ? "Unlike" : "Like"}
-                  accessibilityRole="button"
-                >
-                  <Ionicons
-                    name={track.isLiked ? "heart" : "heart-outline"}
-                    size={24}
-                    color={track.isLiked ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 70%)"}
-                  />
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  if (track?.user_id) {
-                    setFullScreenVisible(false);
-                    onNavigateToProfile?.(track.user_id);
-                  }
-                }}
-              >
-                <Text style={s.fullScreenTrackArtist ?? localStyles.fullArtist}>
-                  {track.artist}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={s.fullScreenProgressSection ?? localStyles.fullProgressSection}>
-              <View
-                ref={progressBarRef}
-                style={[
-                  localStyles.fullProgressBarTrack,
-                  s.fullScreenProgressBar ?? localStyles.fullProgressBar,
-                ]}
-                onLayout={remeasureProgressBar}
-                collapsable={false}
-                {...(canScrub ? progressBarPanResponder.panHandlers : {})}
-                accessibilityLabel="Progress bar"
-                accessibilityRole="adjustable"
-                accessibilityHint={canScrub ? "Drag left or right to seek" : undefined}
-              >
-                <View
-                  style={[
-                    s.fullScreenProgressFill ?? localStyles.fullProgressFill,
-                    {
-                      width: `${Math.max(
-                        displayProgress * 100,
-                        displayProgress > 0.001 ? 1.2 : 0
-                      )}%`,
-                    },
-                  ]}
-                />
-                {(canScrub || displayProgress > 0) && (
-                  <View
-                    style={[
-                      s.fullScreenProgressThumb ?? localStyles.fullProgressThumb,
-                      {
-                        left: `${Math.min(100, Math.max(0, displayProgress * 100))}%`,
-                      },
-                    ]}
-                    pointerEvents="none"
-                  />
-                )}
-              </View>
-              <View style={s.fullScreenTimeContainer ?? localStyles.fullTimeRow}>
-                <Text style={s.fullScreenTimeText ?? localStyles.fullTimeText}>
-                  {formatTime(displayPositionMillis)}
-                </Text>
-                {durationUnknown ? (
-                  <Text style={[s.fullScreenTimeText ?? localStyles.fullTimeText, { color: "hsl(0, 0%, 50%)" }]}>
-                    –:––
-                  </Text>
-                ) : (
-                  <Text style={s.fullScreenTimeText ?? localStyles.fullTimeText}>
-                    {formatTime(durationMillis)}
-                  </Text>
-                )}
-              </View>
-              {state.error ? (
-                <Text style={[s.fullScreenTimeText ?? localStyles.fullTimeText, localStyles.error]} numberOfLines={1}>
-                  {state.error}
-                </Text>
-              ) : null}
-            </View>
-
-            <View style={[localStyles.fullControlsRow, s.fullScreenControls ?? localStyles.fullControls]}>
-              <TouchableOpacity
-                style={s.fullScreenControlButton ?? localStyles.controlBtn}
-                onPress={() => toggleShuffle?.()}
-                accessibilityLabel={state.isShuffled ? "Shuffle on" : "Shuffle off"}
-                accessibilityRole="button"
-              >
-                <Ionicons
-                  name="shuffle"
-                  size={20}
-                  color={state.isShuffled ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 100%)"}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.fullScreenControlButton ?? localStyles.controlBtn}
-                onPress={() => skipPrev?.()}
-                accessibilityLabel="Previous track"
-                accessibilityRole="button"
-              >
-                <Ionicons name="play-skip-back" size={24} color="hsl(0, 0%, 100%)" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.fullScreenPlayButton ?? localStyles.playBtn}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  onPlayPause();
-                }}
-                accessibilityLabel={state.isPlaying ? "Pause" : "Play"}
-                accessibilityRole="button"
-              >
-                <Ionicons
-                  name={state.isPlaying ? "pause" : "play"}
-                  size={32}
-                  color="hsl(0, 0%, 0%)"
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.fullScreenControlButton ?? localStyles.controlBtn}
-                onPress={() => skipNext?.()}
-                accessibilityLabel="Next track"
-                accessibilityRole="button"
-              >
-                <Ionicons name="play-skip-forward" size={24} color="hsl(0, 0%, 100%)" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.fullScreenControlButton ?? localStyles.controlBtn}
-                onPress={toggleRepeat}
-                accessibilityLabel={`Repeat ${state.repeatMode === "none" ? "off" : state.repeatMode === "one" ? "one" : "all"}`}
-                accessibilityRole="button"
-              >
-                <Ionicons
-                  name="repeat"
-                  size={20}
-                  color={state.repeatMode !== "none" ? "hsl(75, 100%, 60%)" : "hsl(0, 0%, 100%)"}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <View style={[localStyles.secondaryActionsRow, s.fullScreenSecondaryActions ?? localStyles.secondaryActions]}>
-              <TouchableOpacity
-                style={s.fullScreenSecondaryButton ?? localStyles.secondaryBtn}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  shareTrack();
-                }}
-                accessibilityLabel="Share track"
-                accessibilityRole="button"
-              >
-                <Ionicons name="share-outline" size={20} color="hsl(0, 0%, 100%)" />
-                <Text style={s.fullScreenSecondaryButtonText ?? localStyles.secondaryBtnText}>
-                  Share
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.fullScreenSecondaryButton ?? localStyles.secondaryBtn}
-                onPress={() => {
-                  setFullScreenVisible(false);
-                  setQueueVisible(true);
-                }}
-                accessibilityLabel="Open queue"
-                accessibilityRole="button"
-              >
-                <Ionicons name="list-outline" size={20} color="hsl(0, 0%, 100%)" />
-                <Text style={s.fullScreenSecondaryButtonText ?? localStyles.secondaryBtnText}>
-                  Queue
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={s.aboutDJCard ?? localStyles.aboutCard}
-              onPress={() => {
-                if (track?.user_id) {
-                  setFullScreenVisible(false);
-                  onNavigateToProfile?.(track.user_id);
-                }
-              }}
-            >
-              <View style={s.aboutDJHeader ?? localStyles.aboutHeader}>
-                <View style={s.aboutDJAvatar ?? localStyles.aboutAvatar}>
-                  <ProgressiveImage
-                    source={track?.user_image ? { uri: track.user_image } : null}
-                    style={s.aboutDJAvatarImage ?? localStyles.aboutAvatarImg}
-                    placeholder={
-                      <View style={[localStyles.aboutAvatarImg, localStyles.aboutAvatarPlaceholder]}>
-                        <Ionicons name="person" size={24} color="hsl(0, 0%, 50%)" />
-                      </View>
-                    }
-                  />
-                </View>
-                <View style={s.aboutDJInfo ?? localStyles.aboutInfo}>
-                  <Text style={s.aboutDJTitle ?? localStyles.aboutTitle}>About the DJ</Text>
-                  <Text style={s.aboutDJName ?? localStyles.aboutName}>
-                    {track?.user_dj_name || track?.artist || "DJ"}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="hsl(0, 0%, 50%)" />
-              </View>
-              <Text style={s.aboutDJText ?? localStyles.aboutText}>
-                {track?.user_bio || "Discover more about this DJ."}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          </SafeAreaView>
-        </View>
-      </Modal>
+        onClose={() => setFullScreenVisible(false)}
+        overlayStyle={s.fullScreenPlayerOverlay}
+        track={track}
+        isPlaying={!!state.isPlaying}
+        isShuffled={!!state.isShuffled}
+        repeatMode={state.repeatMode}
+        playbackError={state.error}
+        displayPositionMillis={displayPositionMillis}
+        durationMillis={durationMillis}
+        durationUnknown={durationUnknown}
+        displayProgress={displayProgress}
+        canScrub={canScrub}
+        progressBarRef={progressBarRef}
+        onProgressBarLayout={remeasureProgressBar}
+        progressPanHandlers={canScrub ? progressBarPanResponder.panHandlers : {}}
+        onPlayPause={onPlayPause}
+        onShuffle={() => toggleShuffle?.()}
+        onSkipPrev={() => skipPrev?.()}
+        onSkipNext={() => skipNext?.()}
+        onToggleRepeat={toggleRepeat}
+        onToggleLike={() => toggleLike?.()}
+        onArtistPress={() => {
+          if (track?.user_id) {
+            setFullScreenVisible(false);
+            onNavigateToProfile?.(track.user_id);
+          }
+        }}
+        onOpenQueue={() => {
+          setFullScreenVisible(false);
+          setQueueVisible(true);
+        }}
+      />
 
       {/* ——— Queue modal ——— */}
       <Modal
@@ -746,356 +427,6 @@ function GlobalAudioPlayerUI({
 }
 
 const localStyles = StyleSheet.create({
-  miniBarWrapper: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    top: 0,
-    zIndex: 10000,
-    elevation: 10000,
-    justifyContent: "flex-end",
-  },
-  miniBar: {
-    position: "absolute",
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    overflow: "hidden",
-    zIndex: 1001,
-    elevation: 20,
-    minHeight: 70,
-  },
-  miniBarContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  miniMainPressArea: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 12,
-    minWidth: 0,
-  },
-  miniAlbumArt: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    marginRight: 12,
-    overflow: "hidden",
-    borderWidth: 0.5,
-    borderColor: "hsl(0, 0%, 20%)",
-  },
-  albumArtImg: { width: "100%", height: "100%" },
-  albumArtPlaceholder: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "hsl(0, 0%, 15%)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  miniTrackInfo: { flex: 1, marginRight: 16, justifyContent: "center" },
-  miniTitle: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "bold",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 2,
-    lineHeight: 18,
-  },
-  miniArtist: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    fontWeight: "400",
-  },
-  miniTime: {
-    fontSize: 11,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 50%)",
-    fontWeight: "400",
-    letterSpacing: 0.5,
-  },
-  miniPlayBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "hsl(75, 100%, 60%)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  miniCloseBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 4,
-  },
-  miniRightCluster: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexShrink: 0,
-    marginLeft: 8,
-    gap: 4,
-  },
-  miniProgressContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: "hsl(0, 0%, 15%)",
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    overflow: "visible",
-  },
-  miniProgressBar: { height: "100%", backgroundColor: "transparent", position: "relative" },
-  miniProgressFill: {
-    height: "100%",
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 0,
-  },
-  fullOverlay: { flex: 1, backgroundColor: "hsl(0, 0%, 6%)" },
-  fullSafe: { flex: 1 },
-  fullScroll: { flex: 1, backgroundColor: "transparent" },
-  fullContent: {
-    paddingTop: 8,
-    paddingHorizontal: 20,
-    paddingBottom: 48,
-    minHeight: 400,
-    alignItems: "center",
-  },
-  fullHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 24,
-    paddingHorizontal: 4,
-  },
-  closeBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "hsl(0, 0%, 35%)",
-  },
-  headerSpacer: { width: 44 },
-  fullArtContainer: { alignItems: "center", marginBottom: 28 },
-  fullArt: {
-    width: 280,
-    height: 280,
-    borderRadius: 16,
-    overflow: "hidden",
-    backgroundColor: "hsl(0, 0%, 14%)",
-  },
-  fullArtPlaceholder: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  fullTrackInfo: {
-    alignItems: "flex-start",
-    marginBottom: 28,
-    paddingHorizontal: 4,
-  },
-  fullTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    gap: 12,
-    marginBottom: 6,
-  },
-  fullTitle: {
-    fontSize: 22,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    fontWeight: "800",
-    textAlign: "left",
-    flex: 1,
-    lineHeight: 26,
-  },
-  fullLikeBtn: { padding: 6, justifyContent: "center", alignItems: "center" },
-  fullArtist: {
-    fontSize: 15,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 68%)",
-    textAlign: "left",
-    fontWeight: "500",
-  },
-  fullProgressSection: {
-    width: "100%",
-    maxWidth: 400,
-    alignSelf: "center",
-    marginBottom: 28,
-    paddingHorizontal: 4,
-  },
-  fullProgressBarTrack: {
-    width: "100%",
-  },
-  fullProgressBar: {
-    height: 6,
-    backgroundColor: "hsl(0, 0%, 22%)",
-    borderRadius: 3,
-    marginBottom: 10,
-    position: "relative",
-    paddingVertical: 16,
-    justifyContent: "center",
-    overflow: "visible",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 30%)",
-  },
-  fullProgressFill: {
-    height: 6,
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 3,
-    position: "absolute",
-    top: 16,
-    left: 0,
-  },
-  fullProgressThumb: {
-    position: "absolute",
-    top: 11,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "hsl(75, 100%, 60%)",
-    marginLeft: -8,
-    borderWidth: 2,
-    borderColor: "hsl(0, 0%, 8%)",
-    shadowColor: "hsl(75, 100%, 60%)",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  fullTimeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 2,
-  },
-  fullTimeText: {
-    fontSize: 13,
-    color: "hsl(0, 0%, 55%)",
-    fontFamily: "Helvetica Neue",
-    fontWeight: "500",
-  },
-  error: { color: "hsl(0, 75%, 55%)", fontSize: 12, marginTop: 8 },
-  fullControlsRow: {
-    alignSelf: "center",
-    width: "100%",
-    maxWidth: 380,
-    paddingHorizontal: 8,
-  },
-  fullControls: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    alignItems: "center",
-    marginTop: 8,
-    marginBottom: 28,
-  },
-  controlBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  playBtn: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: "hsl(75, 100%, 60%)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  secondaryActionsRow: {
-    alignSelf: "center",
-    width: "100%",
-    maxWidth: 320,
-  },
-  secondaryActions: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    alignItems: "center",
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  secondaryBtn: {
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    minWidth: 72,
-  },
-  secondaryBtnText: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 78%)",
-    marginTop: 4,
-    fontWeight: "500",
-  },
-  aboutCard: {
-    marginTop: 24,
-    width: "100%",
-    maxWidth: 400,
-    alignSelf: "center",
-    backgroundColor: "hsl(0, 0%, 11%)",
-    borderRadius: 14,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 18%)",
-  },
-  aboutHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  aboutAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    marginRight: 14,
-    borderWidth: 2,
-    borderColor: "hsl(75, 100%, 60%)",
-    overflow: "hidden",
-  },
-  aboutAvatarImg: { width: "100%", height: "100%" },
-  aboutAvatarPlaceholder: {
-    backgroundColor: "hsl(0, 0%, 16%)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  aboutInfo: { flex: 1, minWidth: 0 },
-  aboutTitle: {
-    fontSize: 14,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 60%)",
-    fontWeight: "600",
-    marginBottom: 2,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  aboutName: {
-    fontSize: 16,
-    color: "hsl(75, 100%, 60%)",
-    fontWeight: "600",
-  },
-  aboutText: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 65%)",
-    lineHeight: 20,
-    fontWeight: "400",
-  },
   queueOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.8)",
