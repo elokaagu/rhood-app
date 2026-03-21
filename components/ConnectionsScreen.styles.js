@@ -555,10 +555,12 @@ const styles = StyleSheet.create({
   pendingRequestsHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    width: "100%",
   },
   pendingRequestsTitle: {
-    fontSize: 16,
+    flex: 1,
+    fontSize: 18,
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     letterSpacing: 0.5,
@@ -638,14 +640,16 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 20,
   },
+  /** Same horizontal inset as carousel section titles (discoverList padding only — no double padding). */
   communitySubtitleSection: {
     marginBottom: 12,
   },
+  /** Discover section titles: Spotify-style single left gutter, matches recommendationsTitle. */
   communitySubtitle: {
-    fontSize: 15,
+    fontSize: 18,
     fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 65%)",
-    letterSpacing: 0.3,
+    color: "hsl(0, 0%, 100%)",
+    letterSpacing: 0.5,
   },
   discoverCard: {
     backgroundColor: "hsl(0, 0%, 8%)",
@@ -821,25 +825,32 @@ const styles = StyleSheet.create({
   discoverPendingText: {
     color: "hsl(75, 100%, 60%)",
   },
-  locationUpdateButton: {
-    marginLeft: "auto",
-    padding: 4,
+  /** Text-only action (no icon) for location — pairs with section headers. */
+  sectionHeaderLink: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
+    paddingVertical: 4,
+    paddingLeft: 12,
   },
   recommendationsSection: {
     marginBottom: 24,
-    paddingHorizontal: 20,
   },
   recommendationsHeader: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 16,
-    gap: 8,
+    width: "100%",
   },
   recommendationsTitle: {
+    flex: 1,
     fontSize: 18,
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     letterSpacing: 0.5,
+    marginRight: 8,
   },
   recommendationsScroll: {
     marginHorizontal: -20,
@@ -902,7 +913,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "hsl(0, 0%, 15%)",
     marginTop: 24,
-    marginHorizontal: 20,
   },
   opportunityCard: {
     width: 200,

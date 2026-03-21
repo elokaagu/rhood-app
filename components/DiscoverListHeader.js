@@ -37,7 +37,6 @@ function DiscoverListHeader({
       {showCarousels && popularDJs?.length > 0 && (
         <View style={styles.recommendationsSection}>
           <View style={styles.recommendationsHeader}>
-            <Ionicons name="trending-up" size={18} color="hsl(75, 100%, 60%)" />
             <Text style={styles.recommendationsTitle}>Popular DJs</Text>
           </View>
           <ScrollView
@@ -93,10 +92,9 @@ function DiscoverListHeader({
       {showCarousels && nearbyDJs?.length > 0 && (
         <View style={styles.recommendationsSection}>
           <View style={styles.recommendationsHeader}>
-            <Ionicons name="location" size={18} color="hsl(75, 100%, 60%)" />
             <Text style={styles.recommendationsTitle}>DJs Near You</Text>
-            <TouchableOpacity style={styles.locationUpdateButton} onPress={onOpenLocationModal} activeOpacity={0.7}>
-              <Ionicons name="location-outline" size={16} color="hsl(75, 100%, 60%)" />
+            <TouchableOpacity onPress={onOpenLocationModal} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}>
+              <Text style={styles.sectionHeaderLink}>Location</Text>
             </TouchableOpacity>
           </View>
           <ScrollView
@@ -155,10 +153,9 @@ function DiscoverListHeader({
       {showCarousels && nearbyOpportunities?.length > 0 && (
         <View style={styles.recommendationsSection}>
           <View style={styles.recommendationsHeader}>
-            <Ionicons name="briefcase" size={18} color="hsl(75, 100%, 60%)" />
             <Text style={styles.recommendationsTitle}>Opportunities Near You</Text>
-            <TouchableOpacity style={styles.locationUpdateButton} onPress={onOpenLocationModal} activeOpacity={0.7}>
-              <Ionicons name="location-outline" size={16} color="hsl(75, 100%, 60%)" />
+            <TouchableOpacity onPress={onOpenLocationModal} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}>
+              <Text style={styles.sectionHeaderLink}>Location</Text>
             </TouchableOpacity>
           </View>
           <ScrollView
@@ -212,7 +209,6 @@ function DiscoverListHeader({
       {incomingConnectionRequests?.length > 0 && (
         <View style={[styles.pendingRequestsSection, { marginTop: 0 }]}>
           <View style={styles.pendingRequestsHeader}>
-            <Ionicons name="person-add" size={18} color="hsl(75, 100%, 60%)" />
             <Text style={styles.pendingRequestsTitle}>Connection Requests</Text>
           </View>
           {incomingConnectionRequests.map((request) => {
