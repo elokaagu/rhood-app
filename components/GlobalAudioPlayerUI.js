@@ -12,6 +12,7 @@ import {
   Alert,
   PanResponder,
   StyleSheet,
+  Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -115,6 +116,18 @@ function GlobalAudioPlayerUI({
       return { ...prev, repeatMode: modes[i] };
     });
   }, [setGlobalAudioState]);
+
+  const shareTrack = useCallback(async () => {
+    if (!track) return;
+    try {
+      await Share.share({
+        message: `Check out "${track.title}" by ${track.artist} on R/HOOD!`,
+        title: "Share Track",
+      });
+    } catch (_) {
+      /* user cancelled or share unavailable */
+    }
+  }, [track]);
 
   const trackDurationMs = (() => {
     const t = track;
@@ -268,6 +281,7 @@ function GlobalAudioPlayerUI({
         onSkipNext={() => skipNext?.()}
         onToggleRepeat={toggleRepeat}
         onToggleLike={() => toggleLike?.()}
+        onShare={shareTrack}
         onArtistPress={() => {
           if (track?.user_id) {
             setFullScreenVisible(false);

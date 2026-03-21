@@ -3163,7 +3163,7 @@ const styles = StyleSheet.create({
   // Full-Screen Player Styles - Redesigned to match reference with R/HOOD theming
   fullScreenPlayerOverlay: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 8%)", // Dark background like reference
+    backgroundColor: "hsl(0, 0%, 7%)", // Spotify-style canvas (#121212)
   },
   fullScreenBackgroundImage: {
     position: "absolute",

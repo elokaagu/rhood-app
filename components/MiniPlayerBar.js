@@ -1,15 +1,19 @@
 /**
- * Floating mini player above the tab bar. Visuals match R/HOOD tokens used in App.js / Discover.
- * Parent supplies absolute left/right/bottom (safe area + tab clearance).
+ * Spotify-style floating mini player: #282828 bar, title • artist, device row,
+ * outline headphones + white play/pause, thin white progress at bottom.
  */
 import React, { memo, useMemo } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 
-const LIME = "hsl(75, 100%, 60%)";
-const CARD_BG = "hsl(0, 0%, 8%)";
-const BORDER = "hsl(0, 0%, 15%)";
+/** R/HOOD lime — device + headphones accent (Spotify green analogue) */
+const ACCENT = "hsl(75, 100%, 60%)";
+/** Spotify mini player canvas */
+const BAR_BG = "#282828";
+const TRACK_BG = "hsl(0, 0%, 22%)";
+const PLAYED = "hsl(0, 0%, 100%)";
+const ARTIST_MUTED = "#B3B3B3";
 
 export function formatMiniTime(ms) {
   if (ms == null || ms < 0) return "0:00";
@@ -23,12 +27,11 @@ function MiniPlayerBar({
   isPlaying,
   positionMillis,
   durationMillis,
-  durationUnknown,
+  durationUnknown: _durationUnknown,
   onOpenFullScreen,
   onPlayPause,
   onClose,
   layoutStyle,
-  /** 'none' when full-screen or queue modal is open so touches pass through */
   wrapperPointerEvents = "box-none",
   fadeOverlayStyle,
 }) {
@@ -52,73 +55,70 @@ function MiniPlayerBar({
       ) : null}
 
       <View style={[styles.card, layoutStyle]}>
-        <View style={styles.row}>
-          <View style={styles.leading}>
-            <Pressable
-              style={({ pressed }) => [styles.leadingPress, pressed && styles.leadingPressed]}
-              onPress={onOpenFullScreen}
-              android_ripple={{ color: "rgba(255,255,255,0.06)" }}
-            >
-              <View style={styles.artFrame}>
-                {uri ? (
-                  <ProgressiveImage
-                    source={{ uri }}
-                    style={styles.art}
-                    contentFit="cover"
-                    placeholder={
-                      <View style={styles.artPh}>
-                        <Ionicons name="musical-notes" size={22} color={LIME} />
-                      </View>
-                    }
-                  />
-                ) : (
-                  <View style={styles.artPh}>
-                    <Ionicons name="musical-notes" size={22} color={LIME} />
-                  </View>
-                )}
-              </View>
-              <View style={styles.textCol}>
-                <Text style={styles.trackTitle} numberOfLines={1}>
-                  {title}
+        <View style={styles.mainRow}>
+          <Pressable
+            style={({ pressed }) => [styles.leading, pressed && styles.leadingPressed]}
+            onPress={onOpenFullScreen}
+            android_ripple={{ color: "rgba(255,255,255,0.06)" }}
+          >
+            <View style={styles.artFrame}>
+              {uri ? (
+                <ProgressiveImage
+                  source={{ uri }}
+                  style={styles.art}
+                  contentFit="cover"
+                  placeholder={
+                    <View style={styles.artPh}>
+                      <Ionicons name="musical-notes" size={20} color={ACCENT} />
+                    </View>
+                  }
+                />
+              ) : (
+                <View style={styles.artPh}>
+                  <Ionicons name="musical-notes" size={20} color={ACCENT} />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.textBlock}>
+              <Text style={styles.titleLine} numberOfLines={1} ellipsizeMode="tail">
+                <Text style={styles.titleBold}>{title}</Text>
+                <Text style={styles.titleDot}> • </Text>
+                <Text style={styles.titleArtist}>{artist}</Text>
+              </Text>
+              <View style={styles.deviceRow}>
+                <Ionicons name="bluetooth-outline" size={15} color={ACCENT} />
+                <Text style={styles.deviceLabel} numberOfLines={1}>
+                  R/HOOD
                 </Text>
-                <Text style={styles.trackArtist} numberOfLines={1}>
-                  {artist}
-                </Text>
               </View>
-            </Pressable>
-          </View>
+            </View>
+          </Pressable>
 
           <View style={styles.trailing}>
-            <Text
-              style={styles.time}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
-            >
-              {formatMiniTime(positionMillis)} /{" "}
-              {durationUnknown ? "–:––" : formatMiniTime(durationMillis)}
-            </Text>
+            <Ionicons name="headset-outline" size={22} color={ACCENT} />
             <Pressable
-              style={({ pressed }) => [styles.play, pressed && styles.playPressed]}
+              style={({ pressed }) => [styles.playHit, pressed && styles.hitPressed]}
               onPress={onPlayPause}
-              hitSlop={10}
+              hitSlop={{ top: 14, bottom: 14, left: 14, right: 8 }}
               accessibilityLabel={isPlaying ? "Pause" : "Play"}
               accessibilityRole="button"
             >
               <Ionicons
                 name={isPlaying ? "pause" : "play"}
-                size={22}
-                color="hsl(0, 0%, 0%)"
+                size={28}
+                color={PLAYED}
+                style={isPlaying ? undefined : styles.playIconNudge}
               />
             </Pressable>
             <Pressable
-              style={({ pressed }) => [styles.iconPlain, pressed && styles.playPressed]}
+              style={({ pressed }) => [styles.closeHit, pressed && styles.hitPressed]}
               onPress={onClose}
-              hitSlop={10}
+              hitSlop={12}
               accessibilityLabel="Stop playback"
               accessibilityRole="button"
             >
-              <Ionicons name="close" size={22} color="hsl(0, 0%, 55%)" />
+              <Ionicons name="close" size={20} color="hsl(0, 0%, 45%)" />
             </Pressable>
           </View>
         </View>
@@ -141,43 +141,41 @@ const styles = StyleSheet.create({
   card: {
     position: "absolute",
     overflow: "hidden",
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
+    backgroundColor: BAR_BG,
+    borderRadius: 10,
     zIndex: 10001,
     elevation: 21,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
   },
-  row: {
+  mainRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingLeft: 12,
+    paddingRight: 10,
+    paddingTop: 10,
+    paddingBottom: 10,
+    minHeight: 64,
   },
-  /** Flex slot for “tap to expand” — no row direction here (that’s on leadingPress). */
   leading: {
     flex: 1,
-    minWidth: 0,
-    marginRight: 8,
-    justifyContent: "center",
-  },
-  leadingPress: {
     flexDirection: "row",
     alignItems: "center",
     minWidth: 0,
+    marginRight: 8,
   },
   leadingPressed: {
-    opacity: 0.92,
+    opacity: 0.94,
   },
   artFrame: {
     width: 48,
     height: 48,
-    borderRadius: 8,
+    borderRadius: 6,
     overflow: "hidden",
     marginRight: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "hsl(0, 0%, 22%)",
-    backgroundColor: "hsl(0, 0%, 14%)",
+    backgroundColor: "hsl(0, 0%, 18%)",
   },
   art: {
     width: 48,
@@ -189,68 +187,74 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  textCol: {
+  textBlock: {
     flex: 1,
     minWidth: 0,
     justifyContent: "center",
+    gap: 4,
   },
-  trackTitle: {
-    fontSize: 16,
+  titleLine: {
+    fontSize: 14,
     fontFamily: "Helvetica Neue",
+    lineHeight: 18,
+  },
+  titleBold: {
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
-    marginBottom: 2,
   },
-  trackArtist: {
-    fontSize: 13,
+  titleDot: {
+    fontWeight: "400",
+    color: ARTIST_MUTED,
+  },
+  titleArtist: {
+    fontWeight: "400",
+    color: ARTIST_MUTED,
+  },
+  deviceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  deviceLabel: {
+    fontSize: 12,
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 65%)",
+    fontWeight: "600",
+    color: ACCENT,
+    flex: 1,
   },
   trailing: {
     flexDirection: "row",
     alignItems: "center",
     flexShrink: 0,
-    flexWrap: "nowrap",
-    gap: 6,
+    gap: 4,
   },
-  time: {
-    fontSize: 11,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 48%)",
-    marginRight: 2,
-    maxWidth: 86,
-    flexShrink: 1,
-  },
-  play: {
+  playHit: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: LIME,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: LIME,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
   },
-  playPressed: {
-    opacity: 0.9,
+  playIconNudge: {
+    marginLeft: 4,
   },
-  iconPlain: {
-    width: 40,
-    height: 40,
+  closeHit: {
+    width: 32,
+    height: 44,
     justifyContent: "center",
     alignItems: "center",
+  },
+  hitPressed: {
+    opacity: 0.75,
   },
   progressTrack: {
-    height: 3,
-    backgroundColor: "hsl(0, 0%, 16%)",
+    height: 2,
+    backgroundColor: TRACK_BG,
     width: "100%",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: LIME,
+    backgroundColor: PLAYED,
   },
 });
 
