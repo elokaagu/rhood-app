@@ -18,11 +18,12 @@ export function useDiscoverData(user, searchQuery) {
   const [discoverLoading, setDiscoverLoading] = useState(false);
   const [discoverUsers, setDiscoverUsers] = useState([]);
   const [popularDJs, setPopularDJs] = useState([]);
-  const [popularDJsLoading, setPopularDJsLoading] = useState(false);
+  /** Start true so carousels reserve space above “Our community” until first fetch settles. */
+  const [popularDJsLoading, setPopularDJsLoading] = useState(true);
   const [nearbyDJs, setNearbyDJs] = useState([]);
-  const [nearbyDJsLoading, setNearbyDJsLoading] = useState(false);
+  const [nearbyDJsLoading, setNearbyDJsLoading] = useState(true);
   const [nearbyOpportunities, setNearbyOpportunities] = useState([]);
-  const [nearbyOpportunitiesLoading, setNearbyOpportunitiesLoading] = useState(false);
+  const [nearbyOpportunitiesLoading, setNearbyOpportunitiesLoading] = useState(() => Boolean(user?.id));
   const [discoverLoadError, setDiscoverLoadError] = useState(null);
   const [discoverFadeAnim] = useState(() => new Animated.Value(1));
 
@@ -46,7 +47,11 @@ export function useDiscoverData(user, searchQuery) {
   const loadNearbyOpportunities = useCallback(() => loadNearbyOpportunitiesImpl(discoverCtxRef.current), []);
 
   useEffect(() => {
-    if (user?.id) loadNearbyOpportunities();
+    if (user?.id) {
+      loadNearbyOpportunities();
+    } else {
+      setNearbyOpportunitiesLoading(false);
+    }
   }, [user?.id, user?.city, loadNearbyOpportunities]);
 
   const filteredDiscoverUsers = useMemo(() => {
@@ -74,8 +79,11 @@ export function useDiscoverData(user, searchQuery) {
     discoverLoadError,
     setDiscoverLoadError,
     popularDJs,
+    popularDJsLoading,
     nearbyDJs,
+    nearbyDJsLoading,
     nearbyOpportunities,
+    nearbyOpportunitiesLoading,
     discoverFadeAnim,
     loadDiscoverDJs,
     loadPopularDJs,

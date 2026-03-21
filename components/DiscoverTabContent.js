@@ -20,8 +20,11 @@ function DiscoverTabContent({
   getItemLayout,
   fadeAnim,
   popularDJs,
+  popularDJsLoading,
   nearbyDJs,
+  nearbyDJsLoading,
   nearbyOpportunities,
+  nearbyOpportunitiesLoading,
   searchQuery,
   userCity,
   onNavigate,
@@ -35,8 +38,11 @@ function DiscoverTabContent({
   const listHeader = (
     <DiscoverListHeader
       popularDJs={popularDJs}
+      popularDJsLoading={popularDJsLoading}
       nearbyDJs={nearbyDJs}
+      nearbyDJsLoading={nearbyDJsLoading}
       nearbyOpportunities={nearbyOpportunities}
+      nearbyOpportunitiesLoading={nearbyOpportunitiesLoading}
       searchQuery={searchQuery}
       userCity={userCity}
       onNavigate={onNavigate}

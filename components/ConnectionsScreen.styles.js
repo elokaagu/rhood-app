@@ -7,6 +7,8 @@ const styles = StyleSheet.create({
   },
   flex1: {
     flex: 1,
+    zIndex: 0,
+    elevation: 0,
   },
   listContent: {
     paddingBottom: 80,
@@ -24,11 +26,16 @@ const styles = StyleSheet.create({
     right: 0,
     height: 80, // Reduced height to match padding
   },
+  /** Entire header must stack above tab lists so search suggestions (absolute) aren't covered by FlatList/SectionList siblings. */
   header: {
     padding: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
+    zIndex: 100,
+    elevation: 24,
+    position: "relative",
+    overflow: "visible",
   },
   headerTitle: {
     fontSize: 28,
@@ -858,6 +865,22 @@ const styles = StyleSheet.create({
   recommendationsContent: {
     paddingHorizontal: 20,
     gap: 12,
+  },
+  discoverCarouselSkeletonCard: {
+    width: 160,
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 18%)",
+  },
+  opportunityCarouselSkeletonCard: {
+    width: 200,
+    height: 240,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 18%)",
   },
   recommendationCard: {
     width: 160,

@@ -2997,13 +2997,12 @@ const styles = StyleSheet.create({
   // Global Audio Player Styles
   globalAudioPlayer: {
     position: "absolute",
-    bottom: 120, // Above floating tab bar
-    left: 20,
-    right: 20,
+    // left / right / bottom come from GlobalAudioPlayerUI (safe area + tab offset)
     backgroundColor: "hsl(0, 0%, 8%)", // Dark background
     borderRadius: 12, // Reduced from 50 to match other elements
     paddingVertical: 12, // Compact vertical padding
     paddingHorizontal: 16,
+    overflow: "hidden",
     zIndex: 1001, // Higher than tab bar
     elevation: 20, // Above tab bar (elevation 15) on Android
     // Remove shadow to avoid overlapping bottom tab

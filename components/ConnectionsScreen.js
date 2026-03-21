@@ -54,8 +54,11 @@ function ConnectionsScreenComponent({ user: propUser, onNavigate, initialTab = "
     renderDiscoverItem,
     getDiscoverItemLayout,
     popularDJs,
+    popularDJsLoading,
     nearbyDJs,
+    nearbyDJsLoading,
     nearbyOpportunities,
+    nearbyOpportunitiesLoading,
     handleOpenLocationModal,
     incomingConnectionRequests,
     acceptingUserId,
@@ -122,8 +125,11 @@ function ConnectionsScreenComponent({ user: propUser, onNavigate, initialTab = "
           getItemLayout={getDiscoverItemLayout}
           fadeAnim={discoverFadeAnim}
           popularDJs={popularDJs}
+          popularDJsLoading={popularDJsLoading}
           nearbyDJs={nearbyDJs}
+          nearbyDJsLoading={nearbyDJsLoading}
           nearbyOpportunities={nearbyOpportunities}
+          nearbyOpportunitiesLoading={nearbyOpportunitiesLoading}
           searchQuery={searchQuery}
           userCity={user?.city}
           onNavigate={onNavigate}

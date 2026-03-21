@@ -15,11 +15,20 @@ import {
   PanResponder,
   StyleSheet,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
 import ProgressiveImage from "./ProgressiveImage";
+
+/** Horizontal inset beyond safe-area left/right — aligns with tab bar margin in AppShell (~16 + insets). */
+const MINI_PLAYER_GUTTER = 16;
+
+/**
+ * Distance from bottom of SafeAreaView content to mini bar.
+ * Tab bar uses bottom: 40 + ~56px intrinsic height + small gap (~8).
+ */
+const MINI_PLAYER_BOTTOM_OFFSET = 104;
 
 const formatTime = (ms) => {
   if (ms == null || ms < 0) return "0:00";
@@ -38,6 +47,7 @@ function GlobalAudioPlayerUI({
 }) {
   const state = useAudioState();
   const { setGlobalAudioState, actionsRef } = useAudioActions();
+  const insets = useSafeAreaInsets();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [queueVisible, setQueueVisible] = useState(false);
   const [scrubPositionMillis, setScrubPositionMillis] = useState(null);
@@ -205,16 +215,50 @@ function GlobalAudioPlayerUI({
     [canScrub, durationMillis, seek, updateScrubPosition]
   );
 
+  const miniBarLayoutStyle = useMemo(
+    () => ({
+      left: MINI_PLAYER_GUTTER + insets.left,
+      right: MINI_PLAYER_GUTTER + insets.right,
+      bottom: MINI_PLAYER_BOTTOM_OFFSET,
+    }),
+    [insets.left, insets.right]
+  );
+
+  const playBarFadeStyle = useMemo(() => {
+    if (!s.playBarFadeOverlay) return null;
+    const base = s.playBarFadeOverlay;
+    return [
+      base,
+      {
+        left: insets.left,
+        right: insets.right,
+      },
+    ];
+  }, [s.playBarFadeOverlay, insets.left, insets.right]);
+
   if (!showMini) return null;
+
+  /** Full-screen wrapper uses zIndex 10k; without this, it can sit above the Modal and eat all touches. */
+  const miniBarPointerEvents =
+    fullScreenVisible || queueVisible ? "none" : "box-none";
 
   return (
     <>
       {/* ——— Play bar (mini) ——— */}
-      <View style={localStyles.miniBarWrapper} collapsable={false}>
-        {s.playBarFadeOverlay ? (
-          <View style={s.playBarFadeOverlay} pointerEvents="none" />
+      <View
+        style={localStyles.miniBarWrapper}
+        collapsable={false}
+        pointerEvents={miniBarPointerEvents}
+      >
+        {playBarFadeStyle ? (
+          <View style={playBarFadeStyle} pointerEvents="none" />
         ) : null}
-        <View style={s.globalAudioPlayer ?? localStyles.miniBar}>
+        <View
+          style={[
+            s.globalAudioPlayer ?? localStyles.miniBar,
+            miniBarLayoutStyle,
+          ]}
+        >
           <View style={s.audioPlayerContent ?? localStyles.miniBarContent}>
             <TouchableOpacity
               style={[localStyles.miniMainPressArea, s.miniMainPressArea]}
@@ -710,18 +754,15 @@ const localStyles = StyleSheet.create({
     top: 0,
     zIndex: 10000,
     elevation: 10000,
-    pointerEvents: "box-none",
     justifyContent: "flex-end",
   },
   miniBar: {
     position: "absolute",
-    bottom: 120,
-    left: 20,
-    right: 20,
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
+    overflow: "hidden",
     zIndex: 1001,
     elevation: 20,
     minHeight: 70,
