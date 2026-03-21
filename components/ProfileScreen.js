@@ -1469,7 +1469,12 @@ export default function ProfileScreen({
           <View style={styles.gigsContainer}>
             <Text style={styles.sectionTitle}>Recent Gigs</Text>
             {profile.recentGigs.map((gig, index) => (
-              <AnimatedListItem key={gig.id} index={index} delay={70}>
+              <AnimatedListItem
+                key={gig.id}
+                index={index}
+                delay={70}
+                maxStaggerIndex={6}
+              >
                 <TouchableOpacity
                   style={styles.gigCard}
                   onPress={() => handleGigPress(gig)}

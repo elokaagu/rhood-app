@@ -7,13 +7,16 @@ import { Animated } from "react-native";
  */
 export default function AnimatedListItem({
   children,
-  index,
-  // delay = 40,
-  // maxStaggerIndex = 6,
+  index = 0,
+  delay = 40,
+  maxStaggerIndex = 6,
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(12)).current;
-  const staggeredDelay = Math.min(index, maxStaggerIndex) * delay;
+  const safeDelay = Number.isFinite(delay) && delay >= 0 ? delay : 40;
+  const safeMax = Number.isFinite(maxStaggerIndex) && maxStaggerIndex >= 0 ? maxStaggerIndex : 6;
+  const safeIndex = Number.isFinite(index) && index >= 0 ? index : 0;
+  const staggeredDelay = Math.min(safeIndex, safeMax) * safeDelay;
 
   useEffect(() => {
     Animated.parallel([
@@ -30,7 +33,7 @@ export default function AnimatedListItem({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [index, delay, maxStaggerIndex]);
+  }, [safeIndex, safeDelay, safeMax]);
 
   return (
     <Animated.View

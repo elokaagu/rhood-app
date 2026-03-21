@@ -312,7 +312,12 @@ export default function CommunityScreen({ onNavigate }) {
             </View>
           ) : (
             filteredCommunities.map((community, index) => (
-              <AnimatedListItem key={community.id} index={index} delay={70}>
+              <AnimatedListItem
+                key={community.id}
+                index={index}
+                delay={70}
+                maxStaggerIndex={6}
+              >
                 <TouchableOpacity
                   style={styles.communityCard}
                   onPress={() => handleCommunityPress(community)}

@@ -692,30 +692,40 @@ export default function useAudioPlayback({ user }) {
 
       const status = await globalAudioRef.current.getStatusAsync();
 
-      if (status.isLoaded && status.durationMillis > 0) {
-        const maxSeekPosition = Math.max(0, status.durationMillis - 100);
-        const clampedPosition = Math.min(Math.max(0, positionMillis), maxSeekPosition);
-
-        const currentPosition = status.positionMillis || 0;
-        const positionDiff = Math.abs(clampedPosition - currentPosition);
-        if (positionDiff < 50) {
-          isScrubbingRef.current = false;
-          return;
-        }
-
-        if (status.isBuffering || status.isLoading) {
-          isScrubbingRef.current = false;
-          return;
-        }
-
-        await globalAudioRef.current.setPositionAsync(clampedPosition);
-
-        setGlobalAudioState((prev) => ({
-          ...prev,
-          positionMillis: clampedPosition,
-          progress: status.durationMillis ? clampedPosition / status.durationMillis : 0,
-        }));
+      if (!status.isLoaded) {
+        return;
       }
+
+      // expo-av often reports durationMillis === 0 for a while; UI still has metadata duration.
+      const st = stateRef.current;
+      const metaDur = trackMetaDurationMs(st.currentTrack);
+      const nativeDur = status.durationMillis > 0 ? status.durationMillis : 0;
+      const stateDur = st.durationMillis > 0 ? st.durationMillis : 0;
+      const effectiveDuration = Math.max(nativeDur, stateDur, metaDur);
+
+      if (effectiveDuration <= 0) {
+        if (__DEV__) console.warn("⚠️ seekToPosition: no duration yet (native/state/metadata)");
+        return;
+      }
+
+      const maxSeekPosition = Math.max(0, effectiveDuration - 100);
+      const clampedPosition = Math.min(Math.max(0, positionMillis), maxSeekPosition);
+
+      const currentPosition = status.positionMillis || 0;
+      const positionDiff = Math.abs(clampedPosition - currentPosition);
+      if (positionDiff < 16) {
+        return;
+      }
+
+      await globalAudioRef.current.setPositionAsync(clampedPosition);
+
+      setGlobalAudioState((prev) => ({
+        ...prev,
+        positionMillis: clampedPosition,
+        progress: effectiveDuration ? clampedPosition / effectiveDuration : 0,
+        durationMillis:
+          prev.durationMillis > 0 ? prev.durationMillis : effectiveDuration,
+      }));
     } catch (error) {
       if (error.message && error.message.includes("interrupted")) {
         if (__DEV__) console.warn("⚠️ Seek was interrupted - this is normal during rapid scrubbing");
@@ -725,7 +735,7 @@ export default function useAudioPlayback({ user }) {
     } finally {
       isScrubbingRef.current = false;
     }
-  }, [setGlobalAudioState]);
+  }, [setGlobalAudioState, stateRef]);
 
   // ── Queue management ─────────────────────────────────────
 
@@ -1074,12 +1084,62 @@ export default function useAudioPlayback({ user }) {
         }));
         await playGlobalAudio(randomMix);
       } else if (currentState.queue && currentState.queue.length > 0) {
+        const loopTrack = currentState.queue[0];
+        const sameAsCurrent =
+          currentState.currentTrack &&
+          (String(loopTrack?.id) === String(currentState.currentTrack?.id) ||
+            (loopTrack?.audioUrl &&
+              currentState.currentTrack?.audioUrl &&
+              loopTrack.audioUrl === currentState.currentTrack.audioUrl));
+        if (sameAsCurrent && globalAudioRef.current) {
+          // playGlobalAudio bails when already playing — restart in-place
+          try {
+            const st = await globalAudioRef.current.getStatusAsync();
+            if (st.isLoaded) {
+              if (__DEV__) console.log("🎵 Loop same track from beginning (in-place)");
+              setGlobalAudioState((prev) => ({ ...prev, currentQueueIndex: 0 }));
+              await globalAudioRef.current.setPositionAsync(0);
+              await globalAudioRef.current.playAsync();
+              setGlobalAudioState((prev) => ({
+                ...prev,
+                isPlaying: true,
+                positionMillis: 0,
+                progress: 0,
+                currentQueueIndex: 0,
+              }));
+              return;
+            }
+          } catch (e) {
+            if (__DEV__) console.warn("🎵 In-place loop failed:", e?.message);
+          }
+        }
         if (__DEV__) console.log("🎵 No random mix available, looping to start of queue");
         setGlobalAudioState((prev) => ({
           ...prev,
           currentQueueIndex: 0,
         }));
-        await playGlobalAudio(currentState.queue[0]);
+        await playGlobalAudio(loopTrack);
+      } else if (currentState.currentTrack && globalAudioRef.current) {
+        // No next in queue and no random mix: restart current track from 0 so Next / auto-advance still does something
+        try {
+          const st = await globalAudioRef.current.getStatusAsync();
+          if (st.isLoaded) {
+            if (__DEV__) console.log("🎵 No next track; restarting current mix from beginning");
+            await globalAudioRef.current.setPositionAsync(0);
+            await globalAudioRef.current.playAsync();
+            setGlobalAudioState((prev) => ({
+              ...prev,
+              isPlaying: true,
+              positionMillis: 0,
+              progress: 0,
+            }));
+            return;
+          }
+        } catch (e) {
+          if (__DEV__) console.warn("🎵 Restart-from-0 fallback failed:", e?.message);
+        }
+        if (__DEV__) console.log("🎵 No mixes available for auto-queue, stopping playback");
+        await stopGlobalAudio();
       } else {
         if (__DEV__) console.log("🎵 No mixes available for auto-queue, stopping playback");
         await stopGlobalAudio();

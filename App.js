@@ -103,15 +103,6 @@ export default function App() {
   const [isFirstTime, setIsFirstTime] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fast-start: skip custom splash for returning users so the app feels like a warm resume
-  const HAS_COMPLETED_SPLASH_KEY = "hasCompletedSplashOnce";
-  useEffect(() => {
-    let cancelled = false;
-    AsyncStorage.getItem(HAS_COMPLETED_SPLASH_KEY).then((value) => {
-      if (!cancelled && value === "true") setShowSplash(false);
-    });
-    return () => { cancelled = true; };
-  }, []);
   const [currentScreen, setCurrentScreen] = useState("opportunities");
   const [screenParams, setScreenParams] = useState({});
 
@@ -547,8 +538,6 @@ export default function App() {
   };
 
   const handleSplashFinish = useCallback(() => {
-    // Persist so next cold start skips splash (fast-start / warm-resume feel)
-    AsyncStorage.setItem(HAS_COMPLETED_SPLASH_KEY, "true");
     setShowFadeOverlay(true);
     Animated.timing(fadeOverlayAnim, {
       toValue: 1,

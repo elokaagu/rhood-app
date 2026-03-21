@@ -281,6 +281,7 @@ eas submit                   # Submit to app stores
 This architecture overview is part of a comprehensive documentation suite:
 
 - `ARCHITECTURE_OVERVIEW.md` - This file (high-level architecture)
+- `ENGINEERING_HEALTH.md` - Engineering quality snapshot, scores, and path to 85+
 - `COMPONENT_DOCUMENTATION.md` - Detailed component documentation
 - `DATABASE_SCHEMA.md` - Complete database documentation
 - `API_REFERENCE.md` - API endpoints and usage

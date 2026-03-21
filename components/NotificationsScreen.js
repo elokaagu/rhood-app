@@ -787,7 +787,12 @@ export default function NotificationsScreen({
 
   const renderNotificationItem = useCallback(
     ({ item: notification, index }) => (
-      <AnimatedListItem key={notification.id} index={index} delay={60}>
+      <AnimatedListItem
+        key={notification.id}
+        index={index}
+        delay={60}
+        maxStaggerIndex={6}
+      >
         <TouchableOpacity
           style={[
             styles.notificationCard,
