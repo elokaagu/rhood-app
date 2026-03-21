@@ -598,10 +598,7 @@ export default function YourLikesScreen({
         >
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Ionicons name="heart" size={20} color="hsl(75, 100%, 60%)" />
-          <Text style={styles.headerTitle}>YOUR LIKES</Text>
-        </View>
+        <Text style={styles.headerTitle}>Your likes</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -736,10 +733,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontFamily: "TS Block Bold",
-    fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
-    textTransform: "uppercase",
     letterSpacing: 0.5,
+    flex: 1,
+    textAlign: "center",
+    marginHorizontal: 8,
   },
   headerSpacer: {
     width: 32,

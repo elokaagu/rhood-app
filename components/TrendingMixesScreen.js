@@ -326,14 +326,7 @@ export default function TrendingMixesScreen({
         >
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Ionicons
-            name="flame"
-            size={20}
-            color="hsl(75, 100%, 60%)"
-          />
-          <Text style={styles.headerTitle}>TRENDING</Text>
-        </View>
+        <Text style={styles.headerTitle}>Trending</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -422,10 +415,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontFamily: "TS Block Bold",
-    fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
-    textTransform: "uppercase",
     letterSpacing: 0.5,
+    flex: 1,
+    textAlign: "center",
+    marginHorizontal: 8,
   },
   headerSpacer: {
     width: 32,

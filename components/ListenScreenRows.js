@@ -103,10 +103,7 @@ export const ListenSectionHeader = memo(function ListenSectionHeader({ section }
     return (
       <View style={styles.recommendationsSection}>
         <View style={styles.recommendationsHeader}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Ionicons name="sparkles" size={18} color="hsl(75, 100%, 60%)" />
-            <Text style={styles.recommendationsTitle}>YOU MAY LIKE</Text>
-          </View>
+          <Text style={styles.recommendationsTitle}>You may like</Text>
         </View>
         <Text style={styles.recommendationExplainer}>{section.subtitle}</Text>
       </View>
@@ -115,13 +112,8 @@ export const ListenSectionHeader = memo(function ListenSectionHeader({ section }
   const isClickable = !!section.onSeeAll;
   const content = (
     <>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        {section.id === "playlists" && <Ionicons name="musical-notes" size={18} color="hsl(75, 100%, 60%)" />}
-        {section.id === "trending" && <Ionicons name="flame" size={18} color="hsl(75, 100%, 60%)" />}
-        {section.id === "yourLikes" && <Ionicons name="heart" size={18} color="hsl(75, 100%, 60%)" />}
-        <Text style={styles.sectionTitle}>{section.title}</Text>
-      </View>
-      {isClickable && <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />}
+      <Text style={styles.sectionTitle}>{section.title}</Text>
+      {isClickable ? <Text style={styles.sectionHeaderLink}>See all</Text> : null}
     </>
   );
   return (

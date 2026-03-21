@@ -33,10 +33,7 @@ function PlaylistsSectionHeader() {
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <View style={styles.sectionTitleRow}>
-          <Ionicons name="musical-notes" size={18} color={ICON_COLOR} />
-          <Text style={styles.sectionTitle}>YOUR PLAYLISTS</Text>
-        </View>
+        <Text style={styles.sectionTitle}>Your playlists</Text>
       </View>
       <Text style={styles.sectionSubtitle}>Your saved collections of mixes</Text>
     </View>
@@ -54,11 +51,8 @@ function TrendingSectionHeader({ onSeeAll }) {
         }}
         activeOpacity={0.7}
       >
-        <View style={styles.sectionTitleRow}>
-          <Ionicons name="flame" size={18} color={ICON_COLOR} />
-          <Text style={styles.sectionTitle}>TRENDING</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
+        <Text style={styles.sectionTitle}>Trending</Text>
+        <Text style={styles.sectionHeaderLink}>See all</Text>
       </TouchableOpacity>
       <Text style={styles.sectionSubtitle}>
         Who&apos;s hottest on the platform right now
@@ -327,8 +321,8 @@ function ListenScreen({
   }, [trendingMixes, trendingLoading, trendingError]);
 
   const sections = useMemo(() => {
-    const s = [{ key: "playlists", title: "YOUR PLAYLISTS", data: playlistsData }];
-    s.push({ key: "trending", title: "TRENDING", data: trendingData });
+    const s = [{ key: "playlists", title: "Your playlists", data: playlistsData }];
+    s.push({ key: "trending", title: "Trending", data: trendingData });
     return s;
   }, [playlistsData, trendingData]);
 

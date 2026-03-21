@@ -55,19 +55,31 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
+    width: "100%",
   },
+  /** @deprecated Prefer plain sectionTitle without icon row (matches Discover carousel headers). */
   sectionTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
+  /** In-list section titles — same as Connections Discover recommendationsTitle (no icons, title case). */
   sectionTitle: {
+    flex: 1,
     fontSize: 18,
     fontFamily: "TS Block Bold",
-    fontWeight: "900",
     color: "hsl(0, 0%, 100%)",
-    textTransform: "uppercase",
     letterSpacing: 0.5,
+    marginRight: 8,
+  },
+  /** Text action on section row (e.g. See all) — matches Connections sectionHeaderLink. */
+  sectionHeaderLink: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
+    paddingVertical: 4,
+    paddingLeft: 12,
   },
   sectionSubtitle: {
     fontSize: 13,
@@ -412,12 +424,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
+    width: "100%",
   },
   recommendationsTitle: {
+    flex: 1,
     fontSize: 18,
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     letterSpacing: 0.5,
+    marginRight: 8,
   },
   recommendationsScroll: {
     marginHorizontal: -20,

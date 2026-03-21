@@ -1229,7 +1229,7 @@ export default function ProfileScreen({
 
         {/* Social Links */}
         <View style={styles.socialContainer}>
-          <Text style={styles.sectionTitle}>SOCIAL LINKS</Text>
+          <Text style={styles.sectionTitle}>Social links</Text>
           <View style={styles.socialLinks}>
             {/* Instagram Link */}
             <TouchableOpacity
@@ -1876,6 +1876,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
+    letterSpacing: 0.5,
     marginBottom: 12,
   },
   genresList: {

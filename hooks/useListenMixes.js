@@ -930,19 +930,8 @@ export function useListenMixes({
           }}
           activeOpacity={0.7}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Ionicons
-              name="flame"
-              size={18}
-              color="hsl(75, 100%, 60%)"
-            />
-            <Text style={styles.sectionTitle}>TRENDING</Text>
-          </View>
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color="hsl(0, 0%, 60%)"
-          />
+          <Text style={styles.sectionTitle}>Trending</Text>
+          <Text style={styles.sectionHeaderLink}>See all</Text>
         </TouchableOpacity>
         <Text style={styles.sectionSubtitle}>
           Who's hottest on the platform right now
@@ -1053,19 +1042,8 @@ export function useListenMixes({
           }}
           activeOpacity={0.7}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Ionicons
-              name="heart"
-              size={18}
-                color="hsl(75, 100%, 60%)"
-              />
-            <Text style={styles.sectionTitle}>YOUR LIKES</Text>
-        </View>
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color="hsl(0, 0%, 60%)"
-          />
+          <Text style={styles.sectionTitle}>Your likes</Text>
+          <Text style={styles.sectionHeaderLink}>See all</Text>
         </TouchableOpacity>
         <Text style={styles.sectionSubtitle}>
           Mixes you've already liked
@@ -1167,16 +1145,7 @@ export function useListenMixes({
     return (
       <View style={styles.recommendationsSection}>
         <View style={styles.recommendationsHeader}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Ionicons
-              name="sparkles"
-              size={18}
-              color="hsl(75, 100%, 60%)"
-            />
-            <Text style={styles.recommendationsTitle}>
-              YOU MAY LIKE
-            </Text>
-          </View>
+          <Text style={styles.recommendationsTitle}>You may like</Text>
         </View>
         <Text style={styles.recommendationExplainer}>
           Recommendations based on your likes and connections
@@ -1284,14 +1253,7 @@ export function useListenMixes({
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Ionicons
-              name="musical-notes"
-              size={18}
-              color="hsl(75, 100%, 60%)"
-            />
-            <Text style={styles.sectionTitle}>YOUR PLAYLISTS</Text>
-          </View>
+          <Text style={styles.sectionTitle}>Your playlists</Text>
         </View>
         <Text style={styles.sectionSubtitle}>
           Your saved collections of mixes
@@ -1355,7 +1317,7 @@ export function useListenMixes({
     if (user?.id && playlists.length > 0) {
       s.push({
         id: "playlists",
-        title: "YOUR PLAYLISTS",
+        title: "Your playlists",
         subtitle: "Your saved collections of mixes",
         data: playlists,
         type: "playlist",
@@ -1364,7 +1326,7 @@ export function useListenMixes({
     if (trendingMixes.length > 0) {
       s.push({
         id: "trending",
-        title: "TRENDING",
+        title: "Trending",
         subtitle: "Who's hottest on the platform right now",
         data: trendingMixes,
         type: "mix",
@@ -1374,7 +1336,7 @@ export function useListenMixes({
     if (user?.id && userLikedMixes.length > 0) {
       s.push({
         id: "yourLikes",
-        title: "YOUR LIKES",
+        title: "Your likes",
         subtitle: "Mixes you've already liked",
         data: userLikedMixes,
         type: "mix",
@@ -1384,7 +1346,7 @@ export function useListenMixes({
     if (recommendedMixes.length > 0) {
       s.push({
         id: "youMayLike",
-        title: "YOU MAY LIKE",
+        title: "You may like",
         subtitle: "Recommendations based on your likes and connections",
         data: [recommendedMixes],
         type: "horizontalMixes",
@@ -1521,7 +1483,7 @@ export function useListenMixes({
     () => (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>SEARCH RESULTS</Text>
+          <Text style={styles.sectionTitle}>Search results</Text>
         </View>
         <View style={styles.emptyState}>
           <Ionicons name="search" size={48} color="hsl(0, 0%, 30%)" />
