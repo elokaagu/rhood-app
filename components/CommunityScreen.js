@@ -10,8 +10,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
+import CommunityDiscoveryCard from "./CommunityDiscoveryCard";
 import { connectionsService } from "../lib/connectionsService";
 import { createScreenCache } from "../lib/screenCache";
 
@@ -26,20 +26,32 @@ export default function CommunityScreen({ onNavigate }) {
   const [activeFilter, setActiveFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
-  // Load communities from database
-  const loadCommunities = async () => {
+  const loadCommunities = async ({ isRefresh = false } = {}) => {
     try {
-      setLoading(true);
+      setLoadError(null);
+      if (!isRefresh) {
+        setLoading(true);
+      }
       const communitiesData = await connectionsService.getAllCommunities();
       setCommunities(communitiesData);
       communityCache.set(COMMUNITY_CACHE_KEY, { communities: communitiesData });
     } catch (error) {
-      console.error("Error loading communities:", error);
-      // Show empty state instead of mock data
-      setCommunities([]);
+      if (__DEV__) {
+        console.error("Error loading communities:", error);
+      }
+      setLoadError(
+        error?.message || "Couldn't load communities. Pull to try again."
+      );
+      if (!isRefresh) {
+        setCommunities([]);
+      }
     } finally {
-      setLoading(false);
+      if (!isRefresh) {
+        setLoading(false);
+      }
+      setRefreshing(false);
     }
   };
 
@@ -49,17 +61,17 @@ export default function CommunityScreen({ onNavigate }) {
     if (cached && Array.isArray(cached.communities)) {
       setCommunities(cached.communities);
       setLoading(false);
+      setLoadError(null);
       return;
     }
     loadCommunities();
   }, []);
 
   const handleCommunityPress = (community) => {
-    // Navigate to community group chat
     onNavigate &&
       onNavigate("messages", {
         communityId: community.id,
-        communityName: community.name,
+        communityName: community.name || "Community",
         chatType: "group",
       });
   };
@@ -70,99 +82,76 @@ export default function CommunityScreen({ onNavigate }) {
       if (!community) return;
 
       if (community.isJoined) {
-        // Leave community
         await connectionsService.leaveCommunity(communityId);
       } else {
-        // Join community
         await connectionsService.joinCommunity(communityId);
       }
 
-      // Update local state
       setCommunities((prev) =>
         prev.map((c) =>
           c.id === communityId ? { ...c, isJoined: !c.isJoined } : c
         )
       );
     } catch (error) {
-      console.error("Error joining/leaving community:", error);
+      if (__DEV__) {
+        console.error("Error joining/leaving community:", error);
+      }
     }
   };
 
-  const handleRefresh = async () => {
+  const handleRefresh = () => {
     setRefreshing(true);
-    await loadCommunities();
-    setRefreshing(false);
+    loadCommunities({ isRefresh: true });
   };
 
-  // Filter communities based on search query and active filter
+  const handleRetryLoad = () => {
+    setLoadError(null);
+    loadCommunities();
+  };
+
   const filteredCommunities = useMemo(() => {
     let filtered = communities;
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (community) =>
-          community.name.toLowerCase().includes(query) ||
-          community.description.toLowerCase().includes(query) ||
-          community.genre.toLowerCase().includes(query) ||
-          community.location.toLowerCase().includes(query)
+          (community.name || "").toLowerCase().includes(query) ||
+          (community.description || "").toLowerCase().includes(query) ||
+          (community.genre || "").toLowerCase().includes(query) ||
+          (community.location || "").toLowerCase().includes(query)
       );
     }
 
-    // Apply type filter
     if (activeFilter === "joined") {
       filtered = filtered.filter((community) => community.isJoined);
     } else if (activeFilter === "trending") {
       filtered = filtered.filter((community) => community.isTrending);
     } else if (activeFilter === "local") {
       filtered = filtered.filter(
-        (community) => community.location !== "Global"
+        (community) => (community.location || "") !== "Global"
       );
     }
 
-    // Sort by trending, then by member count, then by name
-    filtered = filtered.sort((a, b) => {
-      // Trending first
+    filtered = [...filtered].sort((a, b) => {
       if (a.isTrending !== b.isTrending) {
         return b.isTrending ? 1 : -1;
       }
-      // Then by member count
-      if (a.memberCount !== b.memberCount) {
-        return b.memberCount - a.memberCount;
+      const ac = Number(a.memberCount ?? 0);
+      const bc = Number(b.memberCount ?? 0);
+      if (ac !== bc) {
+        return bc - ac;
       }
-      // Then by name
-      return a.name.localeCompare(b.name);
+      return (a.name || "").localeCompare(b.name || "");
     });
 
     return filtered;
   }, [communities, searchQuery, activeFilter]);
 
-  const getGenreIcon = (genre) => {
-    switch (genre.toLowerCase()) {
-      case "underground":
-        return "musical-notes";
-      case "techno":
-        return "pulse";
-      case "local":
-        return "location";
-      case "deep house":
-        return "headset";
-      case "electronic":
-        return "flash";
-      default:
-        return "people";
-    }
-  };
-
-  const formatMemberCount = (count) => {
-    if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}k`;
-    }
-    return count.toString();
-  };
-
   const joinedCount = communities.filter((c) => c.isJoined).length;
+
+  const showInitialError = Boolean(loadError && communities.length === 0 && !loading);
+  const showRefreshBanner = Boolean(loadError && communities.length > 0 && !loading);
 
   return (
     <View style={styles.container}>
@@ -173,10 +162,9 @@ export default function CommunityScreen({ onNavigate }) {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Text style={styles.tsBlockBoldHeading}>COMMUNITY</Text>
+            <Text style={styles.screenHeading}>COMMUNITY</Text>
             <View style={styles.statsContainer}>
               <Text style={styles.statsText}>
                 {joinedCount} joined • {communities.length} total
@@ -187,7 +175,25 @@ export default function CommunityScreen({ onNavigate }) {
             Connect with DJs and producers worldwide
           </Text>
 
-          {/* Search Bar */}
+          {showRefreshBanner && (
+            <View style={styles.refreshErrorBanner}>
+              <Ionicons
+                name="cloud-offline-outline"
+                size={18}
+                color="hsl(45, 90%, 55%)"
+              />
+              <Text style={styles.refreshErrorText} numberOfLines={2}>
+                {loadError}
+              </Text>
+              <TouchableOpacity
+                onPress={handleRetryLoad}
+                style={styles.refreshErrorRetry}
+              >
+                <Text style={styles.refreshErrorRetryText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
             <TextInput
@@ -213,7 +219,6 @@ export default function CommunityScreen({ onNavigate }) {
             )}
           </View>
 
-          {/* Filter Options */}
           <View style={styles.filterContainer}>
             <TouchableOpacity
               style={[
@@ -282,7 +287,6 @@ export default function CommunityScreen({ onNavigate }) {
           </View>
         </View>
 
-        {/* Communities List */}
         <View style={styles.communitiesList}>
           {loading ? (
             <View style={styles.loadingContainer}>
@@ -294,6 +298,34 @@ export default function CommunityScreen({ onNavigate }) {
               <Text style={styles.loadingTitle}>Loading Communities...</Text>
               <Text style={styles.loadingSubtitle}>
                 Fetching the latest communities from the database
+              </Text>
+            </View>
+          ) : showInitialError ? (
+            <View style={styles.errorContainer}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={48}
+                color="hsl(0, 0%, 50%)"
+              />
+              <Text style={styles.errorTitle}>Something went wrong</Text>
+              <Text style={styles.errorSubtitle}>{loadError}</Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={handleRetryLoad}
+              >
+                <Text style={styles.retryButtonText}>Try again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : communities.length === 0 ? (
+            <View style={styles.noResultsContainer}>
+              <Ionicons
+                name="people-outline"
+                size={48}
+                color="hsl(0, 0%, 30%)"
+              />
+              <Text style={styles.noResultsTitle}>No communities yet</Text>
+              <Text style={styles.noResultsSubtitle}>
+                Check back soon or pull down to refresh.
               </Text>
             </View>
           ) : filteredCommunities.length === 0 ? (
@@ -318,144 +350,17 @@ export default function CommunityScreen({ onNavigate }) {
                 delay={70}
                 maxStaggerIndex={6}
               >
-                <TouchableOpacity
-                  style={styles.communityCard}
-                  onPress={() => handleCommunityPress(community)}
-                  activeOpacity={0.7}
-                >
-                  {/* Community Header */}
-                  <View style={styles.communityHeader}>
-                    <View style={styles.communityInfo}>
-                      <View style={styles.communityTitleRow}>
-                        <Ionicons
-                          name={getGenreIcon(community.genre)}
-                          size={20}
-                          color="hsl(75, 100%, 60%)"
-                          style={styles.genreIcon}
-                        />
-                        <Text style={styles.communityName}>
-                          {community.name}
-                        </Text>
-                        {community.isTrending && (
-                          <View style={styles.trendingBadge}>
-                            <Text style={styles.trendingText}>🔥</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.communityDescription}>
-                        {community.description}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.joinButton,
-                        community.isJoined && styles.joinedButton,
-                      ]}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleJoinCommunity(community.id);
-                      }}
-                    >
-                      <Ionicons
-                        name={community.isJoined ? "checkmark" : "add"}
-                        size={16}
-                        color={
-                          community.isJoined
-                            ? "hsl(0, 0%, 0%)"
-                            : "hsl(75, 100%, 60%)"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.joinButtonText,
-                          community.isJoined && styles.joinedButtonText,
-                        ]}
-                      >
-                        {community.isJoined ? "Joined" : "Join"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Community Stats */}
-                  <View style={styles.communityStats}>
-                    <View style={styles.statItem}>
-                      <Ionicons
-                        name="people"
-                        size={14}
-                        color="hsl(0, 0%, 70%)"
-                      />
-                      <Text style={styles.statText}>
-                        {formatMemberCount(community.memberCount)} members
-                      </Text>
-                    </View>
-                    <View style={[styles.statItem, styles.statItemRight]}>
-                      <Ionicons
-                        name="location"
-                        size={14}
-                        color="hsl(0, 0%, 70%)"
-                      />
-                      <Text style={styles.statText}>{community.location}</Text>
-                    </View>
-                  </View>
-
-                  {/* Member Avatars */}
-                  {community.memberAvatars.length > 0 && (
-                    <View style={styles.memberAvatars}>
-                      <Text style={styles.memberAvatarsLabel}>
-                        Recent members:
-                      </Text>
-                      <View style={styles.avatarContainer}>
-                        {community.memberAvatars
-                          .slice(0, 5)
-                          .map((avatar, index) => (
-                            <ProgressiveImage
-                              key={index}
-                              source={{ uri: avatar }}
-                              style={[
-                                styles.memberAvatar,
-                                { marginLeft: index > 0 ? -8 : 0 },
-                              ]}
-                            />
-                          ))}
-                        {community.memberAvatars.length > 5 && (
-                          <View
-                            style={[styles.memberAvatar, styles.moreAvatars]}
-                          >
-                            <Text style={styles.moreAvatarsText}>
-                              +{community.memberAvatars.length - 5}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Featured Content */}
-                  <View style={styles.featuredContent}>
-                    <Ionicons
-                      name="star"
-                      size={14}
-                      color="hsl(75, 100%, 60%)"
-                    />
-                    <Text style={styles.featuredText}>
-                      {community.featuredContent}
-                    </Text>
-                  </View>
-
-                  {/* Last Post */}
-                  <View style={styles.lastPost}>
-                    <Text style={styles.lastPostText} numberOfLines={1}>
-                      {community.lastPost}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                <CommunityDiscoveryCard
+                  community={community}
+                  onPress={handleCommunityPress}
+                  onJoinPress={handleJoinCommunity}
+                />
               </AnimatedListItem>
             ))
           )}
         </View>
       </ScrollView>
 
-      {/* Bottom gradient fade overlay */}
       <LinearGradient
         colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)"]}
         style={styles.bottomGradient}
@@ -474,7 +379,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollViewContent: {
-    paddingBottom: 120, // Extra padding to prevent content from being hidden behind play bar
+    paddingBottom: 120,
   },
   bottomGradient: {
     position: "absolute",
@@ -493,17 +398,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  tsBlockBoldHeading: {
+  /** Spacing from headerTop + subtitle; no extra margin on heading (avoids double stack). */
+  screenHeading: {
     fontFamily: "TS Block Bold",
     fontSize: 22,
-    color: "#FFFFFF", // Brand white
-    textAlign: "left", // Left aligned as per guidelines
-    textTransform: "uppercase", // Always uppercase
-    lineHeight: 26, // Tight line height for stacked effect
-    letterSpacing: 1, // Slight spacing for impact
-    marginBottom: 16,
+    color: "#FFFFFF",
+    textAlign: "left",
+    textTransform: "uppercase",
+    lineHeight: 26,
+    letterSpacing: 1,
+    marginBottom: 0,
+    flex: 1,
+    marginRight: 12,
   },
   statsContainer: {
     backgroundColor: "hsl(0, 0%, 8%)",
@@ -524,6 +432,34 @@ const styles = StyleSheet.create({
     fontFamily: "Arial",
     color: "hsl(0, 0%, 70%)",
     marginBottom: 16,
+  },
+  refreshErrorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "hsl(45, 40%, 25%)",
+    gap: 8,
+  },
+  refreshErrorText: {
+    flex: 1,
+    fontSize: 13,
+    color: "hsl(0, 0%, 75%)",
+    fontFamily: "Helvetica Neue",
+  },
+  refreshErrorRetry: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  refreshErrorRetryText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "hsl(75, 100%, 60%)",
+    fontFamily: "Helvetica Neue",
   },
   searchContainer: {
     flexDirection: "row",
@@ -573,6 +509,39 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 0%)",
     fontWeight: "600",
   },
+  errorContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 60%)",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+    fontFamily: "Helvetica Neue",
+  },
   noResultsContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -615,152 +584,5 @@ const styles = StyleSheet.create({
   },
   communitiesList: {
     padding: 20,
-  },
-  communityCard: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-    padding: 16,
-  },
-  communityHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  communityInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  communityTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  genreIcon: {
-    marginRight: 8,
-  },
-  communityName: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(75, 100%, 60%)",
-    flex: 1,
-  },
-  trendingBadge: {
-    marginLeft: 8,
-  },
-  trendingText: {
-    fontSize: 14,
-  },
-  communityDescription: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
-    lineHeight: 20,
-  },
-  joinButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "transparent",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%)",
-  },
-  joinedButton: {
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderColor: "hsl(75, 100%, 60%)",
-  },
-  joinButtonText: {
-    fontSize: 12,
-    color: "hsl(75, 100%, 60%)",
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  joinedButtonText: {
-    color: "hsl(0, 0%, 0%)",
-  },
-  communityStats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  statItemRight: {
-    flex: 0,
-    marginLeft: "auto",
-  },
-  statText: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
-    marginLeft: 4,
-  },
-  memberAvatars: {
-    marginBottom: 12,
-  },
-  memberAvatarsLabel: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 50%)",
-    fontFamily: "Helvetica Neue",
-    marginBottom: 8,
-  },
-  avatarContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  memberAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  moreAvatars: {
-    backgroundColor: "hsl(0, 0%, 15%)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  moreAvatarsText: {
-    fontSize: 10,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-  },
-  featuredContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "hsl(0, 0%, 5%)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  featuredText: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 100%)",
-    fontFamily: "Helvetica Neue",
-    marginLeft: 6,
-    flex: 1,
-  },
-  lastPost: {
-    backgroundColor: "hsl(0, 0%, 5%)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  lastPostText: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 60%)",
-    fontFamily: "Helvetica Neue",
-    fontStyle: "italic",
   },
 });

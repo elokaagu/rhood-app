@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,12 @@ import {
   RADIUS,
 } from "../lib/sharedStyles";
 import { HapticPatterns } from "../lib/haptics";
+import { formatOpportunityDate } from "../lib/formatters";
+import {
+  normalizeBrandGig,
+  getBrandGigStatusColor,
+  resolveBrandGigDjId,
+} from "../lib/brandGigUtils";
 
 export default function BrandGigsPortal({ user, onBack }) {
   const [gigs, setGigs] = useState([]);
@@ -30,11 +36,7 @@ export default function BrandGigsPortal({ user, onBack }) {
   const [rating, setRating] = useState(0);
   const [updating, setUpdating] = useState(null);
 
-  useEffect(() => {
-    loadGigs();
-  }, [user?.id]);
-
-  const loadGigs = async () => {
+  const loadGigs = useCallback(async () => {
     if (!user?.id) {
       setLoading(false);
       return;
@@ -48,6 +50,8 @@ export default function BrandGigsPortal({ user, onBack }) {
         brand_user_id: user.id,
       });
 
+      let rows = [];
+
       if (error) {
         // Fallback to direct query if RPC doesn't exist
         console.warn("RPC function not found, using direct query:", error);
@@ -59,6 +63,7 @@ export default function BrandGigsPortal({ user, onBack }) {
             user_profiles!gigs_dj_id_fkey(
               id,
               dj_name,
+              full_name,
               profile_image_url
             )
           `)
@@ -66,19 +71,25 @@ export default function BrandGigsPortal({ user, onBack }) {
           .order("event_date", { ascending: false });
 
         if (directError) throw directError;
-        setGigs(directData || []);
+        rows = directData || [];
       } else {
-        setGigs(data || []);
+        rows = data || [];
       }
-    } catch (error) {
-      console.error("Error loading gigs:", error);
+
+      setGigs(rows.map(normalizeBrandGig));
+    } catch (err) {
+      console.error("Error loading gigs:", err);
       Alert.alert("Error", "Failed to load gigs");
       setGigs([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadGigs();
+  }, [loadGigs]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -106,19 +117,38 @@ export default function BrandGigsPortal({ user, onBack }) {
         dj_rating: rating,
       });
 
-      // Trigger achievement check for the DJ
-      if (selectedGig.dj_id) {
-        await db.checkAndAwardAchievements(selectedGig.dj_id);
+      const djUserId = resolveBrandGigDjId(selectedGig);
+      if (djUserId) {
+        try {
+          await db.checkAndAwardAchievements(djUserId);
+        } catch (achErr) {
+          console.warn("Achievement check failed (non-fatal):", achErr);
+        }
       }
+
+      // Optimistic row update, then reconcile with server
+      const gigId = selectedGig.id;
+      setGigs((prev) =>
+        prev.map((g) =>
+          g.id === gigId
+            ? normalizeBrandGig({
+                ...g,
+                status: "completed",
+                dj_rating: rating,
+              })
+            : g
+        )
+      );
+
+      setShowRatingModal(false);
+      setSelectedGig(null);
+      setRating(0);
 
       Alert.alert(
         "Success",
         "Gig marked as completed and DJ rated. The DJ's profile has been updated."
       );
 
-      setShowRatingModal(false);
-      setSelectedGig(null);
-      setRating(0);
       await loadGigs();
     } catch (error) {
       console.error("Error completing gig:", error);
@@ -128,48 +158,7 @@ export default function BrandGigsPortal({ user, onBack }) {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "TBD";
-    try {
-      const date = new Date(dateString);
-      if (Number.isNaN(date.getTime())) return "TBD";
-      
-      const day = date.getDate();
-      const month = date.toLocaleDateString("en-GB", { month: "long" });
-      const year = date.getFullYear();
-      
-      // Add ordinal suffix
-      const getOrdinalSuffix = (n) => {
-        const s = ["th", "st", "nd", "rd"];
-        const v = n % 100;
-        return s[(v - 20) % 10] || s[v] || s[0];
-      };
-      
-      return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
-    } catch (error) {
-      return "TBD";
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "completed":
-        return "hsl(75, 100%, 60%)";
-      case "upcoming":
-        return "hsl(45, 100%, 60%)";
-      case "in_progress":
-        return "hsl(200, 100%, 60%)";
-      case "cancelled":
-        return "hsl(0, 100%, 60%)";
-      default:
-        return "hsl(0, 0%, 50%)";
-    }
-  };
-
   const renderGig = (gig) => {
-    // Handle both RPC format and direct query format
-    const djName = gig.dj_name || gig.user_profiles?.dj_name || gig.user_profiles?.full_name || gig.user_profiles?.username || "DJ";
-    const djImage = gig.dj_profile_image_url || gig.user_profiles?.profile_image_url;
     const canComplete = gig.status === "upcoming" || gig.status === "in_progress";
 
     return (
@@ -177,12 +166,13 @@ export default function BrandGigsPortal({ user, onBack }) {
         <View style={styles.gigHeader}>
           <View style={styles.djInfo}>
             <ProgressiveImage
-              source={djImage ? { uri: djImage } : null}
+              source={gig.djImage ? { uri: gig.djImage } : null}
               style={styles.profileImage}
-              placeholderStyle={styles.profileImagePlaceholder}
+              placeholder={<View style={styles.profileImagePlaceholder} />}
+              contentFit="cover"
             />
             <View style={styles.djDetails}>
-              <Text style={styles.djName}>{djName}</Text>
+              <Text style={styles.djName}>{gig.djName}</Text>
               <Text style={styles.gigName}>{gig.name}</Text>
               <Text style={styles.venue}>{gig.venue}</Text>
             </View>
@@ -190,7 +180,7 @@ export default function BrandGigsPortal({ user, onBack }) {
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: getStatusColor(gig.status) },
+              { backgroundColor: getBrandGigStatusColor(gig.status) },
             ]}
           >
             <Text style={styles.statusText}>
@@ -207,7 +197,7 @@ export default function BrandGigsPortal({ user, onBack }) {
               color={COLORS.textSecondary}
             />
             <Text style={styles.detailText}>
-              {formatDate(gig.event_date)}
+              {formatOpportunityDate(gig.event_date)}
             </Text>
           </View>
           {gig.payment && (
@@ -336,11 +326,7 @@ export default function BrandGigsPortal({ user, onBack }) {
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Rate the DJ</Text>
             <Text style={styles.modalSubtitle}>
-              How would you rate{" "}
-              {selectedGig?.dj_name ||
-                selectedGig?.user_profiles?.dj_name ||
-                "this DJ"}
-              ?
+              How would you rate {selectedGig?.djName || "this DJ"}?
             </Text>
 
             <View style={styles.ratingContainer}>

@@ -123,6 +123,40 @@ const formatDurationLabel = (seconds) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
+/** Applied on save (and when validating); inputs keep raw text while typing. */
+function normalizeInstagramUrl(raw) {
+  const text = (raw ?? "").trim();
+  if (!text) return "";
+  if (/^https?:\/\//i.test(text)) return text;
+  const handle = text.startsWith("@") ? text.slice(1) : text;
+  return `https://instagram.com/${handle.replace(/^\/+/, "")}`;
+}
+
+function normalizeSoundcloudUrl(raw) {
+  const text = (raw ?? "").trim();
+  if (!text) return "";
+  if (/^https?:\/\//i.test(text)) return text;
+  const handle = text.replace(/^@/, "");
+  return `https://soundcloud.com/${handle.replace(/^\/+/, "")}`;
+}
+
+function normalizeTiktokUrl(raw) {
+  const text = (raw ?? "").trim();
+  if (!text) return "";
+  if (/^https?:\/\//i.test(text)) return text;
+  if (text.startsWith("@")) {
+    return `https://www.tiktok.com/${text}`;
+  }
+  return `https://www.tiktok.com/@${text}`;
+}
+
+function normalizePortfolioUrl(raw) {
+  const text = (raw ?? "").trim();
+  if (!text) return "";
+  if (/^https?:\/\//i.test(text)) return text;
+  return `https://${text.replace(/^\/+/, "")}`;
+}
+
 export default function EditProfileScreen({ user, onSave, onCancel }) {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
@@ -136,7 +170,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     instagram: "",
     soundcloud: "",
     tiktok: "",
-    youtube: "",
     portfolio_url: "",
     city: "",
     bio: "",
@@ -146,7 +179,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   });
   const [errors, setErrors] = useState({});
   const [showGenreModal, setShowGenreModal] = useState(false);
-  const [showImagePicker, setShowImagePicker] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [errorModal, setErrorModal] = useState({ visible: false, title: "", message: "" });
   const [userMixes, setUserMixes] = useState([]);
@@ -194,13 +226,12 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     loadUserProfile();
   }, [user]);
 
-  const fetchUserMixes = async () => {
+  const fetchUserMixes = async (cachedUserProfile = null) => {
     if (!user?.id) return;
 
     try {
       const mixes = await db.getUserMixes(user.id);
-      
-      // Extract and normalize duration for each mix
+
       const mixesWithDuration = mixes.map((mix) => {
         const durationSeconds = extractDurationSeconds(mix);
         return {
@@ -209,14 +240,14 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           durationFormatted: formatDurationLabel(durationSeconds),
         };
       });
-      
+
       setUserMixes(mixesWithDuration);
 
-      // Update current primary mix if exists
-      const userProfile = await db.getUserProfile(user.id);
-      if (userProfile?.primary_mix_id) {
+      const profileForPrimary =
+        cachedUserProfile ?? (await db.getUserProfile(user.id));
+      if (profileForPrimary?.primary_mix_id) {
         const primaryMix = mixesWithDuration.find(
-          (mix) => mix.id === userProfile.primary_mix_id
+          (mix) => mix.id === profileForPrimary.primary_mix_id
         );
         setCurrentPrimaryMix(primaryMix || null);
       } else {
@@ -245,7 +276,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           instagram: userProfile.instagram || "",
           soundcloud: userProfile.soundcloud || "",
           tiktok: userProfile.tiktok || "",
-          youtube: userProfile.youtube || "",
           portfolio_url: userProfile.portfolio_url || "",
           city: userProfile.city || "",
           bio: userProfile.bio || "",
@@ -254,8 +284,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
           profile_image_url: userProfile.profile_image_url || null,
         });
 
-        // Load user's mixes for Audio ID selection
-        await fetchUserMixes();
+        await fetchUserMixes(userProfile);
       }
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -265,7 +294,8 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     }
   };
 
-  const validateForm = () => {
+  /** Returns a fresh errors object; caller should `setErrors` — do not read `errors` state in the same tick. */
+  const getValidationErrors = () => {
     const newErrors = {};
 
     if (!profile.dj_name.trim()) {
@@ -294,7 +324,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       newErrors.genres = "Please select at least one genre";
     }
 
-    // Profile picture is required
     if (!profile.profile_image_url) {
       newErrors.profile_image_url = "Profile picture is required";
     }
@@ -303,26 +332,35 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       newErrors.status_message = "Status must be 80 characters or fewer";
     }
 
-    if (profile.instagram && !isValidUrl(profile.instagram)) {
-      newErrors.instagram = "Please enter a valid Instagram URL";
+    if (profile.instagram?.trim()) {
+      const n = normalizeInstagramUrl(profile.instagram);
+      if (!isValidUrl(n)) {
+        newErrors.instagram = "Please enter a valid Instagram handle or URL";
+      }
     }
 
-    if (profile.soundcloud && !isValidUrl(profile.soundcloud)) {
-      newErrors.soundcloud = "Please enter a valid SoundCloud URL";
-    }
-    if (profile.tiktok && !isValidUrl(profile.tiktok)) {
-      newErrors.tiktok = "Please enter a valid TikTok handle or URL";
-    }
-    if (profile.youtube && !isValidUrl(profile.youtube)) {
-      newErrors.youtube = "Please enter a valid YouTube URL";
+    if (profile.soundcloud?.trim()) {
+      const n = normalizeSoundcloudUrl(profile.soundcloud);
+      if (!isValidUrl(n)) {
+        newErrors.soundcloud = "Please enter a valid SoundCloud username or URL";
+      }
     }
 
-    if (profile.portfolio_url && !isValidUrl(profile.portfolio_url)) {
-      newErrors.portfolio_url = "Please enter a valid URL";
+    if (profile.tiktok?.trim()) {
+      const n = normalizeTiktokUrl(profile.tiktok);
+      if (!isValidUrl(n)) {
+        newErrors.tiktok = "Please enter a valid TikTok handle or URL";
+      }
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (profile.portfolio_url?.trim()) {
+      const n = normalizePortfolioUrl(profile.portfolio_url);
+      if (!isValidUrl(n)) {
+        newErrors.portfolio_url = "Please enter a valid URL";
+      }
+    }
+
+    return newErrors;
   };
 
   const isValidUrl = (url) => {
@@ -335,16 +373,21 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   };
 
   const handleSave = async () => {
-    if (!validateForm()) {
-      // Check specifically for profile picture error
-      if (errors.profile_image_url) {
-        setErrorModal({ 
-          visible: true, 
-          title: "Profile Picture Required", 
-          message: "Please upload a profile picture before saving your profile." 
+    const validationErrors = getValidationErrors();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) {
+      if (validationErrors.profile_image_url) {
+        setErrorModal({
+          visible: true,
+          title: "Profile Picture Required",
+          message: "Please upload a profile picture before saving your profile.",
         });
       } else {
-        setErrorModal({ visible: true, title: "Validation Error", message: "Please fix the errors before saving" });
+        setErrorModal({
+          visible: true,
+          title: "Validation Error",
+          message: "Please fix the errors before saving",
+        });
       }
       return;
     }
@@ -352,7 +395,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     try {
       setSaving(true);
 
-      // Build update object with only fields that have values
       const updatedProfile = {
         dj_name: profile.dj_name.trim(),
         city: profile.city.trim(),
@@ -360,7 +402,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         updated_at: new Date().toISOString(),
       };
 
-      // Add optional fields only if they have values
       if (profile.first_name && profile.first_name.trim()) {
         updatedProfile.first_name = profile.first_name.trim();
       }
@@ -369,7 +410,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       }
 
       if (profile.username && profile.username.trim()) {
-        // Remove @ if user included it
         updatedProfile.username = profile.username.trim().replace(/^@/, "");
       }
 
@@ -378,23 +418,19 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       }
 
       if (profile.instagram && profile.instagram.trim()) {
-        updatedProfile.instagram = profile.instagram.trim();
+        updatedProfile.instagram = normalizeInstagramUrl(profile.instagram);
       }
 
       if (profile.soundcloud && profile.soundcloud.trim()) {
-        updatedProfile.soundcloud = profile.soundcloud.trim();
+        updatedProfile.soundcloud = normalizeSoundcloudUrl(profile.soundcloud);
       }
 
       if (profile.tiktok && profile.tiktok.trim()) {
-        updatedProfile.tiktok = profile.tiktok.trim();
-      }
-
-      if (profile.youtube && profile.youtube.trim()) {
-        updatedProfile.youtube = profile.youtube.trim();
+        updatedProfile.tiktok = normalizeTiktokUrl(profile.tiktok);
       }
 
       if (profile.portfolio_url && profile.portfolio_url.trim()) {
-        updatedProfile.portfolio_url = profile.portfolio_url.trim();
+        updatedProfile.portfolio_url = normalizePortfolioUrl(profile.portfolio_url);
       } else {
         updatedProfile.portfolio_url = null;
       }
@@ -415,12 +451,6 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
       if (profile.profile_image_url) {
         updatedProfile.profile_image_url = profile.profile_image_url;
-      }
-
-      // Explicitly remove youtube if it somehow got added (column doesn't exist yet)
-      // Remove this safeguard after running database/add-youtube-column.sql
-      if (updatedProfile.youtube !== undefined) {
-        delete updatedProfile.youtube;
       }
 
       console.log("📝 Updating profile with:", updatedProfile);
@@ -601,7 +631,11 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   };
 
   const handleImagePicker = () => {
-    setShowImagePicker(true);
+    Alert.alert("Profile photo", "Choose a source", [
+      { text: "Camera", onPress: () => openImagePicker("camera") },
+      { text: "Photo library", onPress: () => openImagePicker("library") },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
 
@@ -713,10 +747,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
       animationType="slide"
       onRequestClose={() => setShowGenreModal(false)}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Genres</Text>
+      <View style={styles.genreModalOverlay}>
+        <View style={styles.genreModalContent}>
+          <View style={styles.genreModalHeader}>
+            <Text style={styles.genreModalTitle}>Select Genres</Text>
             <TouchableOpacity onPress={() => setShowGenreModal(false)}>
               <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
             </TouchableOpacity>
@@ -1072,22 +1106,9 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               <TextInput
                 style={[styles.input, errors.instagram && styles.inputError]}
                 value={profile.instagram}
-                onChangeText={(text) => {
-                  // Auto-prepend Instagram URL if user just enters handle
-                  let processedText = text;
-                  if (
-                    text &&
-                    !text.startsWith("http") &&
-                    !text.startsWith("@")
-                  ) {
-                    processedText = `https://instagram.com/${text}`;
-                  } else if (text && text.startsWith("@")) {
-                    processedText = `https://instagram.com/${text.substring(
-                      1
-                    )}`;
-                  }
-                  setProfile((prev) => ({ ...prev, instagram: processedText }));
-                }}
+                onChangeText={(text) =>
+                  setProfile((prev) => ({ ...prev, instagram: text }))
+                }
                 placeholder="yourhandle"
                 placeholderTextColor="hsl(0, 0%, 50%)"
                 keyboardType="url"
@@ -1103,17 +1124,9 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               <TextInput
                 style={[styles.input, errors.soundcloud && styles.inputError]}
                 value={profile.soundcloud}
-                onChangeText={(text) => {
-                  // Auto-prepend SoundCloud URL if user just enters handle
-                  let processedText = text;
-                  if (text && !text.startsWith("http")) {
-                    processedText = `https://soundcloud.com/${text}`;
-                  }
-                  setProfile((prev) => ({
-                    ...prev,
-                    soundcloud: processedText,
-                  }));
-                }}
+                onChangeText={(text) =>
+                  setProfile((prev) => ({ ...prev, soundcloud: text }))
+                }
                 placeholder="yourusername"
                 placeholderTextColor="hsl(0, 0%, 50%)"
                 keyboardType="url"
@@ -1129,19 +1142,9 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               <TextInput
                 style={[styles.input, errors.tiktok && styles.inputError]}
                 value={profile.tiktok}
-                onChangeText={(text) => {
-                  // Auto-prepend TikTok URL if user just enters handle
-                  let processedText = text;
-                  if (text && !text.startsWith("http") && !text.startsWith("@")) {
-                    processedText = `https://www.tiktok.com/@${text}`;
-                  } else if (text && text.startsWith("@")) {
-                    processedText = `https://www.tiktok.com/${text}`;
-                  }
-                  setProfile((prev) => ({
-                    ...prev,
-                    tiktok: processedText,
-                  }));
-                }}
+                onChangeText={(text) =>
+                  setProfile((prev) => ({ ...prev, tiktok: text }))
+                }
                 placeholder="yourhandle"
                 placeholderTextColor="hsl(0, 0%, 50%)"
                 keyboardType="url"
@@ -1152,35 +1155,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
               )}
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>YouTube</Text>
-              <TextInput
-                style={[styles.input, errors.youtube && styles.inputError]}
-                value={profile.youtube}
-                onChangeText={(text) => {
-                  // Auto-prepend YouTube URL if user just enters handle
-                  let processedText = text;
-                  if (text && !text.startsWith("http") && !text.startsWith("@") && !text.startsWith("youtube.com") && !text.startsWith("youtu.be")) {
-                    processedText = `https://www.youtube.com/@${text}`;
-                  } else if (text && text.startsWith("@")) {
-                    processedText = `https://www.youtube.com/${text}`;
-                  } else if (text && !text.startsWith("http") && (text.startsWith("youtube.com") || text.startsWith("youtu.be"))) {
-                    processedText = `https://${text}`;
-                  }
-                  setProfile((prev) => ({
-                    ...prev,
-                    youtube: processedText,
-                  }));
-                }}
-                placeholder="youtube.com/@yourchannel"
-                placeholderTextColor="hsl(0, 0%, 50%)"
-                keyboardType="url"
-                autoCapitalize="none"
-              />
-              {errors.youtube && (
-                <Text style={styles.errorText}>{errors.youtube}</Text>
-              )}
-            </View>
+            {/* YouTube: hidden until DB column exists — see database/add-youtube-column.sql */}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Portfolio / Website</Text>
@@ -1188,15 +1163,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                 style={[styles.input, errors.portfolio_url && styles.inputError]}
                 value={profile.portfolio_url}
                 onChangeText={(text) => {
-                  // Auto-prepend https:// if user just enters domain
-                  let processedText = text;
-                  if (text && !text.startsWith("http://") && !text.startsWith("https://")) {
-                    processedText = `https://${text}`;
-                  }
-                  setProfile((prev) => ({
-                    ...prev,
-                    portfolio_url: processedText,
-                  }));
+                  setProfile((prev) => ({ ...prev, portfolio_url: text }));
                   if (errors.portfolio_url) {
                     setErrors((prev) => ({ ...prev, portfolio_url: null }));
                   }
@@ -1234,12 +1201,12 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         animationType="slide"
         onRequestClose={() => setShowMixSelection(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Audio ID</Text>
+        <View style={styles.mixSelectionOverlay}>
+          <View style={styles.mixSelectionContent}>
+            <View style={styles.mixSelectionHeader}>
+              <Text style={styles.mixSelectionTitle}>Select Audio ID</Text>
               <TouchableOpacity
-                style={styles.modalCloseButton}
+                style={styles.mixSelectionCloseButton}
                 onPress={() => setShowMixSelection(false)}
               >
                 <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
@@ -1535,13 +1502,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  modalOverlay: {
+  genreModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.8)",
     justifyContent: "center",
     alignItems: "center",
   },
-  modalContent: {
+  genreModalContent: {
     backgroundColor: "hsl(0, 0%, 5%)",
     borderRadius: 12,
     width: "90%",
@@ -1549,7 +1516,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
   },
-  modalHeader: {
+  genreModalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -1557,7 +1524,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
   },
-  modalTitle: {
+  genreModalTitle: {
     fontSize: 20,
     fontFamily: "Helvetica Neue",
     fontWeight: "bold",
@@ -1657,19 +1624,18 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 12,
   },
-  // Mix Selection Modal Styles
-  modalOverlay: {
+  mixSelectionOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.8)",
     justifyContent: "flex-end",
   },
-  modalContent: {
+  mixSelectionContent: {
     backgroundColor: "hsl(0, 0%, 8%)",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "70%",
   },
-  modalHeader: {
+  mixSelectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -1678,13 +1644,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
   },
-  modalTitle: {
+  mixSelectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: "hsl(0, 0%, 100%)",
     fontFamily: "TS Block Bold",
   },
-  modalCloseButton: {
+  mixSelectionCloseButton: {
     padding: 4,
   },
   mixList: {

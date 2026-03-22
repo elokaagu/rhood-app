@@ -14,10 +14,6 @@ import {
 } from "../lib/connectionStatusUtils";
 import { formatMessageTime, getUserName } from "../lib/connectionListUtils";
 import { loadUserAndConnectionsImpl, loadUserCommunitiesImpl } from "../lib/connectionsScreenLoaders";
-import ConnectionListItem from "../components/ConnectionListItem";
-import CommunityListItem from "../components/CommunityListItem";
-import styles from "../components/ConnectionsScreen.styles";
-
 const STALE_MS = SCREEN_CACHE_STALE_MS;
 const PERIODIC_REFRESH_INTERVAL_MS = 30 * 1000;
 const REALTIME_DEBOUNCE_MS = 600;

@@ -1,128 +1,330 @@
-import React, { useState, useEffect } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  memo,
+  useRef,
+} from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import { db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { connectionsService } from "../lib/connectionsService";
+import { CONNECTIONS_LIST_PERFORMANCE } from "../lib/performanceConstants";
 import {
   COLORS,
   TYPOGRAPHY,
   SPACING,
   RADIUS,
-  sharedStyles,
 } from "../lib/sharedStyles";
+
+/** Map API row → list item (mutual count filled in a second phase). */
+function mapConnToRow(conn) {
+  const userId = conn.connected_user_id;
+  return {
+    id: conn.id || userId,
+    userId,
+    djName: conn.connected_user_name ?? null,
+    fullName: conn.connected_user_full_name ?? null,
+    username: conn.connected_user_username ?? null,
+    city: conn.connected_user_city ?? null,
+    profileImage: conn.connected_user_image ?? null,
+    statusMessage: conn.connected_user_status_message ?? null,
+    genres: Array.isArray(conn.connected_user_genres)
+      ? conn.connected_user_genres
+      : [],
+    isVerified: Boolean(conn.connected_user_verified),
+    mutualConnections: 0,
+  };
+}
+
+async function fetchMutualCounts(currentUserId, connectionsData) {
+  return Promise.all(
+    connectionsData.map(async (conn) => {
+      const otherId = conn.connected_user_id;
+      try {
+        const mutual = await connectionsService.getMutualConnections(
+          currentUserId,
+          otherId
+        );
+        return { userId: otherId, count: mutual?.length || 0 };
+      } catch (error) {
+        if (__DEV__) {
+          console.warn(
+            `Failed to get mutual connections for ${otherId}:`,
+            error
+          );
+        }
+        return { userId: otherId, count: 0 };
+      }
+    })
+  );
+}
+
+function ConnectionsListHeader({ onBack, connectionCount, loading }) {
+  return (
+    <View style={styles.header}>
+      <TouchableOpacity style={styles.backButton} onPress={onBack}>
+        <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+      </TouchableOpacity>
+      <View style={styles.headerContent}>
+        <Text style={styles.headerTitle}>Connections</Text>
+        {!loading && connectionCount != null ? (
+          <Text style={styles.headerSubtitle}>
+            {connectionCount}{" "}
+            {connectionCount === 1 ? "connection" : "connections"}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.headerSpacer} />
+    </View>
+  );
+}
+
+const ConnectionRow = memo(function ConnectionRow({ connection, onPress }) {
+  const displayName =
+    connection.djName || connection.fullName || "Unknown";
+
+  return (
+    <TouchableOpacity
+      style={styles.connectionCard}
+      onPress={() => onPress(connection)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.connectionImageContainer}>
+        <ProgressiveImage
+          source={
+            connection.profileImage ? { uri: connection.profileImage } : null
+          }
+          style={styles.connectionImage}
+          placeholder={
+            <View style={styles.connectionImagePlaceholder}>
+              <Ionicons name="person" size={24} color={COLORS.textTertiary} />
+            </View>
+          }
+        />
+        {connection.isVerified && (
+          <View style={styles.verifiedBadge}>
+            <Ionicons name="checkmark" size={10} color={COLORS.background} />
+          </View>
+        )}
+      </View>
+
+      <View style={styles.connectionInfo}>
+        <View style={styles.connectionHeader}>
+          <Text style={styles.connectionName} numberOfLines={1}>
+            {displayName}
+          </Text>
+          {connection.username ? (
+            <Text style={styles.connectionUsername}>
+              @{connection.username}
+            </Text>
+          ) : null}
+        </View>
+
+        {connection.statusMessage ? (
+          <Text style={styles.connectionStatus} numberOfLines={1}>
+            {connection.statusMessage}
+          </Text>
+        ) : null}
+
+        <View style={styles.connectionMeta}>
+          {connection.city ? (
+            <View style={styles.metaItem}>
+              <Ionicons
+                name="location-outline"
+                size={14}
+                color={COLORS.textSecondary}
+              />
+              <Text style={styles.metaText}>{connection.city}</Text>
+            </View>
+          ) : null}
+          {connection.genres && connection.genres.length > 0 ? (
+            <View style={styles.metaItem}>
+              <Ionicons
+                name="musical-notes-outline"
+                size={14}
+                color={COLORS.textSecondary}
+              />
+              <Text style={styles.metaText} numberOfLines={1}>
+                {connection.genres.slice(0, 2).join(", ")}
+              </Text>
+            </View>
+          ) : null}
+          {connection.mutualConnections > 0 ? (
+            <View style={styles.metaItem}>
+              <Ionicons
+                name="people-outline"
+                size={14}
+                color={COLORS.textSecondary}
+              />
+              <Text style={styles.metaText}>
+                {connection.mutualConnections}{" "}
+                {connection.mutualConnections === 1
+                  ? "mutual connection"
+                  : "mutual connections"}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      <Ionicons
+        name="chevron-forward"
+        size={20}
+        color={COLORS.textTertiary}
+      />
+    </TouchableOpacity>
+  );
+});
+
+function ListEmptyDiscover({ onNavigate }) {
+  return (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="people-outline" size={64} color={COLORS.textTertiary} />
+      <Text style={styles.emptyTitle}>No Connections Yet</Text>
+      <Text style={styles.emptyText}>
+        Start connecting with other DJs to build your network
+      </Text>
+      <TouchableOpacity
+        style={styles.discoverButton}
+        onPress={() =>
+          onNavigate?.("connections", { initialTab: "discover" })
+        }
+      >
+        <Text style={styles.discoverButtonText}>Discover DJs</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function ConnectionsListScreen({ user, onBack, onNavigate }) {
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    loadConnections();
-  }, [user?.id]);
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
-  const loadConnections = async () => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
+  const handleBack = useCallback(() => {
+    HapticPatterns.backButton();
+    onBack();
+  }, [onBack]);
 
-    try {
-      setLoading(true);
-      // Get only accepted connections
-      const connectionsData = await db.getUserConnections(user.id, "accepted");
-      
-      // Transform to get the connected user (not the current user)
-      // Calculate mutual connections for each connection
-      const transformedConnections = await Promise.all(
-        connectionsData.map(async (conn) => {
-        // The getUserConnections function returns data with connected_user_id and connected_user_* fields
-        // Handle both RPC format and fallback format
-        const userId = conn.connected_user_id;
-        const djName = conn.connected_user_name || "Unknown";
-        const fullName = conn.connected_user_full_name || null;
-        const username = conn.connected_user_username || null;
-        const city = conn.connected_user_city || null;
-        const profileImage = conn.connected_user_image || null;
-        const statusMessage = conn.connected_user_status_message || null;
-        const genres = conn.connected_user_genres || [];
-        const isVerified = conn.connected_user_verified || false;
-          
-          // Calculate mutual connections
-          let mutualConnectionsCount = 0;
-          try {
-            const mutualConnections = await connectionsService.getMutualConnections(
-              user.id,
-              userId
-            );
-            mutualConnectionsCount = mutualConnections?.length || 0;
-          } catch (error) {
-            console.warn(`Failed to get mutual connections for ${userId}:`, error);
-            mutualConnectionsCount = 0;
+  const loadConnections = useCallback(
+    async ({ isRefresh = false } = {}) => {
+      if (!user?.id) {
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        if (!isRefresh && mountedRef.current) {
+          setLoading(true);
+        }
+        if (isRefresh && mountedRef.current) {
+          setRefreshing(true);
+        }
+
+        const connectionsData = await db.getUserConnections(
+          user.id,
+          "accepted"
+        );
+        if (!mountedRef.current) return;
+
+        const baseRows = connectionsData.map(mapConnToRow);
+        setConnections(baseRows);
+
+        if (!isRefresh && mountedRef.current) {
+          setLoading(false);
+        }
+
+        const counts = await fetchMutualCounts(user.id, connectionsData);
+        if (!mountedRef.current) return;
+
+        setConnections((prev) => {
+          const m = new Map(counts.map((c) => [c.userId, c.count]));
+          return prev.map((row) =>
+            m.has(row.userId)
+              ? { ...row, mutualConnections: m.get(row.userId) ?? 0 }
+              : row
+          );
+        });
+      } catch (error) {
+        if (__DEV__) {
+          console.error("Error loading connections:", error);
+        }
+        if (mountedRef.current) {
+          setConnections([]);
+        }
+      } finally {
+        if (mountedRef.current) {
+          if (!isRefresh) {
+            setLoading(false);
           }
-        
-        return {
-          id: conn.id || userId,
-          userId: userId,
-          djName: djName,
-          fullName: fullName,
-          username: username,
-          city: city,
-          profileImage: profileImage,
-          statusMessage: statusMessage,
-          genres: genres,
-          isVerified: isVerified,
-            mutualConnections: mutualConnectionsCount,
-        };
-        })
-      );
+          setRefreshing(false);
+        }
+      }
+    },
+    [user?.id]
+  );
 
-      setConnections(transformedConnections);
-    } catch (error) {
-      console.error("Error loading connections:", error);
-      setConnections([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  useEffect(() => {
+    loadConnections({ isRefresh: false });
+  }, [loadConnections]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadConnections();
-  };
+  const handleRefresh = useCallback(() => {
+    loadConnections({ isRefresh: true });
+  }, [loadConnections]);
 
-  const handleConnectionPress = (connection) => {
-    if (onNavigate && connection.userId) {
-      onNavigate("user-profile", { userId: connection.userId });
-    }
-  };
+  const handleConnectionPress = useCallback(
+    (connection) => {
+      if (onNavigate && connection.userId) {
+        onNavigate("user-profile", { userId: connection.userId });
+      }
+    },
+    [onNavigate]
+  );
+
+  const renderItem = useCallback(
+    ({ item }) => (
+      <ConnectionRow connection={item} onPress={handleConnectionPress} />
+    ),
+    [handleConnectionPress]
+  );
+
+  const keyExtractor = useCallback((item) => String(item.id), []);
+
+  const listEmpty = useMemo(
+    () => <ListEmptyDiscover onNavigate={onNavigate} />,
+    [onNavigate]
+  );
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => {
-              HapticPatterns.backButton();
-              onBack();
-            }}
-          >
-            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Connections</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <ConnectionsListHeader
+          onBack={handleBack}
+          connectionCount={null}
+          loading
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
@@ -132,24 +334,21 @@ export default function ConnectionsListScreen({ user, onBack, onNavigate }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Connections</Text>
-          <Text style={styles.headerSubtitle}>
-            {connections.length} {connections.length === 1 ? "connection" : "connections"}
-          </Text>
-        </View>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      {/* Connections List */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+      <ConnectionsListHeader
+        onBack={handleBack}
+        connectionCount={connections.length}
+        loading={false}
+      />
+      <FlatList
+        data={connections}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        contentContainerStyle={
+          connections.length === 0
+            ? [styles.listContent, styles.listContentEmpty]
+            : styles.listContent
+        }
+        ListEmptyComponent={listEmpty}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -158,120 +357,15 @@ export default function ConnectionsListScreen({ user, onBack, onNavigate }) {
             tintColor={COLORS.primary}
           />
         }
-      >
-        {connections.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons
-              name="people-outline"
-              size={64}
-              color={COLORS.textTertiary}
-            />
-            <Text style={styles.emptyTitle}>No Connections Yet</Text>
-            <Text style={styles.emptyText}>
-              Start connecting with other DJs to build your network
-            </Text>
-            <TouchableOpacity
-              style={styles.discoverButton}
-              onPress={() => onNavigate && onNavigate("connections")}
-            >
-              <Text style={styles.discoverButtonText}>Discover DJs</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          connections.map((connection) => (
-            <TouchableOpacity
-              key={connection.id}
-              style={styles.connectionCard}
-              onPress={() => handleConnectionPress(connection)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.connectionImageContainer}>
-                <ProgressiveImage
-                  source={connection.profileImage ? { uri: connection.profileImage } : null}
-                  style={styles.connectionImage}
-                  placeholder={
-                    <View style={styles.connectionImagePlaceholder}>
-                      <Ionicons
-                        name="person"
-                        size={24}
-                        color={COLORS.textTertiary}
-                      />
-                    </View>
-                  }
-                />
-                {connection.isVerified && (
-                  <View style={styles.verifiedBadge}>
-                    <Ionicons name="checkmark" size={10} color={COLORS.background} />
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.connectionInfo}>
-                <View style={styles.connectionHeader}>
-                  <Text style={styles.connectionName} numberOfLines={1}>
-                    {connection.djName}
-                  </Text>
-                  {connection.username && (
-                    <Text style={styles.connectionUsername}>
-                      @{connection.username}
-                    </Text>
-                  )}
-                </View>
-
-                {connection.statusMessage && (
-                  <Text style={styles.connectionStatus} numberOfLines={1}>
-                    {connection.statusMessage}
-                  </Text>
-                )}
-
-                <View style={styles.connectionMeta}>
-                  {connection.city && (
-                    <View style={styles.metaItem}>
-                      <Ionicons
-                        name="location-outline"
-                        size={14}
-                        color={COLORS.textSecondary}
-                      />
-                      <Text style={styles.metaText}>{connection.city}</Text>
-                    </View>
-                  )}
-                  {connection.genres && connection.genres.length > 0 && (
-                    <View style={styles.metaItem}>
-                      <Ionicons
-                        name="musical-notes-outline"
-                        size={14}
-                        color={COLORS.textSecondary}
-                      />
-                      <Text style={styles.metaText} numberOfLines={1}>
-                        {connection.genres.slice(0, 2).join(", ")}
-                      </Text>
-                    </View>
-                  )}
-                  {connection.mutualConnections > 0 && (
-                    <View style={styles.metaItem}>
-                      <Ionicons
-                        name="people-outline"
-                        size={14}
-                        color={COLORS.textSecondary}
-                      />
-                      <Text style={styles.metaText}>
-                        {connection.mutualConnections}{" "}
-                        {connection.mutualConnections === 1 ? "mutual connection" : "mutual connections"}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={COLORS.textTertiary}
-              />
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
+        initialNumToRender={CONNECTIONS_LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
+        maxToRenderPerBatch={
+          CONNECTIONS_LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH
+        }
+        windowSize={CONNECTIONS_LIST_PERFORMANCE.WINDOW_SIZE}
+        removeClippedSubviews={
+          CONNECTIONS_LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS
+        }
+      />
     </View>
   );
 }
@@ -316,17 +410,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
+  listContent: {
     padding: SPACING.md,
+  },
+  listContentEmpty: {
+    flexGrow: 1,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: SPACING.xxl * 2,
+    minHeight: 400,
   },
   emptyTitle: {
     fontSize: TYPOGRAPHY.lg,
@@ -433,4 +528,3 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 });
-

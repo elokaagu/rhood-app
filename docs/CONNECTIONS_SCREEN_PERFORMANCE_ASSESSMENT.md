@@ -10,7 +10,7 @@
 | Area | Rating | Notes |
 |------|--------|--------|
 | **Data loading** | ✅ Strong | Single backend path for connections + last messages; parallel mount load; no N+1. |
-| **List performance** | ✅ Strong | Virtualized SectionList/FlatList, getItemLayout, tuned batch/window, FadeInView (no blur). |
+| **List performance** | ✅ Strong | Virtualized SectionList/FlatList, getItemLayout, tuned batch/window; rows are plain `View` (no per-row fade). |
 | **Re-renders** | ✅ Good | Memoized tab content and list items; stable loaders; some object ref churn (low impact). |
 | **Realtime** | ✅ Good | Merge-on-insert for messages; debounced connections table; 30s periodic refresh. |
 | **Code structure** | ✅ Strong | Split hooks keep orchestrator small; clear separation of data vs actions. |
@@ -36,7 +36,7 @@
   - `initialNumToRender={20}`, `maxToRenderPerBatch={10}`, `windowSize={15}`, `removeClippedSubviews={true}` (`CONNECTIONS_LIST_PERFORMANCE`).
   - `getItemLayout` (section-aware) so scroll position and measurement are predictable without measuring every row.
 - **Discover tab:** Uses `FlatList` with `LIST_PERFORMANCE` and `getDiscoverItemLayout` for stable scroll and fewer layout passes.
-- **Row components:** `ConnectionListItem` and `CommunityListItem` use `memo`; list items use `FadeInView` (opacity-only, 280ms) instead of blur, which is cheap and avoids heavy blur cost.
+- **Row components:** `ConnectionListItem` and `CommunityListItem` use `memo` and a plain inner `View` (no per-row animation). Enter polish is from the connections tab’s `connectionsFadeAnim`, not row wrappers.
 - **Keys:** Both lists use `keyExtractor={(item) => item.id}`, giving stable keys for reconciliation.
 
 **Verdict:** Lists are configured for good scroll performance and low overdraw.
@@ -112,7 +112,7 @@ Splitting keeps the main hook under 500 lines, avoids one giant dependency blob,
 ## 8. Conclusion
 
 - **Data loading:** Single backend path, parallel mount load, no N+1, sensible stale and refresh behavior.  
-- **Lists:** Virtualized, with getItemLayout, tuned batching, and light animations (FadeInView).  
+- **Lists:** Virtualized, with getItemLayout, tuned batching; tab-level fade for connections, not per-row.  
 - **Re-renders:** Memoized tabs and items, stable loaders and derived data; some new object refs each render with limited impact.  
 - **Realtime/periodic:** Merge-on-insert for messages, debounced connections updates, 30s periodic refresh.
 

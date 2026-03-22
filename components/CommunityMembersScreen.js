@@ -27,17 +27,21 @@ export default function CommunityMembersScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  const loadMembers = async () => {
+  const loadMembers = async ({ isRefresh = false } = {}) => {
     try {
       setError(null);
-      setLoading(true);
+      if (!isRefresh) {
+        setLoading(true);
+      }
 
       // Validate communityId
       if (!communityId) {
         throw new Error("Community ID is missing");
       }
 
-      console.log("🔍 Loading members for community:", communityId);
+      if (__DEV__) {
+        console.log("🔍 Loading members for community:", communityId);
+      }
 
       // Try the foreign key relationship first
       let { data, error: fetchError } = await supabase
@@ -62,7 +66,9 @@ export default function CommunityMembersScreen({
 
       // If foreign key relationship fails, try manual join
       if (fetchError) {
-        console.warn("⚠️ Foreign key query failed, trying manual join:", fetchError);
+        if (__DEV__) {
+          console.warn("⚠️ Foreign key query failed, trying manual join:", fetchError);
+        }
         
         // Get community members first
         const { data: membersData, error: membersError } = await supabase
@@ -75,7 +81,9 @@ export default function CommunityMembersScreen({
 
         // Then get user profiles for each member
         if (membersData && membersData.length > 0) {
-          const userIds = membersData.map((m) => m.user_id).filter(Boolean);
+          const userIds = [
+            ...new Set(membersData.map((m) => m.user_id).filter(Boolean)),
+          ];
           
           if (userIds.length > 0) {
             const { data: usersData, error: usersError } = await supabase
@@ -83,7 +91,7 @@ export default function CommunityMembersScreen({
               .select("id, dj_name, full_name, username, profile_image_url, location, city, bio")
               .in("id", userIds);
 
-            if (usersError) {
+            if (usersError && __DEV__) {
               console.warn("⚠️ Error fetching user profiles:", usersError);
             }
 
@@ -101,18 +109,22 @@ export default function CommunityMembersScreen({
       }
 
       // Filter out any members without user data
-      const validMembers = (data || []).filter(
-        (member) => member.user && member.user.id
-      );
+      const validMembers = (data || []).filter((member) => member?.user?.id);
       
-      console.log(`✅ Loaded ${validMembers.length} members for community`);
+      if (__DEV__) {
+        console.log(`✅ Loaded ${validMembers.length} members for community`);
+      }
       setMembers(validMembers);
     } catch (err) {
-      console.error("❌ Error loading community members:", err);
+      if (__DEV__) {
+        console.error("❌ Error loading community members:", err);
+      }
       const errorMessage = err.message || "Failed to load members. Please try again.";
       setError(errorMessage);
     } finally {
-      setLoading(false);
+      if (!isRefresh) {
+        setLoading(false);
+      }
       setRefreshing(false);
     }
   };
@@ -124,12 +136,11 @@ export default function CommunityMembersScreen({
   const handleRefresh = () => {
     setRefreshing(true);
     setError(null);
-    loadMembers();
+    loadMembers({ isRefresh: true });
   };
 
   const handleRetry = () => {
     setError(null);
-    setLoading(true);
     loadMembers();
   };
 
@@ -153,19 +164,23 @@ export default function CommunityMembersScreen({
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => {
-              HapticPatterns.backButton();
-              onBack();
-            }}
-          >
-            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {communityName || "Community Members"}
-          </Text>
-          <View style={styles.headerSpacer} />
+          <View style={styles.headerSide}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => {
+                HapticPatterns.backButton();
+                onBack();
+              }}
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>
+              {communityName || "Community Members"}
+            </Text>
+          </View>
+          <View style={styles.headerSide} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -178,15 +193,17 @@ export default function CommunityMembersScreen({
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => {
-            HapticPatterns.backButton();
-            onBack();
-          }}
-        >
-          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-        </TouchableOpacity>
+        <View style={styles.headerSide}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              HapticPatterns.backButton();
+              onBack();
+            }}
+          >
+            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+          </TouchableOpacity>
+        </View>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>
             {communityName || "Community Members"}
@@ -195,7 +212,7 @@ export default function CommunityMembersScreen({
             {members.length} member{members.length !== 1 ? "s" : ""}
           </Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <View style={styles.headerSide} />
       </View>
 
       {error ? (
@@ -288,6 +305,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  /** Same width as right rail so title stays visually centered */
+  headerSide: {
+    width: 56,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   backButton: {
     padding: SPACING.sm,
     marginLeft: -SPACING.sm,
@@ -295,6 +318,7 @@ const styles = StyleSheet.create({
   headerTitleContainer: {
     flex: 1,
     alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     ...sharedStyles.tsBlockBoldHeading,
@@ -307,9 +331,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontFamily: "Helvetica Neue",
     marginTop: 2,
-  },
-  headerSpacer: {
-    width: 40,
   },
   loadingContainer: {
     flex: 1,

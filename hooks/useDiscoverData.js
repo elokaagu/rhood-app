@@ -103,12 +103,14 @@ export function useDiscoverRenderItem(discoverData, actions) {
     handleCancelPendingConnection,
     handleOpenConnectionOptions,
     cancellingConnectionId,
+    connectingUserId,
   } = actions;
   return useCallback(
     ({ item: u }) => {
       const normalizedStatus = normalizeConnectionStatus(u.connectionStatus);
       const isPending = normalizedStatus === "pending";
       const isCancelling = isPending && (u.connectionId || u.id) === cancellingConnectionId;
+      const isConnecting = !isPending && u.id === connectingUserId;
       return (
         <DiscoverUserCard
           user={u}
@@ -119,12 +121,14 @@ export function useDiscoverRenderItem(discoverData, actions) {
           onLongPress={handleOpenConnectionOptions}
           isPending={isPending}
           isCancelling={isCancelling}
+          isConnecting={isConnecting}
           styles={styles}
         />
       );
     },
     [
       cancellingConnectionId,
+      connectingUserId,
       handleViewProfile,
       handleConnectionPress,
       handleConnect,

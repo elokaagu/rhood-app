@@ -9,137 +9,42 @@ import ConnectionsScreenHeader from "./ConnectionsScreenHeader";
 import { useConnectionsScreen } from "../hooks/useConnectionsScreen";
 import styles from "./ConnectionsScreen.styles";
 
-function ConnectionsScreenComponent({ user: propUser, onNavigate, initialTab = "discover", route = null }) {
-  if (!propUser || typeof propUser !== "object" || Array.isArray(propUser)) {
-    return null;
-  }
+function isValidConnectionsUser(user) {
+  return (
+    user != null &&
+    typeof user === "object" &&
+    !Array.isArray(user) &&
+    typeof user !== "string"
+  );
+}
 
-  const screen = useConnectionsScreen(propUser, onNavigate, route, initialTab);
-
-  if (!screen || typeof screen !== "object") {
-    return null;
-  }
-  if (!screen.user || typeof screen.user !== "object" || Array.isArray(screen.user)) {
-    return null;
-  }
-
+/**
+ * Renders the Connections / Discover experience. Mounted only when `user` is valid
+ * so the hook always receives a real profile object (see default export guard).
+ */
+function ConnectionsScreenContent({
+  user,
+  onNavigate,
+  initialTab = "discover",
+  route = null,
+}) {
   const {
-    user,
     activeTab,
-    setActiveTab,
-    searchQuery,
-    setSearchQuery,
-    searchSuggestions,
-    setSearchSuggestions,
-    showSuggestions,
-    setShowSuggestions,
-    connectionsFadeAnim,
-    discoverFadeAnim,
-    discoverUsers,
-    loadDiscoverDJs,
-    loading,
-    hasLoadedConnections,
-    connectionsLoadError,
-    connections,
-    connectionSections,
-    refreshControl,
-    handleConnectionsRetry,
-    handleBrowseCommunity,
-    renderConnectionSectionItem,
-    getConnectionListItemLayout,
-    filteredDiscoverUsers,
-    discoverLoading,
-    discoverLoadError,
-    handleDiscoverRetry,
-    renderDiscoverItem,
-    getDiscoverItemLayout,
-    popularDJs,
-    popularDJsLoading,
-    nearbyDJs,
-    nearbyDJsLoading,
-    nearbyOpportunities,
-    nearbyOpportunitiesLoading,
-    handleOpenLocationModal,
-    incomingConnectionRequests,
-    acceptingUserId,
-    decliningUserId,
-    handleAcceptPendingConnection,
-    handleDeclinePendingConnection,
-    showConnectionModal,
-    handleCloseConnectionModal,
-    connectionMessage,
-    connectionModalType,
-    connectionModalPrimaryText,
-    handleConnectionModalPrimaryPress,
-    connectionModalSecondaryText,
-    handleConnectionModalSecondaryPress,
-    showLocationModal,
-    setShowLocationModal,
-    newLocationCity,
-    setNewLocationCity,
-    updatingLocation,
-    handleUpdateLocation,
-    handleUseCurrentLocation,
-  } = screen;
+    headerProps,
+    connectionsTabProps,
+    discoverTabProps,
+    connectionModalProps,
+    locationModalProps,
+  } = useConnectionsScreen(user, onNavigate, route, initialTab);
 
   return (
     <View style={styles.container}>
-      <ConnectionsScreenHeader
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        searchSuggestions={searchSuggestions}
-        setSearchSuggestions={setSearchSuggestions}
-        setShowSuggestions={setShowSuggestions}
-        showSuggestions={showSuggestions}
-        connectionsFadeAnim={connectionsFadeAnim}
-        discoverFadeAnim={discoverFadeAnim}
-        discoverUsersLength={discoverUsers?.length ?? 0}
-        loadDiscoverDJs={loadDiscoverDJs}
-        onNavigate={onNavigate}
-      />
+      <ConnectionsScreenHeader {...headerProps} />
 
       {activeTab === "connections" ? (
-        <ConnectionsTabContent
-          loading={loading}
-          hasLoadedConnections={hasLoadedConnections}
-          connectionsLoadError={connectionsLoadError}
-          connectionsLength={connections.length}
-          connectionSections={connectionSections}
-          refreshControl={refreshControl}
-          onRetry={handleConnectionsRetry}
-          onBrowseCommunity={handleBrowseCommunity}
-          renderItem={renderConnectionSectionItem}
-          getItemLayout={getConnectionListItemLayout}
-          fadeAnim={connectionsFadeAnim}
-        />
+        <ConnectionsTabContent {...connectionsTabProps} />
       ) : (
-        <DiscoverTabContent
-          filteredDiscoverUsers={filteredDiscoverUsers}
-          discoverLoading={discoverLoading}
-          discoverLoadError={discoverLoadError}
-          onDiscoverRetry={handleDiscoverRetry}
-          refreshControl={refreshControl}
-          renderItem={renderDiscoverItem}
-          getItemLayout={getDiscoverItemLayout}
-          fadeAnim={discoverFadeAnim}
-          popularDJs={popularDJs}
-          popularDJsLoading={popularDJsLoading}
-          nearbyDJs={nearbyDJs}
-          nearbyDJsLoading={nearbyDJsLoading}
-          nearbyOpportunities={nearbyOpportunities}
-          nearbyOpportunitiesLoading={nearbyOpportunitiesLoading}
-          searchQuery={searchQuery}
-          userCity={user?.city}
-          onNavigate={onNavigate}
-          onOpenLocationModal={handleOpenLocationModal}
-          incomingConnectionRequests={incomingConnectionRequests}
-          acceptingUserId={acceptingUserId}
-          decliningUserId={decliningUserId}
-          onAcceptRequest={handleAcceptPendingConnection}
-          onDeclineRequest={handleDeclinePendingConnection}
-        />
+        <DiscoverTabContent {...discoverTabProps} />
       )}
 
       <LinearGradient
@@ -148,39 +53,30 @@ function ConnectionsScreenComponent({ user: propUser, onNavigate, initialTab = "
         pointerEvents="none"
       />
 
-      <RhoodModal
-        visible={showConnectionModal}
-        onClose={handleCloseConnectionModal}
-        title="Connection Status"
-        message={connectionMessage}
-        type={connectionModalType}
-        primaryButtonText={connectionModalPrimaryText}
-        onPrimaryPress={handleConnectionModalPrimaryPress}
-        secondaryButtonText={connectionModalSecondaryText}
-        onSecondaryPress={handleConnectionModalSecondaryPress}
-        showCloseButton={false}
-      />
-
-      <ConnectionsLocationModal
-        visible={showLocationModal}
-        onClose={() => setShowLocationModal(false)}
-        newLocationCity={newLocationCity}
-        setNewLocationCity={setNewLocationCity}
-        updatingLocation={updatingLocation}
-        onUpdateLocation={handleUpdateLocation}
-        onUseCurrentLocation={handleUseCurrentLocation}
-      />
+      <RhoodModal {...connectionModalProps} />
+      <ConnectionsLocationModal {...locationModalProps} />
     </View>
   );
 }
 
-function ConnectionsScreenWrapper(props) {
-  if (!props || typeof props !== "object") return null;
-  if (typeof props.user === "string") return null;
-  if (!props.user || typeof props.user !== "object" || props.user === null || Array.isArray(props.user)) {
+/**
+ * Validates props once; inner component runs hooks with a guaranteed-valid user.
+ */
+export default function ConnectionsScreen(props) {
+  if (!props || typeof props !== "object") {
+    if (__DEV__) {
+      console.warn("[ConnectionsScreen] Missing or invalid props object");
+    }
     return null;
   }
-  return <ConnectionsScreenComponent {...props} />;
+  if (!isValidConnectionsUser(props.user)) {
+    if (__DEV__) {
+      console.warn(
+        "[ConnectionsScreen] Expected `user` to be a non-array object; got:",
+        props.user
+      );
+    }
+    return null;
+  }
+  return <ConnectionsScreenContent {...props} />;
 }
-
-export default ConnectionsScreenWrapper;

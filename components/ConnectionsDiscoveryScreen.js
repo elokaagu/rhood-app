@@ -20,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import ConnectionsScreen from "./ConnectionsScreen";
 import { connectionsService } from "../lib/connectionsService";
-import { supabase } from "../lib/supabase";
+import { supabase, db } from "../lib/supabase";
 
 const GENRE_ICON_MAP = {
   house: "home",
@@ -141,12 +141,20 @@ const DJCard = memo(function DJCard({ dj, onConnect, onViewProfile }) {
   }, [onConnect, dj.id]);
 
   const handleViewPress = useCallback(() => {
-    onViewProfile(dj.id, dj.dj_name || dj.full_name || "");
-  }, [onViewProfile, dj.id, dj.dj_name, dj.full_name]);
+    onViewProfile(dj);
+  }, [onViewProfile, dj]);
 
   const username =
-    dj.dj_name?.toLowerCase().replace(/\s+/g, "") || "dj";
-  const genres = dj.genres || ["Electronic"];
+    (dj.dj_name && String(dj.dj_name).toLowerCase().replace(/\s+/g, "")) ||
+    "dj";
+  const genres =
+    Array.isArray(dj.genres) && dj.genres.length > 0
+      ? dj.genres
+      : ["Electronic"];
+
+  const connectState = dj.discoverConnectionState || "none";
+  const isPending = connectState === "pending";
+  const isConnected = connectState === "connected";
 
   return (
     <View style={styles.djCard}>
@@ -166,16 +174,24 @@ const DJCard = memo(function DJCard({ dj, onConnect, onViewProfile }) {
           <View style={styles.djDetails}>
             <View style={styles.djNameRow}>
               <Text style={styles.djName}>
-                {dj.dj_name || dj.full_name}
+                {dj.dj_name || dj.full_name || "DJ"}
               </Text>
-              <View style={styles.onlineIndicator} />
+              {dj.isOnline === true ? (
+                <View style={styles.onlineIndicator} />
+              ) : null}
             </View>
             <Text style={styles.djUsername}>@{username}</Text>
-            <Text style={styles.djLocation}>{dj.city}</Text>
+            <Text style={styles.djLocation}>
+              {dj.city != null && String(dj.city).trim()
+                ? dj.city
+                : "Location unknown"}
+            </Text>
           </View>
         </View>
         <View style={styles.djActions}>
-          <Text style={styles.lastActive}>Recently active</Text>
+          {dj.lastActive != null && String(dj.lastActive).trim() ? (
+            <Text style={styles.lastActive}>{String(dj.lastActive)}</Text>
+          ) : null}
         </View>
       </View>
 
@@ -218,29 +234,35 @@ const DJCard = memo(function DJCard({ dj, onConnect, onViewProfile }) {
         <TouchableOpacity
           style={[
             styles.connectButton,
-            dj.isConnected && styles.connectButtonDisabled,
+            (isConnected || isPending) && styles.connectButtonDisabled,
           ]}
           onPress={handleConnectPress}
-          disabled={dj.isConnected}
+          disabled={isConnected || isPending}
           accessibilityRole="button"
           accessibilityLabel={
-            dj.isConnected
+            isConnected
               ? "Already connected"
-              : `Connect with ${dj.dj_name || dj.full_name || "DJ"}`
+              : isPending
+                ? "Connection request pending"
+                : `Connect with ${dj.dj_name || dj.full_name || "DJ"}`
           }
         >
           <Ionicons
-            name={dj.isConnected ? "checkmark" : "add"}
+            name={isConnected ? "checkmark" : isPending ? "time-outline" : "add"}
             size={16}
-            color={dj.isConnected ? "hsl(0, 0%, 50%)" : "hsl(0, 0%, 0%)"}
+            color={
+              isConnected || isPending
+                ? "hsl(0, 0%, 50%)"
+                : "hsl(0, 0%, 0%)"
+            }
           />
           <Text
             style={[
               styles.connectText,
-              dj.isConnected && styles.connectTextDisabled,
+              (isConnected || isPending) && styles.connectTextDisabled,
             ]}
           >
-            {dj.isConnected ? "Connected" : "Connect"}
+            {isConnected ? "Connected" : isPending ? "Requested" : "Connect"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -283,11 +305,12 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
       );
       const normalized = recommended.map((dj) => ({
         ...dj,
+        discoverConnectionState: dj.discoverConnectionState || "none",
         _searchBlob: [
-          dj.dj_name,
-          dj.full_name,
-          dj.city,
-          ...(dj.genres || []),
+          dj.dj_name != null ? String(dj.dj_name) : "",
+          dj.full_name != null ? String(dj.full_name) : "",
+          dj.city != null ? String(dj.city) : "",
+          ...(Array.isArray(dj.genres) ? dj.genres.map((g) => String(g ?? "")) : []),
         ]
           .filter(Boolean)
           .join(" ")
@@ -296,7 +319,9 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
 
       setDjs(normalized);
     } catch (error) {
-      console.error("Error loading recommended DJs:", error);
+      if (__DEV__) {
+        console.error("Error loading recommended DJs:", error);
+      }
       if (isRefresh) {
         Alert.alert(
           "Couldn't refresh",
@@ -332,27 +357,55 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
 
   const handleConnect = useCallback(async (djId) => {
     try {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      if (!currentUser) {
+        Alert.alert("Error", "Please log in to connect with users");
+        return;
+      }
+      const connectionResult = await db.createConnection(djId);
+      const isPendingRequest =
+        connectionResult?.status === "pending" && connectionResult?.id;
+
       setDjs((prev) =>
-        prev.map((dj) =>
-          dj.id === djId ? { ...dj, isConnected: true } : dj
-        )
+        prev.map((dj) => {
+          if (dj.id !== djId) return dj;
+          if (isPendingRequest) {
+            return {
+              ...dj,
+              discoverConnectionState: "pending",
+              connectionId:
+                connectionResult?.id ||
+                connectionResult?.connection_id ||
+                dj.connectionId ||
+                null,
+            };
+          }
+          return {
+            ...dj,
+            discoverConnectionState: "connected",
+            connectionId:
+              connectionResult?.id ||
+              connectionResult?.connection_id ||
+              dj.connectionId ||
+              null,
+          };
+        })
       );
-      await connectionsService.followUser(djId);
     } catch (error) {
-      console.error("Error following user:", error);
-      setDjs((prev) =>
-        prev.map((dj) =>
-          dj.id === djId ? { ...dj, isConnected: false } : dj
-        )
-      );
-      Alert.alert("Error", "Failed to follow user");
+      if (__DEV__) {
+        console.error("Error sending connection request:", error);
+      }
+      Alert.alert("Error", "Failed to send connection request");
     }
   }, []);
 
   const handleViewProfile = useCallback(
     (dj) => {
-      onNavigate("profile", {
-        djId: dj.id,
+      if (!dj?.id) return;
+      onNavigate("user-profile", {
+        userId: dj.id,
         djName: dj.dj_name || dj.full_name,
       });
     },

@@ -10,8 +10,11 @@ import {
   Platform,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+
+const SCROLL_BOTTOM_PADDING = 32;
 
 export default function BriefForm({
   opportunity,
@@ -19,6 +22,9 @@ export default function BriefForm({
   onSubmit,
   isLoading = false,
 }) {
+  const insets = useSafeAreaInsets();
+  const [submitting, setSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     experience: "",
     availability: "",
@@ -78,12 +84,42 @@ export default function BriefForm({
     }
   };
 
+  const headerTopPadding = insets.top + 12;
+  const busy = isLoading || submitting;
+
+  if (!opportunity?.id) {
+    return (
+      <View style={[styles.container, styles.invalidContainer]}>
+        <View style={[styles.header, { paddingTop: headerTopPadding }]}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onClose();
+            }}
+          >
+            <Ionicons name="close" size={24} color="hsl(0, 0%, 70%)" />
+          </TouchableOpacity>
+          <Text style={styles.invalidTitle}>Opportunity unavailable</Text>
+        </View>
+        <View style={styles.invalidBody}>
+          <Text style={styles.invalidText}>
+            This listing could not be loaded. Please go back and try again.
+          </Text>
+          <TouchableOpacity style={styles.submitButton} onPress={onClose}>
+            <Text style={styles.submitButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerTopPadding }]}>
         <TouchableOpacity
           style={styles.closeButton}
           onPress={() => {
@@ -95,7 +131,13 @@ export default function BriefForm({
         </TouchableOpacity>
 
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Apply to {opportunity.title}</Text>
+          <Text
+            style={styles.headerTitle}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
+            Apply to {opportunity.title || "Opportunity"}
+          </Text>
           <Text style={styles.headerSubtitle}>
             Fill out this brief to submit your application
           </Text>
@@ -104,6 +146,9 @@ export default function BriefForm({
 
       <ScrollView
         style={styles.formContainer}
+        contentContainerStyle={{
+          paddingBottom: SCROLL_BOTTOM_PADDING + insets.bottom,
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -156,11 +201,10 @@ export default function BriefForm({
           <Text style={styles.sectionTitle}>Rate & Payment</Text>
           <TextInput
             style={styles.textInput}
-            placeholder="What's your rate for this type of event? (optional)"
+            placeholder="e.g. £250, 250–300, negotiable (optional)"
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={formData.rate}
             onChangeText={(value) => updateField("rate", value)}
-            keyboardType="numeric"
           />
         </View>
 
@@ -195,17 +239,17 @@ export default function BriefForm({
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity
           style={[
             styles.submitButton,
-            isLoading && styles.submitButtonDisabled,
+            busy && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmit}
-          disabled={isLoading}
+          disabled={busy}
         >
           <Text style={styles.submitButtonText}>
-            {isLoading ? "Submitting..." : "Submit Application"}
+            {busy ? "Submitting..." : "Submit Application"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -222,7 +266,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
@@ -239,6 +282,30 @@ const styles = StyleSheet.create({
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     marginBottom: 4,
+    flexShrink: 1,
+  },
+  invalidContainer: {
+    justifyContent: "flex-start",
+  },
+  invalidBody: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    justifyContent: "center",
+  },
+  invalidTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+  },
+  invalidText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
   },
   headerSubtitle: {
     fontSize: 14,

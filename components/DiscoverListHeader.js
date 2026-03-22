@@ -1,17 +1,18 @@
 import React, { memo } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import { HapticPatterns } from "../lib/haptics";
 import styles from "./ConnectionsScreen.styles";
+
+/** Shared gradient for DJ + opportunity image overlays */
+const RECOMMENDATION_CARD_GRADIENT = [
+  "transparent",
+  "rgba(0, 0, 0, 0.3)",
+  "rgba(0, 0, 0, 0.8)",
+  "rgba(0, 0, 0, 0.95)",
+];
 
 function DiscoverCarouselSkeleton({ cardStyle }) {
   return (
@@ -23,6 +24,136 @@ function DiscoverCarouselSkeleton({ cardStyle }) {
     >
       {[0, 1, 2, 3].map((i) => (
         <View key={i} style={cardStyle} />
+      ))}
+    </ScrollView>
+  );
+}
+
+function RecommendationImagePlaceholder() {
+  return (
+    <View style={[styles.recommendationImage, styles.recommendationImagePlaceholderRoot]}>
+      <Ionicons name="person" size={40} color="hsl(75, 100%, 60%)" />
+    </View>
+  );
+}
+
+function OpportunityImagePlaceholder() {
+  return (
+    <View style={[styles.opportunityImage, styles.opportunityImagePlaceholderRoot]}>
+      <Ionicons name="briefcase" size={36} color="hsl(75, 100%, 60%)" />
+    </View>
+  );
+}
+
+/**
+ * Horizontal DJ cards (Popular / Nearby) — shared carousel chrome and card layout.
+ */
+function DJRecommendationCarousel({ djs, loading, skeletonCardStyle, onDjPress }) {
+  const list = djs ?? [];
+  if (loading && list.length === 0) {
+    return <DiscoverCarouselSkeleton cardStyle={skeletonCardStyle} />;
+  }
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.recommendationsScroll}
+      contentContainerStyle={styles.recommendationsContent}
+    >
+      {list.map((dj, index) => (
+        <TouchableOpacity
+          key={dj?.id != null ? String(dj.id) : `dj-${index}`}
+          style={styles.recommendationCard}
+          onPress={() => onDjPress?.(dj)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.recommendationImageContainer}>
+            <ProgressiveImage
+              source={dj.profile_image_url ? { uri: dj.profile_image_url } : null}
+              style={styles.recommendationImage}
+              placeholder={<RecommendationImagePlaceholder />}
+            />
+            <LinearGradient colors={RECOMMENDATION_CARD_GRADIENT} style={styles.recommendationGradient} />
+            <View style={styles.recommendationInfo}>
+              <Text style={styles.recommendationTitle} numberOfLines={1}>
+                {dj.dj_name || "DJ"}
+              </Text>
+              {dj.city && String(dj.city).trim() ? (
+                <Text style={styles.recommendationArtist} numberOfLines={1}>
+                  {dj.city}
+                </Text>
+              ) : null}
+              {Array.isArray(dj.genres) && dj.genres.length > 0 ? (
+                <Text style={styles.recommendationGenre} numberOfLines={1}>
+                  {dj.genres.slice(0, 2).join(", ")}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+}
+
+/**
+ * Horizontal opportunity cards — matches DJ carousels (ProgressiveImage + same gradient pattern).
+ */
+function OpportunityRecommendationCarousel({
+  opportunities,
+  loading,
+  skeletonCardStyle,
+  onOpenOpportunities,
+}) {
+  const list = opportunities ?? [];
+  if (loading && list.length === 0) {
+    return <DiscoverCarouselSkeleton cardStyle={skeletonCardStyle} />;
+  }
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.recommendationsScroll}
+      contentContainerStyle={styles.recommendationsContent}
+    >
+      {list.map((opp, index) => (
+        <TouchableOpacity
+          key={opp?.id != null ? String(opp.id) : `opp-${index}`}
+          style={styles.opportunityCard}
+          onPress={() => {
+            HapticPatterns.itemPress();
+            onOpenOpportunities?.();
+          }}
+          activeOpacity={0.8}
+        >
+          <View style={styles.opportunityImageContainer}>
+            <ProgressiveImage
+              source={opp.image ? { uri: opp.image } : null}
+              style={styles.opportunityImage}
+              contentFit="cover"
+              placeholder={<OpportunityImagePlaceholder />}
+            />
+            <LinearGradient colors={RECOMMENDATION_CARD_GRADIENT} style={styles.opportunityGradient} />
+            <View style={styles.opportunityInfo}>
+              <Text style={styles.opportunityTitle} numberOfLines={2}>
+                {opp.title ?? ""}
+              </Text>
+              <Text style={styles.opportunityVenue} numberOfLines={1}>
+                {opp.venue ?? ""}
+              </Text>
+              <View style={styles.opportunityMeta}>
+                <Text style={styles.opportunityMetaText} numberOfLines={1}>
+                  {opp.date ?? ""} • {opp.city ?? ""}
+                </Text>
+              </View>
+              {opp.compensation ? (
+                <Text style={styles.opportunityCompensation} numberOfLines={1}>
+                  {opp.compensation}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        </TouchableOpacity>
       ))}
     </ScrollView>
   );
@@ -40,7 +171,6 @@ function DiscoverListHeader({
   nearbyOpportunities,
   nearbyOpportunitiesLoading = false,
   searchQuery,
-  userCity,
   onNavigate,
   onOpenLocationModal,
   incomingConnectionRequests,
@@ -58,6 +188,8 @@ function DiscoverListHeader({
     showCarousels &&
     (nearbyOpportunitiesLoading || (nearbyOpportunities?.length ?? 0) > 0);
 
+  const requests = incomingConnectionRequests ?? [];
+
   return (
     <View style={styles.discoverList}>
       {showPopularBlock && (
@@ -65,56 +197,14 @@ function DiscoverListHeader({
           <View style={styles.recommendationsHeader}>
             <Text style={styles.recommendationsTitle}>Popular DJs</Text>
           </View>
-          {popularDJsLoading && (!popularDJs || popularDJs.length === 0) ? (
-            <DiscoverCarouselSkeleton cardStyle={styles.discoverCarouselSkeletonCard} />
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.recommendationsScroll}
-              contentContainerStyle={styles.recommendationsContent}
-            >
-              {popularDJs.map((dj) => (
-                <TouchableOpacity
-                  key={dj.id}
-                  style={styles.recommendationCard}
-                  onPress={() => onNavigate?.("user-profile", { userId: dj.id, djName: dj.dj_name })}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.recommendationImageContainer}>
-                    <ProgressiveImage
-                      source={dj.profile_image_url ? { uri: dj.profile_image_url } : null}
-                      style={styles.recommendationImage}
-                      placeholder={
-                        <View style={[styles.recommendationImage, { backgroundColor: "hsl(0, 0%, 12%)", justifyContent: "center", alignItems: "center" }]}>
-                          <Ionicons name="person" size={40} color="hsl(75, 100%, 60%)" />
-                        </View>
-                      }
-                    />
-                    <LinearGradient
-                      colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.95)"]}
-                      style={styles.recommendationGradient}
-                    />
-                    <View style={styles.recommendationInfo}>
-                      <Text style={styles.recommendationTitle} numberOfLines={1}>
-                        {String(dj.dj_name || "DJ")}
-                      </Text>
-                      {dj.city && String(dj.city).trim() ? (
-                        <Text style={styles.recommendationArtist} numberOfLines={1}>
-                          {String(dj.city)}
-                        </Text>
-                      ) : null}
-                      {Array.isArray(dj.genres) && dj.genres.length > 0 ? (
-                        <Text style={styles.recommendationGenre} numberOfLines={1}>
-                          {String(dj.genres.slice(0, 2).join(", ") || "")}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
+          <DJRecommendationCarousel
+            djs={popularDJs}
+            loading={popularDJsLoading}
+            skeletonCardStyle={styles.discoverCarouselSkeletonCard}
+            onDjPress={(dj) =>
+              onNavigate?.("user-profile", { userId: dj.id, djName: dj.dj_name })
+            }
+          />
           <View style={styles.recommendationsDivider} />
         </View>
       )}
@@ -123,63 +213,23 @@ function DiscoverListHeader({
         <View style={styles.recommendationsSection}>
           <View style={styles.recommendationsHeader}>
             <Text style={styles.recommendationsTitle}>DJs Near You</Text>
-            <TouchableOpacity onPress={onOpenLocationModal} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={onOpenLocationModal}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            >
               <Text style={styles.sectionHeaderLink}>Location</Text>
             </TouchableOpacity>
           </View>
-          {nearbyDJsLoading && (!nearbyDJs || nearbyDJs.length === 0) ? (
-            <DiscoverCarouselSkeleton cardStyle={styles.discoverCarouselSkeletonCard} />
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.recommendationsScroll}
-              contentContainerStyle={styles.recommendationsContent}
-            >
-              {nearbyDJs.map((dj) => (
-                <TouchableOpacity
-                  key={dj.id}
-                  style={styles.recommendationCard}
-                  onPress={() => {
-                    HapticPatterns.itemPress();
-                    onNavigate?.("user-profile", { userId: dj.id, djName: dj.dj_name });
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.recommendationImageContainer}>
-                    <ProgressiveImage
-                      source={dj.profile_image_url ? { uri: dj.profile_image_url } : null}
-                      style={styles.recommendationImage}
-                      placeholder={
-                        <View style={[styles.recommendationImage, { backgroundColor: "hsl(0, 0%, 12%)", justifyContent: "center", alignItems: "center" }]}>
-                          <Ionicons name="person" size={40} color="hsl(75, 100%, 60%)" />
-                        </View>
-                      }
-                    />
-                    <LinearGradient
-                      colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.95)"]}
-                      style={styles.recommendationGradient}
-                    />
-                    <View style={styles.recommendationInfo}>
-                      <Text style={styles.recommendationTitle} numberOfLines={1}>
-                        {String(dj.dj_name || "DJ")}
-                      </Text>
-                      {dj.city && String(dj.city).trim() ? (
-                        <Text style={styles.recommendationArtist} numberOfLines={1}>
-                          {String(dj.city)}
-                        </Text>
-                      ) : null}
-                      {Array.isArray(dj.genres) && dj.genres.length > 0 ? (
-                        <Text style={styles.recommendationGenre} numberOfLines={1}>
-                          {String(dj.genres.slice(0, 2).join(", ") || "")}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
+          <DJRecommendationCarousel
+            djs={nearbyDJs}
+            loading={nearbyDJsLoading}
+            skeletonCardStyle={styles.discoverCarouselSkeletonCard}
+            onDjPress={(dj) => {
+              HapticPatterns.itemPress();
+              onNavigate?.("user-profile", { userId: dj.id, djName: dj.dj_name });
+            }}
+          />
           <View style={styles.recommendationsDivider} />
         </View>
       )}
@@ -188,71 +238,32 @@ function DiscoverListHeader({
         <View style={styles.recommendationsSection}>
           <View style={styles.recommendationsHeader}>
             <Text style={styles.recommendationsTitle}>Opportunities Near You</Text>
-            <TouchableOpacity onPress={onOpenLocationModal} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={onOpenLocationModal}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            >
               <Text style={styles.sectionHeaderLink}>Location</Text>
             </TouchableOpacity>
           </View>
-          {nearbyOpportunitiesLoading &&
-          (!nearbyOpportunities || nearbyOpportunities.length === 0) ? (
-            <DiscoverCarouselSkeleton cardStyle={styles.opportunityCarouselSkeletonCard} />
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.recommendationsScroll}
-              contentContainerStyle={styles.recommendationsContent}
-            >
-              {nearbyOpportunities.map((opp) => (
-                <TouchableOpacity
-                  key={opp.id}
-                  style={styles.opportunityCard}
-                  onPress={() => {
-                    HapticPatterns.itemPress();
-                    onNavigate?.("opportunities");
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.opportunityImageContainer}>
-                    <Image source={{ uri: opp.image }} style={styles.opportunityImage} resizeMode="cover" />
-                    <LinearGradient
-                      colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.95)"]}
-                      style={styles.opportunityGradient}
-                    />
-                    <View style={styles.opportunityInfo}>
-                      <Text style={styles.opportunityTitle} numberOfLines={2}>
-                        {String(opp.title)}
-                      </Text>
-                      <Text style={styles.opportunityVenue} numberOfLines={1}>
-                        {String(opp.venue)}
-                      </Text>
-                      <View style={styles.opportunityMeta}>
-                        <Text style={styles.opportunityMetaText} numberOfLines={1}>
-                          {String(opp.date)} • {String(opp.city)}
-                        </Text>
-                      </View>
-                      {opp.compensation ? (
-                        <Text style={styles.opportunityCompensation} numberOfLines={1}>
-                          {String(opp.compensation)}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
+          <OpportunityRecommendationCarousel
+            opportunities={nearbyOpportunities}
+            loading={nearbyOpportunitiesLoading}
+            skeletonCardStyle={styles.opportunityCarouselSkeletonCard}
+            onOpenOpportunities={() => onNavigate?.("opportunities")}
+          />
           <View style={styles.recommendationsDivider} />
         </View>
       )}
 
-      {incomingConnectionRequests?.length > 0 && (
+      {requests.length > 0 && (
         <View style={[styles.pendingRequestsSection, { marginTop: 0 }]}>
           <View style={styles.pendingRequestsHeader}>
             <Text style={styles.pendingRequestsTitle}>Connection Requests</Text>
           </View>
-          {incomingConnectionRequests.map((request) => {
-            const isAccepting = acceptingUserId && request.id === acceptingUserId;
-            const isDeclining = decliningUserId && request.id === decliningUserId;
+          {requests.map((request) => {
+            const isAccepting = request.id === acceptingUserId;
+            const isDeclining = request.id === decliningUserId;
             const isProcessing = isAccepting || isDeclining;
             return (
               <View key={request.id} style={styles.pendingRequestCard}>
@@ -272,7 +283,11 @@ function DiscoverListHeader({
                 </View>
                 <View style={styles.pendingRequestActions}>
                   <TouchableOpacity
-                    style={[styles.pendingActionButton, styles.pendingAcceptButton, isProcessing && styles.pendingActionDisabled]}
+                    style={[
+                      styles.pendingActionButton,
+                      styles.pendingAcceptButton,
+                      isProcessing && styles.pendingActionDisabled,
+                    ]}
                     onPress={() => onAcceptRequest(request)}
                     disabled={isProcessing}
                     activeOpacity={0.8}
@@ -287,7 +302,11 @@ function DiscoverListHeader({
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.pendingActionButton, styles.pendingDeclineButton, isProcessing && styles.pendingActionDisabled]}
+                    style={[
+                      styles.pendingActionButton,
+                      styles.pendingDeclineButton,
+                      isProcessing && styles.pendingActionDisabled,
+                    ]}
                     onPress={() => onDeclineRequest(request)}
                     disabled={isProcessing}
                     activeOpacity={0.8}

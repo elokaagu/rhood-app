@@ -1,12 +1,11 @@
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import ProgressiveImage from "./ProgressiveImage";
 import ProfileImagePlaceholder from "./ProfileImagePlaceholder";
-import FadeInView from "./FadeInView";
 
 /**
  * Single connection row in the connections/messages list.
- * No per-item animation to keep list scroll smooth (virtualized).
+ * No per-item animation to keep list scroll smooth (virtualized); section uses connectionsFadeAnim.
  */
 function ConnectionListItem({
   connection,
@@ -18,70 +17,79 @@ function ConnectionListItem({
   getLastMessageTime,
   styles,
 }) {
+  const userName = getUserName(connection) || "";
+  const sender = getLastMessageSender(connection) || "";
+  const content = getLastMessageContent(connection) || "";
+  const lastMessageTime = (getLastMessageTime(connection) || "").trim();
+  const statusMessage = (connection.statusMessage || "").trim();
+
+  const previewText = useMemo(
+    () => [sender, content].filter(Boolean).join(" "),
+    [sender, content]
+  );
+
+  /** Prefer last message time; fall back to presence-style label when there is no thread yet. */
+  const headerTime =
+    lastMessageTime || connection.lastActive || "Recently";
+
+  const profileSource =
+    connection.profileImage &&
+    typeof connection.profileImage === "string" &&
+    connection.profileImage.trim()
+      ? { uri: connection.profileImage.trim() }
+      : null;
+
   return (
     <TouchableOpacity
-        style={styles.messageItem}
-        onPress={() => onPress(connection)}
-        onLongPress={onLongPress}
-        delayLongPress={350}
-        activeOpacity={0.85}
-      >
-        <FadeInView style={styles.messageContent}>
-          <View style={styles.avatarContainer}>
-            <ProgressiveImage
-              source={
-                connection.profileImage &&
-                typeof connection.profileImage === "string" &&
-                connection.profileImage.trim()
-                  ? { uri: connection.profileImage.trim() }
-                  : null
-              }
-              style={styles.profileImage}
-              placeholder={
-                <ProfileImagePlaceholder
-                  size={48}
-                  style={styles.profileImage}
-                  name={getUserName(connection)}
-                />
-              }
-              transition={0}
-            />
+      style={styles.messageItem}
+      onPress={() => onPress(connection)}
+      onLongPress={() => onLongPress?.(connection)}
+      delayLongPress={350}
+      activeOpacity={0.85}
+    >
+      <View style={styles.messageContent}>
+        <View style={styles.avatarContainer}>
+          <ProgressiveImage
+            source={profileSource}
+            style={styles.profileImage}
+            placeholder={
+              <ProfileImagePlaceholder
+                size={48}
+                style={styles.profileImage}
+                name={userName}
+              />
+            }
+            transition={0}
+          />
+          {connection.isOnline === true ? (
             <View style={styles.onlineIndicator} />
-          </View>
-          <View style={styles.messageInfo}>
-            <View style={styles.messageHeader}>
-              <Text style={styles.messageName} numberOfLines={1}>
-                {String(getUserName(connection) || "")}
-              </Text>
-              <View style={styles.messageHeaderMeta}>
-                <Text style={styles.messageTime}>
-                  {String(connection.lastActive || "Recently")}
-                </Text>
-              </View>
-            </View>
-            {connection.statusMessage &&
-            String(connection.statusMessage).trim() ? (
-              <Text
-                style={styles.connectionStatusMessage}
-                numberOfLines={1}
-              >
-                {String(connection.statusMessage || "")}
-              </Text>
-            ) : null}
-            <View style={styles.messagePreview}>
-              <Text style={styles.messageText} numberOfLines={1}>
-                {String(
-                  (getLastMessageSender(connection) || "") +
-                    (getLastMessageContent(connection) || "")
-                )}
-              </Text>
-              <Text style={styles.messageTime}>
-                {String(getLastMessageTime(connection) || "")}
-              </Text>
+          ) : null}
+        </View>
+        <View style={styles.messageInfo}>
+          <View style={styles.messageHeader}>
+            <Text style={styles.messageName} numberOfLines={1}>
+              {userName}
+            </Text>
+            <View style={styles.messageHeaderMeta}>
+              <Text style={styles.messageTime}>{headerTime}</Text>
             </View>
           </View>
-        </FadeInView>
-      </TouchableOpacity>
+          {statusMessage ? (
+            <Text
+              style={styles.connectionStatusMessage}
+              numberOfLines={1}
+            >
+              {statusMessage}
+            </Text>
+          ) : null}
+          <View style={styles.messagePreviewRow}>
+            <Text style={styles.messageText} numberOfLines={1}>
+              {previewText}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 }
 

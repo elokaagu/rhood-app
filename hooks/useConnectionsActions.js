@@ -21,6 +21,7 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
   } = modalState;
 
   const [cancellingConnectionId, setCancellingConnectionId] = useState(null);
+  const [connectingUserId, setConnectingUserId] = useState(null);
   const [acceptingUserId, setAcceptingUserId] = useState(null);
   const [decliningUserId, setDecliningUserId] = useState(null);
   const [isDeletingConnectionId, setIsDeletingConnectionId] = useState(null);
@@ -139,7 +140,9 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
 
   const handleConnect = useCallback(
     async (connection) => {
+      if (!connection?.id || connectingUserId != null) return;
       HapticPatterns.buttonPress();
+      setConnectingUserId(connection.id);
       try {
         setDiscoverLoading?.(true);
         const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -183,9 +186,11 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
         setShowConnectionModal(true);
       } finally {
         setDiscoverLoading?.(false);
+        setConnectingUserId(null);
       }
     },
     [
+      connectingUserId,
       setDiscoverLoading,
       setDiscoverUsers,
       setConnectionMessage,
@@ -431,6 +436,7 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
   }, [newLocationCity, user?.id, connectionsData?.setUser, loadNearbyDJs, loadNearbyOpportunities]);
 
   const handleUseCurrentLocation = useCallback(async () => {
+    if (updatingLocation) return;
     try {
       const { getCurrentLocation, reverseGeocode } = await import("../lib/locationService");
       const location = await getCurrentLocation();
@@ -445,7 +451,7 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
       console.error("Error getting current location:", error);
       Alert.alert("Error", "Failed to get your location. Please enter your city manually.");
     }
-  }, []);
+  }, [updatingLocation]);
 
   return {
     handleCloseConnectionModal,
@@ -467,6 +473,7 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
     handleUpdateLocation,
     handleUseCurrentLocation,
     cancellingConnectionId,
+    connectingUserId,
     acceptingUserId,
     decliningUserId,
     showLocationModal,

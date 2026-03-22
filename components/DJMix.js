@@ -6,7 +6,6 @@ import {
   Image,
   StyleSheet,
   Animated,
-  Modal,
   Alert,
   PanResponder,
 } from "react-native";
@@ -55,8 +54,8 @@ const parseDurationValue = (value) => {
 };
 
 /**
- * Mix row with swipe-to-delete (own mixes), options menu, like, queue.
- * TODO: lift options Modal to list parent for one modal per screen when used in long lists.
+ * Mix row with swipe-to-delete (own mixes), like, queue.
+ * Options menu: pass `onOpenOptions(mix)` and render a single `DJMixOptionsModal` at list/screen level.
  */
 const DJMix = ({
   mix,
@@ -70,34 +69,23 @@ const DJMix = ({
   isLiked = false,
   likeCount = 0,
   likeDisabled = false,
+  /** When set, ellipsis opens the parent-owned modal (see `DJMixOptionsModal`). */
+  onOpenOptions,
 }) => {
   const [imageError, setImageError] = useState(false);
-  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const swipeAnim = useRef(new Animated.Value(0)).current;
 
-  const isOwnMix = currentUserId && mix.user_id === currentUserId;
+  const isOwnMix = Boolean(currentUserId) && mix.user_id === currentUserId;
 
   const imageSource = useMemo(() => {
-    const candidateUrl =
+    const raw =
       (typeof mix.artwork_url === "string" && mix.artwork_url.trim()) ||
       (typeof mix.image_url === "string" && mix.image_url.trim()) ||
       (typeof mix.image === "string" && mix.image.trim()) ||
-      null;
-
-    if (candidateUrl) {
-      const trimmedUrl = candidateUrl.trim();
-      if (
-        trimmedUrl.length > 0 &&
-        (trimmedUrl.startsWith("http://") ||
-          trimmedUrl.startsWith("https://") ||
-          trimmedUrl.includes("supabase") ||
-          trimmedUrl.includes("storage") ||
-          trimmedUrl.includes("://"))
-      ) {
-        return { uri: trimmedUrl };
-      }
+      "";
+    if (raw.length > 0) {
+      return { uri: raw };
     }
-
     return require("../assets/rhood_logo.webp");
   }, [mix.artwork_url, mix.image_url, mix.image]);
 
@@ -105,23 +93,30 @@ const DJMix = ({
     setImageError(false);
   }, [imageSource]);
 
-  // Swipe to delete gesture handler (only for own mixes)
+  const resetSwipePositionStable = useMemo(() => {
+    const run = () => {
+      Animated.spring(swipeAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 40,
+        friction: 8,
+      }).start();
+    };
+    return run;
+  }, [swipeAnim]);
+
+  // Swipe-to-delete: pan only on main (art + track) so it doesn’t fight like/options taps.
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => isOwnMix,
         onStartShouldSetPanResponderCapture: () => false,
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          // Only respond to horizontal swipes (left)
-          return (
-            isOwnMix &&
-            gestureState.dx < -10 &&
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
-          );
-        },
-        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-          return isOwnMix && gestureState.dx < -10;
-        },
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          isOwnMix &&
+          gestureState.dx < -10 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
+        onMoveShouldSetPanResponderCapture: (_, gestureState) =>
+          isOwnMix && gestureState.dx < -10,
         onPanResponderGrant: () => {
           if (!isOwnMix) return;
           swipeAnim.stopAnimation((value) => {
@@ -132,7 +127,6 @@ const DJMix = ({
         },
         onPanResponderMove: (_, gestureState) => {
           if (isOwnMix && gestureState.dx < 0) {
-            // Only allow left swipe, max 100px
             const newValue = Math.max(gestureState.dx, -100);
             swipeAnim.setValue(newValue);
           }
@@ -141,7 +135,6 @@ const DJMix = ({
           swipeAnim.flattenOffset();
 
           if (gestureState.dx < -50) {
-            // Swipe threshold reached - show delete button
             Animated.spring(swipeAnim, {
               toValue: -80,
               useNativeDriver: true,
@@ -149,7 +142,6 @@ const DJMix = ({
               friction: 8,
             }).start();
           } else {
-            // Reset position
             Animated.spring(swipeAnim, {
               toValue: 0,
               useNativeDriver: true,
@@ -159,7 +151,6 @@ const DJMix = ({
           }
         },
         onPanResponderTerminate: () => {
-          // Reset if gesture is interrupted
           swipeAnim.flattenOffset();
           Animated.spring(swipeAnim, {
             toValue: 0,
@@ -206,7 +197,7 @@ const DJMix = ({
     mix.duration_formatted,
   ]);
 
-  const handleDelete = () => {
+  const confirmDeleteFromSwipe = () => {
     Alert.alert(
       "Delete Mix",
       `Are you sure you want to delete "${mix.title}"? This action cannot be undone.`,
@@ -215,22 +206,14 @@ const DJMix = ({
           text: "Cancel",
           style: "cancel",
           onPress: () => {
-            setShowOptionsMenu(false);
-            // Reset swipe position
-            Animated.spring(swipeAnim, {
-              toValue: 0,
-              useNativeDriver: true,
-            }).start();
+            resetSwipePositionStable();
           },
         },
         {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            setShowOptionsMenu(false);
-            if (onDelete) {
-              onDelete(mix);
-            }
+            onDelete?.(mix);
           },
         },
       ]
@@ -239,12 +222,11 @@ const DJMix = ({
 
   return (
     <View style={styles.swipeContainer}>
-      {/* Delete Button (revealed on swipe) */}
       {isOwnMix && (
         <View style={styles.deleteButtonContainer}>
           <TouchableOpacity
             style={styles.deleteButton}
-            onPress={handleDelete}
+            onPress={confirmDeleteFromSwipe}
             activeOpacity={0.7}
           >
             <Ionicons name="trash" size={24} color="white" />
@@ -253,7 +235,6 @@ const DJMix = ({
         </View>
       )}
 
-      {/* Main Mix Card (swipeable) */}
       <Animated.View
         style={[
           styles.mixCardAnimated,
@@ -261,98 +242,95 @@ const DJMix = ({
             transform: [{ translateX: swipeAnim }],
           },
         ]}
-        {...panResponder.panHandlers}
       >
-        <TouchableOpacity
-          style={[styles.mixCard, isPlaying && styles.mixCardPlaying]}
-          onPress={onPlayPause}
-          activeOpacity={0.7}
-          delayPressIn={isOwnMix ? 100 : 0}
-        >
-          {/* Album Art */}
-          <View style={styles.albumArtContainer}>
-            {!imageError ? (
-              <Image
-                source={imageSource}
-                style={styles.albumArt}
-                resizeMode="cover"
-                onError={(error) => {
-                  setImageError(true);
-                  if (__DEV__) {
-                    const imageUrl = imageSource?.uri || "fallback";
-                    console.log(`❌ Failed to load image for "${mix.title}":`, {
-                      attemptedUrl: imageUrl,
-                      artwork_url: mix.artwork_url,
-                      image_url: mix.image_url,
-                      image: mix.image,
-                      error: error.nativeEvent?.error || "Unknown error",
-                    });
-                  }
-                }}
-                onLoad={() => {
-                  setImageError(false);
-                  if (__DEV__) {
-                    const imageUrl = imageSource?.uri || "fallback";
-                    console.log(
-                      `✅ Successfully loaded image for "${mix.title}": ${imageUrl}`
-                    );
-                  }
-                }}
-              />
-            ) : (
-              <View style={styles.fallbackImage}>
-                <Ionicons
-                  name="musical-notes"
-                  size={24}
-                  color="hsl(0, 0%, 60%)"
-                />
-              </View>
-            )}
-
-            {/* Play Icon Overlay */}
-            {isPlaying && (
-              <View style={styles.playOverlay}>
-                <View style={styles.playIconContainer}>
-                  <Ionicons name="play" size={16} color="hsl(75, 100%, 60%)" />
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* Track Info */}
-          <View style={styles.trackInfo}>
-            <Text style={styles.trackTitle} numberOfLines={1} ellipsizeMode="tail">
-              {mix.title}
-            </Text>
+        <View style={[styles.mixCard, isPlaying && styles.mixCardPlaying]}>
+          <View style={styles.mixCardSwipeArea} {...panResponder.panHandlers}>
             <TouchableOpacity
-              onPress={() =>
-                onArtistPress && onArtistPress(mix.artist, mix.user_id)
-              }
+              style={styles.mixCardMainPressable}
+              onPress={onPlayPause}
               activeOpacity={0.7}
+              delayPressIn={isOwnMix ? 100 : 0}
             >
-              <Text style={styles.trackArtist} numberOfLines={1}>
-                {mix.artist}
-              </Text>
-            </TouchableOpacity>
-            {mix.artistStatus ? (
-              <Text style={styles.trackArtistStatus} numberOfLines={1}>
-                {mix.artistStatus}
-              </Text>
-            ) : null}
+              <View style={styles.albumArtContainer}>
+                {!imageError ? (
+                  <Image
+                    source={imageSource}
+                    style={styles.albumArt}
+                    resizeMode="cover"
+                    onError={(error) => {
+                      setImageError(true);
+                      if (__DEV__) {
+                        const imageUrl = imageSource?.uri || "fallback";
+                        console.log(`❌ Failed to load image for "${mix.title}":`, {
+                          attemptedUrl: imageUrl,
+                          artwork_url: mix.artwork_url,
+                          image_url: mix.image_url,
+                          image: mix.image,
+                          error: error.nativeEvent?.error || "Unknown error",
+                        });
+                      }
+                    }}
+                    onLoad={() => {
+                      setImageError(false);
+                      if (__DEV__) {
+                        const imageUrl = imageSource?.uri || "fallback";
+                        console.log(
+                          `✅ Successfully loaded image for "${mix.title}": ${imageUrl}`
+                        );
+                      }
+                    }}
+                  />
+                ) : (
+                  <View style={styles.fallbackImage}>
+                    <Ionicons
+                      name="musical-notes"
+                      size={24}
+                      color="hsl(0, 0%, 60%)"
+                    />
+                  </View>
+                )}
 
-            {/* Additional Mix Info */}
-            <View style={styles.mixDetails}>
-            <Text style={styles.mixDetailText}>{displayDuration}</Text>
-              <Text style={styles.mixDetailSeparator}>•</Text>
-              <Text style={styles.mixDetailText}>
-                {mix.genre || "Electronic"}
-              </Text>
-              {mix.is_primary && (
-                <View style={styles.primaryTagSmall}>
-                  <Text style={styles.primaryTagTextSmall}>P</Text>
+                {isPlaying && (
+                  <View style={styles.playOverlay}>
+                    <View style={styles.playIconContainer}>
+                      <Ionicons name="play" size={16} color="hsl(75, 100%, 60%)" />
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.trackInfo}>
+                <Text style={styles.trackTitle} numberOfLines={1} ellipsizeMode="tail">
+                  {mix.title}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => onArtistPress?.(mix.artist, mix.user_id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.trackArtist} numberOfLines={1}>
+                    {mix.artist}
+                  </Text>
+                </TouchableOpacity>
+                {mix.artistStatus ? (
+                  <Text style={styles.trackArtistStatus} numberOfLines={1}>
+                    {mix.artistStatus}
+                  </Text>
+                ) : null}
+
+                <View style={styles.mixDetails}>
+                  <Text style={styles.mixDetailText}>{displayDuration}</Text>
+                  <Text style={styles.mixDetailSeparator}>•</Text>
+                  <Text style={styles.mixDetailText}>
+                    {mix.genre || "Electronic"}
+                  </Text>
+                  {mix.is_primary && (
+                    <View style={styles.primaryTagSmall}>
+                      <Text style={styles.primaryTagTextSmall}>P</Text>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
+              </View>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.actionButtons}>
@@ -364,9 +342,9 @@ const DJMix = ({
               ]}
               activeOpacity={0.7}
               onPress={() => {
-                if (onLikePress && !likeDisabled) {
+                if (!likeDisabled) {
                   HapticPatterns.like();
-                  onLikePress();
+                  onLikePress?.();
                 }
               }}
             >
@@ -385,77 +363,25 @@ const DJMix = ({
               </Text>
             </TouchableOpacity>
 
-            {/* Options Menu - Show for all mixes */}
-            <TouchableOpacity
-              style={styles.optionsButton}
-              activeOpacity={0.7}
-              onPress={() => {
-                HapticPatterns.buttonPress();
-                setShowOptionsMenu(true);
-              }}
-            >
-              <Ionicons
-                name="ellipsis-horizontal"
-                size={20}
-                color="hsl(0, 0%, 70%)"
-              />
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* Options Modal */}
-      <Modal
-        visible={showOptionsMenu}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowOptionsMenu(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowOptionsMenu(false)}
-        >
-          <View style={styles.optionsModal}>
-            {/* Add to Queue - Show for all mixes */}
-            <TouchableOpacity
-              style={styles.optionItem}
-              onPress={() => {
-                setShowOptionsMenu(false);
-                if (onAddToQueue) {
-                  onAddToQueue(mix);
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="list" size={20} color="hsl(75, 100%, 60%)" />
-              <Text style={styles.optionTextGreen}>Add to Queue</Text>
-            </TouchableOpacity>
-
-            {/* Delete - Only show for own mixes */}
-            {isOwnMix && (
+            {typeof onOpenOptions === "function" ? (
               <TouchableOpacity
-                style={styles.optionItem}
-                onPress={handleDelete}
+                style={styles.optionsButton}
                 activeOpacity={0.7}
+                onPress={() => {
+                  HapticPatterns.buttonPress();
+                  onOpenOptions(mix);
+                }}
               >
-                <Ionicons name="trash" size={20} color="hsl(0, 100%, 60%)" />
-                <Text style={styles.optionTextDelete}>Delete Mix</Text>
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={20}
+                  color="hsl(0, 0%, 70%)"
+                />
               </TouchableOpacity>
-            )}
-
-            {/* Cancel */}
-            <TouchableOpacity
-              style={styles.optionItem}
-              onPress={() => setShowOptionsMenu(false)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="close" size={20} color="hsl(0, 0%, 70%)" />
-              <Text style={styles.optionText}>Cancel</Text>
-            </TouchableOpacity>
+            ) : null}
           </View>
-        </TouchableOpacity>
-      </Modal>
+        </View>
+      </Animated.View>
     </View>
   );
 };
@@ -484,10 +410,20 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  mixCardSwipeArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mixCardMainPressable: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    minWidth: 0,
+  },
   mixCardPlaying: {
-    borderColor: "hsl(75, 100%, 60%)", // R/HOOD green border
+    borderColor: "hsl(75, 100%, 60%)",
     borderWidth: 2,
-    backgroundColor: "hsl(0, 0%, 3%)", // Slightly lighter background
+    backgroundColor: "hsl(0, 0%, 3%)",
   },
   deleteButtonContainer: {
     position: "absolute",
@@ -550,29 +486,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  playButtonOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "hsla(0, 0%, 0%, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  playButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "hsla(0, 0%, 0%, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "hsla(255, 255, 255, 0.3)",
-  },
   trackInfo: {
     flex: 1,
     justifyContent: "center",
+    minWidth: 0,
   },
   trackTitle: {
     fontSize: 16,
@@ -584,7 +501,7 @@ const styles = StyleSheet.create({
   trackArtist: {
     fontSize: 14,
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 85%)", // Changed from green to light gray
+    color: "hsl(0, 0%, 85%)",
     marginBottom: 2,
   },
   trackArtistStatus: {
@@ -593,59 +510,9 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 70%)",
     marginBottom: 4,
   },
-  trackDescription: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-    marginBottom: 4,
-  },
-  trackDuration: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-  },
   optionsButton: {
     padding: 8,
     marginLeft: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  optionsModal: {
-    backgroundColor: "hsl(0, 0%, 10%)",
-    borderRadius: 12,
-    padding: 8,
-    width: "80%",
-    maxWidth: 300,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
-  },
-  optionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 8,
-  },
-  optionText: {
-    color: "hsl(0, 0%, 70%)",
-    fontSize: 16,
-    marginLeft: 12,
-    fontWeight: "500",
-  },
-  optionTextGreen: {
-    color: "hsl(75, 100%, 60%)",
-    fontSize: 16,
-    marginLeft: 12,
-    fontWeight: "600",
-  },
-  optionTextDelete: {
-    color: "hsl(0, 100%, 60%)",
-    fontSize: 16,
-    marginLeft: 12,
-    fontWeight: "600",
   },
   mixDetails: {
     flexDirection: "row",
@@ -714,3 +581,4 @@ const styles = StyleSheet.create({
 });
 
 export default memo(DJMix);
+export { default as DJMixOptionsModal } from "./DJMixOptionsModal";

@@ -1,46 +1,29 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Animated } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import styles from "./ConnectionsScreen.styles";
 
 export default function ConnectionsScreenHeader({
   activeTab,
-  setActiveTab,
+  onTabChange,
   searchQuery,
-  setSearchQuery,
+  onSearchChange,
   searchSuggestions,
-  setSearchSuggestions,
-  setShowSuggestions,
   showSuggestions,
-  connectionsFadeAnim,
-  discoverFadeAnim,
-  discoverUsersLength,
-  loadDiscoverDJs,
-  onNavigate,
+  onClearSearch,
+  onSelectSearchSuggestion,
 }) {
   return (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>CONNECTIONS</Text>
       <Text style={styles.headerSubtitle}>
-        Connect with DJs and manage your conversations
+        Discover DJs and manage your conversations
       </Text>
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tabButton, activeTab === "discover" && styles.tabButtonActive]}
-          onPress={() => {
-            setActiveTab("discover");
-            discoverFadeAnim.setValue(0);
-            if (discoverUsersLength === 0) {
-              loadDiscoverDJs();
-            } else {
-              Animated.timing(discoverFadeAnim, {
-                toValue: 1,
-                duration: 300,
-                useNativeDriver: true,
-              }).start();
-            }
-          }}
+          onPress={() => onTabChange?.("discover")}
         >
           <Ionicons
             name="compass"
@@ -53,15 +36,7 @@ export default function ConnectionsScreenHeader({
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tabButton, activeTab === "connections" && styles.tabButtonActive]}
-          onPress={() => {
-            setActiveTab("connections");
-            Animated.timing(connectionsFadeAnim, {
-              toValue: 1,
-              duration: 200,
-              useNativeDriver: true,
-            }).start();
-            discoverFadeAnim.setValue(0);
-          }}
+          onPress={() => onTabChange?.("connections")}
         >
           <Ionicons
             name="people"
@@ -69,7 +44,7 @@ export default function ConnectionsScreenHeader({
             color={activeTab === "connections" ? "hsl(0, 0%, 0%)" : "hsl(0, 0%, 70%)"}
           />
           <Text style={[styles.tabText, activeTab === "connections" && styles.tabTextActive]}>
-            Messages
+            Connections
           </Text>
         </TouchableOpacity>
       </View>
@@ -81,19 +56,12 @@ export default function ConnectionsScreenHeader({
             placeholder={activeTab === "discover" ? "Search DJs..." : "Search connections..."}
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={onSearchChange}
             autoCapitalize="none"
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                setSearchQuery("");
-                setSearchSuggestions([]);
-                setShowSuggestions(false);
-              }}
-              style={styles.clearButton}
-            >
+            <TouchableOpacity onPress={onClearSearch} style={styles.clearButton}>
               <Ionicons name="close-circle" size={20} color="hsl(0, 0%, 50%)" />
             </TouchableOpacity>
           )}
@@ -110,11 +78,7 @@ export default function ConnectionsScreenHeader({
                 <TouchableOpacity
                   key={suggestion.id}
                   style={[styles.suggestionItem, index === 0 && styles.suggestionItemFirst]}
-                  onPress={() => {
-                    setSearchQuery(suggestion.name);
-                    setShowSuggestions(false);
-                    onNavigate?.("user-profile", { userId: suggestion.id, djName: suggestion.name });
-                  }}
+                  onPress={() => onSelectSearchSuggestion?.(suggestion)}
                   activeOpacity={0.7}
                   hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                 >
