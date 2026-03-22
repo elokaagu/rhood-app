@@ -79,6 +79,10 @@ function FullScreenPlayerModalBody({
   onShare,
   onArtistPress,
   onOpenQueue,
+  isPlaying,
+  onPlayPause,
+  onNextTrack,
+  onPreviousTrack,
 }) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
@@ -257,6 +261,44 @@ function FullScreenPlayerModalBody({
               </View>
             </View>
 
+            <View style={styles.transportRow}>
+              <TouchableOpacity
+                onPress={onPreviousTrack}
+                style={styles.transportSideHit}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Previous track"
+                accessibilityRole="button"
+                activeOpacity={0.65}
+              >
+                <Ionicons name="play-skip-back" size={34} color={COLORS.textPrimary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onPlayPause}
+                style={styles.transportPlayOuter}
+                hitSlop={8}
+                accessibilityLabel={isPlaying ? "Pause" : "Play"}
+                accessibilityRole="button"
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={38}
+                  color={FULL_PLAYER_CANVAS}
+                  style={!isPlaying ? styles.transportPlayIconNudge : undefined}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onNextTrack}
+                style={styles.transportSideHit}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Next track"
+                accessibilityRole="button"
+                activeOpacity={0.65}
+              >
+                <Ionicons name="play-skip-forward" size={34} color={COLORS.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
             <FullScreenPlaybackSlider
               positionMillis={positionMillis}
               durationMillis={durationMillis}
@@ -414,6 +456,10 @@ function FullScreenPlayerModal({
   onShare,
   onArtistPress,
   onOpenQueue,
+  isPlaying,
+  onPlayPause,
+  onNextTrack,
+  onPreviousTrack,
   overlayStyle,
 }) {
   if (!track) return null;
@@ -440,6 +486,10 @@ function FullScreenPlayerModal({
             onShare={onShare}
             onArtistPress={onArtistPress}
             onOpenQueue={onOpenQueue}
+            isPlaying={isPlaying}
+            onPlayPause={onPlayPause}
+            onNextTrack={onNextTrack}
+            onPreviousTrack={onPreviousTrack}
           />
         </GestureHandlerRootView>
       </SafeAreaProvider>
@@ -622,6 +672,38 @@ const styles = StyleSheet.create({
   },
   metaIconBtn: {
     padding: 4,
+  },
+  transportRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    gap: SPACING.xl,
+  },
+  transportSideHit: {
+    minWidth: 52,
+    minHeight: 52,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  transportPlayOuter: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  transportPlayIconNudge: {
+    marginLeft: 4,
   },
   errorBanner: {
     marginTop: SPACING.lg,

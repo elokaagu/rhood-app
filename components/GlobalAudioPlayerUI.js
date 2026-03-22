@@ -89,6 +89,14 @@ function GlobalAudioPlayerUI({
     else resume();
   }, [state.isPlaying]);
 
+  const onFullScreenNext = useCallback(() => {
+    void actionsRef?.current?.skipForward?.();
+  }, []);
+
+  const onFullScreenPrevious = useCallback(() => {
+    void actionsRef?.current?.skipBackward?.();
+  }, []);
+
   const onClose = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     stop();
@@ -194,6 +202,10 @@ function GlobalAudioPlayerUI({
           setFullScreenVisible(false);
           setQueueVisible(true);
         }}
+        isPlaying={!!state.isPlaying}
+        onPlayPause={onPlayPause}
+        onNextTrack={onFullScreenNext}
+        onPreviousTrack={onFullScreenPrevious}
       />
 
       {/* ——— Queue modal ——— */}
