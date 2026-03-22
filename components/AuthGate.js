@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import SplashScreen from "./SplashScreen";
 import LoginScreen from "./LoginScreen";
 import SignupScreen from "./SignupScreen";
@@ -9,6 +9,8 @@ import OnboardingForm from "./OnboardingForm";
 /**
  * Handles splash, auth loading, login/signup, onboarding, and profile loading.
  * Returns null when user is authenticated and has profile (parent renders main app).
+ *
+ * Expects {@link SafeAreaProvider} above this tree (see App.js).
  */
 export default function AuthGate({
   showSplash,
@@ -28,75 +30,61 @@ export default function AuthGate({
   styles,
 }) {
   if (showSplash) {
-    return (
-      <SafeAreaProvider>
-        <SplashScreen onFinish={onSplashFinish} />
-      </SafeAreaProvider>
-    );
+    return <SplashScreen onFinish={onSplashFinish} />;
   }
 
-  if (authLoading || isLoading) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          <View style={styles.center}>
-            <Text style={styles.title}>R/HOOD</Text>
-          </View>
-        </SafeAreaView>
-      </SafeAreaProvider>
+  const isAuthBusy = authLoading || isLoading;
+  const needsOnboarding = Boolean(user) && isFirstTime;
+  const isProfileLoading =
+    Boolean(user) && !djProfile && !isFirstTime;
+
+  let content = null;
+
+  if (isAuthBusy) {
+    content = (
+      <View style={styles.center}>
+        <Text style={styles.title}>R/HOOD</Text>
+      </View>
     );
+  } else if (!user) {
+    content =
+      authMode === "login" ? (
+        <LoginScreen
+          onLoginSuccess={onLoginSuccess}
+          onSwitchToSignup={onSwitchToSignup}
+        />
+      ) : (
+        <SignupScreen
+          onSignupSuccess={onSignupSuccess}
+          onSwitchToLogin={onSwitchToLogin}
+        />
+      );
+  } else if (needsOnboarding) {
+    content = (
+      <OnboardingForm
+        onComplete={onOnboardingComplete}
+        djProfile={djProfile}
+        setDjProfile={setDjProfile}
+      />
+    );
+  } else if (isProfileLoading) {
+    content = (
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  } else {
+    return null;
   }
 
-  if (!user) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          {authMode === "login" ? (
-            <LoginScreen
-              onLoginSuccess={onLoginSuccess}
-              onSwitchToSignup={onSwitchToSignup}
-            />
-          ) : (
-            <SignupScreen
-              onSignupSuccess={onSignupSuccess}
-              onSwitchToLogin={onSwitchToLogin}
-            />
-          )}
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
-  if (isFirstTime && !authLoading && user) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          <OnboardingForm
-            onComplete={onOnboardingComplete}
-            djProfile={djProfile}
-            setDjProfile={setDjProfile}
-          />
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
-  if (authLoading || (user && !djProfile)) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          <View
-            style={[
-              styles.container,
-              { justifyContent: "center", alignItems: "center" },
-            ]}
-          >
-            <Text style={styles.loadingText}>Loading...</Text>
-          </View>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
-  return null;
+  return (
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      {content}
+    </SafeAreaView>
+  );
 }

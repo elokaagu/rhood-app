@@ -35,6 +35,7 @@ import { clearScreenCachesForUser } from "./lib/screenCache";
 import {
   ANIMATION_DURATION,
 } from "./lib/performanceConstants";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import AppShell from "./components/AppShell";
 import ScreenRouter from "./navigation/ScreenRouter";
 import {
@@ -1321,7 +1322,7 @@ export default function App() {
     styles,
   });
   if (authGateRender !== null) {
-    return authGateRender;
+    return <SafeAreaProvider>{authGateRender}</SafeAreaProvider>;
   }
 
   const renderScreen = () => (
@@ -1365,6 +1366,7 @@ export default function App() {
 
 
   return (
+    <SafeAreaProvider>
     <AppShell
       currentScreen={currentScreen}
       onOpenMenu={openMenu}
@@ -1722,6 +1724,7 @@ export default function App() {
         />
 
     </AppShell>
+    </SafeAreaProvider>
   );
 }
 

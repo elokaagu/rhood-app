@@ -1,15 +1,14 @@
-import React, { memo } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  TouchableOpacity,
-  Image,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import React, { memo, useCallback, useMemo } from "react";
+import { View, Text, Pressable } from "react-native";
 import ProgressiveImage from "./ProgressiveImage";
 import OpportunityMessageCard from "./OpportunityMessageCard";
-import { multimediaService } from "../lib/multimediaService";
+import {
+  safeImageSource,
+  MessageRowImage,
+  MessageRowVideo,
+  MessageRowAudio,
+  MessageRowFile,
+} from "./MessageRowMedia";
 
 const MessageRow = memo(function MessageRow({
   message,
@@ -28,309 +27,167 @@ const MessageRow = memo(function MessageRow({
   formatDuration,
   styles,
 }) {
+  const isOwn = message.isOwn;
+  const messageType = message.messageType;
+  const mediaUrlRaw = message.mediaUrl;
+  const mediaUrl =
+    typeof mediaUrlRaw === "string" ? mediaUrlRaw.trim() : "";
+  const hasMediaUri = mediaUrl.length > 0;
+  const isNonTextMedia = messageType !== "text" && hasMediaUri;
+  const isOpportunityRow =
+    messageType === "opportunity" && message.opportunity;
+  const hasCaption = Boolean(message.content?.trim());
+
+  const senderAvatarSource = safeImageSource(message.senderImage);
+
+  const audioDurationMs = audioDurations[message.id] ?? 0;
+  const audioProgressMs = audioProgress[message.id] ?? 0;
+  const audioProgressPct = useMemo(() => {
+    if (audioDurationMs <= 0) return 0;
+    return Math.min(100, (audioProgressMs / audioDurationMs) * 100);
+  }, [audioDurationMs, audioProgressMs]);
+  const isAudioPlaying = playingAudioId === message.id;
+
+  const bubbleStyle = useMemo(
+    () => [
+      styles.messageBubble,
+      isOwn ? styles.ownBubble : styles.otherBubble,
+      isNonTextMedia && hasMediaUri ? styles.mediaBubble : null,
+    ],
+    [styles, isOwn, isNonTextMedia, hasMediaUri]
+  );
+
+  const messageTimeStyle = useMemo(
+    () => [
+      styles.messageTime,
+      isOwn ? styles.ownMessageTime : styles.otherMessageTime,
+    ],
+    [styles, isOwn]
+  );
+
+  const containerStyle = useMemo(
+    () => [
+      styles.messageContainer,
+      isOwn ? styles.ownMessage : styles.otherMessage,
+    ],
+    [styles, isOwn]
+  );
+
+  const onLongPressRow = useCallback(
+    () => onLongPress(message),
+    [onLongPress, message]
+  );
+
+  const onOpenImage = useCallback(
+    () => setFullscreenImage(mediaUrl),
+    [setFullscreenImage, mediaUrl]
+  );
+
+  const onPlayVideo = useCallback(
+    () => onVideoPlay(mediaUrl),
+    [onVideoPlay, mediaUrl]
+  );
+
+  const onToggleAudio = useCallback(
+    () => onAudioToggle(message.id, mediaUrl),
+    [onAudioToggle, message.id, mediaUrl]
+  );
+
+  const onOpenFile = useCallback(
+    () =>
+      onFileOpen(
+        mediaUrl,
+        message.mediaFilename,
+        message.mediaMimeType
+      ),
+    [onFileOpen, mediaUrl, message.mediaFilename, message.mediaMimeType]
+  );
+
+  const isGenericFile =
+    isNonTextMedia &&
+    messageType !== "image" &&
+    messageType !== "video" &&
+    messageType !== "audio" &&
+    hasMediaUri;
+
   return (
-    <View
-      style={[
-        styles.messageContainer,
-        message.isOwn ? styles.ownMessage : styles.otherMessage,
-      ]}
-    >
-      {!message.isOwn && (
+    <View style={containerStyle}>
+      {!isOwn && (
         <View style={styles.messageHeader}>
           <ProgressiveImage
-            source={{ uri: message.senderImage }}
+            source={senderAvatarSource}
             style={styles.messageAvatar}
-            placeholderStyle={styles.messageAvatarPlaceholder}
+            placeholder={
+              <View style={styles.messageAvatarPlaceholder} />
+            }
           />
           <Text style={styles.senderName}>{message.senderName}</Text>
         </View>
       )}
       <Pressable
-        style={[
-          styles.messageBubble,
-          message.isOwn ? styles.ownBubble : styles.otherBubble,
-          message.messageType !== "text" &&
-            message.mediaUrl &&
-            styles.mediaBubble,
-        ]}
-        onLongPress={() => onLongPress(message)}
+        style={bubbleStyle}
+        onLongPress={onLongPressRow}
         delayLongPress={250}
       >
-        {message.messageType === "opportunity" && message.opportunity ? (
+        {isOpportunityRow ? (
           <OpportunityMessageCard
             opportunity={message.opportunity}
-            isOwn={message.isOwn}
-            onPress={(opp) => onOpportunityPress(opp)}
+            isOwn={isOwn}
+            onPress={onOpportunityPress}
           />
-        ) : message.messageType !== "text" && message.mediaUrl ? (
+        ) : isNonTextMedia ? (
           <View style={styles.mediaContent}>
-            {message.messageType === "image" && (
-              <TouchableOpacity
-                onPress={() => setFullscreenImage(message.mediaUrl)}
-                activeOpacity={0.9}
-              >
-                <Image
-                  source={{ uri: message.mediaUrl }}
-                  style={styles.messageImage}
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
+            {messageType === "image" && (
+              <MessageRowImage
+                mediaUrl={mediaUrl}
+                styles={styles}
+                onOpen={onOpenImage}
+              />
             )}
-            {message.messageType === "video" && (
-              <TouchableOpacity
-                onPress={() => onVideoPlay(message.mediaUrl)}
-                activeOpacity={0.9}
-              >
-                {message.thumbnailUrl ? (
-                  <View style={styles.messageVideo}>
-                    <Image
-                      source={{ uri: message.thumbnailUrl }}
-                      style={styles.messageVideoThumbnail}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.videoPlayOverlay}>
-                      <View style={styles.videoPlayButton}>
-                        <Ionicons
-                          name="play"
-                          size={32}
-                          color="hsl(0, 0%, 100%)"
-                        />
-                      </View>
-                    </View>
-                  </View>
-                ) : (
-                  <View
-                    style={[
-                      styles.messageVideoFile,
-                      message.isOwn && styles.ownMessageVideoFile,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.videoFileIconContainer,
-                        message.isOwn && styles.ownVideoFileIconContainer,
-                      ]}
-                    >
-                      <Ionicons
-                        name="videocam"
-                        size={32}
-                        color={
-                          message.isOwn
-                            ? "hsl(0, 0%, 0%)"
-                            : "hsl(75, 100%, 60%)"
-                        }
-                      />
-                    </View>
-                    <View style={styles.videoFileInfo}>
-                      <Text
-                        style={[
-                          styles.videoFileName,
-                          message.isOwn && styles.ownVideoFileName,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {message.mediaFilename || "Video"}
-                      </Text>
-                      <View style={styles.videoFileMeta}>
-                        <Ionicons
-                          name="play-circle"
-                          size={16}
-                          color={
-                            message.isOwn
-                              ? "hsl(0, 0%, 40%)"
-                              : "hsl(75, 85%, 70%)"
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.videoFileMetaText,
-                            message.isOwn && styles.ownVideoFileMetaText,
-                          ]}
-                        >
-                          Tap to play
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-              </TouchableOpacity>
+            {messageType === "video" && (
+              <MessageRowVideo
+                isOwn={isOwn}
+                thumbnailUrl={message.thumbnailUrl}
+                mediaFilename={message.mediaFilename}
+                styles={styles}
+                onPlay={onPlayVideo}
+              />
             )}
-            {message.messageType === "audio" && (
-              <View
-                style={[
-                  styles.messageAudio,
-                  message.isOwn && styles.ownMessageAudio,
-                ]}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.audioPlayButton,
-                    message.isOwn && styles.ownAudioPlayButton,
-                  ]}
-                  onPress={() => onAudioToggle(message.id, message.mediaUrl)}
-                >
-                  <Ionicons
-                    name={
-                      playingAudioId === message.id ? "pause" : "play"
-                    }
-                    size={20}
-                    color={
-                      message.isOwn ? "hsl(0, 0%, 0%)" : "hsl(0, 0%, 0%)"
-                    }
-                  />
-                </TouchableOpacity>
-                <View style={styles.audioContent}>
-                  <View
-                    style={[
-                      styles.audioProgressBar,
-                      message.isOwn && styles.ownAudioProgressBar,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.audioProgressFill,
-                        message.isOwn && styles.ownAudioProgressFill,
-                        {
-                          width: `${
-                            audioDurations[message.id] && audioProgress[message.id]
-                              ? Math.min(
-                                  100,
-                                  (audioProgress[message.id] /
-                                    audioDurations[message.id]) *
-                                    100
-                                )
-                              : 0
-                          }%`,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <View style={styles.audioInfoRow}>
-                    <View style={styles.audioLabelContainer}>
-                      {message.mediaFilename && (
-                        <Text
-                          style={[
-                            styles.audioLabel,
-                            message.isOwn
-                              ? styles.ownAudioLabel
-                              : styles.otherAudioLabel,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {message.mediaFilename.replace(/\.[^/.]+$/, "")}
-                        </Text>
-                      )}
-                      <Text
-                        style={[
-                          styles.audioDuration,
-                          message.isOwn
-                            ? styles.ownAudioDuration
-                            : styles.otherAudioDuration,
-                        ]}
-                      >
-                        {playingAudioId === message.id
-                          ? formatDuration(audioProgress[message.id] || 0)
-                          : "0:00"}{" "}
-                        / {formatDuration(audioDurations[message.id] || 0)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
+            {messageType === "audio" && (
+              <MessageRowAudio
+                isOwn={isOwn}
+                mediaFilename={message.mediaFilename}
+                styles={styles}
+                progressPercent={audioProgressPct}
+                isPlaying={isAudioPlaying}
+                progressMs={audioProgressMs}
+                durationMs={audioDurationMs}
+                formatDuration={formatDuration}
+                onToggle={onToggleAudio}
+              />
             )}
-            {message.messageType !== "image" &&
-              message.messageType !== "video" &&
-              message.messageType !== "audio" &&
-              message.mediaUrl && (
-                <TouchableOpacity
-                  style={[
-                    styles.messageFile,
-                    message.isOwn && styles.ownMessageFile,
-                  ]}
-                  onPress={() =>
-                    onFileOpen(
-                      message.mediaUrl,
-                      message.mediaFilename,
-                      message.mediaMimeType
-                    )
-                  }
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={[
-                      styles.fileIconContainer,
-                      message.isOwn && styles.ownFileIconContainer,
-                    ]}
-                  >
-                    <Ionicons
-                      name={multimediaService.getFileIcon(
-                        message.fileExtension
-                      )}
-                      size={28}
-                      color={
-                        message.isOwn
-                          ? "hsl(0, 0%, 0%)"
-                          : "hsl(75, 100%, 60%)"
-                      }
-                    />
-                  </View>
-                  <View style={styles.fileInfo}>
-                    <Text
-                      style={[
-                        styles.fileName,
-                        message.isOwn && styles.ownFileName,
-                      ]}
-                    >
-                      {message.mediaFilename || "Attachment"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.fileSize,
-                        message.isOwn && styles.ownFileSize,
-                      ]}
-                    >
-                      {message.mediaSize
-                        ? multimediaService.formatFileSize(
-                            message.mediaSize
-                          )
-                        : message.mediaMimeType || ""}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name="download-outline"
-                    size={20}
-                    color={
-                      message.isOwn
-                        ? "hsl(0, 0%, 0%)"
-                        : "hsl(75, 100%, 60%)"
-                    }
-                    style={styles.downloadIcon}
-                  />
-                </TouchableOpacity>
-              )}
-            {message.content && message.content.trim() && (
-              <View
-                style={{
-                  paddingHorizontal: 12,
-                  paddingTop: 8,
-                  paddingBottom: 4,
-                }}
-              >
+            {isGenericFile && (
+              <MessageRowFile
+                isOwn={isOwn}
+                fileExtension={message.fileExtension}
+                mediaFilename={message.mediaFilename}
+                mediaSize={message.mediaSize}
+                mediaMimeType={message.mediaMimeType}
+                styles={styles}
+                onOpen={onOpenFile}
+              />
+            )}
+            {hasCaption ? (
+              <View style={styles.mediaCaptionWrap}>
                 {renderMessageText(message)}
               </View>
-            )}
+            ) : null}
           </View>
         ) : (
           renderMessageText(message)
         )}
-        {message.messageType !== "opportunity" &&
-          renderLinkPreviews(message)}
-        <Text
-          style={[
-            styles.messageTime,
-            message.isOwn ? styles.ownMessageTime : styles.otherMessageTime,
-          ]}
-        >
+        {messageType !== "opportunity" && renderLinkPreviews(message)}
+        <Text style={messageTimeStyle}>
           {formatTime(message.timestamp)}
         </Text>
       </Pressable>

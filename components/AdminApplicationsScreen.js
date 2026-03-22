@@ -1,38 +1,46 @@
 // components/AdminApplicationsScreen.js
 // Admin interface for reviewing and updating application status
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
+import { COLORS, TYPOGRAPHY, SPACING } from "../lib/sharedStyles";
 import ProgressiveImage from "./ProgressiveImage";
 import { sendApplicationStatusNotification } from "../lib/notificationService";
 
 export default function AdminApplicationsScreen({ user, onNavigate }) {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  0;
   const [refreshing, setRefreshing] = useState(false);
+  /** @type {[{ id: string, status: 'approved' | 'rejected' }] | null} */
   const [updating, setUpdating] = useState(null);
 
-  useEffect(() => {
-    loadApplications();
-  }, []);
+  const goBack = useCallback(() => {
+    HapticPatterns.backButton();
+    onNavigate?.("back");
+  }, [onNavigate]);
 
-  const loadApplications = async () => {
+  const loadApplications = useCallback(async () => {
+    if (!user?.id) {
+      setApplications([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Call the database function to get applications for review
       const { data, error } = await supabase.rpc(
         "get_applications_for_review",
         {
@@ -53,7 +61,16 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadApplications();
+    } else {
+      setApplications([]);
+      setLoading(false);
+    }
+  }, [user?.id, loadApplications]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -63,9 +80,8 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
 
   const updateApplicationStatus = async (applicationId, newStatus) => {
     try {
-      setUpdating(applicationId);
+      setUpdating({ id: applicationId, status: newStatus });
 
-      // Get application details before updating (to get applicant email)
       const application = applications.find(
         (app) => app.application_id === applicationId
       );
@@ -81,46 +97,43 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
         return;
       }
 
-      // Send notifications (push, in-app, and email) to the applicant
-      // Note: In-app notification is also created by database trigger, but we send it here for consistency
-      if (
-        application &&
-        application.applicant_email &&
-        application.applicant_name
-      ) {
-        try {
-          // Get user_id from the application
-          const { data: appData, error: appError } = await supabase
-            .from("applications")
-            .select("user_id")
-            .eq("id", applicationId)
-            .single();
+      // Push + email from client. In-app row is created by notify_application_status_change
+      // (see database/add-application-email-notifications.sql) — skip duplicate in-app insert.
+      let applicantUserId = application?.applicant_user_id;
+      if (!applicantUserId) {
+        const { data: appData } = await supabase
+          .from("applications")
+          .select("user_id")
+          .eq("id", applicationId)
+          .single();
+        applicantUserId = appData?.user_id;
+      }
 
-          if (appData && appData.user_id) {
-            await sendApplicationStatusNotification(
-              appData.user_id,
-              application.opportunity_title,
-              newStatus,
-              applicationId,
-              application.applicant_email,
-              application.applicant_name
-            );
-          }
+      if (applicantUserId) {
+        try {
+          const displayName =
+            application?.applicant_name?.trim() || "Applicant";
+          await sendApplicationStatusNotification(
+            applicantUserId,
+            application?.opportunity_title ?? "Opportunity",
+            newStatus,
+            applicationId,
+            application?.applicant_email || undefined,
+            displayName,
+            { skipInApp: true }
+          );
         } catch (notificationError) {
           console.error("Error sending notifications:", notificationError);
-          // Don't fail the whole operation if notifications fail
-          // The in-app notification will still be sent via the database trigger
         }
       }
 
-      // Refresh applications list
       await loadApplications();
 
       Alert.alert(
         "Success",
         `Application ${
           newStatus === "approved" ? "approved" : "rejected"
-        } successfully. The applicant will be notified via email and in-app notification.`
+        } successfully. The applicant will be notified in-app, and by push or email when available.`
       );
     } catch (error) {
       console.error("Error updating application status:", error);
@@ -160,7 +173,7 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return new Date(dateString).toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -176,17 +189,18 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
       case "rejected":
         return "hsl(0, 100%, 50%)";
       case "pending":
-        return "hsl(60, 100%, 50%)";
+        return "hsl(48, 85%, 55%)";
       default:
         return "hsl(0, 0%, 50%)";
     }
   };
 
-  const renderApplication = (application) => {
-    const isBoosted = application.is_boosted && 
-      application.boost_expires_at && 
+  const renderApplication = ({ item: application }) => {
+    const isBoosted =
+      application.is_boosted &&
+      application.boost_expires_at &&
       new Date(application.boost_expires_at) > new Date();
-    
+
     const getTimeRemaining = () => {
       if (!isBoosted) return null;
       const expires = new Date(application.boost_expires_at);
@@ -198,17 +212,24 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
       return `${minutes}m`;
     };
 
+    const isBusy = updating?.id === application.application_id;
+    const isApproving = isBusy && updating.status === "approved";
+    const isRejecting = isBusy && updating.status === "rejected";
+
     return (
-      <View key={application.application_id} style={[
-        styles.applicationCard,
-        isBoosted && styles.boostedCard
-      ]}>
+      <View
+        style={[
+          styles.applicationCard,
+          isBoosted && styles.boostedCard,
+        ]}
+      >
         <View style={styles.applicationHeader}>
           <View style={styles.applicantInfo}>
             <ProgressiveImage
               source={{ uri: application.applicant_profile_url }}
               style={styles.profileImage}
-              placeholderStyle={styles.profileImagePlaceholder}
+              placeholder={<View style={styles.profileImagePlaceholder} />}
+              contentFit="cover"
             />
             <View style={styles.applicantDetails}>
               <View style={styles.applicantNameRow}>
@@ -247,53 +268,73 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
           </View>
         </View>
 
-      {application.application_message && (
-        <View style={styles.messageContainer}>
-          <Text style={styles.messageLabel}>Application Message:</Text>
-          <Text style={styles.messageText}>
-            {application.application_message}
-          </Text>
-        </View>
-      )}
+        {application.application_message ? (
+          <View style={styles.messageContainer}>
+            <Text style={styles.messageLabel}>Application Message:</Text>
+            <Text style={styles.messageText}>
+              {application.application_message}
+            </Text>
+          </View>
+        ) : null}
 
-      {application.application_status === "pending" && (
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.approveButton]}
-            onPress={() => handleApprove(application.application_id)}
-            disabled={updating === application.application_id}
-          >
-            <Ionicons name="checkmark" size={20} color="hsl(0, 0%, 100%)" />
-            <Text style={styles.actionButtonText}>Approve</Text>
-          </TouchableOpacity>
+        {application.application_status === "pending" ? (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.approveButton]}
+              onPress={() => handleApprove(application.application_id)}
+              disabled={isBusy}
+            >
+              {isApproving ? (
+                <ActivityIndicator size="small" color="hsl(0, 0%, 100%)" />
+              ) : (
+                <Ionicons name="checkmark" size={20} color="hsl(0, 0%, 100%)" />
+              )}
+              <Text style={styles.actionButtonText}>
+                {isApproving ? "Approving..." : "Approve"}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.rejectButton]}
-            onPress={() => handleReject(application.application_id)}
-            disabled={updating === application.application_id}
-          >
-            <Ionicons name="close" size={20} color="hsl(0, 0%, 100%)" />
-            <Text style={styles.actionButtonText}>Reject</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.rejectButton]}
+              onPress={() => handleReject(application.application_id)}
+              disabled={isBusy}
+            >
+              {isRejecting ? (
+                <ActivityIndicator size="small" color="hsl(0, 0%, 100%)" />
+              ) : (
+                <Ionicons name="close" size={20} color="hsl(0, 0%, 100%)" />
+              )}
+              <Text style={styles.actionButtonText}>
+                {isRejecting ? "Rejecting..." : "Reject"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </View>
     );
   };
+
+  const listEmpty = (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="document-outline" size={64} color="hsl(0, 0%, 50%)" />
+      <Text style={styles.emptyTitle}>No Applications</Text>
+      <Text style={styles.emptySubtitle}>
+        No applications have been submitted for your opportunities yet.
+      </Text>
+    </View>
+  );
 
   if (loading) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => onNavigate && onNavigate("back")}
-          >
-            <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
+          <TouchableOpacity style={styles.backButton} onPress={goBack}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Application Reviews</Text>
         </View>
         <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading applications...</Text>
         </View>
       </View>
@@ -303,55 +344,42 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => {
-            HapticPatterns.backButton();
-            onNavigate && onNavigate("back");
-          }}
-        >
-          <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
+        <TouchableOpacity style={styles.backButton} onPress={goBack}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Application Reviews</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.gigsButton}
-            onPress={() => onNavigate && onNavigate("brand-gigs-portal")}
+            onPress={() => onNavigate?.("brand-gigs-portal")}
           >
-            <Ionicons name="calendar" size={20} color="hsl(75, 100%, 60%)" />
+            <Ionicons name="calendar" size={20} color={COLORS.primary} />
           </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={onRefresh}
-          disabled={refreshing}
-        >
-          <Ionicons name="refresh" size={24} color="hsl(75, 100%, 60%)" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={onRefresh}
+            disabled={refreshing}
+          >
+            <Ionicons name="refresh" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
+      <FlatList
+        data={applications}
+        keyExtractor={(item) => item.application_id}
+        renderItem={renderApplication}
+        contentContainerStyle={
+          applications.length === 0
+            ? styles.flatListContentEmpty
+            : styles.flatListContent
+        }
+        ListEmptyComponent={listEmpty}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-      >
-        {applications.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons
-              name="document-outline"
-              size={64}
-              color="hsl(0, 0%, 50%)"
-            />
-            <Text style={styles.emptyTitle}>No Applications</Text>
-            <Text style={styles.emptySubtitle}>
-              No applications have been submitted for your opportunities yet.
-            </Text>
-          </View>
-        ) : (
-          applications.map(renderApplication)
-        )}
-      </ScrollView>
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 }
@@ -359,87 +387,93 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: COLORS.backgroundSecondary,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 4,
     borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 20%)",
+    borderBottomColor: COLORS.borderLight,
   },
   backButton: {
-    padding: 8,
+    padding: SPACING.sm,
   },
   headerTitle: {
     flex: 1,
-    fontSize: 20,
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
-    marginLeft: 16,
+    fontSize: TYPOGRAPHY["2xl"],
+    fontFamily: TYPOGRAPHY.brand,
+    color: COLORS.textPrimary,
+    marginLeft: SPACING.md,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: SPACING.sm,
   },
   gigsButton: {
-    padding: 8,
+    padding: SPACING.sm,
   },
   refreshButton: {
-    padding: 8,
+    padding: SPACING.sm,
   },
-  scrollView: {
-    flex: 1,
-    padding: 16,
+  flatListContent: {
+    padding: SPACING.md,
+    paddingBottom: SPACING["3xl"],
+  },
+  flatListContentEmpty: {
+    flexGrow: 1,
+    padding: SPACING.md,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    gap: SPACING.md,
   },
   loadingText: {
-    fontSize: 16,
-    color: "hsl(0, 0%, 60%)",
+    fontSize: TYPOGRAPHY.base,
+    color: COLORS.textSecondary,
+    fontFamily: TYPOGRAPHY.primary,
   },
   applicationCard: {
-    backgroundColor: "hsl(0, 0%, 12%)",
+    backgroundColor: COLORS.backgroundCard,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderColor: COLORS.borderLight,
   },
   boostedCard: {
-    borderColor: "hsl(75, 100%, 60%)",
+    borderColor: COLORS.primary,
     borderWidth: 2,
-    backgroundColor: "hsl(0, 0%, 10%)",
+    backgroundColor: COLORS.backgroundTertiary,
   },
   applicantNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: SPACING.sm,
     marginBottom: 4,
   },
   boostBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
     gap: 4,
   },
   boostBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "hsl(0, 0%, 0%)",
+    fontSize: TYPOGRAPHY.xs,
+    fontWeight: TYPOGRAPHY.bold,
+    color: COLORS.background,
     letterSpacing: 0.5,
   },
   boostTimeRemaining: {
     fontSize: 11,
-    color: "hsl(75, 100%, 60%)",
+    color: COLORS.primary,
     marginTop: 4,
     fontStyle: "italic",
   },
@@ -447,7 +481,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12,
+    marginBottom: SPACING.sm + 4,
   },
   applicantInfo: {
     flexDirection: "row",
@@ -457,70 +491,68 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    marginRight: 12,
+    marginRight: SPACING.sm + 4,
   },
   profileImagePlaceholder: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "hsl(0, 0%, 20%)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: COLORS.borderLight,
   },
   applicantDetails: {
     flex: 1,
   },
   applicantName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.textPrimary,
     marginBottom: 4,
   },
   opportunityTitle: {
-    fontSize: 14,
-    color: "hsl(75, 100%, 60%)",
+    fontSize: TYPOGRAPHY.base,
+    color: COLORS.primary,
     marginBottom: 4,
   },
   appliedDate: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 60%)",
+    fontSize: TYPOGRAPHY.sm,
+    color: COLORS.textTertiary,
   },
   statusBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
     borderRadius: 12,
   },
   statusText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
+    fontSize: TYPOGRAPHY.sm,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.textPrimary,
   },
   messageContainer: {
-    marginBottom: 16,
+    marginBottom: SPACING.md,
   },
   messageLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "hsl(0, 0%, 80%)",
-    marginBottom: 8,
+    fontSize: TYPOGRAPHY.base,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
   },
   messageText: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
+    fontSize: TYPOGRAPHY.base,
+    color: COLORS.textSecondary,
     lineHeight: 20,
   },
   actionButtons: {
     flexDirection: "row",
-    gap: 12,
+    gap: SPACING.sm + 4,
   },
   actionButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
+    paddingVertical: SPACING.sm + 4,
     borderRadius: 8,
-    gap: 8,
+    gap: SPACING.sm,
   },
   approveButton: {
     backgroundColor: "hsl(120, 100%, 40%)",
@@ -529,27 +561,29 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 100%, 40%)",
   },
   actionButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
+    fontSize: TYPOGRAPHY.base,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.textPrimary,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 64,
+    minHeight: 280,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: TYPOGRAPHY["2xl"],
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.textPrimary,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   emptySubtitle: {
-    fontSize: 16,
-    color: "hsl(0, 0%, 60%)",
+    fontSize: TYPOGRAPHY.lg,
+    color: COLORS.textTertiary,
     textAlign: "center",
     lineHeight: 24,
+    paddingHorizontal: SPACING.lg,
   },
 });

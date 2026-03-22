@@ -1,76 +1,308 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   RefreshControl,
+  ActivityIndicator,
   Modal,
   TextInput,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { aiMatchmaking } from "../lib/ai-matchmaking";
+import { supabase } from "../lib/supabase";
+import {
+  loadAiMatchmakingConfig,
+  saveAiMatchmakingConfig,
+} from "../lib/aiMatchmakingConfigStorage";
+
+const LIMIT_MIN = 1;
+const LIMIT_MAX = 50;
+
+const MATCH_SCENARIOS = [
+  { value: "standardMatching", label: "Standard matching" },
+  { value: "genreFocus", label: "Genre & style focus" },
+  { value: "careerGrowth", label: "Career growth" },
+  { value: "localOpportunities", label: "Local opportunities" },
+  { value: "stretchGoals", label: "Stretch goals" },
+];
+
+function clampLimit(n) {
+  if (!Number.isFinite(n)) return 10;
+  return Math.min(LIMIT_MAX, Math.max(LIMIT_MIN, Math.round(n)));
+}
+
+function formatMatchTypeLabel(type) {
+  return (type || "match").replace(/_/g, " ").toUpperCase();
+}
+
+function formatPayment(payment) {
+  if (payment == null || payment === "") return "Not specified";
+  const n = Number(String(payment).replace(/[^0-9.]/g, ""));
+  if (Number.isFinite(n) && n >= 0) {
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      }).format(n);
+    } catch {
+      return `$${n}`;
+    }
+  }
+  return String(payment);
+}
+
+function formatOpportunityDate(dateString) {
+  if (!dateString) return "TBD";
+  try {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "TBD";
+
+    const day = date.getDate();
+    const month = date.toLocaleDateString(undefined, { month: "long" });
+    const year = date.getFullYear();
+
+    const getOrdinalSuffix = (n) => {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return s[(v - 20) % 10] || s[v] || s[0];
+    };
+
+    return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
+  } catch {
+    return "TBD";
+  }
+}
+
+function getMatchScoreColor(score) {
+  if (score >= 85) return "hsl(120, 100%, 50%)";
+  if (score >= 70) return "hsl(48, 85%, 55%)";
+  if (score >= 50) return "hsl(30, 100%, 50%)";
+  return "hsl(0, 100%, 50%)";
+}
+
+function getMatchTypeColor(type) {
+  const colors = {
+    perfect_fit: "hsl(120, 100%, 50%)",
+    good_fit: "hsl(48, 85%, 55%)",
+    interesting_opportunity: "hsl(200, 100%, 50%)",
+    stretch_goal: "hsl(280, 100%, 50%)",
+    algorithmic_fallback: "hsl(0, 0%, 50%)",
+  };
+  return colors[type] || "hsl(0, 0%, 50%)";
+}
+
+function normalizeStringArray(val) {
+  if (Array.isArray(val)) {
+    return val.map((x) => (typeof x === "string" ? x : JSON.stringify(x)));
+  }
+  if (typeof val === "string" && val.trim()) return [val];
+  return [];
+}
+
+/**
+ * Present AI insights as product UI instead of raw JSON.
+ */
+function InsightsContent({ insights }) {
+  if (!insights || typeof insights !== "object") {
+    return (
+      <Text style={styles.insightsFallbackText}>No insights available.</Text>
+    );
+  }
+
+  if (insights.error) {
+    return (
+      <Text style={styles.insightsFallbackText}>
+        {String(insights.error)}
+      </Text>
+    );
+  }
+
+  const blocks = [];
+
+  const addParagraph = (title, text) => {
+    if (text == null || text === "") return;
+    blocks.push({ type: "paragraph", title, text: String(text) });
+  };
+
+  const addList = (title, items) => {
+    const list = normalizeStringArray(items);
+    if (!list.length) return;
+    blocks.push({ type: "list", title, items: list });
+  };
+
+  if (typeof insights.summary === "string") {
+    addParagraph("Summary", insights.summary);
+  } else if (insights.summary && typeof insights.summary === "object") {
+    addParagraph(
+      "Summary",
+      insights.summary.overview ||
+        insights.summary.text ||
+        JSON.stringify(insights.summary, null, 2)
+    );
+  }
+
+  addList("Career trajectory", insights.career_trajectory);
+  addList("Top strengths", insights.strengths || insights.key_strengths);
+  addList(
+    "Improvement areas",
+    insights.improvement_areas ||
+      insights.skill_development_areas ||
+      insights.development_areas
+  );
+  addList(
+    "Recommended next steps",
+    insights.recommended_actions ||
+      insights.recommendations ||
+      insights.next_steps
+  );
+  addList("Market insights", insights.market_insights || insights.insights);
+
+  if (blocks.length === 0) {
+    const skip = new Set([
+      "matches",
+      "error",
+      "summary",
+      "strengths",
+      "key_strengths",
+      "improvement_areas",
+      "skill_development_areas",
+      "development_areas",
+      "recommended_actions",
+      "recommendations",
+      "next_steps",
+      "market_insights",
+      "insights",
+      "career_trajectory",
+    ]);
+    const entries = Object.entries(insights).filter(
+      ([k, v]) => !skip.has(k) && v != null && v !== ""
+    );
+    if (entries.length === 0) {
+      return (
+        <Text style={styles.insightsFallbackText}>
+          Insights were returned in an unexpected shape.
+        </Text>
+      );
+    }
+    return (
+      <View>
+        {entries.map(([key, val]) => (
+          <View key={key} style={styles.insightSection}>
+            <Text style={styles.insightSectionTitle}>
+              {key.replace(/_/g, " ")}
+            </Text>
+            <Text style={styles.insightBodyText}>
+              {typeof val === "object" ? JSON.stringify(val, null, 2) : String(val)}
+            </Text>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      {blocks.map((b, i) =>
+        b.type === "paragraph" ? (
+          <View key={`p-${i}`} style={styles.insightSection}>
+            <Text style={styles.insightSectionTitle}>{b.title}</Text>
+            <Text style={styles.insightBodyText}>{b.text}</Text>
+          </View>
+        ) : (
+          <View key={`l-${i}`} style={styles.insightSection}>
+            <Text style={styles.insightSectionTitle}>{b.title}</Text>
+            {b.items.map((line, j) => (
+              <Text key={j} style={styles.insightBullet}>
+                • {line}
+              </Text>
+            ))}
+          </View>
+        )
+      )}
+    </View>
+  );
+}
 
 export default function AIMatchmakingScreen({ userId, onNavigate }) {
   const [aiMatches, setAiMatches] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingMatches, setLoadingMatches] = useState(false);
+  const [loadingInsights, setLoadingInsights] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [aiConfig, setAiConfig] = useState({
     apiKey: "",
-    provider: "openai", // 'openai' or 'claude'
+    provider: "openai",
     scenario: "standardMatching",
     limit: 10,
     includeReasons: true,
     includeConfidence: true,
   });
+  const [configDraft, setConfigDraft] = useState(null);
   const [insights, setInsights] = useState(null);
   const [showInsights, setShowInsights] = useState(false);
+  const [scenarioPickerOpen, setScenarioPickerOpen] = useState(false);
+  const [cardAction, setCardAction] = useState(null);
 
-  useEffect(() => {
-    // Load saved AI configuration
-    loadAIConfig();
-  }, []);
+  const openConfigModal = useCallback(() => {
+    setConfigDraft({ ...aiConfig });
+    setShowConfig(true);
+  }, [aiConfig]);
 
-  const loadAIConfig = async () => {
+  const loadAIConfig = useCallback(async () => {
+    if (!userId) return;
     try {
-      // In a real app, load from secure storage
-      const savedConfig = await getStoredAIConfig();
-      if (savedConfig) {
-        setAiConfig(savedConfig);
+      const saved = await loadAiMatchmakingConfig(userId);
+      if (saved) {
+        setAiConfig((prev) => ({
+          ...prev,
+          ...saved,
+          limit: clampLimit(saved.limit),
+        }));
       }
     } catch (error) {
       console.error("Error loading AI config:", error);
     }
-  };
+  }, [userId]);
 
-  const getStoredAIConfig = async () => {
-    // Mock function - in real app, use secure storage
-    return null;
-  };
+  useEffect(() => {
+    loadAIConfig();
+  }, [loadAIConfig]);
 
-  const saveAIConfig = async (config) => {
-    // Mock function - in real app, save to secure storage
-    console.log("Saving AI config:", config);
-  };
+  const persistConfig = useCallback(
+    async (next) => {
+      if (!userId) return;
+      try {
+        await saveAiMatchmakingConfig(userId, next);
+      } catch (e) {
+        console.error("Failed to persist AI config", e);
+        Alert.alert("Error", "Could not save settings. Please try again.");
+      }
+    },
+    [userId]
+  );
 
-  const generateAIMatches = async () => {
-    if (!aiConfig.apiKey) {
+  const generateAIMatches = useCallback(async () => {
+    if (!aiConfig.apiKey?.trim()) {
       Alert.alert(
-        "Configuration Required",
-        "Please set your AI API key in settings"
+        "Configuration required",
+        "Add your AI API key in settings. For production, prefer a backend-held key."
       );
-      setShowConfig(true);
+      openConfigModal();
       return;
     }
 
     try {
-      setLoading(true);
+      setLoadingMatches(true);
       const matches = await aiMatchmaking.generateAIMatches(userId, {
-        limit: aiConfig.limit,
+        apiKey: aiConfig.apiKey,
+        provider: aiConfig.provider,
+        limit: clampLimit(aiConfig.limit),
         includeReasons: aiConfig.includeReasons,
         includeConfidence: aiConfig.includeConfidence,
         scenario: aiConfig.scenario,
@@ -79,281 +311,393 @@ export default function AIMatchmakingScreen({ userId, onNavigate }) {
     } catch (error) {
       console.error("Error generating AI matches:", error);
       Alert.alert(
-        "AI Matching Error",
+        "AI matching error",
         error.message || "Failed to generate AI matches"
       );
     } finally {
-      setLoading(false);
+      setLoadingMatches(false);
     }
-  };
+  }, [userId, aiConfig, openConfigModal]);
 
-  const generateInsights = async () => {
-    if (!aiConfig.apiKey) {
+  const generateInsights = useCallback(async () => {
+    if (!aiConfig.apiKey?.trim()) {
       Alert.alert(
-        "Configuration Required",
-        "Please set your AI API key in settings"
+        "Configuration required",
+        "Add your AI API key in settings."
       );
+      openConfigModal();
       return;
     }
 
     try {
-      setLoading(true);
-      const aiInsights = await aiMatchmaking.generateInsights(
-        userId,
-        aiConfig.apiKey,
-        aiConfig.provider
-      );
+      setLoadingInsights(true);
+      const aiInsights = await aiMatchmaking.generateInsights(userId, {
+        apiKey: aiConfig.apiKey,
+        provider: aiConfig.provider,
+      });
       setInsights(aiInsights);
       setShowInsights(true);
     } catch (error) {
       console.error("Error generating insights:", error);
       Alert.alert(
-        "Insights Error",
+        "Insights error",
         error.message || "Failed to generate AI insights"
       );
     } finally {
-      setLoading(false);
+      setLoadingInsights(false);
     }
-  };
+  }, [userId, aiConfig, openConfigModal]);
 
   const onRefresh = async () => {
+    if (!aiConfig.apiKey?.trim()) {
+      setRefreshing(false);
+      return;
+    }
     setRefreshing(true);
     await generateAIMatches();
     setRefreshing(false);
   };
 
   const handleApply = async (match) => {
+    const mid = match.id;
     try {
-      // Use the existing matchmaking system to apply
+      setCardAction({ id: mid, type: "apply" });
       const { matchmaking } = await import("../lib/matchmaking");
       await matchmaking.applyToOpportunity(userId, match.opportunity_id);
       Alert.alert("Success", "Application submitted successfully!");
-      // Refresh matches
-      generateAIMatches();
+      await generateAIMatches();
     } catch (error) {
       console.error("Error applying:", error);
       Alert.alert("Error", "Failed to submit application");
+    } finally {
+      setCardAction(null);
     }
   };
 
   const handlePass = async (match) => {
+    const mid = match.id;
     try {
+      setCardAction({ id: mid, type: "pass" });
       const { matchmaking } = await import("../lib/matchmaking");
-      await matchmaking.updateMatchStatus(match.id, "rejected");
-      setAiMatches(aiMatches.filter((m) => m.id !== match.id));
+      let rowId = match.match_record_id;
+      if (!rowId && match.opportunity_id) {
+        const { data: rows } = await supabase
+          .from("matches")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("opportunity_id", match.opportunity_id)
+          .limit(1);
+        rowId = rows?.[0]?.id;
+      }
+      if (rowId) {
+        await matchmaking.updateMatchStatus(rowId, "rejected");
+      }
+      setAiMatches((prev) => prev.filter((m) => m.id !== match.id));
     } catch (error) {
       console.error("Error passing on match:", error);
       Alert.alert("Error", "Failed to update match status");
+    } finally {
+      setCardAction(null);
     }
   };
 
-  const updateAIConfig = (updates) => {
-    const newConfig = { ...aiConfig, ...updates };
-    setAiConfig(newConfig);
-    saveAIConfig(newConfig);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "TBD";
-    try {
-      const date = new Date(dateString);
-      if (Number.isNaN(date.getTime())) return "TBD";
-      
-      const day = date.getDate();
-      const month = date.toLocaleDateString("en-GB", { month: "long" });
-      const year = date.getFullYear();
-      
-      // Add ordinal suffix
-      const getOrdinalSuffix = (n) => {
-        const s = ["th", "st", "nd", "rd"];
-        const v = n % 100;
-        return s[(v - 20) % 10] || s[v] || s[0];
-      };
-      
-      return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
-    } catch (error) {
-      return "TBD";
+  const saveConfigFromModal = async () => {
+    if (!configDraft || !userId) {
+      setShowConfig(false);
+      return;
     }
-  };
-
-  const getMatchScoreColor = (score) => {
-    if (score >= 85) return "hsl(120, 100%, 50%)"; // Green
-    if (score >= 70) return "hsl(60, 100%, 50%)"; // Yellow
-    if (score >= 50) return "hsl(30, 100%, 50%)"; // Orange
-    return "hsl(0, 100%, 50%)"; // Red
-  };
-
-  const getMatchTypeColor = (type) => {
-    const colors = {
-      perfect_fit: "hsl(120, 100%, 50%)",
-      good_fit: "hsl(60, 100%, 50%)",
-      interesting_opportunity: "hsl(200, 100%, 50%)",
-      stretch_goal: "hsl(280, 100%, 50%)",
-      algorithmic_fallback: "hsl(0, 0%, 50%)",
+    const next = {
+      ...configDraft,
+      limit: clampLimit(configDraft.limit),
     };
-    return colors[type] || "hsl(0, 0%, 50%)";
+    setAiConfig(next);
+    await persistConfig(next);
+    setShowConfig(false);
+    setConfigDraft(null);
   };
 
-  const renderAIMatchCard = (match) => (
-    <View key={match.opportunity_id} style={styles.matchCard}>
-      <View style={styles.matchHeader}>
-        <View style={styles.matchScoreContainer}>
-          <Text
-            style={[
-              styles.matchScore,
-              { color: getMatchScoreColor(match.compatibility_score) },
-            ]}
-          >
-            {match.compatibility_score}%
-          </Text>
-          <Text style={styles.matchScoreLabel}>AI Match</Text>
-        </View>
-        <View style={styles.matchTypeContainer}>
-          <Text
-            style={[
-              styles.matchType,
-              { color: getMatchTypeColor(match.match_type) },
-            ]}
-          >
-            {match.match_type.replace("_", " ").toUpperCase()}
-          </Text>
-          {match.confidence && (
-            <Text style={styles.confidenceText}>
-              {Math.round(match.confidence * 100)}% confidence
-            </Text>
-          )}
-        </View>
-      </View>
+  const closeConfigModal = () => {
+    setShowConfig(false);
+    setConfigDraft(null);
+    setScenarioPickerOpen(false);
+  };
 
-      <View style={styles.opportunityInfo}>
-        <Text style={styles.opportunityTitle}>{match.opportunity?.title}</Text>
-        <Text style={styles.opportunityDescription}>
-          {match.opportunity?.description}
+  const draft = configDraft || aiConfig;
+
+  const listHeader = useMemo(
+    () => (
+      <View style={styles.listHeaderInner}>
+        <Text style={styles.title}>AI Matchmaking</Text>
+        <Text style={styles.subtitle}>
+          Intelligent DJ–opportunity matching (power-user: bring your own API key,
+          or move credentials to your backend for production).
         </Text>
-
-        <View style={styles.opportunityDetails}>
-          <View style={styles.detailRow}>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.configButton} onPress={openConfigModal}>
             <Ionicons
-              name="calendar-outline"
-              size={16}
-              color="hsl(0, 0%, 70%)"
+              name="settings-outline"
+              size={20}
+              color="hsl(0, 0%, 100%)"
             />
-            <Text style={styles.detailText}>
-              {formatDate(match.opportunity?.event_date)}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.insightsButton}
+            onPress={generateInsights}
+            disabled={loadingInsights || loadingMatches}
+          >
+            {loadingInsights ? (
+              <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
+            ) : (
+              <Ionicons
+                name="analytics-outline"
+                size={20}
+                color="hsl(0, 0%, 0%)"
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    ),
+    [openConfigModal, generateInsights, loadingInsights, loadingMatches]
+  );
+
+  const renderAIMatchCard = ({ item: match }) => {
+    const busyApply =
+      cardAction?.id === match.id && cardAction.type === "apply";
+    const busyPass = cardAction?.id === match.id && cardAction.type === "pass";
+
+    const isBoosted =
+      match.is_boosted &&
+      match.boost_expires_at &&
+      new Date(match.boost_expires_at) > new Date();
+
+    const getTimeRemaining = () => {
+      if (!isBoosted) return null;
+      const expires = new Date(match.boost_expires_at);
+      const now = new Date();
+      const diff = expires - now;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    };
+
+    return (
+      <View style={styles.matchCard}>
+        <View style={styles.matchHeader}>
+          <View style={styles.matchScoreContainer}>
+            <Text
+              style={[
+                styles.matchScore,
+                { color: getMatchScoreColor(match.compatibility_score) },
+              ]}
+            >
+              {match.compatibility_score}%
             </Text>
+            <Text style={styles.matchScoreLabel}>AI Match</Text>
           </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons
-              name="location-outline"
-              size={16}
-              color="hsl(0, 0%, 70%)"
-            />
-            <Text style={styles.detailText}>{match.opportunity?.location}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons
-              name="musical-notes-outline"
-              size={16}
-              color="hsl(0, 0%, 70%)"
-            />
-            <Text style={styles.detailText}>{match.opportunity?.genre}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="cash-outline" size={16} color="hsl(0, 0%, 70%)" />
-            <Text style={styles.detailText}>${match.opportunity?.payment}</Text>
+          <View style={styles.matchTypeContainer}>
+            <Text
+              style={[
+                styles.matchType,
+                { color: getMatchTypeColor(match.match_type) },
+              ]}
+            >
+              {formatMatchTypeLabel(match.match_type)}
+            </Text>
+            {match.confidence != null ? (
+              <Text style={styles.confidenceText}>
+                {Math.round(match.confidence * 100)}% confidence
+              </Text>
+            ) : null}
           </View>
         </View>
 
-        {match.reasoning && (
-          <View style={styles.aiReasoning}>
-            <Text style={styles.reasoningTitle}>AI Analysis:</Text>
-            <Text style={styles.reasoningText}>{match.reasoning}</Text>
-          </View>
-        )}
-
-        {match.strengths && match.strengths.length > 0 && (
-          <View style={styles.strengthsContainer}>
-            <Text style={styles.strengthsTitle}>Key Strengths:</Text>
-            {match.strengths.map((strength, index) => (
-              <Text key={index} style={styles.strengthText}>
-                • {strength}
-              </Text>
-            ))}
-          </View>
-        )}
-
-        {match.considerations && match.considerations.length > 0 && (
-          <View style={styles.considerationsContainer}>
-            <Text style={styles.considerationsTitle}>Considerations:</Text>
-            {match.considerations.map((consideration, index) => (
-              <Text key={index} style={styles.considerationText}>
-                • {consideration}
-              </Text>
-            ))}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.matchActions}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.passButton]}
-          onPress={() => handlePass(match)}
-        >
-          <Ionicons name="close" size={20} color="hsl(0, 0%, 100%)" />
-          <Text style={styles.actionButtonText}>Pass</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.applyButton]}
-          onPress={() => handleApply(match)}
-        >
-          <Ionicons name="checkmark" size={20} color="hsl(0, 0%, 0%)" />
-          <Text style={[styles.actionButtonText, styles.applyButtonText]}>
-            Apply
+        <View style={styles.opportunityInfo}>
+          <Text style={styles.opportunityTitle}>{match.opportunity?.title}</Text>
+          <Text style={styles.opportunityDescription}>
+            {match.opportunity?.description}
           </Text>
-        </TouchableOpacity>
+
+          <View style={styles.opportunityDetails}>
+            <View style={styles.detailRow}>
+              <Ionicons
+                name="calendar-outline"
+                size={16}
+                color="hsl(0, 0%, 70%)"
+              />
+              <Text style={styles.detailText}>
+                {formatOpportunityDate(match.opportunity?.event_date)}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Ionicons
+                name="location-outline"
+                size={16}
+                color="hsl(0, 0%, 70%)"
+              />
+              <Text style={styles.detailText}>
+                {match.opportunity?.location || "—"}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Ionicons
+                name="musical-notes-outline"
+                size={16}
+                color="hsl(0, 0%, 70%)"
+              />
+              <Text style={styles.detailText}>
+                {match.opportunity?.genre || "—"}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Ionicons name="cash-outline" size={16} color="hsl(0, 0%, 70%)" />
+              <Text style={styles.detailText}>
+                {formatPayment(match.opportunity?.payment)}
+              </Text>
+            </View>
+          </View>
+
+          {isBoosted ? (
+            <Text style={styles.boostTimeRemaining}>
+              Boost expires in: {getTimeRemaining()}
+            </Text>
+          ) : null}
+
+          {match.reasoning ? (
+            <View style={styles.aiReasoning}>
+              <Text style={styles.reasoningTitle}>AI analysis</Text>
+              <Text style={styles.reasoningText}>{match.reasoning}</Text>
+            </View>
+          ) : null}
+
+          {match.strengths && match.strengths.length > 0 ? (
+            <View style={styles.strengthsContainer}>
+              <Text style={styles.strengthsTitle}>Key strengths</Text>
+              {match.strengths.map((strength, index) => (
+                <Text key={index} style={styles.strengthText}>
+                  • {strength}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+
+          {match.considerations && match.considerations.length > 0 ? (
+            <View style={styles.considerationsContainer}>
+              <Text style={styles.considerationsTitle}>Considerations</Text>
+              {match.considerations.map((consideration, index) => (
+                <Text key={index} style={styles.considerationText}>
+                  • {consideration}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.matchActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.passButton]}
+            onPress={() => handlePass(match)}
+            disabled={cardBusy || loadingMatches}
+          >
+            {busyPass ? (
+              <ActivityIndicator size="small" color="hsl(0, 0%, 100%)" />
+            ) : (
+              <Ionicons name="close" size={20} color="hsl(0, 0%, 100%)" />
+            )}
+            <Text style={styles.actionButtonText}>
+              {busyPass ? "Passing..." : "Pass"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.applyButton]}
+            onPress={() => handleApply(match)}
+            disabled={cardBusy || loadingMatches}
+          >
+            {busyApply ? (
+              <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
+            ) : (
+              <Ionicons name="checkmark" size={20} color="hsl(0, 0%, 0%)" />
+            )}
+            <Text style={[styles.actionButtonText, styles.applyButtonText]}>
+              {busyApply ? "Applying..." : "Apply"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
+    );
+  };
+
+  const emptyList = (
+    <View style={styles.emptyState}>
+      <Ionicons name="sparkles-outline" size={64} color="hsl(0, 0%, 50%)" />
+      <Text style={styles.emptyStateTitle}>Ready for AI matching</Text>
+      <Text style={styles.emptyStateText}>
+        Generate intelligent matches using your configured provider.
+      </Text>
+      <TouchableOpacity
+        style={styles.generateButton}
+        onPress={generateAIMatches}
+        disabled={loadingMatches}
+      >
+        {loadingMatches ? (
+          <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
+        ) : (
+          <Ionicons name="sparkles" size={20} color="hsl(0, 0%, 0%)" />
+        )}
+        <Text style={styles.generateButtonText}>Generate AI matches</Text>
+      </TouchableOpacity>
     </View>
   );
 
   const renderConfigModal = () => (
     <Modal
       visible={showConfig}
-      transparent={true}
+      transparent
       animationType="slide"
-      onRequestClose={() => setShowConfig(false)}
+      onRequestClose={closeConfigModal}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>AI Configuration</Text>
-            <TouchableOpacity onPress={() => setShowConfig(false)}>
+            <Text style={styles.modalTitle}>AI configuration</Text>
+            <TouchableOpacity onPress={closeConfigModal}>
               <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.configForm}>
+            <Text style={styles.devNotice}>
+              Keys are stored on-device (SecureStore). For end users, prefer a
+              backend that holds provider credentials.
+            </Text>
+
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>AI Provider</Text>
+              <Text style={styles.inputLabel}>AI provider</Text>
               <View style={styles.radioGroup}>
                 <TouchableOpacity
                   style={[
                     styles.radioOption,
-                    aiConfig.provider === "openai" && styles.radioSelected,
+                    draft.provider === "openai" && styles.radioSelected,
                   ]}
-                  onPress={() => updateAIConfig({ provider: "openai" })}
+                  onPress={() =>
+                    setConfigDraft((d) => ({ ...d, provider: "openai" }))
+                  }
                 >
                   <Text style={styles.radioText}>OpenAI (GPT-4)</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
                     styles.radioOption,
-                    aiConfig.provider === "claude" && styles.radioSelected,
+                    draft.provider === "claude" && styles.radioSelected,
                   ]}
-                  onPress={() => updateAIConfig({ provider: "claude" })}
+                  onPress={() =>
+                    setConfigDraft((d) => ({ ...d, provider: "claude" }))
+                  }
                 >
                   <Text style={styles.radioText}>Claude (Anthropic)</Text>
                 </TouchableOpacity>
@@ -361,40 +705,76 @@ export default function AIMatchmakingScreen({ userId, onNavigate }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>API Key</Text>
+              <Text style={styles.inputLabel}>API key</Text>
               <TextInput
                 style={styles.textInput}
-                value={aiConfig.apiKey}
-                onChangeText={(text) => updateAIConfig({ apiKey: text })}
-                placeholder="Enter your API key"
+                value={draft.apiKey}
+                onChangeText={(text) =>
+                  setConfigDraft((d) => ({ ...d, apiKey: text }))
+                }
+                placeholder="Provider API key"
                 placeholderTextColor="hsl(0, 0%, 50%)"
-                secureTextEntry={true}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Matching Scenario</Text>
-              <View style={styles.dropdown}>
+              <Text style={styles.inputLabel}>Matching scenario</Text>
+              <TouchableOpacity
+                style={styles.dropdown}
+                onPress={() => setScenarioPickerOpen((o) => !o)}
+                accessibilityRole="button"
+              >
                 <Text style={styles.dropdownText}>
-                  {aiConfig.scenario.replace(/([A-Z])/g, " $1").trim()}
+                  {MATCH_SCENARIOS.find((s) => s.value === draft.scenario)
+                    ?.label || draft.scenario}
                 </Text>
                 <Ionicons
-                  name="chevron-down"
+                  name={scenarioPickerOpen ? "chevron-up" : "chevron-down"}
                   size={20}
                   color="hsl(0, 0%, 70%)"
                 />
-              </View>
+              </TouchableOpacity>
+              {scenarioPickerOpen ? (
+                <View style={styles.scenarioList}>
+                  {MATCH_SCENARIOS.map((s) => (
+                    <TouchableOpacity
+                      key={s.value}
+                      style={[
+                        styles.scenarioRow,
+                        draft.scenario === s.value && styles.scenarioRowSelected,
+                      ]}
+                      onPress={() => {
+                        setConfigDraft((d) => ({ ...d, scenario: s.value }));
+                        setScenarioPickerOpen(false);
+                      }}
+                    >
+                      <Text style={styles.scenarioRowText}>{s.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Number of Matches</Text>
+              <Text style={styles.inputLabel}>
+                Number of matches ({LIMIT_MIN}–{LIMIT_MAX})
+              </Text>
               <TextInput
                 style={styles.textInput}
-                value={aiConfig.limit.toString()}
-                onChangeText={(text) =>
-                  updateAIConfig({ limit: parseInt(text) || 10 })
-                }
-                keyboardType="numeric"
+                value={String(draft.limit)}
+                onChangeText={(text) => {
+                  const parsed = parseInt(text, 10);
+                  setConfigDraft((d) => ({
+                    ...d,
+                    limit: Number.isFinite(parsed)
+                      ? clampLimit(parsed)
+                      : d.limit,
+                  }));
+                }}
+                keyboardType="number-pad"
                 placeholder="10"
                 placeholderTextColor="hsl(0, 0%, 50%)"
               />
@@ -404,9 +784,9 @@ export default function AIMatchmakingScreen({ userId, onNavigate }) {
           <View style={styles.modalActions}>
             <TouchableOpacity
               style={styles.saveButton}
-              onPress={() => setShowConfig(false)}
+              onPress={saveConfigFromModal}
             >
-              <Text style={styles.saveButtonText}>Save Configuration</Text>
+              <Text style={styles.saveButtonText}>Save configuration</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -417,105 +797,58 @@ export default function AIMatchmakingScreen({ userId, onNavigate }) {
   const renderInsightsModal = () => (
     <Modal
       visible={showInsights}
-      transparent={true}
+      transparent
       animationType="slide"
       onRequestClose={() => setShowInsights(false)}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>AI Career Insights</Text>
+            <Text style={styles.modalTitle}>AI career insights</Text>
             <TouchableOpacity onPress={() => setShowInsights(false)}>
               <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.insightsContent}>
-            {insights && (
-              <View>
-                <Text style={styles.insightsText}>
-                  {JSON.stringify(insights, null, 2)}
-                </Text>
-              </View>
-            )}
+          <ScrollView
+            style={styles.insightsContent}
+            contentContainerStyle={styles.insightsContentInner}
+          >
+            <InsightsContent insights={insights} />
           </ScrollView>
         </View>
       </View>
     </Modal>
   );
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>AI Matchmaking</Text>
-        <Text style={styles.subtitle}>
-          Intelligent DJ-opportunity matching powered by AI
-        </Text>
-
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.configButton}
-            onPress={() => setShowConfig(true)}
-          >
-            <Ionicons
-              name="settings-outline"
-              size={20}
-              color="hsl(0, 0%, 100%)"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.insightsButton}
-            onPress={generateInsights}
-            disabled={loading}
-          >
-            <Ionicons
-              name="analytics-outline"
-              size={20}
-              color="hsl(0, 0%, 100%)"
-            />
-          </TouchableOpacity>
+  if (loadingMatches && aiMatches.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingHeader}>
+          <Text style={styles.title}>AI Matchmaking</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
+          <Text style={styles.loadingText}>AI is analyzing your profile…</Text>
         </View>
       </View>
+    );
+  }
 
-      <ScrollView
-        style={styles.content}
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={aiMatches}
+        keyExtractor={(item) => item.id}
+        renderItem={renderAIMatchCard}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={emptyList}
+        contentContainerStyle={styles.flatListContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-      >
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
-            <Text style={styles.loadingText}>
-              AI is analyzing your profile...
-            </Text>
-          </View>
-        ) : aiMatches.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons
-              name="sparkles-outline"
-              size={64}
-              color="hsl(0, 0%, 50%)"
-            />
-            <Text style={styles.emptyStateTitle}>Ready for AI Matching</Text>
-            <Text style={styles.emptyStateText}>
-              Tap the button below to generate intelligent matches using AI
-            </Text>
-            <TouchableOpacity
-              style={styles.generateButton}
-              onPress={generateAIMatches}
-            >
-              <Ionicons name="sparkles" size={20} color="hsl(0, 0%, 0%)" />
-              <Text style={styles.generateButtonText}>Generate AI Matches</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.matchesContainer}>
-            {aiMatches.map(renderAIMatchCard)}
-          </View>
-        )}
-      </ScrollView>
+        showsVerticalScrollIndicator={false}
+      />
 
       {renderConfigModal()}
       {renderInsightsModal()}
@@ -528,9 +861,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "hsl(0, 0%, 0%)",
   },
-  header: {
+  flatListContent: {
+    paddingBottom: 32,
+  },
+  listHeaderInner: {
     padding: 20,
-    paddingBottom: 10,
+    paddingBottom: 12,
+    backgroundColor: "hsl(0, 0%, 5%)",
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  loadingHeader: {
+    padding: 20,
     backgroundColor: "hsl(0, 0%, 5%)",
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
@@ -543,10 +885,11 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
+    color: "hsl(0, 0%, 60%)",
     marginBottom: 16,
+    lineHeight: 20,
   },
   headerActions: {
     flexDirection: "row",
@@ -563,9 +906,9 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(75, 100%, 60%)",
     padding: 12,
     borderRadius: 8,
-  },
-  content: {
-    flex: 1,
+    minWidth: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   loadingContainer: {
     flex: 1,
@@ -582,6 +925,7 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: "center",
     padding: 40,
+    paddingTop: 24,
   },
   emptyStateTitle: {
     fontSize: 20,
@@ -614,13 +958,11 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     fontWeight: "bold",
   },
-  matchesContainer: {
-    padding: 20,
-  },
   matchCard: {
     backgroundColor: "hsl(0, 0%, 5%)",
     borderRadius: 12,
     padding: 20,
+    marginHorizontal: 20,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
@@ -689,6 +1031,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
+  },
+  boostTimeRemaining: {
+    fontSize: 11,
+    color: "hsl(75, 100%, 60%)",
+    marginBottom: 8,
+    fontStyle: "italic",
   },
   aiReasoning: {
     backgroundColor: "hsl(0, 0%, 10%)",
@@ -782,7 +1130,7 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 5%)",
     borderRadius: 12,
     width: "90%",
-    maxHeight: "80%",
+    maxHeight: "85%",
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
   },
@@ -799,6 +1147,12 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     fontWeight: "bold",
     color: "hsl(0, 0%, 100%)",
+  },
+  devNotice: {
+    fontSize: 12,
+    color: "hsl(0, 0%, 55%)",
+    marginBottom: 16,
+    lineHeight: 18,
   },
   configForm: {
     padding: 20,
@@ -856,6 +1210,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
+    flex: 1,
+  },
+  scenarioList: {
+    marginTop: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+    overflow: "hidden",
+  },
+  scenarioRow: {
+    padding: 12,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  scenarioRowSelected: {
+    backgroundColor: "hsl(0, 0%, 14%)",
+  },
+  scenarioRowText: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 15,
   },
   modalActions: {
     padding: 20,
@@ -875,12 +1250,38 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   insightsContent: {
-    padding: 20,
+    maxHeight: 480,
   },
-  insightsText: {
+  insightsContentInner: {
+    padding: 20,
+    paddingBottom: 32,
+  },
+  insightSection: {
+    marginBottom: 20,
+  },
+  insightSectionTitle: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "700",
+    color: "hsl(75, 100%, 60%)",
+    marginBottom: 8,
+  },
+  insightBodyText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 82%)",
+    lineHeight: 22,
+  },
+  insightBullet: {
     fontSize: 14,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 80%)",
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  insightsFallbackText: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 65%)",
     lineHeight: 20,
   },
 });

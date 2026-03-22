@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { db } from "../lib/supabase";
+import { HapticPatterns } from "../lib/haptics";
 import {
   COLORS,
   TYPOGRAPHY,
@@ -19,15 +20,15 @@ import {
 
 export default function AchievementsListScreen({ user, onBack }) {
   const [allAchievements, setAllAchievements] = useState([]);
-  const [userAchievements, setUserAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadAchievements();
-  }, [user?.id]);
+  const handleBack = useCallback(() => {
+    HapticPatterns.backButton();
+    onBack?.();
+  }, [onBack]);
 
-  const loadAchievements = async () => {
+  const loadAchievements = useCallback(async () => {
     if (!user?.id) {
       setLoading(false);
       return;
@@ -40,35 +41,34 @@ export default function AchievementsListScreen({ user, onBack }) {
         db.getUserAchievements(user.id),
       ]);
 
-      // Create a set of earned achievement IDs
-      const earnedIds = new Set(
-        earnedData.map((ua) => ua.achievement_id)
+      const earned = earnedData || [];
+      const earnedMap = new Map(
+        earned.map((ua) => [ua.achievement_id, ua])
+      );
+      const earnedIds = new Set(earned.map((ua) => ua.achievement_id));
+
+      const achievementsWithStatus = (achievementsData || []).map(
+        (achievement) => ({
+          id: achievement.id,
+          name: achievement.name,
+          description: achievement.description || "",
+          icon: achievement.icon || "trophy",
+          category: achievement.category || "milestones",
+          sortOrder: achievement.sort_order ?? 0,
+          earned: earnedIds.has(achievement.id),
+          earnedAt: earnedMap.get(achievement.id)?.earned_at || null,
+          creditsReward: achievement.credits_reward || 0,
+        })
       );
 
-      // Combine all achievements with earned status
-      const achievementsWithStatus = (achievementsData || []).map((achievement) => ({
-        id: achievement.id,
-        name: achievement.name,
-        description: achievement.description || "",
-        icon: achievement.icon || "trophy",
-        category: achievement.category || "milestones",
-        earned: earnedIds.has(achievement.id),
-        earnedAt: earnedData.find(
-          (ua) => ua.achievement_id === achievement.id
-        )?.earned_at || null,
-        creditsReward: achievement.credits_reward || 0,
-      }));
-
-      // Sort by earned status (earned first), then by sort_order
       achievementsWithStatus.sort((a, b) => {
         if (a.earned !== b.earned) {
           return a.earned ? -1 : 1;
         }
-        return (a.sort_order || 0) - (b.sort_order || 0);
+        return a.sortOrder - b.sortOrder;
       });
 
       setAllAchievements(achievementsWithStatus);
-      setUserAchievements(earnedData);
     } catch (error) {
       console.error("Error loading achievements:", error);
       setAllAchievements([]);
@@ -76,7 +76,11 @@ export default function AchievementsListScreen({ user, onBack }) {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadAchievements();
+  }, [loadAchievements]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

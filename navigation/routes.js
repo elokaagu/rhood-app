@@ -32,3 +32,12 @@ export const SCREENS = {
   PLAYLIST_DETAIL: "playlist-detail",
   LOGIN: "login",
 };
+
+/**
+ * AppShell hides the floating tab bar on these full-bleed flows.
+ * Add new ids here instead of hardcoding in AppShell.
+ */
+export const TAB_BAR_HIDDEN_SCREENS = new Set([
+  SCREENS.MESSAGES,
+  SCREENS.HELP_CHAT,
+]);

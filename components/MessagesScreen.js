@@ -8,10 +8,8 @@ import React, {
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   Pressable,
-  ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -20,7 +18,6 @@ import {
   Animated,
   FlatList,
   Image,
-  Modal,
   Linking,
   Share,
   ActionSheetIOS,
@@ -36,45 +33,28 @@ import ProgressiveImage from "./ProgressiveImage";
 import OpportunityMessageCard from "./OpportunityMessageCard";
 import MessageRow from "./MessageRow";
 import RhoodModal from "./RhoodModal";
-import { Audio, Video } from "expo-av";
+import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import * as WebBrowser from "expo-web-browser";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
-
-const URL_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
-
-const stripTrailingPunctuation = (url = "") => url.replace(/[),.;!?]+$/g, "");
-
-const extractUrls = (text = "") => {
-  if (!text) return [];
-  const matches = text.match(URL_REGEX);
-  if (!matches) return [];
-  return matches
-    .map((match) => stripTrailingPunctuation(match.trim()))
-    .filter(Boolean);
-};
-
-const resolveRelativeUrl = (maybeRelative = "", baseUrl = "") => {
-  try {
-    if (!maybeRelative) return "";
-    const trimmed = maybeRelative.trim();
-    if (!trimmed) return "";
-    if (trimmed.startsWith("//")) {
-      return `https:${trimmed}`;
-    }
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-      return trimmed;
-    }
-    if (baseUrl) {
-      const base = new URL(baseUrl);
-      return new URL(trimmed, base).toString();
-    }
-    return trimmed;
-  } catch (error) {
-    console.warn("resolveRelativeUrl error", { maybeRelative, baseUrl, error });
-    return trimmed || "";
-  }
-};
+import { URL_REGEX, stripTrailingPunctuation } from "../lib/messageUrlUtils";
+import { useMessageLinkPreviews } from "../hooks/useMessageLinkPreviews";
+import { useMessagesScreenAudio } from "../hooks/useMessagesScreenAudio";
+import { useMessagesRealtimeSubscription } from "../hooks/useMessagesRealtime";
+import {
+  loadIndividualThreadState,
+  loadGroupThreadState,
+} from "../lib/messagesScreen/loadMessagesOperations";
+import {
+  sendIndividualChatMessages,
+  sendGroupChatMessages,
+} from "../lib/messagesScreen/sendMessagesOperations";
+import MessagesSelectedMediaTray from "./messages/MessagesSelectedMediaTray";
+import MessagesMediaPickerModal from "./messages/MessagesMediaPickerModal";
+import MessagesFullscreenImageModal from "./messages/MessagesFullscreenImageModal";
+import MessagesFullscreenVideoModal from "./messages/MessagesFullscreenVideoModal";
+import MessageActionsModal from "./messages/MessageActionsModal";
+import MessagesInputFooter from "./messages/MessagesInputFooter";
 
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
@@ -119,10 +99,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [fullscreenVideo, setFullscreenVideo] = useState(null);
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
   const [showOpportunityModal, setShowOpportunityModal] = useState(false);
-  const [playingAudioId, setPlayingAudioId] = useState(null);
-  const [audioProgress, setAudioProgress] = useState({});
-  const [audioDurations, setAudioDurations] = useState({});
-  const [messageLinkPreviews, setMessageLinkPreviews] = useState({});
   const [selectedMessageForOptions, setSelectedMessageForOptions] = useState(null);
   const [showMessageOptionsModal, setShowMessageOptionsModal] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState(null);
@@ -130,131 +106,20 @@ const MessagesScreen = ({ user, navigation, route }) => {
   // Refs
   const scrollViewRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const channelRef = useRef(null);
-  const audioSoundsRef = useRef({});
-  const linkPreviewCacheRef = useRef({});
-  const durationExtractionInProgressRef = useRef(new Set());
 
-  const fetchLinkPreview = useCallback(async (rawUrl) => {
-    if (!rawUrl) return null;
-
-    let targetUrl = rawUrl.trim();
-    if (!targetUrl) return null;
-    if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
-      targetUrl = `https://${targetUrl}`;
-    }
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-      const response = await fetch(targetUrl, {
-        method: "GET",
-        headers: {
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-          "User-Agent":
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        console.warn("Link preview request failed", {
-          url: targetUrl,
-          status: response.status,
-        });
-        return null;
-      }
-
-      const contentType = response.headers.get("content-type") || "";
-      let hostname = targetUrl;
-      try {
-        hostname = new URL(targetUrl).hostname.replace(/^www\./i, "");
-      } catch (error) {
-        console.warn("Unable to parse URL hostname", { targetUrl, error });
-      }
-
-      if (contentType.startsWith("image/")) {
-        return {
-          url: targetUrl,
-          title: hostname || targetUrl, 
-          description: "",
-          image: targetUrl,
-          siteName: hostname || targetUrl,
-        };
-      }
-
-      const html = await response.text();
-      const truncatedHtml = html.slice(0, 120000);
-
-      const getMetaContent = (property) => {
-        if (!property) return "";
-        const propertyRegex = new RegExp(
-          `<meta[^>]+property=["']${property}["'][^>]*content=["']([^"']+)["'][^>]*>`,
-          "i"
-        );
-        const nameRegex = new RegExp(
-          `<meta[^>]+name=["']${property}["'][^>]*content=["']([^"']+)["'][^>]*>`,
-          "i"
-        );
-        const propertyMatch = truncatedHtml.match(propertyRegex);
-        if (propertyMatch && propertyMatch[1]) return propertyMatch[1];
-        const nameMatch = truncatedHtml.match(nameRegex);
-        if (nameMatch && nameMatch[1]) return nameMatch[1];
-        return "";
-      };
-
-      const getTitleTag = () => {
-        const titleMatch = truncatedHtml.match(/<title[^>]*>([^<]*)<\/title>/i);
-        if (titleMatch && titleMatch[1]) return titleMatch[1];
-        return "";
-      };
-
-      const title =
-        getMetaContent("og:title") ||
-        getMetaContent("twitter:title") ||
-        getTitleTag() ||
-        hostname ||
-        targetUrl;
-
-      const description =
-        getMetaContent("og:description") ||
-        getMetaContent("twitter:description") ||
-        getMetaContent("description") ||
-        "";
-
-      const siteName =
-        getMetaContent("og:site_name") ||
-        getMetaContent("twitter:site") ||
-        hostname ||
-        "";
-
-      let imageUrl =
-        getMetaContent("og:image:secure_url") ||
-        getMetaContent("og:image:url") ||
-        getMetaContent("og:image") ||
-        getMetaContent("twitter:image") ||
-        getMetaContent("twitter:image:src") ||
-        "";
-
-      imageUrl = resolveRelativeUrl(imageUrl, targetUrl);
-
-      return {
-        url: targetUrl,
-        title: title.trim(),
-        description: description.trim(),
-        image: imageUrl,
-        siteName: siteName.trim() || hostname || targetUrl,
-      };
-    } catch (error) {
-      console.warn("Link preview fetch error", { url: rawUrl, error });
-      return null;
-    }
-  }, []);
+  const conversationKey = useMemo(
+    () => `${djId ?? ""}|${communityId ?? ""}|${chatType}`,
+    [djId, communityId, chatType]
+  );
+  const { messageLinkPreviews, discardPreviewsForMessage } =
+    useMessageLinkPreviews(messages, conversationKey);
+  const {
+    playingAudioId,
+    audioProgress,
+    audioDurations,
+    toggleAudioPlayback,
+    formatDuration,
+  } = useMessagesScreenAudio(messages);
 
   const handleUrlPress = useCallback(async (rawUrl) => {
     if (!rawUrl) return;
@@ -485,12 +350,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         setMessages((prev) => prev.filter((m) => m.id !== message.id));
-        setMessageLinkPreviews((prev) => {
-          if (!prev[message.id]) return prev;
-          const updated = { ...prev };
-          delete updated[message.id];
-          return updated;
-        });
+        discardPreviewsForMessage(message.id);
       } catch (error) {
         console.error("Error deleting message:", error);
         Alert.alert(
@@ -499,7 +359,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         );
       }
     },
-    [supabase]
+    [discardPreviewsForMessage, supabase]
   );
 
   const handleCopyMessage = useCallback(async (message) => {
@@ -600,191 +460,63 @@ const MessagesScreen = ({ user, navigation, route }) => {
       console.log("📥 Loading messages...", { chatType, djId, communityId });
 
       if (chatType === "individual" && djId) {
-        // Get or create thread
-        const currentThreadId = await db.findOrCreateIndividualMessageThread(
-          user.id,
-          djId
-        );
-        
-        if (!currentThreadId) {
-          console.error("❌ Failed to get or create thread ID");
-          Alert.alert("Error", "Failed to initialize chat. Please try again.");
-          setLoading(false);
+        const result = await loadIndividualThreadState({
+          userId: user.id,
+          djId,
+          supabase,
+          db,
+        });
+
+        if (!result.ok) {
+          if (result.code === "no_thread") {
+            console.error("❌ Failed to get or create thread ID");
+            Alert.alert("Error", "Failed to initialize chat. Please try again.");
+          } else if (result.code === "query_error" && result.error) {
+            console.error("❌ Error loading messages:", result.error);
+            console.error("❌ Error details:", {
+              code: result.error.code,
+              message: result.error.message,
+              hint: result.error.hint,
+              details: result.error.details,
+            });
+            Alert.alert(
+              "Error",
+              `Failed to load messages: ${result.error.message}`
+            );
+          }
           return;
         }
-        
-        setThreadId(currentThreadId);
-        console.log("🧵 Thread ID:", currentThreadId);
 
-        // Load messages for this thread
-        console.log("🔍 Querying messages for thread:", currentThreadId);
-        console.log("🔍 Current user ID:", user.id);
-
-        // First, verify the thread exists and check its structure
-        const { data: threadCheck, error: threadCheckError } = await supabase
-          .from("message_threads")
-          .select("id, type, user_id_1, user_id_2, community_id")
-          .eq("id", currentThreadId)
-          .single();
-        
-        console.log("🔍 Thread check:", {
-          thread: threadCheck,
-          error: threadCheckError?.message,
-          currentUserId: user.id,
-        });
-
-        // First, try a simple query without joins to test RLS
-        const { data: simpleData, error: simpleError } = await supabase
-          .from("messages")
-          .select("id, thread_id, sender_id, content, created_at, community_id")
-          .eq("thread_id", currentThreadId);
-
-        console.log("🔍 Simple query result:", {
-          count: simpleData?.length || 0,
-          error: simpleError?.message,
-          errorCode: simpleError?.code,
-          data: simpleData,
-        });
-
-        if (simpleError) {
-          console.error("❌ Error in simple query (possible RLS issue):", simpleError);
-          console.error("❌ Error details:", {
-            code: simpleError.code,
-            message: simpleError.message,
-            hint: simpleError.hint,
-            details: simpleError.details,
-          });
+        const p = result.payload;
+        setThreadId(p.threadId);
+        console.log("🧵 Thread ID:", p.threadId);
+        console.log("📨 Loaded messages:", p.messages.length);
+        setMessages(p.messages);
+        if (p.otherUser) {
+          setOtherUser(p.otherUser);
         }
-
-        // Now try with the join - load all messages (up to 1000 limit)
-        const { data, error } = await supabase
-          .from("messages")
-          .select(
-            `
-            *,
-            sender:user_profiles!messages_sender_id_fkey(
-              id,
-              dj_name,
-              full_name,
-              profile_image_url
-            )
-          `
-          )
-          .eq("thread_id", currentThreadId)
-          .order("created_at", { ascending: true })
-          .limit(1000); // Explicit limit to ensure we get all messages (Supabase default is 1000)
-
-        console.log("🔍 Full query result:", {
-          count: data?.length || 0,
-          error: error?.message,
-          errorCode: error?.code,
-        });
-
-        if (error) {
-          console.error("❌ Error loading messages:", error);
-          console.error("❌ Error details:", {
-            code: error.code,
-            message: error.message,
-            hint: error.hint,
-            details: error.details,
-          });
-          Alert.alert("Error", `Failed to load messages: ${error.message}`);
-          return;
-        }
-        
-        // If no error but also no data, log a warning
-        if (!error && (!data || data.length === 0)) {
-          console.log("⚠️ No messages found for thread:", currentThreadId);
-          console.log("⚠️ This could mean:");
-          console.log("   1. No messages have been sent yet");
-          console.log("   2. RLS policies are blocking access");
-          console.log("   3. Messages failed to insert due to constraint violations");
-        }
-
-        // Transform messages
-        const transformedMessages = (data || []).map((msg) => ({
-          id: msg.id,
-          content: msg.content || "",
-          senderId: msg.sender_id,
-          senderName: msg.sender?.dj_name || msg.sender?.full_name || "Unknown",
-          senderImage: msg.sender?.profile_image_url,
-          timestamp: msg.created_at,
-          isOwn: msg.sender_id === user.id,
-          messageType: (msg.message_type || "text").toLowerCase(),
-          mediaUrl: msg.media_url,
-          mediaFilename: msg.media_filename,
-          mediaSize: msg.media_size,
-          mediaMimeType: msg.media_mime_type,
-          thumbnailUrl: msg.thumbnail_url,
-          metadata: msg.metadata || null, // Include metadata for opportunity cards
-          opportunity: msg.metadata?.opportunity || null, // Extract opportunity data
-          fileExtension: msg.file_extension,
-          urls: extractUrls(msg.content || ""),
-          recordType: "direct",
-          threadId: msg.thread_id,
-        }));
-
-        console.log("📨 Loaded messages:", transformedMessages.length);
-        setMessages(transformedMessages);
-
-        // Load other user profile
-        const otherUserProfile = await db.getUserProfilePublic(djId);
-        if (otherUserProfile) {
-          setOtherUser(otherUserProfile);
-        }
-
-        // Check connection status
-        const connections = await db.getUserConnections(user.id);
-        const connection = connections.find(
-          (conn) => conn.connected_user_id === djId
-        );
-        setIsConnected(connection?.connection_status === "accepted");
-        setConnectionStatus(connection?.connection_status || null);
-        setMemberCount(0);
+        setIsConnected(p.isConnected);
+        setConnectionStatus(p.connectionStatus);
+        setMemberCount(p.memberCount);
       } else if (chatType === "group" && communityId) {
-        // Load group chat messages
-        const groupMessages = await db.getGroupMessages(communityId);
-        const transformedMessages = (groupMessages || []).map((msg) => ({
-          id: msg.id,
-          content: msg.content || "",
-          senderId: msg.author_id,
-          senderName: msg.author?.dj_name || msg.author?.full_name || "Unknown",
-          senderImage: msg.author?.profile_image_url,
-          timestamp: msg.created_at,
-          isOwn: msg.author_id === user.id,
-          messageType: (msg.message_type || "text").toLowerCase(),
-          mediaUrl: msg.media_url,
-          mediaFilename: msg.media_filename,
-          mediaSize: msg.media_size,
-          mediaMimeType: msg.media_mime_type,
-          thumbnailUrl: msg.thumbnail_url,
-          fileExtension: msg.file_extension,
-          urls: extractUrls(msg.content || ""),
-          recordType: "group",
-          communityId: communityId,
-        }));
+        const result = await loadGroupThreadState({
+          userId: user.id,
+          communityId,
+          supabase,
+          db,
+        });
 
-        setMessages(transformedMessages);
-
-        // Load community data
-        const { data: community } = await supabase
-          .from("communities")
-          .select("*")
-          .eq("id", communityId)
-          .single();
-
-        if (community) {
-          setCommunityData(community);
+        if (!result.ok) {
+          return;
         }
 
-        try {
-          const count = await db.getCommunityMemberCount(communityId);
-          setMemberCount(count || 0);
-        } catch (countError) {
-          console.error("Error fetching community member count:", countError);
-          setMemberCount(0);
+        const p = result.payload;
+        setMessages(p.messages);
+        if (p.community) {
+          setCommunityData(p.community);
         }
-        setConnectionStatus(null);
+        setMemberCount(p.memberCount);
+        setConnectionStatus(p.connectionStatus);
       }
     } catch (error) {
       console.error("❌ Error in loadMessages:", error);
@@ -794,144 +526,20 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }
   }, [user?.id, chatType, djId, communityId]);
 
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!user?.id || loading) return;
-
-    let channel;
-
-    if (chatType === "individual" && threadId) {
-      console.log("🔔 Setting up real-time subscription for thread:", threadId);
-
-      channel = supabase
-        .channel(`messages-${threadId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "messages",
-            filter: `thread_id=eq.${threadId}`,
-          },
-          async (payload) => {
-            console.log("📨 New message received:", payload.new);
-
-            // Fetch sender profile
-            const senderProfile = await db.getUserProfilePublic(
-              payload.new.sender_id
-            );
-
-            const newMessage = {
-              id: payload.new.id,
-              content: payload.new.content || "",
-              senderId: payload.new.sender_id,
-              senderName:
-                senderProfile?.dj_name || senderProfile?.full_name || "Unknown",
-              senderImage: senderProfile?.profile_image_url,
-              timestamp: payload.new.created_at,
-              isOwn: payload.new.sender_id === user.id,
-              messageType: (payload.new.message_type || "text").toLowerCase(),
-              mediaUrl: payload.new.media_url,
-              mediaFilename: payload.new.media_filename,
-              mediaSize: payload.new.media_size,
-              mediaMimeType: payload.new.media_mime_type,
-              thumbnailUrl: payload.new.thumbnail_url,
-              fileExtension: payload.new.file_extension,
-              urls: extractUrls(payload.new.content || ""),
-              recordType: "direct",
-              threadId: payload.new.thread_id,
-            };
-
-            setMessages((prev) => {
-              // Prevent duplicates
-              if (prev.find((m) => m.id === newMessage.id)) {
-                return prev;
-              }
-              return [...prev, newMessage];
-            });
-
-            // Scroll to bottom
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }
-        )
-        .subscribe();
-
-      channelRef.current = channel;
-    } else if (chatType === "group" && communityId) {
-      channel = supabase
-        .channel(`group-messages-${communityId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "community_posts",
-            filter: `community_id=eq.${communityId}`,
-          },
-          async (payload) => {
-            console.log("📨 New group message received:", payload.new);
-
-            const senderProfile = await db.getUserProfilePublic(
-              payload.new.author_id
-            );
-
-            const newMessage = {
-              id: payload.new.id,
-              content: payload.new.content || "",
-              senderId: payload.new.author_id,
-              senderName:
-                senderProfile?.dj_name || senderProfile?.full_name || "Unknown",
-              senderImage: senderProfile?.profile_image_url,
-              timestamp: payload.new.created_at,
-              isOwn: payload.new.author_id === user.id,
-              messageType: (payload.new.message_type || "text").toLowerCase(),
-              mediaUrl: payload.new.media_url,
-              mediaFilename: payload.new.media_filename,
-              mediaSize: payload.new.media_size,
-              mediaMimeType: payload.new.media_mime_type,
-              thumbnailUrl: payload.new.thumbnail_url,
-              fileExtension: payload.new.file_extension,
-              urls: extractUrls(payload.new.content || ""),
-              recordType: "group",
-              communityId: payload.new.community_id,
-            };
-
-            setMessages((prev) => {
-              if (prev.find((m) => m.id === newMessage.id)) {
-                return prev;
-              }
-              return [...prev, newMessage];
-            });
-
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }
-        )
-        .subscribe();
-
-      channelRef.current = channel;
-    }
-
-    return () => {
-      if (channel) {
-        console.log("🔕 Cleaning up subscription");
-        supabase.removeChannel(channel);
-      }
-    };
-  }, [user?.id, chatType, threadId, communityId, loading]);
+  useMessagesRealtimeSubscription({
+    userId: user?.id,
+    chatType,
+    threadId,
+    communityId,
+    loading,
+    setMessages,
+    scrollViewRef,
+  });
 
   // Initial load
   useEffect(() => {
     loadMessages();
   }, [loadMessages]);
-
-  useEffect(() => {
-    setMessageLinkPreviews({});
-    linkPreviewCacheRef.current = {};
-  }, [djId, communityId, chatType]);
 
   // Fade in animation
   useEffect(() => {
@@ -941,140 +549,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
       useNativeDriver: true,
     }).start();
   }, []);
-
-  useEffect(() => {
-    if (!messages.length) return;
-
-    messages.forEach((message) => {
-      if (!message?.urls?.length) return;
-
-      message.urls.forEach((rawUrl) => {
-        const normalizedUrl = stripTrailingPunctuation(rawUrl);
-        if (!normalizedUrl) return;
-
-        const cacheKey = `${message.id}|${normalizedUrl}`;
-        if (linkPreviewCacheRef.current[cacheKey]) {
-          return;
-        }
-
-        linkPreviewCacheRef.current[cacheKey] = "pending";
-
-        fetchLinkPreview(normalizedUrl)
-          .then((preview) => {
-            if (!preview) {
-              linkPreviewCacheRef.current[cacheKey] = null;
-              return;
-            }
-
-            const previewData = {
-              url: normalizedUrl,
-              title: preview.title || normalizedUrl,
-              description: preview.description || "",
-              image: preview.image || "",
-              siteName: preview.siteName || "",
-            };
-
-            linkPreviewCacheRef.current[cacheKey] = previewData;
-
-            setMessageLinkPreviews((prev) => {
-              const current = prev[message.id] || [];
-              if (current.some((item) => item.url === previewData.url)) {
-                return prev;
-              }
-              return {
-                ...prev,
-                [message.id]: [...current, previewData],
-              };
-            });
-          })
-          .catch((error) => {
-            console.warn("Link preview lookup failed", {
-              url: normalizedUrl,
-              error,
-            });
-            linkPreviewCacheRef.current[cacheKey] = null;
-          });
-      });
-    });
-  }, [messages, fetchLinkPreview]);
-
-  // Extract duration for audio/video messages when they load
-  useEffect(() => {
-    if (!messages.length) return;
-
-    const extractDurationsForMessages = async () => {
-      // Get current durations to check which messages need duration
-      setAudioDurations((currentDurations) => {
-        const messagesNeedingDuration = messages.filter(
-          (msg) =>
-            (msg.messageType === "audio" || msg.messageType === "video") &&
-            msg.mediaUrl &&
-            !currentDurations[msg.id] &&
-            !durationExtractionInProgressRef.current.has(msg.id)
-        );
-
-        if (messagesNeedingDuration.length === 0) {
-          return currentDurations;
-        }
-
-        console.log(
-          `📊 Extracting duration for ${messagesNeedingDuration.length} media messages`
-        );
-
-        // Extract duration for each message asynchronously
-        messagesNeedingDuration.forEach((message) => {
-          // Mark as in progress
-          durationExtractionInProgressRef.current.add(message.id);
-
-          // Extract duration asynchronously
-          (async () => {
-            try {
-              if (Audio?.Sound?.createAsync) {
-                const { sound } = await Audio.Sound.createAsync(
-                  { uri: message.mediaUrl },
-                  { shouldPlay: false }
-                );
-                const status = await sound.getStatusAsync();
-                await sound.unloadAsync();
-                if (status.isLoaded && status.durationMillis) {
-                  setAudioDurations((prev) => {
-                    // Only update if not already set
-                    if (prev[message.id]) {
-                      durationExtractionInProgressRef.current.delete(message.id);
-                      return prev;
-                    }
-                    durationExtractionInProgressRef.current.delete(message.id);
-                    return {
-                      ...prev,
-                      [message.id]: status.durationMillis,
-                    };
-                  });
-                  console.log(
-                    `✅ Extracted duration for message ${message.id}: ${status.durationMillis}ms`
-                  );
-                } else {
-                  durationExtractionInProgressRef.current.delete(message.id);
-                }
-              } else {
-                durationExtractionInProgressRef.current.delete(message.id);
-              }
-            } catch (error) {
-              console.warn(
-                `⚠️ Unable to extract duration for message ${message.id}:`,
-                error
-              );
-              durationExtractionInProgressRef.current.delete(message.id);
-              // Continue with other messages
-            }
-          })();
-        });
-
-        return currentDurations;
-      });
-    };
-
-    extractDurationsForMessages();
-  }, [messages]);
 
   const selectAndUploadMedia = useCallback(async (pickerFn, label) => {
     try {
@@ -1304,110 +778,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
     setSelectedMedia((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  // Format time helper for audio duration
-  const formatDuration = useCallback((millis) => {
-    if (!millis || isNaN(millis)) return "0:00";
-    const totalSeconds = Math.floor(millis / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  }, []);
-
-  // Handle audio message playback
-  const toggleAudioPlayback = useCallback(
-    async (messageId, audioUrl) => {
-      try {
-        console.log("🎵 Toggling audio playback:", { messageId, audioUrl });
-
-        if (!audioUrl) {
-          Alert.alert("Error", "Audio URL is missing");
-          return;
-        }
-
-        if (playingAudioId === messageId) {
-          // Pause current audio
-          const sound = audioSoundsRef.current[messageId];
-          if (sound) {
-            await sound.pauseAsync();
-            setPlayingAudioId(null);
-            console.log("⏸️ Audio paused");
-          }
-        } else {
-          // Stop any currently playing audio
-          if (playingAudioId) {
-            const currentSound = audioSoundsRef.current[playingAudioId];
-            if (currentSound) {
-              await currentSound.stopAsync();
-              await currentSound.unloadAsync();
-              delete audioSoundsRef.current[playingAudioId];
-            }
-          }
-
-          // Configure audio mode for playback
-          await Audio.setAudioModeAsync({
-            allowsRecordingIOS: false,
-            staysActiveInBackground: true,
-            playsInSilentModeIOS: true,
-          });
-
-          // Load and play new audio
-          console.log("🔄 Loading audio from:", audioUrl);
-          const { sound } = await Audio.Sound.createAsync(
-            { uri: audioUrl },
-            { shouldPlay: true }
-          );
-
-          audioSoundsRef.current[messageId] = sound;
-          setPlayingAudioId(messageId);
-          console.log("▶️ Audio started playing");
-
-          // Get duration
-          const status = await sound.getStatusAsync();
-          if (status.isLoaded && status.durationMillis) {
-            console.log("📊 Audio duration:", status.durationMillis);
-            setAudioDurations((prev) => ({
-              ...prev,
-              [messageId]: status.durationMillis,
-            }));
-          }
-
-          // Track progress
-          sound.setOnPlaybackStatusUpdate((status) => {
-            if (status.isLoaded) {
-              setAudioProgress((prev) => ({
-                ...prev,
-                [messageId]: status.positionMillis || 0,
-              }));
-
-              if (status.didJustFinish) {
-                console.log("✅ Audio finished");
-                setPlayingAudioId((prev) => (prev === messageId ? null : prev));
-                sound.unloadAsync();
-                delete audioSoundsRef.current[messageId];
-                setAudioProgress((prev) => ({
-                  ...prev,
-                  [messageId]: 0,
-                }));
-              }
-            }
-          });
-        }
-      } catch (error) {
-        console.error("❌ Error playing audio:", error);
-        console.error("❌ Error details:", {
-          message: error.message,
-          code: error.code,
-          audioUrl: audioUrl,
-        });
-        Alert.alert(
-          "Error",
-          `Failed to play audio: ${error.message || "Unknown error"}`
-        );
-      }
-    },
-    [playingAudioId]
-  );
-
   // Handle video playback
   const handleVideoPlay = useCallback((videoUrl) => {
     setFullscreenVideo(videoUrl);
@@ -1575,19 +945,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
     [downloadFile]
   );
 
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(audioSoundsRef.current).forEach(async (sound) => {
-        try {
-          await sound.unloadAsync();
-        } catch (error) {
-          console.error("Error cleaning up audio:", error);
-        }
-      });
-    };
-  }, []);
-
   // Send message
   const sendMessage = useCallback(async () => {
     if ((!newMessage.trim() && selectedMedia.length === 0) || sending) {
@@ -1606,7 +963,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }
 
     const messageContent = newMessage.trim();
-    const mediaArray = [...selectedMedia]; // Copy array
+    const mediaArray = [...selectedMedia];
     console.log("📤 Sending message:", {
       content: messageContent,
       chatType,
@@ -1624,177 +981,88 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
     try {
       if (chatType === "individual" && djId) {
-        // Get thread ID (should already be set, but ensure it exists)
-        let currentThreadId = threadId;
-
-        if (!currentThreadId) {
-          console.log("🔍 Thread ID not set, fetching...");
-          currentThreadId = await db.findOrCreateIndividualMessageThread(
-            user.id,
-            djId
-          );
-          setThreadId(currentThreadId);
+        if (!threadId) {
+          console.log("🔍 Thread ID not set, will resolve on send...");
         }
 
-        console.log("🧵 Using thread ID:", currentThreadId);
+        const result = await sendIndividualChatMessages({
+          supabase,
+          db,
+          userId: user.id,
+          djId,
+          threadId,
+          messageContent,
+          mediaArray,
+        });
 
-        if (!currentThreadId) {
-          throw new Error("Failed to get thread ID");
-        }
-
-        console.log("💾 Inserting message(s) to database...");
-        
-        // Prepare message data - messages table doesn't have community_id column
-        // The constraint messages_community_or_private_check likely checks thread_id existence
-        const baseMessageData = {
-          thread_id: currentThreadId,
-          sender_id: user.id,
-        };
-        
-        console.log("📝 Message data to insert:", baseMessageData);
-        
-        // If there's text content, send it as a separate message first
-        if (messageContent) {
-          const textMessageData = {
-            ...baseMessageData,
-            content: messageContent,
-            message_type: "text",
-          };
-
-          const { error: textError } = await supabase
-            .from("messages")
-            .insert(textMessageData);
-
-          if (textError) {
-            console.error("❌ Error sending text message:", textError);
+        if (!result.ok) {
+          const err = result.error;
+          if (err) {
+            console.error("❌ Error sending message:", err);
             console.error("❌ Error details:", {
-              code: textError.code,
-              message: textError.message,
-              hint: textError.hint,
-              details: textError.details,
+              code: err.code,
+              message: err.message,
+              hint: err.hint,
+              details: err.details,
             });
             Alert.alert(
               "Error",
-              `Failed to send message: ${textError.message || "Unknown error"}`
+              `Failed to send message: ${err.message || "Unknown error"}`
             );
-            setNewMessage(messageContent);
-            setSelectedMedia(mediaArray);
-            setSending(false);
-            return;
           }
+          setNewMessage(result.rollback.messageContent);
+          setSelectedMedia(result.rollback.mediaArray);
+          return;
         }
 
-        // Send each media file as a separate message
+        if (result.threadId) {
+          setThreadId(result.threadId);
+        }
+
         if (mediaArray.length > 0) {
-          const mediaMessages = mediaArray.map((mediaItem) => ({
-            ...baseMessageData,
-            content: "",
-            message_type: mediaItem.type,
-            media_url: mediaItem.url,
-            media_filename: mediaItem.filename,
-            media_size: mediaItem.size,
-            media_mime_type: mediaItem.mimeType,
-            thumbnail_url: mediaItem.thumbnailUrl,
-            file_extension: mediaItem.extension,
-            duration: mediaItem.duration,
-          }));
-
-          const { data, error } = await supabase
-            .from("messages")
-            .insert(mediaMessages)
-            .select("*");
-
-          if (error) {
-            console.error("❌ Error sending media messages:", error);
-            console.error("❌ Error details:", {
-              code: error.code,
-              message: error.message,
-              hint: error.hint,
-              details: error.details,
-            });
-            Alert.alert(
-              "Error",
-              `Failed to send message: ${error.message || "Unknown error"}`
-            );
-            setNewMessage(messageContent);
-            setSelectedMedia(mediaArray);
-            setSending(false);
-            return;
-          }
-
           console.log(`✅ ${mediaArray.length} media message(s) sent successfully`);
-        } else {
+        } else if (messageContent) {
           console.log("✅ Text message sent successfully");
         }
 
-        // Reload messages to ensure UI updates
         setTimeout(() => {
           loadMessages();
         }, 300);
       } else if (chatType === "group" && communityId) {
-        // If there's text content, send it as a separate message first
-        if (messageContent) {
-          const textMessageData = {
-            community_id: communityId,
-            author_id: user.id,
-            content: messageContent,
-            message_type: "text",
-          };
+        const result = await sendGroupChatMessages({
+          supabase,
+          userId: user.id,
+          communityId,
+          messageContent,
+          mediaArray,
+        });
 
-          const { error: textError } = await supabase
-            .from("community_posts")
-            .insert(textMessageData);
-
-          if (textError) {
-            console.error("❌ Error sending text message:", textError);
-          }
+        if (!result.ok) {
+          const err = result.error;
+          console.error("❌ Error sending group messages:", err);
+          console.error("❌ Error details:", {
+            code: err?.code,
+            message: err?.message,
+            hint: err?.hint,
+            details: err?.details,
+          });
+          Alert.alert(
+            "Error",
+            `Failed to send message: ${err?.message || "Unknown error"}`
+          );
+          setNewMessage(result.rollback.messageContent);
+          setSelectedMedia(result.rollback.mediaArray);
+          return;
         }
 
-        // Send each media file as a separate message
         if (mediaArray.length > 0) {
-          const mediaMessages = mediaArray.map((mediaItem) => ({
-            community_id: communityId,
-            author_id: user.id,
-            content: "",
-            message_type: mediaItem.type,
-            media_url: mediaItem.url,
-            media_filename: mediaItem.filename,
-            media_size: mediaItem.size,
-            media_mime_type: mediaItem.mimeType,
-            thumbnail_url: mediaItem.thumbnailUrl,
-            file_extension: mediaItem.extension,
-            duration: mediaItem.duration,
-          }));
-
-          const { data, error } = await supabase
-            .from("community_posts")
-            .insert(mediaMessages)
-            .select("*");
-
-          if (error) {
-            console.error("❌ Error sending group media messages:", error);
-            console.error("❌ Error details:", {
-              code: error.code,
-              message: error.message,
-              hint: error.hint,
-              details: error.details,
-            });
-            Alert.alert(
-              "Error",
-              `Failed to send message: ${error.message || "Unknown error"}`
-            );
-            setNewMessage(messageContent);
-            setSelectedMedia(mediaArray);
-            setSending(false);
-            return;
-          }
-
-          console.log(`✅ ${mediaArray.length} group media message(s) sent successfully`);
-        } else {
+          console.log(
+            `✅ ${mediaArray.length} group media message(s) sent successfully`
+          );
+        } else if (messageContent) {
           console.log("✅ Group text message sent successfully");
         }
 
-        // Reload messages to ensure UI updates
         setTimeout(() => {
           loadMessages();
         }, 300);
@@ -1946,7 +1214,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
                     : require("../assets/rhood_logo.webp")
                 }
                 style={styles.headerAvatar}
-                placeholderStyle={styles.headerAvatarPlaceholder}
+                placeholder={
+                  <View style={styles.headerAvatarPlaceholder} />
+                }
+                contentFit="cover"
               />
               <View style={styles.headerText}>
                 <Text style={styles.headerName}>
@@ -1984,7 +1255,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
                     : require("../assets/rhood_logo.webp")
                 }
                 style={styles.headerAvatar}
-                placeholderStyle={styles.headerAvatarPlaceholder}
+                placeholder={
+                  <View style={styles.headerAvatarPlaceholder} />
+                }
                 contentFit="cover"
               />
               <View style={styles.headerText}>
@@ -2032,388 +1305,72 @@ const MessagesScreen = ({ user, navigation, route }) => {
           removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
         />
 
-        {selectedMedia.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.selectedMediaContainer}
-            contentContainerStyle={styles.selectedMediaContent}
-          >
-            {selectedMedia.map((media, index) => (
-              <View key={index} style={styles.mediaPreviewContainer}>
-                <View style={styles.mediaPreview}>
-                  {media.type === "image" && (
-                    <Image
-                      source={{ uri: media.url }}
-                      style={styles.mediaPreviewImage}
-                      resizeMode="cover"
-                    />
-                  )}
-                  {media.type === "video" && (
-                    <View style={styles.mediaPreviewVideo}>
-                      <Ionicons
-                        name="videocam"
-                        size={24}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                      <Text style={styles.mediaPreviewText}>Video</Text>
-                    </View>
-                  )}
-                  {(media.type === "file" || media.type === "audio") && (
-                    <View style={styles.mediaPreviewFile}>
-                      <Ionicons
-                        name={
-                          media.type === "audio"
-                            ? "musical-notes"
-                            : multimediaService.getFileIcon(media.extension)
-                        }
-                        size={24}
-                        color="hsl(75, 100%, 60%)"
-                      />
-                      <View>
-                        <Text style={styles.mediaPreviewText}>
-                          {media.filename || "Attachment"}
-                        </Text>
-                        {media.size ? (
-                          <Text style={styles.mediaPreviewMeta}>
-                            {multimediaService.formatFileSize(media.size)}
-                          </Text>
-                        ) : null}
-                      </View>
-                    </View>
-                  )}
-                </View>
-                <TouchableOpacity
-                  onPress={() => handleRemoveMedia(index)}
-                  style={styles.removeMediaButton}
-                >
-                  <Ionicons name="close" size={20} color="hsl(0, 0%, 100%)" />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
-        )}
+        <MessagesSelectedMediaTray
+          selectedMedia={selectedMedia}
+          styles={styles}
+          onRemoveMedia={handleRemoveMedia}
+        />
 
-        {showMediaPicker && (
-          <View style={styles.mediaPickerOverlay}>
-            <View style={styles.mediaPickerContainer}>
-              <Text style={styles.mediaPickerTitle}>Choose Media Type</Text>
-              <View style={styles.mediaPickerButtons}>
-                <TouchableOpacity
-                  style={styles.mediaPickerButton}
-                  onPress={handleImageUpload}
-                  disabled={uploadingMedia}
-                >
-                  <Ionicons name="image" size={24} color="hsl(75, 100%, 60%)" />
-                  <Text style={styles.mediaPickerButtonText}>Photo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.mediaPickerButton}
-                  onPress={handleVideoUpload}
-                  disabled={uploadingMedia}
-                >
-                  <Ionicons
-                    name="videocam"
-                    size={24}
-                    color="hsl(75, 100%, 60%)"
-                  />
-                  <Text style={styles.mediaPickerButtonText}>Video</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.mediaPickerButton}
-                  onPress={handleAudioUpload}
-                  disabled={uploadingMedia}
-                >
-                  <Ionicons
-                    name="musical-notes"
-                    size={24}
-                    color="hsl(75, 100%, 60%)"
-                  />
-                  <Text style={styles.mediaPickerButtonText}>Audio</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.mediaPickerButton}
-                  onPress={handleDocumentUpload}
-                  disabled={uploadingMedia}
-                >
-                  <Ionicons
-                    name="document"
-                    size={24}
-                    color="hsl(75, 100%, 60%)"
-                  />
-                  <Text style={styles.mediaPickerButtonText}>File</Text>
-                </TouchableOpacity>
-              </View>
-              {uploadingMedia && (
-                <ActivityIndicator
-                  style={styles.mediaPickerSpinner}
-                  size="small"
-                  color="hsl(75, 100%, 60%)"
-                />
-              )}
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowMediaPicker(false)}
-                disabled={uploadingMedia}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        <MessagesMediaPickerModal
+          visible={showMediaPicker}
+          uploadingMedia={uploadingMedia}
+          styles={styles}
+          onClose={() => setShowMediaPicker(false)}
+          onPickImage={handleImageUpload}
+          onPickVideo={handleVideoUpload}
+          onPickAudio={handleAudioUpload}
+          onPickDocument={handleDocumentUpload}
+        />
 
-        {/* Fullscreen Image Modal */}
-        <Modal
-          visible={!!fullscreenImage}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setFullscreenImage(null)}
-        >
-          <TouchableOpacity
-            style={styles.fullscreenImageContainer}
-            activeOpacity={1}
-            onPress={() => setFullscreenImage(null)}
-          >
-            <TouchableOpacity
-              style={styles.fullscreenImageCloseButton}
-              onPress={() => setFullscreenImage(null)}
-            >
-              <Ionicons name="close" size={32} color="hsl(0, 0%, 100%)" />
-            </TouchableOpacity>
-            {fullscreenImage && (
-              <Image
-                source={{ uri: fullscreenImage }}
-                style={styles.fullscreenImage}
-                resizeMode="contain"
-              />
-            )}
-          </TouchableOpacity>
-        </Modal>
+        <MessagesFullscreenImageModal
+          uri={fullscreenImage}
+          styles={styles}
+          onClose={() => setFullscreenImage(null)}
+        />
 
-        {/* Fullscreen Video Player Modal */}
-        <Modal
-          visible={!!fullscreenVideo}
-          transparent={false}
-          animationType="fade"
-          onRequestClose={() => setFullscreenVideo(null)}
-        >
-          <View style={styles.fullscreenVideoContainer}>
-            <TouchableOpacity
-              style={styles.fullscreenVideoCloseButton}
-              onPress={() => setFullscreenVideo(null)}
-            >
-              <Ionicons name="close" size={32} color="hsl(0, 0%, 100%)" />
-            </TouchableOpacity>
-            {fullscreenVideo && (
-              <Video
-                source={{ uri: fullscreenVideo }}
-                style={styles.fullscreenVideo}
-                useNativeControls={true}
-                resizeMode={Video.RESIZE_MODE_CONTAIN}
-                shouldPlay={true}
-                isLooping={false}
-                onError={(error) => {
-                  console.error("Video playback error:", error);
-                  Alert.alert("Error", "Failed to play video");
-                  setFullscreenVideo(null);
-                }}
-              />
-            )}
-          </View>
-        </Modal>
+        <MessagesFullscreenVideoModal
+          uri={fullscreenVideo}
+          styles={styles}
+          onClose={() => setFullscreenVideo(null)}
+        />
 
-        {/* Input */}
-        {chatType === "individual" && !isConnected ? (
-          <View
-            style={[
-              styles.inputContainer,
-              { paddingBottom: bottomInputPadding },
-            ]}
-          >
-            <View style={styles.connectionRequiredContainer}>
-              <Text style={styles.connectionRequiredText}>
-                {connectionStatus === "pending"
-                  ? "Connection request pending..."
-                  : "Connect to start messaging"}
-              </Text>
-              <TouchableOpacity
-                style={styles.connectButton}
-                onPress={() => navigation.goBack()}
-              >
-                <Text style={styles.connectButtonText}>
-                  {connectionStatus === "pending"
-                    ? "View Status"
-                    : "Send Request"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.inputContainer,
-              { paddingBottom: bottomInputPadding },
-            ]}
-          >
-            {replyingToMessage && (
-              <View style={styles.replyIndicator}>
-                <View style={styles.replyIndicatorContent}>
-                  <View style={styles.replyIndicatorLeft}>
-                    <Ionicons name="arrow-undo" size={16} color="hsl(75, 100%, 60%)" />
-                    <Text style={styles.replyIndicatorText} numberOfLines={1}>
-                      Replying to {replyingToMessage.senderName || "message"}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setReplyingToMessage(null)}
-                    style={styles.replyIndicatorClose}
-                  >
-                    <Ionicons name="close" size={18} color="hsl(0, 0%, 70%)" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-            <View style={styles.inputWrapper}>
-              <TouchableOpacity
-                style={styles.attachButton}
-                onPress={() => setShowMediaPicker(true)}
-                disabled={uploadingMedia}
-              >
-                {uploadingMedia ? (
-                  <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
-                ) : (
-                  <Ionicons name="add" size={24} color="hsl(75, 100%, 60%)" />
-                )}
-              </TouchableOpacity>
-              <TextInput
-                style={styles.messageInput}
-                placeholder={replyingToMessage ? "Type a reply..." : "Type a message..."}
-                placeholderTextColor="hsl(0, 0%, 50%)"
-                value={newMessage}
-                onChangeText={setNewMessage}
-                multiline
-                maxLength={500}
-                onSubmitEditing={sendMessage}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.sendButton,
-                  ((!newMessage.trim() && selectedMedia.length === 0) || sending) &&
-                    styles.sendButtonDisabled,
-                ]}
-                onPress={sendMessage}
-                disabled={(!newMessage.trim() && selectedMedia.length === 0) || sending}
-              >
-                {sending ? (
-                  <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
-                ) : (
-                  <Ionicons name="send" size={20} color="hsl(0, 0%, 0%)" />
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        <MessagesInputFooter
+          chatType={chatType}
+          isConnected={isConnected}
+          connectionStatus={connectionStatus}
+          bottomInputPadding={bottomInputPadding}
+          styles={styles}
+          navigation={navigation}
+          replyingToMessage={replyingToMessage}
+          onClearReply={() => setReplyingToMessage(null)}
+          newMessage={newMessage}
+          onChangeMessage={setNewMessage}
+          selectedMediaCount={selectedMedia.length}
+          sending={sending}
+          onSend={sendMessage}
+          onOpenMediaPicker={() => setShowMediaPicker(true)}
+          uploadingMedia={uploadingMedia}
+        />
       </Animated.View>
 
-      {/* Message Options Modal */}
-      <Modal
+      <MessageActionsModal
         visible={showMessageOptionsModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowMessageOptionsModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.messageOptionsOverlay}
-          activeOpacity={1}
-          onPress={() => setShowMessageOptionsModal(false)}
-        >
-          <View style={styles.messageOptionsContainer}>
-            <View style={styles.messageOptionsContent}>
-              {selectedMessageForOptions && (
-                <>
-                  <TouchableOpacity
-                    style={styles.messageOption}
-                    onPress={() => {
-                      handleCopyMessage(selectedMessageForOptions);
-                      setShowMessageOptionsModal(false);
-                    }}
-                  >
-                    <Ionicons name="copy-outline" size={24} color="hsl(0, 0%, 100%)" />
-                    <Text style={styles.messageOptionText}>Copy</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.messageOption}
-                    onPress={() => {
-                      handleReplyToMessage(selectedMessageForOptions);
-                    }}
-                  >
-                    <Ionicons name="arrow-undo-outline" size={24} color="hsl(0, 0%, 100%)" />
-                    <Text style={styles.messageOptionText}>Reply</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.messageOption}
-                    onPress={() => {
-                      handleForwardMessage(selectedMessageForOptions);
-                      setShowMessageOptionsModal(false);
-                    }}
-                  >
-                    <Ionicons name="arrow-forward-outline" size={24} color="hsl(0, 0%, 100%)" />
-                    <Text style={styles.messageOptionText}>Forward</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.messageOption}
-                    onPress={() => {
-                      handlePinMessage(selectedMessageForOptions);
-                    }}
-                  >
-                    <Ionicons name="pin-outline" size={24} color="hsl(0, 0%, 100%)" />
-                    <Text style={styles.messageOptionText}>Pin</Text>
-                  </TouchableOpacity>
-
-                  {selectedMessageForOptions.isOwn && (
-                    <>
-                      <View style={styles.messageOptionDivider} />
-                      <TouchableOpacity
-                        style={[styles.messageOption, styles.messageOptionDestructive]}
-                        onPress={() => {
-                          handleUnsendMessage(selectedMessageForOptions);
-                        }}
-                      >
-                        <Ionicons name="trash-outline" size={24} color="hsl(0, 100%, 60%)" />
-                        <Text style={[styles.messageOptionText, styles.messageOptionTextDestructive]}>
-                          Unsend
-                        </Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-
-                  <View style={styles.messageOptionDivider} />
-                  <TouchableOpacity
-                    style={[styles.messageOption, styles.messageOptionDestructive]}
-                    onPress={() => {
-                      handleDeleteForYou(selectedMessageForOptions);
-                    }}
-                  >
-                    <Ionicons name="eye-off-outline" size={24} color="hsl(0, 100%, 60%)" />
-                    <Text style={[styles.messageOptionText, styles.messageOptionTextDestructive]}>
-                      Delete for you
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-            <TouchableOpacity
-              style={styles.messageOptionsCancel}
-              onPress={() => setShowMessageOptionsModal(false)}
-            >
-              <Text style={styles.messageOptionsCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        message={selectedMessageForOptions}
+        styles={styles}
+        onClose={() => setShowMessageOptionsModal(false)}
+        onCopy={(m) => {
+          handleCopyMessage(m);
+          setShowMessageOptionsModal(false);
+        }}
+        onReply={handleReplyToMessage}
+        onForward={async (m) => {
+          await handleForwardMessage(m);
+          setShowMessageOptionsModal(false);
+        }}
+        onPin={handlePinMessage}
+        onUnsend={handleUnsendMessage}
+        onDeleteForYou={handleDeleteForYou}
+      />
 
       {/* Opportunity Details Modal */}
       <RhoodModal
@@ -2593,6 +1550,11 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     paddingHorizontal: 0,
     paddingVertical: 0,
+  },
+  mediaCaptionWrap: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   messageText: {
     fontSize: 16,
@@ -2861,7 +1823,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   mediaPreviewText: {
-    fontSize: 10,
     textAlign: "center",
     color: "hsl(0, 0%, 100%)",
     fontSize: 14,
@@ -2878,19 +1839,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -6,
     right: -6,
-    backgroundColor: "hsl(0, 0%, 0%)",
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 30%)",
     zIndex: 10,
-    backgroundColor: "hsl(0, 0%, 30%)",
     width: 32,
     height: 32,
     borderRadius: 16,
+    backgroundColor: "hsl(0, 0%, 30%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
     justifyContent: "center",
     alignItems: "center",
   },
