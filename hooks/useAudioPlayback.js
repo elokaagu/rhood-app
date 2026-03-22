@@ -86,6 +86,8 @@ export default function useAudioPlayback({ user }) {
   // ── Refs ─────────────────────────────────────────────────
   const globalAudioRef = useRef(null);
   const isPlayingAudioRef = useRef(false);
+  /** True for the whole play session (InteractionManager defer + load + play). Prevents overlapping starts. */
+  const playGlobalAudioLockRef = useRef(false);
   const trackFinishedRef = useRef(false);
   const isScrubbingRef = useRef(false);
   const playNextTrackRef = useRef(null);
@@ -131,13 +133,17 @@ export default function useAudioPlayback({ user }) {
   // ── Core playback ────────────────────────────────────────
 
   const playGlobalAudio = useCallback(async (track) => {
-    // Prevent duplicate calls
-    if (isPlayingAudioRef.current) {
-      if (__DEV__) console.log("⚠️ playGlobalAudio already in progress, ignoring duplicate call");
+    /*
+     * One session at a time. Do NOT use isPlayingAudioRef for the entry guard: it was set true
+     * before InteractionManager ran, so resumeGlobalAudio → playGlobalAudio hit "in progress" while
+     * globalAudioRef was still null and the play button did nothing.
+     */
+    if (playGlobalAudioLockRef.current) {
+      if (__DEV__) console.log("⚠️ playGlobalAudio: session already in progress");
       return;
     }
+    playGlobalAudioLockRef.current = true;
 
-    // Show mini bar + full-screen immediately
     const trackForUI = {
       ...track,
       image: track.image || track.artwork_url || track.image_url || null,
@@ -146,7 +152,6 @@ export default function useAudioPlayback({ user }) {
     setPendingPlayTrack(trackForUI);
 
     try {
-      isPlayingAudioRef.current = true;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       if (__DEV__) {
         console.log("🎵 playGlobalAudio called with track:", {
@@ -157,7 +162,6 @@ export default function useAudioPlayback({ user }) {
         });
       }
 
-      // Context state so playback logic and lock screen see current track
       setGlobalAudioState((prev) => ({
         ...prev,
         isLoading: true,
@@ -165,12 +169,12 @@ export default function useAudioPlayback({ user }) {
       }));
       trackFinishedRef.current = false;
 
-      InteractionManager.runAfterInteractions(() => {
-        runPlayback();
+      await new Promise((resolve) => {
+        InteractionManager.runAfterInteractions(() => resolve());
       });
 
-      async function runPlayback() {
-        try {
+      isPlayingAudioRef.current = true;
+      try {
           // Validate audio URL
           const audioUrl =
             (typeof track.audioUrl === "string" && track.audioUrl.trim()
@@ -581,16 +585,23 @@ export default function useAudioPlayback({ user }) {
         } finally {
           isPlayingAudioRef.current = false;
         }
-      }
-    } catch (syncError) {
-      isPlayingAudioRef.current = false;
-      throw syncError;
+    } finally {
+      playGlobalAudioLockRef.current = false;
     }
   }, [user?.id, likedMixIds, setGlobalAudioState, stateRef]);
+
+  /** Ref can briefly desync from context (e.g. StrictMode, recovery). Prefer native ref from state.sound. */
+  const syncGlobalAudioRefFromState = useCallback(() => {
+    const s = stateRef.current;
+    if (!globalAudioRef.current && s?.sound) {
+      globalAudioRef.current = s.sound;
+    }
+  }, [stateRef]);
 
   const pauseGlobalAudio = useCallback(async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      syncGlobalAudioRefFromState();
       if (globalAudioRef.current) {
         await globalAudioRef.current.pauseAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
@@ -601,15 +612,19 @@ export default function useAudioPlayback({ user }) {
             stateRef.current.durationMillis || 0
           );
         }
+      } else if (stateRef.current.isPlaying) {
+        // Ref lost but UI still says playing — sync so controls respond again
+        setGlobalAudioState((prev) => ({ ...prev, isPlaying: false }));
       }
     } catch (error) {
       if (__DEV__) console.log("❌ Error pausing audio:", error);
     }
-  }, [setGlobalAudioState, stateRef]);
+  }, [setGlobalAudioState, stateRef, syncGlobalAudioRefFromState]);
 
   const resumeGlobalAudio = useCallback(async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      syncGlobalAudioRefFromState();
       if (globalAudioRef.current) {
         await globalAudioRef.current.playAsync();
         setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
@@ -620,11 +635,16 @@ export default function useAudioPlayback({ user }) {
             stateRef.current.durationMillis || 0
           );
         }
+      } else {
+        const t = stateRef.current.currentTrack;
+        if (t?.id) {
+          await playGlobalAudio(t);
+        }
       }
     } catch (error) {
       if (__DEV__) console.log("❌ Error resuming audio:", error);
     }
-  }, [setGlobalAudioState, stateRef]);
+  }, [setGlobalAudioState, stateRef, syncGlobalAudioRefFromState, playGlobalAudio]);
 
   const stopGlobalAudio = useCallback(async () => {
     try {
@@ -654,6 +674,7 @@ export default function useAudioPlayback({ user }) {
 
   const seekGlobalAudio = useCallback(async (seekAmount) => {
     try {
+      syncGlobalAudioRefFromState();
       if (globalAudioRef.current && stateRef.current.durationMillis) {
         const currentPosition = stateRef.current.positionMillis || 0;
         const newPosition = Math.max(
@@ -680,11 +701,21 @@ export default function useAudioPlayback({ user }) {
     } catch (error) {
       if (__DEV__) console.log("❌ Error seeking audio:", error);
     }
-  }, [setGlobalAudioState, stateRef]);
+  }, [setGlobalAudioState, stateRef, syncGlobalAudioRefFromState]);
+
+  /** While true, playback status updates do not overwrite `positionMillis` (full-screen scrub). */
+  const beginScrubbing = useCallback(() => {
+    isScrubbingRef.current = true;
+  }, []);
+
+  const endScrubbing = useCallback(() => {
+    isScrubbingRef.current = false;
+  }, []);
 
   const seekToPosition = useCallback(async (positionMillis) => {
     if (positionMillis < 0) return;
 
+    syncGlobalAudioRefFromState();
     if (!globalAudioRef.current) return;
 
     try {
@@ -735,7 +766,7 @@ export default function useAudioPlayback({ user }) {
     } finally {
       isScrubbingRef.current = false;
     }
-  }, [setGlobalAudioState, stateRef]);
+  }, [setGlobalAudioState, stateRef, syncGlobalAudioRefFromState]);
 
   // ── Queue management ─────────────────────────────────────
 
@@ -1397,6 +1428,7 @@ export default function useAudioPlayback({ user }) {
         skipBackward,
         toggleLike,
         seekToPosition,
+        beginScrubbing,
         moveQueueItemUp,
         moveQueueItemDown,
         toggleShuffle,
@@ -1430,6 +1462,8 @@ export default function useAudioPlayback({ user }) {
     resumeGlobalAudio,
     stopGlobalAudio,
     seekToPosition,
+    beginScrubbing,
+    endScrubbing,
     seekGlobalAudio,
 
     // Queue

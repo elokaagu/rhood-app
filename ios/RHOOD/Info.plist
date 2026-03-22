@@ -88,7 +88,7 @@
 	<key>NSUserTrackingUsageDescription</key>
 	<string>We use your data to improve your experience and show you relevant opportunities.</string>
 	<key>RCTNewArchEnabled</key>
-	<false/>
+	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

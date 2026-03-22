@@ -10,7 +10,6 @@ import {
   ScrollView,
   Modal,
   Alert,
-  PanResponder,
   StyleSheet,
   Share,
 } from "react-native";
@@ -50,11 +49,7 @@ function GlobalAudioPlayerUI({
   const insets = useSafeAreaInsets();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [queueVisible, setQueueVisible] = useState(false);
-  const [scrubPositionMillis, setScrubPositionMillis] = useState(null);
   const lastOpenedTrackIdRef = useRef(null);
-  const progressBarRef = useRef(null);
-  const progressBarLayoutRef = useRef({ x: 0, width: 0 });
-  const scrubPositionRef = useRef(null);
   const playPauseGuardRef = useRef(false);
 
   const s = stylesProp || {};
@@ -74,24 +69,14 @@ function GlobalAudioPlayerUI({
   const hideMini = currentScreen === "messages" || currentScreen === "help-chat";
   const showMini = !!track && !hideMini;
 
-  const seek = useCallback(
-    (positionMillis) => {
-      actionsRef?.current?.seekToPosition?.(positionMillis);
-    },
-    [actionsRef]
-  );
-
   const pause = () => actionsRef?.current?.pauseGlobalAudio?.();
   const resume = () => actionsRef?.current?.resumeGlobalAudio?.();
   const stop = () => actionsRef?.current?.stopGlobalAudio?.();
   const play = (t) => actionsRef?.current?.playGlobalAudio?.(t);
   const toggleLike = () => actionsRef?.current?.toggleLike?.();
-  const skipNext = () => actionsRef?.current?.skipForward?.();
-  const skipPrev = () => actionsRef?.current?.skipBackward?.();
   const clearQueue = () => actionsRef?.current?.clearQueue?.();
   const moveUp = (i) => actionsRef?.current?.moveQueueItemUp?.(i);
   const moveDown = (i) => actionsRef?.current?.moveQueueItemDown?.();
-  const toggleShuffle = () => actionsRef?.current?.toggleShuffle?.();
 
   const onPlayPause = useCallback(() => {
     if (playPauseGuardRef.current) return;
@@ -108,14 +93,6 @@ function GlobalAudioPlayerUI({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     stop();
   }, []);
-
-  const toggleRepeat = useCallback(() => {
-    setGlobalAudioState((prev) => {
-      const modes = ["none", "one", "all"];
-      const i = (modes.indexOf(prev.repeatMode) + 1) % modes.length;
-      return { ...prev, repeatMode: modes[i] };
-    });
-  }, [setGlobalAudioState]);
 
   const shareTrack = useCallback(async () => {
     if (!track) return;
@@ -146,74 +123,7 @@ function GlobalAudioPlayerUI({
       : trackDurationMs > 0
         ? trackDurationMs
         : 0;
-  const displayPositionMillis = scrubPositionMillis ?? state.positionMillis ?? 0;
-  const rawProgress = durationMillis > 0 ? displayPositionMillis / durationMillis : 0;
-  const displayProgress = Math.max(0, Math.min(1, rawProgress));
   const durationUnknown = !!track && durationMillis === 0;
-  const canScrub = durationMillis > 0;
-
-  const updateScrubPosition = useCallback(
-    (pageX) => {
-      const { x, width } = progressBarLayoutRef.current;
-      if (width <= 0 || durationMillis <= 0) return null;
-      const relativeX = Math.max(0, Math.min(width, pageX - x));
-      const ratio = relativeX / width;
-      const pos = Math.round(ratio * durationMillis);
-      scrubPositionRef.current = pos;
-      setScrubPositionMillis(pos);
-      return pos;
-    },
-    [durationMillis]
-  );
-
-  const remeasureProgressBar = useCallback(() => {
-    requestAnimationFrame(() => {
-      progressBarRef.current?.measure((fx, fy, w, h, pageX) => {
-        progressBarLayoutRef.current = { x: pageX, width: w };
-      });
-    });
-  }, []);
-
-  const progressBarPanResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => canScrub,
-        onMoveShouldSetPanResponder: (_, gestureState) =>
-          canScrub && Math.abs(gestureState.dx) > 2,
-        onPanResponderGrant: (evt) => {
-          const touchPageX = evt.nativeEvent.pageX;
-          progressBarRef.current?.measure((fx, fy, w, h, pageX) => {
-            progressBarLayoutRef.current = { x: pageX, width: w };
-            updateScrubPosition(touchPageX);
-          });
-        },
-        onPanResponderMove: (evt) => {
-          const touchPageX = evt.nativeEvent.pageX;
-          if (progressBarLayoutRef.current.width <= 0) {
-            progressBarRef.current?.measure((fx, fy, w, h, pageX) => {
-              progressBarLayoutRef.current = { x: pageX, width: w };
-              updateScrubPosition(touchPageX);
-            });
-          } else {
-            updateScrubPosition(touchPageX);
-          }
-        },
-        onPanResponderRelease: () => {
-          const pos = scrubPositionRef.current;
-          scrubPositionRef.current = null;
-          setScrubPositionMillis(null);
-          if (pos != null && durationMillis > 0) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            seek(pos);
-          }
-        },
-        onPanResponderTerminate: () => {
-          scrubPositionRef.current = null;
-          setScrubPositionMillis(null);
-        },
-      }),
-    [canScrub, durationMillis, seek, updateScrubPosition]
-  );
 
   const miniBarLayoutStyle = useMemo(
     () => ({
@@ -238,48 +148,40 @@ function GlobalAudioPlayerUI({
 
   if (!showMini) return null;
 
-  /** Full-screen wrapper uses zIndex 10k; without this, it can sit above the Modal and eat all touches. */
-  const miniBarPointerEvents =
-    fullScreenVisible || queueVisible ? "none" : "box-none";
+  /** Queue modal: pass-through touches; mini must not cover other modals. */
+  const miniBarPointerEvents = queueVisible ? "none" : "box-none";
 
   return (
     <>
-      <MiniPlayerBar
-        track={track}
-        isPlaying={!!state.isPlaying}
-        positionMillis={displayPositionMillis}
-        durationMillis={durationMillis}
-        durationUnknown={durationUnknown}
-        onOpenFullScreen={() => setFullScreenVisible(true)}
-        onPlayPause={onPlayPause}
-        onClose={onClose}
-        layoutStyle={miniBarLayoutStyle}
-        wrapperPointerEvents={miniBarPointerEvents}
-        fadeOverlayStyle={playBarFadeStyle}
-      />
+      {/* Unmount mini bar while full-screen player is open — high zIndex/elevation can still steal touches on some OS builds even with pointerEvents="none". */}
+      {!fullScreenVisible ? (
+        <MiniPlayerBar
+          track={track}
+          isPlaying={!!state.isPlaying}
+          positionMillis={state.positionMillis ?? 0}
+          durationMillis={durationMillis}
+          durationUnknown={durationUnknown}
+          onOpenFullScreen={() => setFullScreenVisible(true)}
+          onPlayPause={onPlayPause}
+          onClose={onClose}
+          layoutStyle={miniBarLayoutStyle}
+          wrapperPointerEvents={miniBarPointerEvents}
+          fadeOverlayStyle={playBarFadeStyle}
+        />
+      ) : null}
 
       <FullScreenPlayerModal
         visible={fullScreenVisible}
         onClose={() => setFullScreenVisible(false)}
         overlayStyle={s.fullScreenPlayerOverlay}
         track={track}
-        isPlaying={!!state.isPlaying}
-        isShuffled={!!state.isShuffled}
-        repeatMode={state.repeatMode}
         playbackError={state.error}
-        displayPositionMillis={displayPositionMillis}
+        positionMillis={state.positionMillis ?? 0}
         durationMillis={durationMillis}
-        durationUnknown={durationUnknown}
-        displayProgress={displayProgress}
-        canScrub={canScrub}
-        progressBarRef={progressBarRef}
-        onProgressBarLayout={remeasureProgressBar}
-        progressPanHandlers={canScrub ? progressBarPanResponder.panHandlers : {}}
-        onPlayPause={onPlayPause}
-        onShuffle={() => toggleShuffle?.()}
-        onSkipPrev={() => skipPrev?.()}
-        onSkipNext={() => skipNext?.()}
-        onToggleRepeat={toggleRepeat}
+        onSeekToPosition={(ms) =>
+          actionsRef?.current?.seekToPosition?.(ms)
+        }
+        onBeginScrubbing={() => actionsRef?.current?.beginScrubbing?.()}
         onToggleLike={() => toggleLike?.()}
         onShare={shareTrack}
         onArtistPress={() => {

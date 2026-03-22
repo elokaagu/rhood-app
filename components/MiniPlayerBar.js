@@ -6,12 +6,12 @@ import React, { memo, useMemo } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
+import { COLORS } from "../lib/sharedStyles";
 
 /** R/HOOD lime — device + headphones accent (Spotify green analogue) */
 const ACCENT = "hsl(75, 100%, 60%)";
 /** Spotify mini player canvas */
 const BAR_BG = "#282828";
-const TRACK_BG = "hsl(0, 0%, 22%)";
 const PLAYED = "hsl(0, 0%, 100%)";
 const ARTIST_MUTED = "#B3B3B3";
 
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 2,
-    backgroundColor: TRACK_BG,
+    backgroundColor: COLORS.TRACK_BG,
     width: "100%",
   },
   progressFill: {

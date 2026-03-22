@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "assets/rhood_logo.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "assets/splash.png",
       "resizeMode": "contain",
@@ -20,7 +20,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.rhoodapp.mobile",
       "buildNumber": "70",
-      "newArchEnabled": false,
+      "newArchEnabled": true,
       "usesAppleSignIn": true,
       "googleServicesFile": "./ios/GoogleService-Info.plist",
       "infoPlist": {
@@ -58,7 +58,7 @@
       },
       "package": "com.rhoodapp.mobile",
       "googleServicesFile": "./android/app/google-services.json",
-      "newArchEnabled": false,
+      "newArchEnabled": true,
       "permissions": [
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE",
