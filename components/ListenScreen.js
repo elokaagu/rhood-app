@@ -10,12 +10,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useListenPlaylists } from "../hooks/useListenPlaylists";
-import { ListenPlaylistRow, ListenMixRow } from "./ListenScreenRows";
+import { ListenPlaylistStrip, ListenMixRow } from "./ListenScreenRows";
 import styles from "./ListenScreen.styles";
 import { supabase } from "../lib/supabase";
 import { extractDurationSeconds } from "../lib/listenScreenUtils";
 import { HapticPatterns } from "../lib/haptics";
 import { createScreenCache } from "../lib/screenCache";
+import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
 
 const ICON_COLOR = "hsl(75, 100%, 60%)";
 const TRENDING_LIMIT = 15;
@@ -32,10 +33,12 @@ function formatDuration(seconds) {
 function PlaylistsSectionHeader() {
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Your playlists</Text>
-      </View>
-      <Text style={styles.sectionSubtitle}>Your saved collections of mixes</Text>
+      <RhoodScreenTitleBlock
+        title="Your playlists"
+        subtitle="Your saved collections of mixes"
+        showTopRule
+        subtitleBottomSpacing={16}
+      />
     </View>
   );
 }
@@ -43,20 +46,25 @@ function PlaylistsSectionHeader() {
 function TrendingSectionHeader({ onSeeAll }) {
   return (
     <View style={styles.section}>
-      <TouchableOpacity
-        style={styles.sectionHeader}
-        onPress={() => {
-          HapticPatterns.itemPress();
-          onSeeAll?.();
-        }}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.sectionTitle}>Trending</Text>
-        <Text style={styles.sectionHeaderLink}>See all</Text>
-      </TouchableOpacity>
-      <Text style={styles.sectionSubtitle}>
-        Who&apos;s hottest on the platform right now
-      </Text>
+      <RhoodScreenTitleBlock
+        title="Trending"
+        subtitle="Who's hottest on the platform right now"
+        subtitleBottomSpacing={16}
+        titleRight={
+          <TouchableOpacity
+            onPress={() => {
+              HapticPatterns.itemPress();
+              onSeeAll?.();
+            }}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="See all trending mixes"
+          >
+            <Text style={styles.sectionHeaderLink}>See all</Text>
+          </TouchableOpacity>
+        }
+      />
     </View>
   );
 }
@@ -308,10 +316,16 @@ function ListenScreen({
     [onAddToQueue, onPlayNext, normalizeMixForQueue]
   );
 
-  const playlistsData = useMemo(() => {
+  const playlistsSectionData = useMemo(() => {
     if (playlistsError) return [{ id: "__error_playlists", _error: true, message: playlistsError }];
     if (!playlistsLoading && playlists.length === 0) return [{ id: "__empty_playlists", _empty: true }];
-    return playlists;
+    return [
+      {
+        id: "__horizontal_playlists",
+        _horizontal: true,
+        playlists,
+      },
+    ];
   }, [playlists, playlistsLoading, playlistsError]);
 
   const trendingData = useMemo(() => {
@@ -320,21 +334,23 @@ function ListenScreen({
     return trendingMixes;
   }, [trendingMixes, trendingLoading, trendingError]);
 
-  const sections = useMemo(() => {
-    const s = [{ key: "playlists", title: "Your playlists", data: playlistsData }];
-    s.push({ key: "trending", title: "Trending", data: trendingData });
-    return s;
-  }, [playlistsData, trendingData]);
+  const sections = useMemo(
+    () => [
+      { key: "trending", title: "Trending", data: trendingData },
+      { key: "playlists", title: "Your playlists", data: playlistsSectionData },
+    ],
+    [playlistsSectionData, trendingData]
+  );
 
   const renderSectionHeader = useCallback(
     ({ section }) => {
-      if (section.key === "playlists") return <PlaylistsSectionHeader />;
       if (section.key === "trending")
         return (
           <TrendingSectionHeader
             onSeeAll={() => onNavigate?.("trending-mixes")}
           />
         );
+      if (section.key === "playlists") return <PlaylistsSectionHeader />;
       return null;
     },
     [onNavigate]
@@ -377,11 +393,15 @@ function ListenScreen({
         );
       }
       if (section.key === "playlists") {
-        return (
-          <View style={styles.playlistRowWrap}>
-            <ListenPlaylistRow playlist={item} onPress={onPlaylistPress} />
-          </View>
-        );
+        if (item._horizontal && Array.isArray(item.playlists)) {
+          return (
+            <ListenPlaylistStrip
+              playlists={item.playlists}
+              onPlaylistPress={onPlaylistPress}
+            />
+          );
+        }
+        return null;
       }
       if (section.key === "trending") {
         const isPlaying = playingMixId === item.id && globalAudioState?.isPlaying;

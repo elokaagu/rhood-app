@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import SwipeableOpportunityCard from "./SwipeableOpportunityCard";
 import OpportunitiesSwipeTutorialModal from "./OpportunitiesSwipeTutorialModal";
+import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
 
 /**
  * Home swipe deck for gigs. Logic/state lives in App / useOpportunities; this is presentation only.
@@ -29,26 +30,28 @@ export default function OpportunitiesScreen({
     <View style={[styles.screen, { backgroundColor: "hsl(0, 0%, 0%)" }]}>
       <View style={styles.opportunitiesContainer}>
         <View style={styles.opportunitiesHeader}>
-          <Text style={styles.tsBlockBoldHeading}>OPPORTUNITIES</Text>
-          <Text style={styles.opportunitiesSubtitle}>
-            Swipe to find your next gig
-          </Text>
-          <View style={styles.dailyApplicationCounter}>
-            <Ionicons
-              name="checkmark-circle-outline"
-              size={16}
-              color={canApplyColor}
-            />
-            <Text
-              style={[
-                styles.dailyApplicationText,
-                { color: canApplyColor },
-              ]}
-            >
-              {dailyApplicationStats?.remaining_applications ?? 0} applications
-              remaining today
-            </Text>
-          </View>
+          <RhoodScreenTitleBlock
+            title="Opportunities"
+            subtitle="Swipe to find your next gig"
+            subtitleBottomSpacing={8}
+          >
+            <View style={styles.dailyApplicationCounter}>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={16}
+                color={canApplyColor}
+              />
+              <Text
+                style={[
+                  styles.dailyApplicationText,
+                  { color: canApplyColor },
+                ]}
+              >
+                {dailyApplicationStats?.remaining_applications ?? 0} applications
+                remaining today
+              </Text>
+            </View>
+          </RhoodScreenTitleBlock>
         </View>
         <View style={styles.opportunitiesCardContainer}>
           {isLoadingOpportunities ? (

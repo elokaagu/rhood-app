@@ -55,15 +55,14 @@ export default function AppShell({
   styles,
 }) {
   const insets = useSafeAreaInsets();
+  const showTabBar = !TAB_BAR_HIDDEN_SCREENS.has(currentScreen);
+
   const tabBarLayoutStyle = useMemo(
     () => ({
-      left: 16 + insets.left,
-      right: 16 + insets.right,
+      paddingBottom: insets.bottom,
     }),
-    [insets.left, insets.right]
+    [insets.bottom]
   );
-
-  const showTabBar = !TAB_BAR_HIDDEN_SCREENS.has(currentScreen);
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>

@@ -6,15 +6,18 @@ import "react-native-gesture-handler";
 import { registerRootComponent } from "expo";
 import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import App from "./App";
 import { AudioProvider } from "./context/AudioContext";
 
 function Root() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AudioProvider>
-        <App />
-      </AudioProvider>
+      <SafeAreaProvider>
+        <AudioProvider>
+          <App />
+        </AudioProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

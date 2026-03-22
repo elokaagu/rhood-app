@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
+import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
 import styles from "./ConnectionsScreen.styles";
 
 export default function ConnectionsScreenHeader({
@@ -16,10 +17,11 @@ export default function ConnectionsScreenHeader({
 }) {
   return (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>CONNECTIONS</Text>
-      <Text style={styles.headerSubtitle}>
-        Discover DJs and manage your conversations
-      </Text>
+      <RhoodScreenTitleBlock
+        title="Connections"
+        subtitle="Discover DJs and manage your conversations"
+        subtitleBottomSpacing={16}
+      />
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tabButton, activeTab === "discover" && styles.tabButtonActive]}

@@ -41,3 +41,6 @@ export const TAB_BAR_HIDDEN_SCREENS = new Set([
   SCREENS.MESSAGES,
   SCREENS.HELP_CHAT,
 ]);
+
+/** Inner height of anchored tab row (icon + label + vertical padding); safe area added in AppShell. */
+export const ANCHORED_TAB_BAR_CONTENT_HEIGHT = 56;

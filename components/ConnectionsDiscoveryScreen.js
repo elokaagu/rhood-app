@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
+import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
 import ConnectionsScreen from "./ConnectionsScreen";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase, db } from "../lib/supabase";
@@ -116,15 +117,11 @@ function ConnectionsDiscoveryChrome({
 }) {
   return (
     <View style={styles.header}>
-      <View style={styles.headerTop}>
-        <Text
-          style={styles.tsBlockBoldHeading}
-          accessibilityRole="header"
-        >
-          CONNECTIONS
-        </Text>
-      </View>
-      <Text style={styles.headerSubtitle}>{subtitle}</Text>
+      <RhoodScreenTitleBlock
+        title="Connections"
+        subtitle={subtitle}
+        subtitleBottomSpacing={16}
+      />
       <ConnectionsTabSwitcher
         activeTab={activeTab}
         onDiscover={onDiscoverTab}
@@ -565,26 +562,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
-    paddingBottom: 10,
-  },
-  headerTop: {
-    marginBottom: 8,
-  },
-  tsBlockBoldHeading: {
-    fontFamily: "TS Block Bold",
-    fontSize: 22,
-    color: "#FFFFFF",
-    textAlign: "left",
-    textTransform: "uppercase",
-    lineHeight: 26,
-    letterSpacing: 1,
-    marginBottom: 16,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    marginBottom: 16,
+    paddingBottom: 16,
   },
   tabSwitcher: {
     flexDirection: "row",

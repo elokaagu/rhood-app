@@ -4,10 +4,10 @@
  */
 import React, { memo } from "react";
 import { View, Text, TouchableOpacity, Image, ScrollView, Platform } from "react-native";
+import ProgressiveImage from "./ProgressiveImage";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { HapticPatterns } from "../lib/haptics";
-import ProgressiveImage from "./ProgressiveImage";
 import styles from "./ListenScreen.styles";
 
 export const ListenMixRow = memo(function ListenMixRow({
@@ -94,6 +94,71 @@ export const ListenPlaylistRow = memo(function ListenPlaylistRow({ playlist, onP
       </View>
       <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
     </TouchableOpacity>
+  );
+});
+
+export const ListenPlaylistSquareCard = memo(function ListenPlaylistSquareCard({
+  playlist,
+  onPress,
+}) {
+  const imageUri = playlist.image_url || null;
+  return (
+    <TouchableOpacity
+      style={styles.playlistSquareTouchable}
+      onPress={() => { HapticPatterns.itemPress(); onPress(playlist); }}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={`${playlist.name || "Playlist"}, ${playlist.mixCount ?? 0} mixes`}
+    >
+      <View style={styles.playlistSquareImageWrap}>
+        {imageUri ? (
+          <ProgressiveImage
+            source={{ uri: imageUri }}
+            style={styles.playlistSquareImage}
+            contentFit="cover"
+            placeholder={
+              <View style={[styles.playlistSquareImage, { backgroundColor: "hsl(0, 0%, 12%)", justifyContent: "center", alignItems: "center" }]}>
+                <Ionicons name="musical-notes" size={32} color="hsl(75, 100%, 60%)" />
+              </View>
+            }
+          />
+        ) : (
+          <Ionicons name="musical-notes" size={36} color="hsl(75, 100%, 60%)" />
+        )}
+      </View>
+      <Text style={styles.playlistSquareTitle} numberOfLines={2}>
+        {playlist.name || "Playlist"}
+      </Text>
+      <Text style={styles.playlistSquareMeta}>
+        {(playlist.mixCount ?? 0) === 1 ? "1 mix" : `${playlist.mixCount ?? 0} mixes`}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+export const ListenPlaylistStrip = memo(function ListenPlaylistStrip({
+  playlists,
+  onPlaylistPress,
+}) {
+  if (!playlists?.length) return null;
+  return (
+    <View style={styles.playlistStripWrap}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.playlistStripScroll}
+        contentContainerStyle={styles.playlistStripContent}
+        decelerationRate={Platform.OS === "ios" ? "normal" : 0.98}
+      >
+        {playlists.map((p) => (
+          <ListenPlaylistSquareCard
+            key={p.id ?? p.name}
+            playlist={p}
+            onPress={onPlaylistPress}
+          />
+        ))}
+      </ScrollView>
+    </View>
   );
 });
 

@@ -19,15 +19,15 @@ import * as Haptics from "expo-haptics";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
 import MiniPlayerBar from "./MiniPlayerBar";
 import FullScreenPlayerModal from "./FullScreenPlayerModal";
+import {
+  TAB_BAR_HIDDEN_SCREENS,
+  ANCHORED_TAB_BAR_CONTENT_HEIGHT,
+} from "../navigation/routes";
 
-/** Horizontal inset beyond safe-area left/right — aligns with tab bar margin in AppShell (~16 + insets). */
+/** Horizontal inset for mini player card (anchored tab bar is full width). */
 const MINI_PLAYER_GUTTER = 16;
 
-/**
- * Distance from bottom of SafeAreaView content to mini bar.
- * Tab bar uses bottom: 40 + ~56px intrinsic height + small gap (~8).
- */
-const MINI_PLAYER_BOTTOM_OFFSET = 104;
+const MINI_PLAYER_GAP_ABOVE_TAB = 8;
 
 const formatTime = (ms) => {
   if (ms == null || ms < 0) return "0:00";
@@ -133,14 +133,17 @@ function GlobalAudioPlayerUI({
         : 0;
   const durationUnknown = !!track && durationMillis === 0;
 
-  const miniBarLayoutStyle = useMemo(
-    () => ({
+  const miniBarLayoutStyle = useMemo(() => {
+    const tabBarVisible = !TAB_BAR_HIDDEN_SCREENS.has(currentScreen);
+    const stackAboveBottom = tabBarVisible
+      ? ANCHORED_TAB_BAR_CONTENT_HEIGHT + MINI_PLAYER_GAP_ABOVE_TAB
+      : 12;
+    return {
       left: MINI_PLAYER_GUTTER + insets.left,
       right: MINI_PLAYER_GUTTER + insets.right,
-      bottom: MINI_PLAYER_BOTTOM_OFFSET,
-    }),
-    [insets.left, insets.right]
-  );
+      bottom: stackAboveBottom + insets.bottom,
+    };
+  }, [currentScreen, insets.left, insets.right, insets.bottom]);
 
   const playBarFadeStyle = useMemo(() => {
     if (!s.playBarFadeOverlay) return null;

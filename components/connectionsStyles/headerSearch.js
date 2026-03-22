@@ -15,6 +15,7 @@ export default {
     position: "relative",
     overflow: "visible",
   },
+  /** @deprecated Use RhoodScreenTitleBlock + rhoodScreenTitleStyles for tab hero titles */
   headerTitle: {
     fontSize: 28,
     fontFamily: FONT_HEADING,
@@ -23,6 +24,7 @@ export default {
     textTransform: "uppercase",
     letterSpacing: 1,
   },
+  /** @deprecated Use RhoodScreenTitleBlock */
   headerSubtitle: {
     fontSize: 14,
     fontFamily: FONT_BODY,

@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView } from "react-nativ
 import { Ionicons } from "@expo/vector-icons";
 import { HapticPatterns } from "../lib/haptics";
 import styles from "./ListenScreen.styles";
+import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
 
 export default function ListenScreenHeader({
   searchQuery,
@@ -15,11 +16,16 @@ export default function ListenScreenHeader({
   return (
     <View style={styles.listenScreenHeaderRoot}>
       <View style={styles.header}>
-        <Text style={styles.tsBlockBoldHeading}>LISTEN</Text>
-        <Text style={styles.headerSubtitle}>
-          DJ mixes from the R/HOOD community
-          {refreshing && <Text> • Refreshing...</Text>}
-        </Text>
+        <RhoodScreenTitleBlock
+          title="Listen"
+          subtitle={
+            <>
+              DJ mixes from the R/HOOD community
+              {refreshing ? <Text> • Refreshing...</Text> : null}
+            </>
+          }
+          subtitleBottomSpacing={16}
+        />
       </View>
 
       <View style={styles.searchWrapper}>

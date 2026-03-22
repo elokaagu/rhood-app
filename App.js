@@ -35,9 +35,16 @@ import { clearScreenCachesForUser } from "./lib/screenCache";
 import {
   ANIMATION_DURATION,
 } from "./lib/performanceConstants";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import AppShell from "./components/AppShell";
 import ScreenRouter from "./navigation/ScreenRouter";
+import {
+  TAB_BAR_HIDDEN_SCREENS,
+  ANCHORED_TAB_BAR_CONTENT_HEIGHT,
+} from "./navigation/routes";
 import {
   registerForPushNotifications,
   setupNotificationListeners,
@@ -106,6 +113,12 @@ export default function App() {
 
   const [currentScreen, setCurrentScreen] = useState("opportunities");
   const [screenParams, setScreenParams] = useState({});
+
+  const insets = useSafeAreaInsets();
+  const showMainTabBar = !TAB_BAR_HIDDEN_SCREENS.has(currentScreen);
+  const anchoredTabBottomPad = showMainTabBar
+    ? ANCHORED_TAB_BAR_CONTENT_HEIGHT + insets.bottom
+    : 0;
 
   // Notification badge state
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
@@ -1326,7 +1339,9 @@ export default function App() {
   }
 
   const renderScreen = () => (
-    <View style={styles.screenContainer}>
+    <View
+      style={[styles.screenContainer, { paddingBottom: anchoredTabBottomPad }]}
+    >
       <ScreenRouter
         screen={currentScreen}
         screenParams={screenParams}
@@ -1736,8 +1751,7 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     position: "relative",
-    paddingBottom: 20, // Minimal bottom padding for floating tab bar
-    backgroundColor: "#000000", // Pure black background
+    backgroundColor: "#000000", // Pure black background; dynamic paddingBottom for anchored tab bar
   },
   onboarding: {
     backgroundColor: "#000000", // Pure black background
@@ -2196,24 +2210,20 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     position: "absolute",
-    bottom: 40,
-    left: 20,
-    right: 20,
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: "row",
-    borderRadius: 18,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     shadowColor: "#000000",
-    shadowOffset: {
-      width: 0,
-      height: 12,
-    },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 15, // Android shadow
-    borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    backgroundColor: "rgba(0, 0, 0, 0.92)",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.98)",
   },
   tab: {
     flex: 1,
@@ -2316,10 +2326,11 @@ const styles = StyleSheet.create({
   },
   opportunitiesHeader: {
     padding: 20,
-    paddingBottom: 10,
+    paddingBottom: 16,
   },
+  /** Kept for any legacy reference; hero copy uses RhoodScreenTitleBlock */
   opportunitiesSubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 70%)",
     marginBottom: 8,

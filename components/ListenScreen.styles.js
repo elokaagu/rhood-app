@@ -734,6 +734,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 10,
   },
+  /** Horizontal “Your playlists” strip — square cover + title below */
+  playlistStripWrap: {
+    marginBottom: 8,
+  },
+  playlistStripScroll: {
+    marginHorizontal: -20,
+  },
+  playlistStripContent: {
+    paddingHorizontal: 20,
+    paddingRight: 24,
+    gap: 14,
+    flexDirection: "row",
+  },
+  playlistSquareCard: {
+    width: 136,
+  },
+  playlistSquareTouchable: {
+    width: 136,
+  },
+  playlistSquareImageWrap: {
+    width: 136,
+    height: 136,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 18%)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  playlistSquareImage: {
+    width: "100%",
+    height: "100%",
+  },
+  playlistSquareTitle: {
+    fontSize: 13,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 10,
+    letterSpacing: 0.3,
+    lineHeight: 16,
+  },
+  playlistSquareMeta: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 55%)",
+    marginTop: 4,
+  },
   trendingRowWrap: {
     paddingHorizontal: 20,
   },

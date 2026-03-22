@@ -27,8 +27,16 @@ import TrendingMixesScreen from "../components/TrendingMixesScreen";
 import YourLikesScreen from "../components/YourLikesScreen";
 import PlaylistDetailScreen from "../components/PlaylistDetailScreen";
 import ResetPasswordScreen from "../components/ResetPasswordScreen";
+import SwipeBackScreenShell from "../components/SwipeBackScreenShell";
 import { db } from "../lib/supabase";
 import { clearScreenCachesForUser } from "../lib/screenCache";
+
+/** Same navigation as the header back arrow, plus edge swipe (see SwipeBackScreenShell). */
+function withSwipeBack(onBack, screen) {
+  return (
+    <SwipeBackScreenShell onBack={onBack}>{screen}</SwipeBackScreenShell>
+  );
+}
 
 /**
  * Renders the current screen based on route. Heavy lifting (opportunities, auth) stays in App;
@@ -191,7 +199,15 @@ export default function ScreenRouter({
       );
 
     case SCREENS.MESSAGES:
-      return (
+      return withSwipeBack(
+        () => {
+          setCurrentScreen(SCREENS.CONNECTIONS);
+          setScreenParams((prev) => ({
+            ...prev,
+            initialTab:
+              screenParams?.returnToConnectionsTab || "discover",
+          }));
+        },
         <MessagesScreen
           user={user}
           navigation={createNavigation({
@@ -272,7 +288,8 @@ export default function ScreenRouter({
       );
 
     case SCREENS.UPLOAD_MIX:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.PROFILE),
         <UploadMixScreen
           user={user}
           onBack={() => setCurrentScreen(SCREENS.PROFILE)}
@@ -282,7 +299,12 @@ export default function ScreenRouter({
       );
 
     case SCREENS.RESET_PASSWORD:
-      return (
+      return withSwipeBack(
+        () => {
+          setCurrentScreen(SCREENS.LOGIN);
+          setShowAuth?.(true);
+          setAuthMode?.("login");
+        },
         <ResetPasswordScreen
           onBack={() => {
             setCurrentScreen(SCREENS.LOGIN);
@@ -298,7 +320,8 @@ export default function ScreenRouter({
       );
 
     case SCREENS.EDIT_PROFILE:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.PROFILE),
         <EditProfileScreen
           user={user}
           onSave={handleEditProfileSave}
@@ -307,7 +330,8 @@ export default function ScreenRouter({
       );
 
     case SCREENS.USER_PROFILE:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.CONNECTIONS),
         <UserProfileView
           userId={screenParams.userId}
           globalAudioState={globalAudioState}
@@ -341,7 +365,8 @@ export default function ScreenRouter({
       );
 
     case SCREENS.CONNECTIONS_LIST:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.PROFILE),
         <ConnectionsListScreen
           user={user}
           onBack={() => setCurrentScreen(SCREENS.PROFILE)}
@@ -358,7 +383,8 @@ export default function ScreenRouter({
       );
 
     case SCREENS.INVITE:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.PROFILE),
         <InviteScreen
           user={user}
           onBack={() => setCurrentScreen(SCREENS.PROFILE)}
@@ -366,12 +392,14 @@ export default function ScreenRouter({
       );
 
     case SCREENS.ADMIN_APPLICATIONS:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.PROFILE),
         <AdminApplicationsScreen user={user} onNavigate={navigate} />
       );
 
     case SCREENS.BRAND_GIGS_PORTAL:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.ADMIN_APPLICATIONS),
         <BrandGigsPortal
           user={user}
           onBack={() => setCurrentScreen(SCREENS.ADMIN_APPLICATIONS)}
@@ -379,26 +407,30 @@ export default function ScreenRouter({
       );
 
     case SCREENS.ABOUT:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.OPPORTUNITIES),
         <AboutScreen onBack={() => setCurrentScreen(SCREENS.OPPORTUNITIES)} />
       );
 
     case SCREENS.TERMS:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.SETTINGS),
         <TermsOfServiceScreen
           onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
         />
       );
 
     case SCREENS.PRIVACY:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.SETTINGS),
         <PrivacyPolicyScreen
           onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
         />
       );
 
     case SCREENS.HELP:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.SETTINGS),
         <HelpCenterScreen
           onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
           onNavigate={navigate}
@@ -406,7 +438,8 @@ export default function ScreenRouter({
       );
 
     case SCREENS.HELP_CHAT:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.HELP),
         <HelpChatScreen
           user={user}
           onBack={() => setCurrentScreen(SCREENS.HELP)}
@@ -417,7 +450,8 @@ export default function ScreenRouter({
       return <ListenScreen {...listenScreenProps} />;
 
     case SCREENS.TRENDING_MIXES:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.LISTEN),
         <TrendingMixesScreen
           globalAudioState={globalAudioState}
           onPlayAudio={playGlobalAudio}
@@ -430,7 +464,8 @@ export default function ScreenRouter({
       );
 
     case SCREENS.YOUR_LIKES:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.LISTEN),
         <YourLikesScreen
           globalAudioState={globalAudioState}
           onPlayAudio={playGlobalAudio}
@@ -444,7 +479,8 @@ export default function ScreenRouter({
       );
 
     case SCREENS.PLAYLIST_DETAIL:
-      return (
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.LISTEN),
         <PlaylistDetailScreen
           globalAudioState={globalAudioState}
           onPlayAudio={playGlobalAudio}
