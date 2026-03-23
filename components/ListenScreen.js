@@ -19,6 +19,9 @@ import { createScreenCache } from "../lib/screenCache";
 import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
 import ListenScreenFooter from "./ListenScreenFooter";
 import { SkeletonMix } from "./Skeleton";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 const ICON_COLOR = "hsl(75, 100%, 60%)";
 const TRENDING_LIMIT = 15;
@@ -85,6 +88,8 @@ function ListenScreen({
 }) {
   const [hasUserMixes, setHasUserMixes] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.LISTEN);
 
   const {
     playlists,
@@ -633,6 +638,9 @@ function ListenScreen({
         ListHeaderComponent={renderListHeader}
         ListFooterComponent={renderListFooter}
       />
+      {tutorialModalProps ? (
+        <AppScreenTutorialModal {...tutorialModalProps} />
+      ) : null}
     </View>
   );
 }

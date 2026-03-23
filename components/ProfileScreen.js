@@ -19,6 +19,9 @@ import { SkeletonProfile } from "./Skeleton";
 import { generateGenreWaveform } from "../lib/audioWaveform";
 import { HapticPatterns } from "../lib/haptics";
 import { createScreenCache } from "../lib/screenCache";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 const profileCache = createScreenCache("profile");
 
@@ -1517,6 +1520,9 @@ export default function ProfileScreen({
         style={styles.bottomGradient}
         pointerEvents="none"
       />
+      {tutorialModalProps ? (
+        <AppScreenTutorialModal {...tutorialModalProps} />
+      ) : null}
     </View>
   );
 }

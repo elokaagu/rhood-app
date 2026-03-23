@@ -36,6 +36,9 @@ import {
   UploadMixLibraryEmptyState,
   UploadMixGenreStrip,
 } from "./upload/UploadMixPerfParts";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 // Conditionally import DocumentPicker
 let DocumentPicker;
@@ -53,6 +56,7 @@ try {
 }
 
 export default function UploadMixScreen({ user, onBack, onUploadComplete, existingMixId = null }) {
+  const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.UPLOAD_MIX);
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [selectedFileDuration, setSelectedFileDuration] = useState(null);
@@ -1128,6 +1132,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           </View>
         </View>
       </Modal>
+      {tutorialModalProps ? (
+        <AppScreenTutorialModal {...tutorialModalProps} />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }

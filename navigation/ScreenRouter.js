@@ -18,6 +18,7 @@ import TermsOfServiceScreen from "../components/TermsOfServiceScreen";
 import PrivacyPolicyScreen from "../components/PrivacyPolicyScreen";
 import HelpCenterScreen from "../components/HelpCenterScreen";
 import HelpChatScreen from "../components/HelpChatScreen";
+import TutorialModeScreen from "../components/TutorialModeScreen";
 import ConnectionsListScreen from "../components/ConnectionsListScreen";
 import AchievementsListScreen from "../components/AchievementsListScreen";
 import InviteScreen from "../components/InviteScreen";
@@ -457,6 +458,14 @@ export default function ScreenRouter({
         <HelpChatScreen
           user={user}
           onBack={() => setCurrentScreen(SCREENS.HELP)}
+        />
+      );
+
+    case SCREENS.TUTORIAL_MODE:
+      return withSwipeBack(
+        () => setCurrentScreen(SCREENS.SETTINGS),
+        <TutorialModeScreen
+          onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
         />
       );
 

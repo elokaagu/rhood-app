@@ -14,6 +14,9 @@ import AnimatedListItem from "./AnimatedListItem";
 import CommunityDiscoveryCard from "./CommunityDiscoveryCard";
 import { connectionsService } from "../lib/connectionsService";
 import { createScreenCache } from "../lib/screenCache";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 const COMMUNITY_CACHE_KEY = "list";
 const communityCache = createScreenCache("community");
@@ -21,6 +24,7 @@ const communityCache = createScreenCache("community");
 // All community data comes from database
 
 export default function CommunityScreen({ onNavigate }) {
+  const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.COMMUNITY);
   const [communities, setCommunities] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -366,6 +370,9 @@ export default function CommunityScreen({ onNavigate }) {
         style={styles.bottomGradient}
         pointerEvents="none"
       />
+      {tutorialModalProps ? (
+        <AppScreenTutorialModal {...tutorialModalProps} />
+      ) : null}
     </View>
   );
 }

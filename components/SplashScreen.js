@@ -15,9 +15,12 @@ const ENTRANCE_MS = 800;
 const ROTATION_START_DELAY_MS = 500;
 const ROTATION_DURATION_MS = 4000;
 
-/** Spinning logo / video frame (~20% larger than original 200×200). */
-const SPIN_LOGO_SIZE = Math.round(200 * 1.2);
-const SPIN_LOGO_FALLBACK_INNER = Math.round(120 * 1.2);
+/** Spinning logo / video frame: base 200×200, +20%, then +30% (splash spinner size). */
+const SPIN_LOGO_SIZE = Math.round(200 * 1.2 * 1.3);
+const SPIN_LOGO_FALLBACK_INNER = Math.round(120 * 1.2 * 1.3);
+const DOT_SIZE = Math.round(8 * 1.3);
+const DOT_RADIUS = Math.round(DOT_SIZE / 2);
+const DOT_GAP = Math.round(4 * 1.3);
 
 const SplashScreen = ({ onFinish }) => {
   const [fontsLoaded] = useFonts({
@@ -277,11 +280,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_RADIUS,
     backgroundColor: "#C2CC06",
-    marginHorizontal: 4,
+    marginHorizontal: DOT_GAP,
   },
 });
 

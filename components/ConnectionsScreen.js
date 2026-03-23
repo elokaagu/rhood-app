@@ -6,7 +6,10 @@ import ConnectionsTabContent from "./ConnectionsTabContent";
 import DiscoverTabContent from "./DiscoverTabContent";
 import ConnectionsLocationModal from "./ConnectionsLocationModal";
 import ConnectionsScreenHeader from "./ConnectionsScreenHeader";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useConnectionsScreen } from "../hooks/useConnectionsScreen";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import styles from "./ConnectionsScreen.styles";
 
 function isValidConnectionsUser(user) {
@@ -37,6 +40,10 @@ function ConnectionsScreenContent({
     locationModalProps,
   } = useConnectionsScreen(user, onNavigate, route, initialTab);
 
+  const { tutorialModalProps } = useAppTutorialModal(
+    APP_TUTORIAL_SCREEN_IDS.CONNECTIONS
+  );
+
   return (
     <View style={styles.container}>
       <ConnectionsScreenHeader {...headerProps} />
@@ -55,6 +62,9 @@ function ConnectionsScreenContent({
 
       <RhoodModal {...connectionModalProps} />
       <ConnectionsLocationModal {...locationModalProps} />
+      {tutorialModalProps ? (
+        <AppScreenTutorialModal {...tutorialModalProps} />
+      ) : null}
     </View>
   );
 }

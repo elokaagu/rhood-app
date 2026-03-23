@@ -55,12 +55,16 @@ import MessagesFullscreenImageModal from "./messages/MessagesFullscreenImageModa
 import MessagesFullscreenVideoModal from "./messages/MessagesFullscreenVideoModal";
 import MessageActionsModal from "./messages/MessageActionsModal";
 import MessagesInputFooter from "./messages/MessagesInputFooter";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
   const { djId, communityId, chatType = "individual" } = params || {};
 
   const insets = useSafeAreaInsets();
+  const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.MESSAGES);
 
   const keyboardVerticalOffset = useMemo(() => {
     if (Platform.OS !== "ios") return 0;
@@ -1396,6 +1400,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
         primaryButtonText="Close"
         showCloseButton={true}
       />
+      {tutorialModalProps ? (
+        <AppScreenTutorialModal {...tutorialModalProps} />
+      ) : null}
     </KeyboardAvoidingView>
   );
 };

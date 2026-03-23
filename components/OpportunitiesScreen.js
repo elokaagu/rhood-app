@@ -3,7 +3,10 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import SwipeableOpportunityCard from "./SwipeableOpportunityCard";
 import OpportunitiesSwipeTutorialModal from "./OpportunitiesSwipeTutorialModal";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 /**
  * Home swipe deck for gigs. Logic/state lives in App / useOpportunities; this is presentation only.
@@ -21,6 +24,11 @@ export default function OpportunitiesScreen({
   showSwipeTutorial,
   handleDismissSwipeTutorial,
 }) {
+  const { tutorialModalProps } = useAppTutorialModal(
+    APP_TUTORIAL_SCREEN_IDS.OPPORTUNITIES,
+    { blockVisible: !!showSwipeTutorial }
+  );
+
   const current = opportunities?.[currentOpportunityIndex];
   const canApplyColor = dailyApplicationStats?.can_apply
     ? "hsl(75, 100%, 60%)"
@@ -97,6 +105,9 @@ export default function OpportunitiesScreen({
           onDismiss={handleDismissSwipeTutorial}
           styles={styles}
         />
+        {tutorialModalProps ? (
+          <AppScreenTutorialModal {...tutorialModalProps} />
+        ) : null}
       </View>
     </View>
   );

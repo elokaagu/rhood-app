@@ -26,6 +26,7 @@ export const SCREENS = {
   PRIVACY: "privacy",
   HELP: "help",
   HELP_CHAT: "help-chat",
+  TUTORIAL_MODE: "tutorial-mode",
   LISTEN: "listen",
   TRENDING_MIXES: "trending-mixes",
   YOUR_LIKES: "your-likes",

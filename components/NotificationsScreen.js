@@ -20,6 +20,9 @@ import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 import { createScreenCache } from "../lib/screenCache";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 // Helper function to format relative time
 const formatRelativeTime = (timestamp) => {
@@ -53,6 +56,9 @@ export default function NotificationsScreen({
   onNavigate,
   onNotificationRead,
 }) {
+  const { tutorialModalProps } = useAppTutorialModal(
+    APP_TUTORIAL_SCREEN_IDS.NOTIFICATIONS
+  );
   const [notifications, setNotifications] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1044,6 +1050,9 @@ export default function NotificationsScreen({
         onSecondaryPress={() => setShowClearAllModal(false)}
         type="warning"
       />
+      {tutorialModalProps ? (
+        <AppScreenTutorialModal {...tutorialModalProps} />
+      ) : null}
     </View>
   );
 }

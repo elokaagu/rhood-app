@@ -25,6 +25,9 @@ import {
   unregisterPushNotifications,
 } from "../lib/pushNotifications";
 import { HapticPatterns } from "../lib/haptics";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 export default function SettingsScreen({
   user,
@@ -34,6 +37,7 @@ export default function SettingsScreen({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.SETTINGS);
 
   const [settings, setSettings] = useState({
     showEmail: true,
@@ -224,6 +228,14 @@ export default function SettingsScreen({
             icon: "mail",
             type: "link",
             url: "mailto:hello@rhood.io",
+          },
+          {
+            id: "tutorialMode",
+            title: "Tutorial mode",
+            subtitle: "Learn how to use the app",
+            icon: "school-outline",
+            type: "navigate",
+            action: () => onNavigate?.("tutorial-mode"),
           },
           {
             id: "privacyPolicy",
@@ -481,6 +493,9 @@ export default function SettingsScreen({
         onPrimaryPress={confirmSignOut}
         onSecondaryPress={() => setShowSignOutModal(false)}
       />
+      {tutorialModalProps ? (
+        <AppScreenTutorialModal {...tutorialModalProps} />
+      ) : null}
     </View>
   );
 }

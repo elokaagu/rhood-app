@@ -65,6 +65,7 @@ import {
   AnalyticsEvents,
 } from "./lib/analytics";
 import GlobalAudioPlayerUI from "./components/GlobalAudioPlayerUI";
+import { AppTutorialProvider } from "./context/AppTutorialContext";
 import useAudioPlayback from "./hooks/useAudioPlayback";
 import useOpportunities from "./hooks/useOpportunities";
 
@@ -1461,6 +1462,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+    <AppTutorialProvider>
     <AppShell
       currentScreen={currentScreen}
       onOpenMenu={openMenu}
@@ -1821,6 +1823,7 @@ export default function App() {
         />
 
     </AppShell>
+    </AppTutorialProvider>
     </SafeAreaProvider>
   );
 }
