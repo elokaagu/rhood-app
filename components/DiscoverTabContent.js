@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from "react";
-import { View, Text, TouchableOpacity, FlatList, Animated } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, Animated, RefreshControl } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import DiscoverListHeader from "./DiscoverListHeader";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
@@ -14,7 +14,7 @@ function DiscoverTabContent({
   discoverLoading,
   discoverLoadError,
   onDiscoverRetry,
-  refreshControl,
+  refreshControlProps,
   renderItem,
   getItemLayout,
   fadeAnim,
@@ -33,6 +33,10 @@ function DiscoverTabContent({
   onAcceptRequest,
   onDeclineRequest,
 }) {
+  const refreshControlEl = refreshControlProps ? (
+    <RefreshControl {...refreshControlProps} />
+  ) : undefined;
+
   const listHeaderComponent = useMemo(
     () => (
       <DiscoverListHeader
@@ -144,7 +148,7 @@ function DiscoverTabContent({
         renderItem={renderItem}
         ListEmptyComponent={listEmptyComponent}
         ListHeaderComponent={listHeaderComponent}
-        refreshControl={refreshControl}
+        refreshControl={refreshControlEl}
         contentContainerStyle={contentContainerStyle}
         style={styles.flex1}
       />

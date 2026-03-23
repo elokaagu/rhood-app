@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Animated, SectionList } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Animated, SectionList, RefreshControl } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CONNECTIONS_LIST_PERFORMANCE } from "../lib/performanceConstants";
 import styles from "./ConnectionsScreen.styles";
@@ -7,12 +7,12 @@ import styles from "./ConnectionsScreen.styles";
 /**
  * Shared scroll shell for skeleton + full-screen error (same layout, avoids duplication).
  */
-function ConnectionsTabScrollShell({ refreshControl, contentContainerStyle, children }) {
+function ConnectionsTabScrollShell({ refreshControlEl, contentContainerStyle, children }) {
   return (
     <ScrollView
       style={styles.flex1}
       contentContainerStyle={[styles.messagesList, styles.listContent, contentContainerStyle]}
-      refreshControl={refreshControl}
+      refreshControl={refreshControlEl}
     >
       {children}
     </ScrollView>
@@ -32,7 +32,7 @@ function ConnectionsTabContent({
   connectionsLoadError,
   connectionsLength,
   connectionSections,
-  refreshControl,
+  refreshControlProps,
   onRetry,
   onGoToDiscover,
   onBrowseCommunities,
@@ -40,6 +40,10 @@ function ConnectionsTabContent({
   getItemLayout,
   fadeAnim,
 }) {
+  const refreshControlEl = refreshControlProps ? (
+    <RefreshControl {...refreshControlProps} />
+  ) : undefined;
+
   const showSkeleton = loading && !hasLoadedConnections;
   const showFullScreenError = connectionsLoadError && connectionsLength === 0;
   const showStaleLoadError = Boolean(connectionsLoadError && connectionsLength > 0);
@@ -47,7 +51,7 @@ function ConnectionsTabContent({
   return (
     <Animated.View style={[styles.flex1, { opacity: fadeAnim }]}>
       {showSkeleton ? (
-        <ConnectionsTabScrollShell refreshControl={refreshControl}>
+        <ConnectionsTabScrollShell refreshControlEl={refreshControlEl}>
           {[1, 2, 3, 4, 5].map((i) => (
             <View key={i} style={styles.skeletonRow}>
               <View style={styles.skeletonAvatar} />
@@ -60,7 +64,7 @@ function ConnectionsTabContent({
         </ConnectionsTabScrollShell>
       ) : showFullScreenError ? (
         <ConnectionsTabScrollShell
-          refreshControl={refreshControl}
+          refreshControlEl={refreshControlEl}
           contentContainerStyle={styles.loadingContainer}
         >
           <Ionicons name="cloud-offline" size={40} color="hsl(0, 0%, 50%)" />
@@ -127,7 +131,7 @@ function ConnectionsTabContent({
                 </View>
               </View>
             }
-            refreshControl={refreshControl}
+            refreshControl={refreshControlEl}
             contentContainerStyle={[styles.messagesList, styles.listContent]}
             style={styles.flex1}
           />

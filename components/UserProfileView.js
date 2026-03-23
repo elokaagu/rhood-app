@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,13 +12,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Audio } from "expo-av";
 import ProgressiveImage from "./ProgressiveImage";
 import { db } from "../lib/supabase";
 import { SkeletonProfile } from "./Skeleton";
 import RhoodModal from "./RhoodModal";
 import { HapticPatterns } from "../lib/haptics";
 import backgroundAudioService from "../lib/backgroundAudioService";
+import { normalizeTrackForPlayback } from "../lib/normalizeTrackForPlayback";
 
 export default function UserProfileView({
   userId,
@@ -43,14 +43,30 @@ export default function UserProfileView({
   const [isCancellingConnection, setIsCancellingConnection] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
-  // Audio playback state
-  const [isPlayingAudioId, setIsPlayingAudioId] = useState(false);
-  const [isPlayingPrimaryMix, setIsPlayingPrimaryMix] = useState(false);
-  const [audioIdProgress, setAudioIdProgress] = useState(0);
-  const [primaryMixProgress, setPrimaryMixProgress] = useState(0);
   const [pinnedMixes, setPinnedMixes] = useState([]);
-  const audioIdSoundRef = useRef(null);
-  const primaryMixSoundRef = useRef(null);
+
+  const formatMillisShort = (ms) => {
+    const s = Math.max(0, Math.floor((ms || 0) / 1000));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${r.toString().padStart(2, "0")}`;
+  };
+
+  const audioIdTrackActive =
+    !!profile?.primaryMix?.id &&
+    globalAudioState.currentTrack?.id != null &&
+    String(globalAudioState.currentTrack.id) ===
+      String(profile.primaryMix.id);
+
+  const audioIdProgress = audioIdTrackActive
+    ? globalAudioState.progress ?? 0
+    : 0;
+
+  const primaryMixTrackActive =
+    !!profile?.primary_mix?.id &&
+    globalAudioState.currentTrack?.id != null &&
+    String(globalAudioState.currentTrack.id) ===
+      String(profile.primary_mix.id);
 
   const parseDurationSeconds = (value) => {
     if (typeof value === "number") {
@@ -258,16 +274,8 @@ export default function UserProfileView({
     }
   }, [profile]);
 
-  // Cleanup audio on unmount
   useEffect(() => {
     return () => {
-      if (audioIdSoundRef.current?.progressInterval) {
-        clearInterval(audioIdSoundRef.current.progressInterval);
-      }
-      if (primaryMixSoundRef.current?.progressInterval) {
-        clearInterval(primaryMixSoundRef.current.progressInterval);
-      }
-      // Stop background audio service
       backgroundAudioService.stopTrack();
     };
   }, []);
@@ -517,49 +525,39 @@ export default function UserProfileView({
     try {
       HapticPatterns.primaryButtonPress();
 
-      // Check if this audio ID is currently playing
-      const isCurrentlyPlaying =
-        globalAudioState.currentTrack &&
-        globalAudioState.currentTrack.id === profile.primaryMix?.id;
-
-      if (isCurrentlyPlaying) {
-        // If it's playing, pause it
-        if (globalAudioState.isPlaying) {
-          onPauseAudio();
-        } else {
-          onResumeAudio();
-        }
-      } else {
-        const mixUrl = profile.primaryMix?.file_url;
-        if (!mixUrl) {
-          Alert.alert("No audio", "This profile has no mix file to play.");
-          return;
-        }
-        const trackData = {
-          id: profile.primaryMix?.id || "audio-id",
-          title: profile.primaryMix?.title || "Audio ID",
-          artist: profile.dj_name || profile.full_name || "Unknown Artist",
-          genre: profile.primaryMix?.genre || "Electronic",
-          audioUrl: mixUrl,
-          image:
-            profile.primaryMix?.artwork_url ||
-            profile.profile_image_url ||
-            null,
-          user_id: profile.id, // User ID for navigation
-          user_image: profile.profile_image_url, // Profile image for About the DJ
-          user_dj_name: profile.dj_name, // DJ name for About the DJ
-          user_bio: profile.bio, // Bio for About the DJ
-        };
-
-        console.log("🎵 Playing trackData from UserProfileView:", {
-          title: trackData.title,
-          artist: trackData.artist,
-          image: trackData.image,
-          audioUrl: trackData.audioUrl ? "URL provided" : "No URL",
-        });
-
-        await onPlayAudio(trackData);
+      const pm = profile.primaryMix;
+      if (!pm?.file_url) {
+        Alert.alert("No audio", "This profile has no mix file to play.");
+        return;
       }
+
+      const sameTrack =
+        globalAudioState.currentTrack &&
+        String(globalAudioState.currentTrack.id) === String(pm.id);
+
+      if (sameTrack) {
+        if (globalAudioState.isPlaying) onPauseAudio();
+        else onResumeAudio();
+        return;
+      }
+
+      const trackData = normalizeTrackForPlayback({
+        id: pm.id,
+        title: pm.title || "Audio ID",
+        artist: profile.dj_name || profile.full_name || "Unknown Artist",
+        genre: pm.genre || "Electronic",
+        file_url: pm.file_url,
+        artwork_url: pm.artwork_url,
+        image: pm.artwork_url || profile.profile_image_url || null,
+        user_id: profile.id,
+        user_image: profile.profile_image_url,
+        user_dj_name: profile.dj_name,
+        user_bio: profile.bio,
+        duration: pm.duration,
+        durationMillis: pm.durationMillis,
+      });
+
+      await onPlayAudio(trackData);
     } catch (error) {
       console.error("Error playing audio ID:", error);
       Alert.alert("Error", "Could not play audio");
@@ -569,41 +567,39 @@ export default function UserProfileView({
   const handlePrimaryMixPlay = async () => {
     try {
       HapticPatterns.primaryButtonPress();
-
-      if (primaryMixSoundRef.current) {
-        if (isPlayingPrimaryMix) {
-          await primaryMixSoundRef.current.pauseAsync();
-          setIsPlayingPrimaryMix(false);
-        } else {
-          await primaryMixSoundRef.current.playAsync();
-          setIsPlayingPrimaryMix(true);
-        }
-      } else if (profile.primary_mix) {
-        // Load and play the primary mix
-        if (!Audio || !Audio.Sound || !Audio.Sound.createAsync) {
-          return;
-        }
-
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: profile.primary_mix.file_url },
-          { shouldPlay: true }
-        );
-        primaryMixSoundRef.current = sound;
-        setIsPlayingPrimaryMix(true);
-
-        // Set up progress tracking
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded) {
-            const progress = status.positionMillis / status.durationMillis;
-            setPrimaryMixProgress(progress);
-
-            if (status.didJustFinish) {
-              setIsPlayingPrimaryMix(false);
-              setPrimaryMixProgress(0);
-            }
-          }
-        });
+      const mix = profile.primary_mix;
+      if (!mix?.file_url) {
+        Alert.alert("No audio", "This mix has no file to play.");
+        return;
       }
+
+      const sameTrack =
+        globalAudioState.currentTrack &&
+        String(globalAudioState.currentTrack.id) === String(mix.id);
+
+      if (sameTrack) {
+        if (globalAudioState.isPlaying) onPauseAudio();
+        else onResumeAudio();
+        return;
+      }
+
+      const trackData = normalizeTrackForPlayback({
+        id: mix.id,
+        title: mix.title || "Mix",
+        artist: profile.dj_name || profile.full_name || "Unknown Artist",
+        genre: mix.genre || "Electronic",
+        file_url: mix.file_url,
+        artwork_url: mix.artwork_url,
+        image: mix.artwork_url || profile.profile_image_url || null,
+        user_id: profile.id,
+        user_image: profile.profile_image_url,
+        user_dj_name: profile.dj_name,
+        user_bio: profile.bio,
+        duration: mix.duration,
+        durationMillis: mix.durationMillis,
+      });
+
+      await onPlayAudio(trackData);
     } catch (error) {
       console.error("Error playing primary mix:", error);
       Alert.alert("Error", "Could not play mix");
@@ -812,10 +808,7 @@ export default function UserProfileView({
                 >
                   <Ionicons
                     name={
-                      globalAudioState.currentTrack &&
-                      globalAudioState.currentTrack.id ===
-                        profile.primaryMix?.id &&
-                      globalAudioState.isPlaying
+                      audioIdTrackActive && globalAudioState.isPlaying
                         ? "pause"
                         : "play"
                     }
@@ -845,7 +838,9 @@ export default function UserProfileView({
               </View>
               <View style={styles.progressContainer}>
                 <Text style={styles.timeText}>
-                  {isPlayingAudioId ? "1:23" : "0:00"}
+                  {audioIdTrackActive
+                    ? formatMillisShort(globalAudioState.positionMillis)
+                    : "0:00"}
                 </Text>
                 <View style={styles.progressBar}>
                   <View
@@ -892,7 +887,11 @@ export default function UserProfileView({
                   />
                   <View style={styles.playButton}>
                     <Ionicons
-                      name={isPlayingPrimaryMix ? "pause" : "play"}
+                      name={
+                        primaryMixTrackActive && globalAudioState.isPlaying
+                          ? "pause"
+                          : "play"
+                      }
                       size={20}
                       color="hsl(0, 0%, 100%)"
                     />
@@ -939,20 +938,21 @@ export default function UserProfileView({
                       style={styles.pinnedMixCard}
                       onPress={() => {
                         HapticPatterns.playPause();
-                        const normalizedMix = {
+                        const normalizedMix = normalizeTrackForPlayback({
                           id: mix.id,
                           title: mix.title,
                           artist: profile.dj_name || profile.full_name || "Unknown",
                           genre: mix.genre || "Electronic",
-                          audioUrl: mix.file_url,
+                          file_url: mix.file_url,
+                          artwork_url: mix.artwork_url,
                           image: mix.artwork_url || null,
                           user_id: profile.id,
                           user_image: profile.profile_image_url,
                           user_dj_name: profile.dj_name,
                           user_bio: profile.bio,
                           duration: mix.duration,
-                          durationFormatted: mix.duration_label,
-                        };
+                          durationMillis: mix.durationMillis,
+                        });
                         if (isPlaying) {
                           onPauseAudio();
                         } else {

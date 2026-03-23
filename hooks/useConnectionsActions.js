@@ -1,13 +1,35 @@
 /**
- * Connection and discover action handlers + location modal state.
+ * Connection / discover action handlers + composed location actions (see useConnectionsLocationActions).
  */
 import { useState, useCallback } from "react";
 import { Alert } from "react-native";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { getUserName } from "../lib/connectionListUtils";
+import { useConnectionsLocationActions } from "./useConnectionsLocationActions";
+import { RHOOD_COMMUNITY_ID } from "../lib/communityConstants";
 
-export function useConnectionsActions(connectionsData, discoverData, modalState, onNavigate, route) {
+/**
+ * Store a zero-arg callback in useState without React treating the outer function as a state updater incorrectly.
+ * The setter receives an updater `() => callback` so the stored state is `callback`.
+ * Pass `null` to clear.
+ */
+function setStoredCallback(setter, callback) {
+  if (callback == null) {
+    setter(null);
+    return;
+  }
+  setter(() => callback);
+}
+
+export function useConnectionsActions(
+  connectionsData,
+  discoverData,
+  modalActions,
+  modalState,
+  onNavigate,
+  route
+) {
   const {
     setConnectionMessage,
     setConnectionModalType,
@@ -18,16 +40,15 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
     setConnectionModalSecondaryAction,
     handleCloseConnectionModal,
     setSelectedConnection,
-  } = modalState;
+  } = modalActions;
+
+  const locationActions = useConnectionsLocationActions(connectionsData, discoverData);
 
   const [cancellingConnectionId, setCancellingConnectionId] = useState(null);
   const [connectingUserId, setConnectingUserId] = useState(null);
   const [acceptingUserId, setAcceptingUserId] = useState(null);
   const [decliningUserId, setDecliningUserId] = useState(null);
   const [isDeletingConnectionId, setIsDeletingConnectionId] = useState(null);
-  const [showLocationModal, setShowLocationModal] = useState(false);
-  const [newLocationCity, setNewLocationCity] = useState("");
-  const [updatingLocation, setUpdatingLocation] = useState(false);
 
   const user = connectionsData?.user;
   const setConnections = connectionsData?.setConnections;
@@ -37,10 +58,37 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
   const loadUserAndConnections = connectionsData?.loadUserAndConnections;
   const loadUserCommunities = connectionsData?.loadUserCommunities;
   const loadDiscoverDJs = discoverData?.loadDiscoverDJs;
-  const loadNearbyDJs = discoverData?.loadNearbyDJs;
-  const loadNearbyOpportunities = discoverData?.loadNearbyOpportunities;
+  const loadNearbyDJs = connectionsData?.loadNearbyDJs;
   const prevConnectionStatusesRef = connectionsData?.prevConnectionStatusesRef;
   const userCommunities = connectionsData?.userCommunities;
+
+  const openConnectionModal = useCallback(
+    ({
+      message,
+      type = "info",
+      primaryText = "OK",
+      primaryAction = null,
+      secondaryText = null,
+      secondaryAction = null,
+    }) => {
+      setConnectionMessage(message);
+      setConnectionModalType(type);
+      setConnectionModalPrimaryText(primaryText);
+      setStoredCallback(setConnectionModalPrimaryAction, primaryAction);
+      setConnectionModalSecondaryText(secondaryText);
+      setStoredCallback(setConnectionModalSecondaryAction, secondaryAction);
+      setShowConnectionModal(true);
+    },
+    [
+      setConnectionMessage,
+      setConnectionModalType,
+      setConnectionModalPrimaryText,
+      setConnectionModalPrimaryAction,
+      setConnectionModalSecondaryText,
+      setConnectionModalSecondaryAction,
+      setShowConnectionModal,
+    ]
+  );
 
   const resolveConnectionId = useCallback(
     async (target) => {
@@ -58,33 +106,22 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
   );
 
   const handleConnectionModalPrimaryPress = useCallback(() => {
-    const fn = modalState.connectionModalPrimaryAction;
-    if (fn) {
-      const inner = typeof fn === "function" ? fn() : fn;
-      if (typeof inner === "function") inner();
-    } else handleCloseConnectionModal();
+    const action = modalState.connectionModalPrimaryAction;
+    if (typeof action === "function") {
+      action();
+      return;
+    }
+    handleCloseConnectionModal();
   }, [modalState.connectionModalPrimaryAction, handleCloseConnectionModal]);
 
   const handleConnectionModalSecondaryPress = useCallback(() => {
-    const fn = modalState.connectionModalSecondaryAction;
-    if (fn) {
-      const inner = typeof fn === "function" ? fn() : fn;
-      if (typeof inner === "function") inner();
-    } else handleCloseConnectionModal();
+    const action = modalState.connectionModalSecondaryAction;
+    if (typeof action === "function") {
+      action();
+      return;
+    }
+    handleCloseConnectionModal();
   }, [modalState.connectionModalSecondaryAction, handleCloseConnectionModal]);
-
-  const handleGroupChatPress = useCallback(
-    (communityId = null) => {
-      const targetCommunityId = communityId || "550e8400-e29b-41d4-a716-446655440000";
-      const community = userCommunities?.find((c) => c.id === targetCommunityId);
-      if (community) {
-        onNavigate?.("messages", { communityId: targetCommunityId, chatType: "group" });
-      } else if (!communityId) {
-        handleJoinRhoodGroup();
-      }
-    },
-    [userCommunities, onNavigate]
-  );
 
   const handleJoinRhoodGroup = useCallback(async () => {
     try {
@@ -92,15 +129,31 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
         Alert.alert("Error", "Please log in to join the R/HOOD Group");
         return;
       }
-      const rhoodCommunityId = "550e8400-e29b-41d4-a716-446655440000";
-      await db.joinCommunity(rhoodCommunityId, user.id);
+      await db.joinCommunity(RHOOD_COMMUNITY_ID, user.id);
       await loadUserCommunities?.();
-      Alert.alert("Welcome to R/HOOD Group!", "You've successfully joined the main R/HOOD community chat. Start connecting with fellow DJs!", [{ text: "OK" }]);
+      Alert.alert(
+        "Welcome to R/HOOD Group!",
+        "You've successfully joined the main R/HOOD community chat. Start connecting with fellow DJs!",
+        [{ text: "OK" }]
+      );
     } catch (error) {
       console.error("Error joining R/HOOD group:", error);
       Alert.alert("Error", "Failed to join R/HOOD Group. Please try again.");
     }
   }, [user?.id, loadUserCommunities]);
+
+  const handleGroupChatPress = useCallback(
+    (communityId = null) => {
+      const targetCommunityId = communityId || RHOOD_COMMUNITY_ID;
+      const community = userCommunities?.find((c) => c.id === targetCommunityId);
+      if (community) {
+        onNavigate?.("messages", { communityId: targetCommunityId, chatType: "group" });
+      } else if (!communityId) {
+        handleJoinRhoodGroup();
+      }
+    },
+    [userCommunities, onNavigate, handleJoinRhoodGroup]
+  );
 
   const handleConnectionPress = useCallback(
     (connection) => {
@@ -145,45 +198,72 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
       setConnectingUserId(connection.id);
       try {
         setDiscoverLoading?.(true);
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
         if (!currentUser) {
           Alert.alert("Error", "Please log in to connect with users");
           return;
         }
         const connectionResult = await db.createConnection(connection.id);
-        const displayName = connection?.dj_name || connection?.full_name || `${connection?.first_name || ""} ${connection?.last_name || ""}`.trim() || "this user";
+        const displayName =
+          connection?.dj_name ||
+          connection?.full_name ||
+          `${connection?.first_name || ""} ${connection?.last_name || ""}`.trim() ||
+          "this user";
         const isExistingConnection = connectionResult?.status === "pending" && connectionResult?.id;
         if (isExistingConnection) {
-          setConnectionMessage(`Connection request sent to ${displayName}. They'll be notified and can accept your request.`);
-          setConnectionModalType("success");
-          setConnectionModalPrimaryText("OK");
-          setConnectionModalPrimaryAction(null);
-          setShowConnectionModal(true);
+          openConnectionModal({
+            message: `Connection request sent to ${displayName}. They'll be notified and can accept your request.`,
+            type: "success",
+            primaryText: "OK",
+            primaryAction: null,
+            secondaryText: null,
+            secondaryAction: null,
+          });
           setDiscoverUsers?.((prev) =>
             prev.map((u) =>
               u.id === connection.id
-                ? { ...u, isConnected: false, connectionStatus: "pending", connectionStatusRaw: "pending", connectionId: connectionResult?.id || connectionResult?.connection_id || u.connectionId || null }
+                ? {
+                    ...u,
+                    isConnected: false,
+                    connectionStatus: "pending",
+                    connectionStatusRaw: "pending",
+                    connectionId:
+                      connectionResult?.id || connectionResult?.connection_id || u.connectionId || null,
+                  }
                 : u
             )
           );
           await loadUserAndConnections?.({ showLoader: false });
         } else {
-          setConnectionMessage(`You're already connected to ${displayName}`);
-          setConnectionModalType("info");
-          setConnectionModalPrimaryText("OK");
-          setConnectionModalPrimaryAction(() => () => {
-            handleConnectionPress({ id: connection.id, connectionId: connectionResult?.id || connectionResult?.connection_id || connection.connectionId || null, threadId: connection.threadId || null });
-            handleCloseConnectionModal();
+          openConnectionModal({
+            message: `You're already connected to ${displayName}`,
+            type: "info",
+            primaryText: "Open chat",
+            primaryAction: () => {
+              handleConnectionPress({
+                id: connection.id,
+                connectionId:
+                  connectionResult?.id || connectionResult?.connection_id || connection.connectionId || null,
+                threadId: connection.threadId || null,
+              });
+              handleCloseConnectionModal();
+            },
+            secondaryText: null,
+            secondaryAction: null,
           });
-          setShowConnectionModal(true);
         }
       } catch (error) {
         console.error("Error sending connection request:", error);
-        setConnectionMessage("Failed to send connection request");
-        setConnectionModalType("error");
-        setConnectionModalPrimaryText("OK");
-        setConnectionModalPrimaryAction(null);
-        setShowConnectionModal(true);
+        openConnectionModal({
+          message: "Failed to send connection request",
+          type: "error",
+          primaryText: "OK",
+          primaryAction: null,
+          secondaryText: null,
+          secondaryAction: null,
+        });
       } finally {
         setDiscoverLoading?.(false);
         setConnectingUserId(null);
@@ -193,11 +273,7 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
       connectingUserId,
       setDiscoverLoading,
       setDiscoverUsers,
-      setConnectionMessage,
-      setConnectionModalType,
-      setConnectionModalPrimaryText,
-      setConnectionModalPrimaryAction,
-      setShowConnectionModal,
+      openConnectionModal,
       handleCloseConnectionModal,
       loadUserAndConnections,
       handleConnectionPress,
@@ -212,16 +288,18 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
         const deletionKey = connection.connectionId || connection.id;
         setIsDeletingConnectionId(deletionKey);
         setConnectionModalPrimaryText("Removing...");
-        setConnectionModalPrimaryAction(() => () => {});
+        setStoredCallback(setConnectionModalPrimaryAction, () => {});
 
         const resolvedConnectionId = connection.connectionId || (await resolveConnectionId(connection));
         if (!resolvedConnectionId) {
-          setConnectionModalType("error");
-          setConnectionMessage("We couldn't find this connection. Please refresh and try again.");
-          setConnectionModalPrimaryText("Close");
-          setConnectionModalPrimaryAction(null);
-          setConnectionModalSecondaryText(null);
-          setConnectionModalSecondaryAction(null);
+          openConnectionModal({
+            message: "We couldn't find this connection. Please refresh and try again.",
+            type: "error",
+            primaryText: "Close",
+            primaryAction: null,
+            secondaryText: null,
+            secondaryAction: null,
+          });
           return;
         }
 
@@ -229,7 +307,16 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
         setConnections?.((prev) => prev.filter((item) => item.id !== connection.id));
         setDiscoverUsers?.((prev) =>
           prev.map((userItem) =>
-            userItem.id === connection.id ? { ...userItem, isConnected: false, connectionStatus: null, connectionStatusRaw: null, connectionId: null, threadId: null } : userItem
+            userItem.id === connection.id
+              ? {
+                  ...userItem,
+                  isConnected: false,
+                  connectionStatus: null,
+                  connectionStatusRaw: null,
+                  connectionId: null,
+                  threadId: null,
+                }
+              : userItem
           )
         );
         setLastMessages?.((prev) => {
@@ -241,21 +328,25 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
         await loadNearbyDJs?.();
 
         const displayName = getUserName(connection);
-        setConnectionModalType("success");
-        setConnectionMessage(`${displayName} has been removed from your connections.`);
-        setConnectionModalPrimaryText("OK");
-        setConnectionModalPrimaryAction(null);
-        setConnectionModalSecondaryText(null);
-        setConnectionModalSecondaryAction(null);
+        openConnectionModal({
+          message: `${displayName} has been removed from your connections.`,
+          type: "success",
+          primaryText: "OK",
+          primaryAction: null,
+          secondaryText: null,
+          secondaryAction: null,
+        });
         setSelectedConnection?.(null);
       } catch (error) {
         console.error("Error removing connection:", error);
-        setConnectionModalType("error");
-        setConnectionMessage("Failed to remove this connection. Please try again.");
-        setConnectionModalPrimaryText("Close");
-        setConnectionModalPrimaryAction(null);
-        setConnectionModalSecondaryText(null);
-        setConnectionModalSecondaryAction(null);
+        openConnectionModal({
+          message: "Failed to remove this connection. Please try again.",
+          type: "error",
+          primaryText: "Close",
+          primaryAction: null,
+          secondaryText: null,
+          secondaryAction: null,
+        });
       } finally {
         setIsDeletingConnectionId(null);
       }
@@ -264,16 +355,13 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
       setConnections,
       setDiscoverUsers,
       setLastMessages,
-      setConnectionMessage,
-      setConnectionModalType,
       setConnectionModalPrimaryText,
       setConnectionModalPrimaryAction,
-      setConnectionModalSecondaryText,
-      setConnectionModalSecondaryAction,
       setSelectedConnection,
       prevConnectionStatusesRef,
       loadNearbyDJs,
       resolveConnectionId,
+      openConnectionModal,
     ]
   );
 
@@ -283,15 +371,20 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
       HapticPatterns.buttonPress();
       setSelectedConnection?.(connection);
       const displayName = getUserName(connection);
-      setConnectionMessage(`Remove ${displayName} from your connections? You can reconnect anytime by sending a new request.`);
-      setConnectionModalType("warning");
-      setConnectionModalPrimaryText("Remove Connection");
-      setConnectionModalPrimaryAction(() => () => handleDeleteConnection(connection));
-      setConnectionModalSecondaryText("Keep Connection");
-      setConnectionModalSecondaryAction(() => () => handleCloseConnectionModal());
-      setShowConnectionModal(true);
+      openConnectionModal({
+        message: `Remove ${displayName} from your connections? You can reconnect anytime by sending a new request.`,
+        type: "warning",
+        primaryText: "Remove Connection",
+        primaryAction: () => {
+          void handleDeleteConnection(connection);
+        },
+        secondaryText: "Keep Connection",
+        secondaryAction: () => {
+          handleCloseConnectionModal();
+        },
+      });
     },
-    [getUserName, handleDeleteConnection, handleCloseConnectionModal, setSelectedConnection, setConnectionMessage, setConnectionModalType, setConnectionModalPrimaryText, setConnectionModalPrimaryAction, setConnectionModalSecondaryText, setConnectionModalSecondaryAction, setShowConnectionModal]
+    [handleDeleteConnection, handleCloseConnectionModal, setSelectedConnection, openConnectionModal]
   );
 
   const performCancelPendingConnection = useCallback(
@@ -301,18 +394,33 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
         await db.cancelConnectionRequest(connectionId);
         setDiscoverUsers?.((prev) =>
           prev.map((userItem) =>
-            userItem.id === connection.id ? { ...userItem, isConnected: false, connectionStatus: null, connectionStatusRaw: null, connectionId: null } : userItem
+            userItem.id === connection.id
+              ? {
+                  ...userItem,
+                  isConnected: false,
+                  connectionStatus: null,
+                  connectionStatusRaw: null,
+                  connectionId: null,
+                }
+              : userItem
           )
         );
         setConnections?.((prev) =>
-          prev.map((item) => (item.id === connection.id ? { ...item, connectionStatus: null, connectionStatusRaw: null, connectionId: null } : item))
+          prev.map((item) =>
+            item.id === connection.id
+              ? { ...item, connectionStatus: null, connectionStatusRaw: null, connectionId: null }
+              : item
+          )
         );
         await loadUserAndConnections?.({ showLoader: false });
-        setConnectionMessage(`Connection request to ${displayName} has been cancelled.`);
-        setConnectionModalType("info");
-        setConnectionModalPrimaryText("OK");
-        setConnectionModalPrimaryAction(null);
-        setShowConnectionModal(true);
+        openConnectionModal({
+          message: `Connection request to ${displayName} has been cancelled.`,
+          type: "info",
+          primaryText: "OK",
+          primaryAction: null,
+          secondaryText: null,
+          secondaryAction: null,
+        });
       } catch (error) {
         console.error("Error cancelling connection request:", error);
         Alert.alert("Error", `Failed to cancel connection request: ${error?.message || "Unknown error"}`);
@@ -320,13 +428,17 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
         setCancellingConnectionId(null);
       }
     },
-    [setDiscoverUsers, setConnections, setConnectionMessage, setConnectionModalType, setConnectionModalPrimaryText, setConnectionModalPrimaryAction, setShowConnectionModal, loadUserAndConnections]
+    [setDiscoverUsers, setConnections, openConnectionModal, loadUserAndConnections]
   );
 
   const handleCancelPendingConnection = useCallback(
     (connection) => {
       if (!connection) return;
-      const displayName = connection?.dj_name || connection?.full_name || `${connection?.first_name || ""} ${connection?.last_name || ""}`.trim() || "this DJ";
+      const displayName =
+        connection?.dj_name ||
+        connection?.full_name ||
+        `${connection?.first_name || ""} ${connection?.last_name || ""}`.trim() ||
+        "this DJ";
       Alert.alert("Cancel Connection Request?", `Do you want to cancel your pending connection request to ${displayName}?`, [
         { text: "Keep Pending", style: "cancel" },
         {
@@ -354,9 +466,9 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
   const handleAcceptPendingConnection = useCallback(
     async (connection) => {
       if (!connection) return;
-      const displayName = connection?.name || connection?.dj_name || connection?.full_name || `${connection?.first_name || ""} ${connection?.last_name || ""}`.trim() || "this DJ";
       try {
-        const connectionId = connection.connectionId || connection.connection_id || (await resolveConnectionId(connection));
+        const connectionId =
+          connection.connectionId || connection.connection_id || (await resolveConnectionId(connection));
         if (!connectionId) {
           Alert.alert("Error", "We couldn't find this connection request. Please try again.");
           return;
@@ -379,9 +491,15 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
   const handleDeclinePendingConnection = useCallback(
     async (connection) => {
       if (!connection) return;
-      const displayName = connection?.name || connection?.dj_name || connection?.full_name || `${connection?.first_name || ""} ${connection?.last_name || ""}`.trim() || "this DJ";
+      const displayName =
+        connection?.name ||
+        connection?.dj_name ||
+        connection?.full_name ||
+        `${connection?.first_name || ""} ${connection?.last_name || ""}`.trim() ||
+        "this DJ";
       try {
-        const connectionId = connection.connectionId || connection.connection_id || (await resolveConnectionId(connection));
+        const connectionId =
+          connection.connectionId || connection.connection_id || (await resolveConnectionId(connection));
         if (!connectionId) {
           Alert.alert("Error", "We couldn't find this connection request to decline. Please try again.");
           return;
@@ -391,11 +509,14 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
         await loadUserAndConnections?.({ showLoader: false });
         await loadDiscoverDJs?.();
         await loadNearbyDJs?.();
-        setConnectionMessage(`Connection request from ${displayName} has been declined.`);
-        setConnectionModalType("info");
-        setConnectionModalPrimaryText("OK");
-        setConnectionModalPrimaryAction(null);
-        setShowConnectionModal(true);
+        openConnectionModal({
+          message: `Connection request from ${displayName} has been declined.`,
+          type: "info",
+          primaryText: "OK",
+          primaryAction: null,
+          secondaryText: null,
+          secondaryAction: null,
+        });
       } catch (error) {
         console.error("Error declining connection request:", error);
         Alert.alert("Error", `Failed to decline connection request: ${error?.message || "Unknown error"}`);
@@ -403,55 +524,13 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
         setDecliningUserId(null);
       }
     },
-    [resolveConnectionId, loadUserAndConnections, loadDiscoverDJs, loadNearbyDJs, setConnectionMessage, setConnectionModalType, setConnectionModalPrimaryText, setConnectionModalPrimaryAction, setShowConnectionModal]
+    [resolveConnectionId, loadUserAndConnections, loadDiscoverDJs, loadNearbyDJs, openConnectionModal]
   );
 
   const handleDiscoverRetry = useCallback(() => {
     discoverData?.setDiscoverLoadError?.(null);
     discoverData?.loadDiscoverDJs?.();
   }, [discoverData]);
-
-  const handleOpenLocationModal = useCallback(() => {
-    setNewLocationCity(user?.city || "");
-    setShowLocationModal(true);
-  }, [user?.city]);
-
-  const handleUpdateLocation = useCallback(async () => {
-    if (!newLocationCity?.trim() || !user?.id) return;
-    try {
-      setUpdatingLocation(true);
-      await db.updateUserProfile(user.id, { city: newLocationCity.trim() });
-      connectionsData?.setUser?.((prev) => ({ ...prev, city: newLocationCity.trim() }));
-      await Promise.all([loadNearbyDJs?.(), loadNearbyOpportunities?.()]);
-      setShowLocationModal(false);
-      setNewLocationCity("");
-      HapticPatterns.success();
-      Alert.alert("Success", "Location updated successfully!");
-    } catch (error) {
-      console.error("Error updating location:", error);
-      Alert.alert("Error", "Failed to update location. Please try again.");
-    } finally {
-      setUpdatingLocation(false);
-    }
-  }, [newLocationCity, user?.id, connectionsData?.setUser, loadNearbyDJs, loadNearbyOpportunities]);
-
-  const handleUseCurrentLocation = useCallback(async () => {
-    if (updatingLocation) return;
-    try {
-      const { getCurrentLocation, reverseGeocode } = await import("../lib/locationService");
-      const location = await getCurrentLocation();
-      if (!location) {
-        Alert.alert("Location Unavailable", "Could not get your current location. Please enter your city manually.");
-        return;
-      }
-      const city = await reverseGeocode(location.latitude, location.longitude);
-      if (city) setNewLocationCity(city);
-      else Alert.alert("Location Unavailable", "Could not determine your city. Please enter it manually.");
-    } catch (error) {
-      console.error("Error getting current location:", error);
-      Alert.alert("Error", "Failed to get your location. Please enter your city manually.");
-    }
-  }, [updatingLocation]);
 
   return {
     handleCloseConnectionModal,
@@ -469,17 +548,11 @@ export function useConnectionsActions(connectionsData, discoverData, modalState,
     handleAcceptPendingConnection,
     handleDeclinePendingConnection,
     handleDiscoverRetry,
-    handleOpenLocationModal,
-    handleUpdateLocation,
-    handleUseCurrentLocation,
     cancellingConnectionId,
     connectingUserId,
     acceptingUserId,
     decliningUserId,
-    showLocationModal,
-    setShowLocationModal,
-    newLocationCity,
-    setNewLocationCity,
-    updatingLocation,
+    isDeletingConnectionId,
+    ...locationActions,
   };
 }

@@ -1,9 +1,17 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, TextInput } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
 import styles from "./ConnectionsScreen.styles";
+import { CONNECTIONS_SCREEN_TAB } from "../lib/connectionsScreenTabIds";
 
 export default function ConnectionsScreenHeader({
   activeTab,
@@ -24,28 +32,48 @@ export default function ConnectionsScreenHeader({
       />
       <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === "discover" && styles.tabButtonActive]}
+          style={[
+            styles.tabButton,
+            activeTab === CONNECTIONS_SCREEN_TAB.DISCOVER && styles.tabButtonActive,
+          ]}
           onPress={() => onTabChange?.("discover")}
         >
           <Ionicons
             name="compass"
             size={16}
-            color={activeTab === "discover" ? "hsl(0, 0%, 0%)" : "hsl(0, 0%, 70%)"}
+            color={
+              activeTab === CONNECTIONS_SCREEN_TAB.DISCOVER
+                ? "hsl(0, 0%, 0%)"
+                : "hsl(0, 0%, 70%)"
+            }
           />
-          <Text style={[styles.tabText, activeTab === "discover" && styles.tabTextActive]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === CONNECTIONS_SCREEN_TAB.DISCOVER && styles.tabTextActive,
+            ]}
+          >
             Discover
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === "connections" && styles.tabButtonActive]}
-          onPress={() => onTabChange?.("connections")}
+          style={[
+            styles.tabButton,
+            activeTab === CONNECTIONS_SCREEN_TAB.CONNECTIONS && styles.tabButtonActive,
+          ]}
+          onPress={() => onTabChange?.(CONNECTIONS_SCREEN_TAB.CONNECTIONS)}
         >
           <Ionicons
             name="people"
             size={16}
             color={activeTab === "connections" ? "hsl(0, 0%, 0%)" : "hsl(0, 0%, 70%)"}
           />
-          <Text style={[styles.tabText, activeTab === "connections" && styles.tabTextActive]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === CONNECTIONS_SCREEN_TAB.CONNECTIONS && styles.tabTextActive,
+            ]}
+          >
             Connections
           </Text>
         </TouchableOpacity>
@@ -55,19 +83,35 @@ export default function ConnectionsScreenHeader({
           <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
           <TextInput
             style={styles.searchInput}
-            placeholder={activeTab === "discover" ? "Search DJs..." : "Search connections..."}
+            placeholder={
+              activeTab === CONNECTIONS_SCREEN_TAB.DISCOVER
+                ? "Search DJs..."
+                : "Search connections..."
+            }
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={searchQuery}
             onChangeText={onSearchChange}
             autoCapitalize="none"
             autoCorrect={false}
           />
-          {searchQuery.length > 0 && (
+          {isSearching ? (
+            <ActivityIndicator
+              size="small"
+              color="hsl(0, 0%, 60%)"
+              style={styles.searchLoadingIndicator}
+            />
+          ) : null}
+          {searchQuery.length > 0 ? (
             <TouchableOpacity onPress={onClearSearch} style={styles.clearButton}>
               <Ionicons name="close-circle" size={20} color="hsl(0, 0%, 50%)" />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
+        {searchError && searchQuery.trim().length >= 2 ? (
+          <Text style={styles.searchErrorHint} numberOfLines={1}>
+            Couldn&apos;t refresh suggestions
+          </Text>
+        ) : null}
         {showSuggestions && searchSuggestions.length > 0 && (
           <View style={styles.suggestionsContainer}>
             <ScrollView

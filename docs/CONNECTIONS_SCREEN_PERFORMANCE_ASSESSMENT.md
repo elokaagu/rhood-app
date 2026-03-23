@@ -54,8 +54,8 @@
 
 **Minor churn (acceptable):**
 
-- **modalCtx / modalState:** New object references every time in `useConnectionsScreen`. They are passed into `useConnectionsData` and `useConnectionsActions`. No effect in those hooks depends on the *object* identity; only the ref/state inside is used. So this doesn’t trigger extra effect runs. Handlers that depend on modal state correctly update when that state changes.
-- **discoverLoaders:** `{ loadDiscoverDJs, loadNearbyDJs }` is recreated each render. The functions inside are stable (from `useDiscoverData`), and the effects in `useConnectionsData` depend on those function refs, not the wrapper object, so behavior is correct and impact is small.
+- **modalActions / modalState:** `modalActions` is memoized in `useConnectionsModalState`; `modalState` updates when visible modal fields change. `useConnectionsData` merges `modalActions` plus `onNavigate` into the loader context. `useConnectionsActions` takes both `modalActions` (mutators) and `modalState` (read values including stored primary/secondary callbacks).
+- **Discover list reloads:** `useConnectionsData` takes `loadDiscoverDJs` and `loadNearbyDJs` as separate args (stable refs from `useDiscoverData`), avoiding a per-render wrapper object.
 - **Inline keyExtractor:** `(item) => item.id` is recreated each render. Impact is small; if desired, a stable `keyExtractor` could be passed from the hook.
 
 **Verdict:** Re-render behavior is under control; memoization and stable callbacks are used where it matters. Remaining ref churn is minor and could be refined later (e.g. `useMemo` for `modalCtx`/`modalState`/`discoverLoaders`) if profiling shows need.
@@ -97,8 +97,8 @@ Splitting keeps the main hook under 500 lines, avoids one giant dependency blob,
 ## 7. Optional improvements (if profiling justifies)
 
 1. **Stable context objects (low priority)**  
-   - `modalCtx` and `modalState`: wrap in `useMemo(..., [deps])` so object identity only changes when modal-related state actually changes.  
-   - `discoverLoaders`: `useMemo(() => ({ loadDiscoverDJs: discoverData.loadDiscoverDJs, loadNearbyDJs: discoverData.loadNearbyDJs }), [discoverData.loadDiscoverDJs, discoverData.loadNearbyDJs])`.  
+   - `modalActions` / `modalState`: already split; `modalState` identity changes when any read field changes (intended for consumers that depend on latest actions).  
+   - Pass discover loader callbacks directly into `useConnectionsData` (no adapter object).  
    Reduces reference churn; current impact is small.
 
 2. **Stable keyExtractor (low priority)**  

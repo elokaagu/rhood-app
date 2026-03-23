@@ -25,6 +25,36 @@ import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 const profileCache = createScreenCache("profile");
 
+/** DB / cache may expose genres as a string or non-array; socialLinks may be missing on old cache. */
+function normalizeGenres(g) {
+  if (Array.isArray(g)) return g.filter((x) => x != null && String(x).trim() !== "");
+  if (typeof g === "string" && g.trim()) return [g.trim()];
+  return [];
+}
+
+function normalizeSocialLinks(raw) {
+  const base = {
+    instagram: null,
+    soundcloud: null,
+    tiktok: null,
+    youtube: null,
+    portfolio_url: null,
+  };
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return { ...base, ...raw };
+  }
+  return base;
+}
+
+function normalizeProfileForUI(p) {
+  if (!p || typeof p !== "object") return p;
+  return {
+    ...p,
+    genres: normalizeGenres(p.genres),
+    socialLinks: normalizeSocialLinks(p.socialLinks),
+  };
+}
+
 export default function ProfileScreen({
   onNavigate,
   user,
@@ -41,6 +71,8 @@ export default function ProfileScreen({
     totalReferrals: 0,
     totalCreditsEarned: 0,
   });
+
+  const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.PROFILE);
 
   const audioIdTrackId =
     profile?.audioId?.id || (profile?.id ? `audio-id-${profile.id}` : null);
@@ -197,7 +229,7 @@ export default function ProfileScreen({
     if (userId) {
       const cached = profileCache.getIfFresh(userId);
       if (cached?.profile) {
-        setProfile(cached.profile);
+        setProfile(normalizeProfileForUI(cached.profile));
         setConnectionsCount(cached.connectionsCount ?? 0);
         setInviteCode(cached.inviteCode ?? null);
         setReferralStats(
@@ -582,7 +614,7 @@ export default function ProfileScreen({
           bio: userProfile.bio || "",
           statusMessage: userProfile.status_message || "",
           location: userProfile.city || "Location not set",
-          genres: userProfile.genres || [],
+          genres: normalizeGenres(userProfile.genres),
           profileImage: userProfile.profile_image_url
             ? { uri: userProfile.profile_image_url }
             : null,
@@ -610,9 +642,10 @@ export default function ProfileScreen({
             return Number.isFinite(n) ? n.toFixed(1) : null;
           })(),
         };
-        setProfile(profileData);
+        const normalized = normalizeProfileForUI(profileData);
+        setProfile(normalized);
         profileCache.set(user.id, {
-          profile: profileData,
+          profile: normalized,
           connectionsCount: connections,
           inviteCode: userInviteCode,
           referralStats: userReferralStats,
@@ -857,7 +890,7 @@ export default function ProfileScreen({
               ? audioIdData.durationSeconds * 1000
               : undefined),
           durationSeconds: audioIdData?.durationSeconds,
-          user_id: user.id, // User ID for navigation
+          user_id: user?.id, // User ID for navigation
           user_image: profile.profileImage?.uri, // Profile image for About the DJ
           user_dj_name: profile.name, // DJ name for About the DJ
           user_bio: profile.bio, // Bio for About the DJ

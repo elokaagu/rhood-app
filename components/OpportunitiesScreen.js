@@ -26,7 +26,7 @@ export default function OpportunitiesScreen({
 }) {
   const { tutorialModalProps } = useAppTutorialModal(
     APP_TUTORIAL_SCREEN_IDS.OPPORTUNITIES,
-    { blockVisible: !!showSwipeTutorial }
+    { preventShow: !!showSwipeTutorial }
   );
 
   const current = opportunities?.[currentOpportunityIndex];

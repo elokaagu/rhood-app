@@ -1,9 +1,10 @@
 import { useState, useCallback, useMemo } from "react";
 
 /**
- * Connection status / confirm modal state shared by useConnectionsData + useConnectionsActions.
+ * Connection status / confirm modal: read-only state vs mutation API.
+ * Navigation stays outside this hook — pass `onNavigate` into `useConnectionsData` for loaders.
  */
-export function useConnectionsModalState(onNavigate) {
+export function useConnectionsModalState() {
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState("");
   const [connectionModalType, setConnectionModalType] = useState("success");
@@ -19,6 +20,8 @@ export function useConnectionsModalState(onNavigate) {
 
   const handleCloseConnectionModal = useCallback(() => {
     setShowConnectionModal(false);
+    setConnectionMessage("");
+    setConnectionModalType("success");
     setConnectionModalPrimaryAction(null);
     setConnectionModalPrimaryText("OK");
     setConnectionModalSecondaryText(null);
@@ -26,55 +29,50 @@ export function useConnectionsModalState(onNavigate) {
     setSelectedConnection(null);
   }, []);
 
-  const modalCtx = useMemo(
+  const modalActions = useMemo(
     () => ({
       setConnectionMessage,
       setConnectionModalType,
       setConnectionModalPrimaryText,
       setConnectionModalPrimaryAction,
+      setConnectionModalSecondaryText,
+      setConnectionModalSecondaryAction,
       setShowConnectionModal,
+      setSelectedConnection,
       handleCloseConnectionModal,
-      onNavigate,
     }),
-    [handleCloseConnectionModal, onNavigate]
+    [handleCloseConnectionModal]
   );
 
   const modalState = useMemo(
     () => ({
       showConnectionModal,
-      setShowConnectionModal,
       connectionMessage,
-      setConnectionMessage,
       connectionModalType,
-      setConnectionModalType,
       connectionModalPrimaryText,
-      setConnectionModalPrimaryText,
-      connectionModalPrimaryAction,
-      setConnectionModalPrimaryAction,
       connectionModalSecondaryText,
-      setConnectionModalSecondaryText,
+      selectedConnection,
+      connectionModalPrimaryAction,
       connectionModalSecondaryAction,
-      setConnectionModalSecondaryAction,
-      handleCloseConnectionModal,
-      setSelectedConnection,
     }),
     [
       showConnectionModal,
       connectionMessage,
       connectionModalType,
       connectionModalPrimaryText,
-      connectionModalPrimaryAction,
       connectionModalSecondaryText,
+      selectedConnection,
+      connectionModalPrimaryAction,
       connectionModalSecondaryAction,
-      handleCloseConnectionModal,
     ]
   );
 
   return {
-    modalCtx,
+    modalActions,
     modalState,
-    showConnectionModal,
     handleCloseConnectionModal,
+    /** Convenience for ConnectionModal prop bundle */
+    showConnectionModal,
     connectionMessage,
     connectionModalType,
     connectionModalPrimaryText,

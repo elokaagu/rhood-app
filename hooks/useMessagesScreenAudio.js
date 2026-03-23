@@ -14,6 +14,13 @@ export function useMessagesScreenAudio(messages) {
 
   const audioSoundsRef = useRef({});
   const durationExtractionInProgressRef = useRef(new Set());
+  const playbackRequestRef = useRef(0);
+  const isMountedRef = useRef(true);
+  const playingAudioIdRef = useRef(null);
+
+  useEffect(() => {
+    playingAudioIdRef.current = playingAudioId;
+  }, [playingAudioId]);
 
   const formatDuration = useCallback((millis) => {
     if (!millis || isNaN(millis)) return "0:00";
@@ -23,175 +30,226 @@ export function useMessagesScreenAudio(messages) {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }, []);
 
-  // Extract duration for audio/video messages when they load
+  // Extract durations with a small concurrency cap to reduce spikes.
   useEffect(() => {
     if (!messages.length) return;
 
-    const extractDurationsForMessages = async () => {
-      setAudioDurations((currentDurations) => {
-        const messagesNeedingDuration = messages.filter(
-          (msg) =>
-            (msg.messageType === "audio" || msg.messageType === "video") &&
-            msg.mediaUrl &&
-            !currentDurations[msg.id] &&
-            !durationExtractionInProgressRef.current.has(msg.id)
-        );
+    let isActive = true;
+    const MAX_CONCURRENT_DURATION_JOBS = 3;
 
-        if (messagesNeedingDuration.length === 0) {
-          return currentDurations;
-        }
+    const messagesNeedingDuration = messages.filter(
+      (msg) =>
+        msg?.id &&
+        (msg.messageType === "audio" || msg.messageType === "video") &&
+        msg.mediaUrl &&
+        !audioDurations[msg.id] &&
+        !durationExtractionInProgressRef.current.has(msg.id)
+    );
 
-        console.log(
-          `📊 Extracting duration for ${messagesNeedingDuration.length} media messages`
-        );
+    if (messagesNeedingDuration.length === 0) return;
 
-        messagesNeedingDuration.forEach((message) => {
-          durationExtractionInProgressRef.current.add(message.id);
+    if (__DEV__) {
+      console.log(
+        `Extracting duration for ${messagesNeedingDuration.length} media messages`
+      );
+    }
 
-          (async () => {
-            try {
-              if (Audio?.Sound?.createAsync) {
-                const { sound } = await Audio.Sound.createAsync(
-                  { uri: message.mediaUrl },
-                  { shouldPlay: false }
-                );
-                const status = await sound.getStatusAsync();
-                await sound.unloadAsync();
-                if (status.isLoaded && status.durationMillis) {
-                  setAudioDurations((prev) => {
-                    if (prev[message.id]) {
-                      durationExtractionInProgressRef.current.delete(message.id);
-                      return prev;
-                    }
-                    durationExtractionInProgressRef.current.delete(message.id);
-                    return {
-                      ...prev,
-                      [message.id]: status.durationMillis,
-                    };
-                  });
-                  console.log(
-                    `✅ Extracted duration for message ${message.id}: ${status.durationMillis}ms`
-                  );
-                } else {
-                  durationExtractionInProgressRef.current.delete(message.id);
-                }
-              } else {
-                durationExtractionInProgressRef.current.delete(message.id);
-              }
-            } catch (error) {
-              console.warn(
-                `⚠️ Unable to extract duration for message ${message.id}:`,
-                error
-              );
-              durationExtractionInProgressRef.current.delete(message.id);
-            }
-          })();
-        });
+    const extractOne = async (message) => {
+      durationExtractionInProgressRef.current.add(message.id);
 
-        return currentDurations;
-      });
-    };
-
-    extractDurationsForMessages();
-  }, [messages]);
-
-  const toggleAudioPlayback = useCallback(
-    async (messageId, audioUrl) => {
+      let sound;
       try {
-        console.log("🎵 Toggling audio playback:", { messageId, audioUrl });
+        if (!Audio?.Sound?.createAsync) return;
 
-        if (!audioUrl) {
-          Alert.alert("Error", "Audio URL is missing");
-          return;
-        }
+        const created = await Audio.Sound.createAsync(
+          { uri: message.mediaUrl },
+          { shouldPlay: false }
+        );
+        sound = created.sound;
 
-        if (playingAudioId === messageId) {
-          const sound = audioSoundsRef.current[messageId];
-          if (sound) {
-            await sound.pauseAsync();
-            setPlayingAudioId(null);
-            console.log("⏸️ Audio paused");
-          }
-        } else {
-          if (playingAudioId) {
-            const currentSound = audioSoundsRef.current[playingAudioId];
-            if (currentSound) {
-              await currentSound.stopAsync();
-              await currentSound.unloadAsync();
-              delete audioSoundsRef.current[playingAudioId];
-            }
-          }
+        const status = await sound.getStatusAsync();
+        if (!isActive || !isMountedRef.current) return;
 
-          await Audio.setAudioModeAsync({
-            allowsRecordingIOS: false,
-            staysActiveInBackground: true,
-            playsInSilentModeIOS: true,
-          });
-
-          console.log("🔄 Loading audio from:", audioUrl);
-          const { sound } = await Audio.Sound.createAsync(
-            { uri: audioUrl },
-            { shouldPlay: true }
-          );
-
-          audioSoundsRef.current[messageId] = sound;
-          setPlayingAudioId(messageId);
-          console.log("▶️ Audio started playing");
-
-          const status = await sound.getStatusAsync();
-          if (status.isLoaded && status.durationMillis) {
-            console.log("📊 Audio duration:", status.durationMillis);
-            setAudioDurations((prev) => ({
+        if (status.isLoaded && status.durationMillis) {
+          setAudioDurations((prev) => {
+            if (prev[message.id]) return prev;
+            return {
               ...prev,
-              [messageId]: status.durationMillis,
-            }));
-          }
-
-          sound.setOnPlaybackStatusUpdate((status) => {
-            if (status.isLoaded) {
-              setAudioProgress((prev) => ({
-                ...prev,
-                [messageId]: status.positionMillis || 0,
-              }));
-
-              if (status.didJustFinish) {
-                console.log("✅ Audio finished");
-                setPlayingAudioId((prev) => (prev === messageId ? null : prev));
-                sound.unloadAsync();
-                delete audioSoundsRef.current[messageId];
-                setAudioProgress((prev) => ({
-                  ...prev,
-                  [messageId]: 0,
-                }));
-              }
-            }
+              [message.id]: status.durationMillis,
+            };
           });
         }
       } catch (error) {
-        console.error("❌ Error playing audio:", error);
-        console.error("❌ Error details:", {
-          message: error.message,
-          code: error.code,
-          audioUrl,
-        });
-        Alert.alert(
-          "Error",
-          `Failed to play audio: ${error.message || "Unknown error"}`
-        );
+        if (__DEV__) {
+          console.warn(`Unable to extract duration for message ${message.id}:`, error);
+        }
+      } finally {
+        durationExtractionInProgressRef.current.delete(message.id);
+        if (sound) {
+          try {
+            await sound.unloadAsync();
+          } catch (error) {
+            if (__DEV__) {
+              console.warn("Error unloading duration extraction sound:", error);
+            }
+          }
+        }
       }
-    },
-    [playingAudioId]
-  );
+    };
+
+    const runWithLimit = async () => {
+      let currentIndex = 0;
+
+      const worker = async () => {
+        while (isActive && currentIndex < messagesNeedingDuration.length) {
+          const nextIndex = currentIndex;
+          currentIndex += 1;
+          await extractOne(messagesNeedingDuration[nextIndex]);
+        }
+      };
+
+      const workers = Array.from(
+        { length: Math.min(MAX_CONCURRENT_DURATION_JOBS, messagesNeedingDuration.length) },
+        () => worker()
+      );
+
+      await Promise.allSettled(workers);
+    };
+
+    void runWithLimit();
+
+    return () => {
+      isActive = false;
+    };
+  }, [messages, audioDurations]);
+
+  const toggleAudioPlayback = useCallback(async (messageId, audioUrl) => {
+    const requestId = playbackRequestRef.current + 1;
+    playbackRequestRef.current = requestId;
+
+    try {
+      if (__DEV__) {
+        console.log("Toggling audio playback:", { messageId, audioUrl });
+      }
+
+      if (!audioUrl) {
+        Alert.alert("Error", "Audio URL is missing");
+        return;
+      }
+
+      if (playingAudioIdRef.current === messageId) {
+        const sound = audioSoundsRef.current[messageId];
+        if (sound) {
+          await sound.pauseAsync();
+          if (!isMountedRef.current || requestId !== playbackRequestRef.current) return;
+          setPlayingAudioId(null);
+        }
+        return;
+      }
+
+      const currentPlayingId = playingAudioIdRef.current;
+      if (currentPlayingId) {
+        const currentSound = audioSoundsRef.current[currentPlayingId];
+        if (currentSound) {
+          currentSound.setOnPlaybackStatusUpdate(null);
+          await currentSound.stopAsync();
+          await currentSound.unloadAsync();
+          delete audioSoundsRef.current[currentPlayingId];
+        }
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: false,
+        playsInSilentModeIOS: true,
+      });
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUrl },
+        { shouldPlay: true }
+      );
+
+      if (!isMountedRef.current || requestId !== playbackRequestRef.current) {
+        sound.setOnPlaybackStatusUpdate(null);
+        await sound.unloadAsync();
+        return;
+      }
+
+      audioSoundsRef.current[messageId] = sound;
+      setPlayingAudioId(messageId);
+
+      const status = await sound.getStatusAsync();
+      if (
+        isMountedRef.current &&
+        requestId === playbackRequestRef.current &&
+        status.isLoaded &&
+        status.durationMillis
+      ) {
+        setAudioDurations((prev) => ({
+          ...prev,
+          [messageId]: status.durationMillis,
+        }));
+      }
+
+      sound.setOnPlaybackStatusUpdate((playbackStatus) => {
+        if (
+          !isMountedRef.current ||
+          playbackRequestRef.current !== requestId ||
+          audioSoundsRef.current[messageId] !== sound ||
+          !playbackStatus.isLoaded
+        ) {
+          return;
+        }
+
+        setAudioProgress((prev) => ({
+          ...prev,
+          [messageId]: playbackStatus.positionMillis || 0,
+        }));
+
+        if (playbackStatus.didJustFinish) {
+          setPlayingAudioId((prev) => (prev === messageId ? null : prev));
+          setAudioProgress((prev) => ({
+            ...prev,
+            [messageId]: 0,
+          }));
+
+          sound.setOnPlaybackStatusUpdate(null);
+          void sound.unloadAsync();
+          delete audioSoundsRef.current[messageId];
+        }
+      });
+    } catch (error) {
+      console.error("Error playing audio:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        audioUrl,
+      });
+      Alert.alert(
+        "Error",
+        `Failed to play audio: ${error.message || "Unknown error"}`
+      );
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
-      Object.values(audioSoundsRef.current).forEach(async (sound) => {
-        try {
-          await sound.unloadAsync();
-        } catch (error) {
-          console.error("Error cleaning up audio:", error);
-        }
-      });
+      isMountedRef.current = false;
+      playbackRequestRef.current += 1;
+
+      const sounds = Object.values(audioSoundsRef.current);
+      audioSoundsRef.current = {};
+
+      void Promise.allSettled(
+        sounds.map(async (sound) => {
+          try {
+            sound.setOnPlaybackStatusUpdate(null);
+            await sound.unloadAsync();
+          } catch (error) {
+            console.error("Error cleaning up audio:", error);
+          }
+        })
+      );
     };
   }, []);
 

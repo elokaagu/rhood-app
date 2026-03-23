@@ -24,6 +24,7 @@ import {
   recordMixPlayStarted,
   backfillMixDurationFromPlayback,
 } from "../lib/mixStatsRpc";
+import { normalizeTrackForPlayback } from "../lib/normalizeTrackForPlayback";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
 
 /** Mix duration in ms from metadata (Listen/DB). Used when expo-av reports 0 briefly. */
@@ -194,7 +195,8 @@ export default function useAudioPlayback({ user }) {
 
   // ── Core playback ────────────────────────────────────────
 
-  const playGlobalAudio = useCallback(async (track) => {
+  const playGlobalAudio = useCallback(async (rawTrack) => {
+    const track = normalizeTrackForPlayback(rawTrack);
     /*
      * One session at a time. Do NOT use isPlayingAudioRef for the entry guard: it was set true
      * before InteractionManager ran, so resumeGlobalAudio → playGlobalAudio hit "in progress" while
@@ -488,6 +490,30 @@ export default function useAudioPlayback({ user }) {
 
           // Store reference for cleanup
           globalAudioRef.current = sound;
+
+          // iOS: publish Now Playing as soon as the file is loaded (paused) so lock screen metadata
+          // appears before playAsync; rate updates again after playback starts below.
+          if (Platform.OS === "ios") {
+            try {
+              const preStatus = await sound.getStatusAsync();
+              const posMs = preStatus?.isLoaded ? (preStatus.positionMillis ?? 0) : 0;
+              const nativeDur =
+                preStatus?.isLoaded && preStatus.durationMillis > 0
+                  ? preStatus.durationMillis
+                  : 0;
+              const metaDur = trackMetaDurationMs(track);
+              const durMs = Math.max(nativeDur, metaDur);
+              if (durMs > 0) {
+                await nowPlayingInfo.setNowPlayingInfo(
+                  buildIosNowPlayingPayload(track, posMs, durMs, false)
+                );
+              }
+            } catch (preNpErr) {
+              if (__DEV__) {
+                console.warn("Now Playing (pre-play):", preNpErr?.message);
+              }
+            }
+          }
 
           // Start playing
           if (__DEV__) console.log("▶️ Starting playback...");
@@ -1595,10 +1621,10 @@ export default function useAudioPlayback({ user }) {
     playPreviousTrackRef.current = playPreviousTrack;
   }, [playPreviousTrack]);
 
-  // iOS: refresh Now Playing when async profile/artwork fields arrive (without spamming on every tick).
+  // iOS: refresh Now Playing when track / metadata / play state changes (including paused).
   useEffect(() => {
     if (Platform.OS !== "ios") return;
-    if (!audioState.currentTrack?.id || !audioState.isPlaying) return;
+    if (!audioState.currentTrack?.id) return;
     const t = audioState.currentTrack;
     const durMs = Math.max(
       audioState.durationMillis || 0,
@@ -1607,7 +1633,7 @@ export default function useAudioPlayback({ user }) {
     if (durMs <= 0) return;
     const pos = stateRef.current.positionMillis ?? 0;
     void nowPlayingInfo.setNowPlayingInfo(
-      buildIosNowPlayingPayload(t, pos, durMs, true)
+      buildIosNowPlayingPayload(t, pos, durMs, audioState.isPlaying)
     );
   }, [
     audioState.currentTrack?.id,

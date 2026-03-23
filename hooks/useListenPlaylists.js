@@ -6,6 +6,9 @@ import { createScreenCache } from "../lib/screenCache";
 
 const playlistsCache = createScreenCache("playlists");
 
+const isMissingTableError = (error) =>
+  error?.code === "42P01" || error?.code === "PGRST205";
+
 /**
  * Playlists and "Save to Playlist" modal state + handlers for Listen screen.
  * Parent should call fetchPlaylists() when user?.id is set (e.g. in a user effect).
@@ -18,6 +21,18 @@ export function useListenPlaylists(user) {
   const [selectedMixForPlaylist, setSelectedMixForPlaylist] = useState(null);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+
+  const closeSaveModal = useCallback(() => {
+    setShowSaveToPlaylistModal(false);
+    setSelectedMixForPlaylist(null);
+  }, []);
+
+  const syncPlaylistsState = useCallback((nextPlaylists) => {
+    setPlaylists(nextPlaylists);
+    if (user?.id) {
+      playlistsCache.set(user.id, { playlists: nextPlaylists });
+    }
+  }, [user?.id]);
 
   const fetchPlaylists = useCallback(async () => {
     if (!user?.id) {
@@ -44,7 +59,7 @@ export function useListenPlaylists(user) {
         .order("created_at", { ascending: false });
 
       if (error) {
-        if (error.code === "42P01" || error.code === "PGRST205") {
+        if (isMissingTableError(error)) {
           if (__DEV__) console.log("Playlists table doesn't exist yet");
           setPlaylists([]);
           return;
@@ -80,9 +95,8 @@ export function useListenPlaylists(user) {
         mixCount: mixCountByPlaylistId[playlist.id] ?? 0,
       }));
 
-      setPlaylists(playlistsWithCounts);
+      syncPlaylistsState(playlistsWithCounts);
       setPlaylistsError(null);
-      playlistsCache.set(user.id, { playlists: playlistsWithCounts });
     } catch (error) {
       console.error("❌ Error fetching playlists:", error);
       setPlaylistsError(error?.message || "Failed to load playlists");
@@ -90,18 +104,24 @@ export function useListenPlaylists(user) {
     } finally {
       setPlaylistsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, syncPlaylistsState]);
 
-  const handleSaveToPlaylist = useCallback((mix) => {
-    if (!user?.id) {
-      Alert.alert("Sign In Required", "You need to be signed in to save mixes to playlists.");
-      return;
-    }
-    setSelectedMixForPlaylist(mix);
-    setShowSaveToPlaylistModal(true);
-    fetchPlaylists();
-  }, [user?.id, fetchPlaylists]);
+  const handleSaveToPlaylist = useCallback(
+    async (mix) => {
+      if (!user?.id) {
+        Alert.alert("Sign In Required", "You need to be signed in to save mixes to playlists.");
+        return;
+      }
+      setSelectedMixForPlaylist(mix);
+      await fetchPlaylists();
+      setShowSaveToPlaylistModal(true);
+    },
+    [user?.id, fetchPlaylists]
+  );
 
+  /**
+   * @returns {Promise<{ ok: boolean; duplicate?: boolean }>}
+   */
   const handleAddMixToPlaylist = useCallback(async (playlistId, mixId) => {
     try {
       if (__DEV__) console.log("📝 Adding mix to playlist:", { playlistId, mixId });
@@ -116,20 +136,21 @@ export function useListenPlaylists(user) {
       if (error) {
         if (error.code === "23505") {
           if (__DEV__) console.log("✅ Mix already in playlist");
-          return;
+          return { ok: true, duplicate: true };
         }
-        if (error.code === "42P01" || error.code === "PGRST205") {
+        if (isMissingTableError(error)) {
           Alert.alert(
             "Database Setup Required",
             "The playlists feature requires database setup. Please contact support."
           );
-          return;
+          return { ok: false };
         }
         throw error;
       }
 
       if (__DEV__) console.log("✅ Successfully added mix to playlist:", data);
       HapticPatterns.success();
+      return { ok: true, duplicate: false };
     } catch (error) {
       console.error("❌ Error adding mix to playlist:", error);
       throw error;
@@ -137,7 +158,8 @@ export function useListenPlaylists(user) {
   }, []);
 
   const handleCreatePlaylist = useCallback(async () => {
-    if (!newPlaylistName.trim()) {
+    const playlistName = newPlaylistName.trim();
+    if (!playlistName) {
       Alert.alert("Error", "Please enter a playlist name");
       return;
     }
@@ -153,14 +175,14 @@ export function useListenPlaylists(user) {
         .from("playlists")
         .insert({
           user_id: user.id,
-          name: newPlaylistName.trim(),
+          name: playlistName,
           description: null,
         })
         .select()
         .single();
 
       if (error) {
-        if (error.code === "42P01" || error.code === "PGRST205") {
+        if (isMissingTableError(error)) {
           Alert.alert(
             "Database Setup Required",
             "The playlists feature requires database setup. Please contact support."
@@ -170,37 +192,94 @@ export function useListenPlaylists(user) {
         throw error;
       }
 
+      let addResult = { ok: true, duplicate: false };
       if (selectedMixForPlaylist?.id && data?.id) {
-        await handleAddMixToPlaylist(data.id, selectedMixForPlaylist.id);
+        addResult = await handleAddMixToPlaylist(data.id, selectedMixForPlaylist.id);
+        if (!addResult.ok) {
+          return;
+        }
       }
 
+      const mixCount =
+        selectedMixForPlaylist?.id && !addResult.duplicate ? 1 : 0;
+      const newEntry = {
+        ...data,
+        mixCount,
+      };
+
       setNewPlaylistName("");
-      setShowSaveToPlaylistModal(false);
-      setSelectedMixForPlaylist(null);
+      closeSaveModal();
+
+      setPlaylists((prev) => {
+        const next = [newEntry, ...prev.filter((p) => p.id !== newEntry.id)];
+        if (user?.id) {
+          playlistsCache.set(user.id, { playlists: next });
+        }
+        return next;
+      });
+
       fetchPlaylists();
-      HapticPatterns.success();
-      Alert.alert("Success", `"${newPlaylistName.trim()}" created and mix added!`);
+      if (!selectedMixForPlaylist?.id) {
+        HapticPatterns.success();
+      }
+      Alert.alert(
+        "Success",
+        selectedMixForPlaylist?.id
+          ? `"${playlistName}" created and mix added!`
+          : `"${playlistName}" created!`
+      );
     } catch (error) {
       console.error("❌ Error creating playlist:", error);
       Alert.alert("Error", "Failed to create playlist. Please try again.");
     } finally {
       setCreatingPlaylist(false);
     }
-  }, [newPlaylistName, user?.id, selectedMixForPlaylist, fetchPlaylists, handleAddMixToPlaylist]);
+  }, [
+    newPlaylistName,
+    user?.id,
+    selectedMixForPlaylist,
+    fetchPlaylists,
+    handleAddMixToPlaylist,
+    closeSaveModal,
+  ]);
 
-  const handleSelectPlaylist = useCallback(async (playlist) => {
-    if (!selectedMixForPlaylist?.id) return;
+  const handleSelectPlaylist = useCallback(
+    async (playlist) => {
+      if (!selectedMixForPlaylist?.id) return;
 
-    try {
-      await handleAddMixToPlaylist(playlist.id, selectedMixForPlaylist.id);
-      setShowSaveToPlaylistModal(false);
-      setSelectedMixForPlaylist(null);
-      fetchPlaylists();
-      Alert.alert("Success", `Added to "${playlist.name}"`);
-    } catch (error) {
-      Alert.alert("Error", "Failed to add mix to playlist. Please try again.");
-    }
-  }, [selectedMixForPlaylist, handleAddMixToPlaylist, fetchPlaylists]);
+      try {
+        const res = await handleAddMixToPlaylist(playlist.id, selectedMixForPlaylist.id);
+        if (!res?.ok) return;
+
+        closeSaveModal();
+
+        if (!res.duplicate) {
+          setPlaylists((prev) => {
+            const next = prev.map((p) =>
+              p.id === playlist.id
+                ? { ...p, mixCount: (p.mixCount ?? 0) + 1 }
+                : p
+            );
+            if (user?.id) {
+              playlistsCache.set(user.id, { playlists: next });
+            }
+            return next;
+          });
+        }
+
+        fetchPlaylists();
+        Alert.alert(
+          "Success",
+          res.duplicate
+            ? `Already in "${playlist.name}"`
+            : `Added to "${playlist.name}"`
+        );
+      } catch (error) {
+        Alert.alert("Error", "Failed to add mix to playlist. Please try again.");
+      }
+    },
+    [selectedMixForPlaylist, handleAddMixToPlaylist, fetchPlaylists, closeSaveModal, user?.id]
+  );
 
   return {
     playlists,

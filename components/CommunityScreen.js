@@ -353,6 +353,7 @@ export default function CommunityScreen({ onNavigate }) {
                 index={index}
                 delay={70}
                 maxStaggerIndex={6}
+                animate={index < 24}
               >
                 <CommunityDiscoveryCard
                   community={community}

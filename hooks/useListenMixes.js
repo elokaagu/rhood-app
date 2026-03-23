@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,14 +9,13 @@ import {
   RefreshControl,
   Platform,
   ActionSheetIOS,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { getRecommendedMixes } from "../lib/mixRecommendations";
-import { LIST_PERFORMANCE, LISTEN_LIST_PERFORMANCE } from "../lib/performanceConstants";
+import { LISTEN_LIST_PERFORMANCE } from "../lib/performanceConstants";
 import ListenScreenHeader from "../components/ListenScreenHeader";
 import ListenScreenFooter from "../components/ListenScreenFooter";
 import {
@@ -314,7 +313,7 @@ export function useListenMixes({
   }, [user?.id]);
 
   // Calculate trending mixes (ordered by likes + plays)
-  const trendingMixes = React.useMemo(() => {
+  const trendingMixes = useMemo(() => {
     return [...mixes]
       .map((mix) => {
         const likes = mixLikeCounts[mix.id] ?? mix.likeCount ?? 0;
@@ -329,7 +328,7 @@ export function useListenMixes({
   }, [mixes, mixLikeCounts]);
 
   // Get user's liked mixes
-  const userLikedMixes = React.useMemo(() => {
+  const userLikedMixes = useMemo(() => {
     if (!user?.id || likedMixIds.size === 0) return [];
     return mixes
       .filter((mix) => likedMixIds.has(mix.id))
@@ -337,7 +336,7 @@ export function useListenMixes({
   }, [mixes, likedMixIds, user?.id]);
 
   // Get unique genres from mixes
-  const availableGenres = React.useMemo(() => {
+  const availableGenres = useMemo(() => {
     const genreSet = new Set();
     mixes.forEach((mix) => {
       if (mix.genre && mix.genre.trim()) {
@@ -348,7 +347,7 @@ export function useListenMixes({
   }, [mixes]);
 
   // Filter mixes for search
-  const filteredMixes = React.useMemo(() => {
+  const filteredMixes = useMemo(() => {
     if (!searchQuery.trim()) return [];
     
     const normalizedQuery = normalizeSearchValue(searchQuery);
@@ -365,6 +364,90 @@ export function useListenMixes({
       return matchesSearch;
   });
   }, [mixes, searchQuery]);
+
+  /** Shared DB + storage cleanup for own mixes (long-press delete + manage modal). */
+  const deleteMixFromDatabaseAndStorage = useCallback(async (mix) => {
+    if (!mix?.id) {
+      return { ok: false, error: new Error("Missing mix id") };
+    }
+
+    const { error: dbError } = await supabase
+      .from("mixes")
+      .delete()
+      .eq("id", mix.id);
+
+    if (dbError) {
+      return { ok: false, error: dbError };
+    }
+
+    const storagePathFromUrl = (url) => {
+      if (!url || typeof url !== "string" || !url.includes("/mixes/")) return null;
+      const part = url.split("/mixes/")[1];
+      return part || null;
+    };
+
+    const removeStorage = async (url) => {
+      const path = storagePathFromUrl(url);
+      if (!path) return;
+      const { error } = await supabase.storage.from("mixes").remove([path]);
+      if (error) {
+        console.error("❌ Error removing mix file from storage:", error);
+      }
+    };
+
+    await removeStorage(mix.audioUrl);
+    await removeStorage(mix.file_url);
+    await removeStorage(mix.audio_url);
+
+    const imageCandidates = [mix.image, mix.artwork_url, mix.image_url];
+    for (const u of imageCandidates) {
+      if (typeof u === "string" && u.includes("supabase")) {
+        await removeStorage(u);
+      }
+    }
+
+    return { ok: true };
+  }, []);
+
+  const fetchUserMixes = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      setLoadingUserMixes(true);
+      const mixes = await db.getUserMixes(user.id);
+      const list = mixes || [];
+      setUserMixes(list);
+      setPinnedMixesCount(list.filter((m) => m.is_pinned).length);
+      setHasUserMixes(list.length > 0);
+    } catch (error) {
+      console.error("❌ Error fetching user mixes:", error);
+      setUserMixes([]);
+      setHasUserMixes(false);
+    } finally {
+      setLoadingUserMixes(false);
+    }
+  }, [user?.id]);
+
+  const handleDeleteMix = useCallback(
+    async (mix) => {
+      try {
+        if (playingMixId === mix.id) {
+          onStopAudio();
+        }
+        const result = await deleteMixFromDatabaseAndStorage(mix);
+        if (!result.ok) {
+          console.error("❌ Error deleting mix:", result.error);
+          Alert.alert("Error", "Failed to delete mix. Please try again.");
+          return;
+        }
+        setMixes((prevMixes) => prevMixes.filter((m) => m.id !== mix.id));
+        Alert.alert("Success", "Mix deleted successfully");
+      } catch (error) {
+        console.error("❌ Error deleting mix:", error);
+        Alert.alert("Error", "Failed to delete mix. Please try again.");
+      }
+    },
+    [playingMixId, onStopAudio, deleteMixFromDatabaseAndStorage]
+  );
 
   const handleMixPress = useCallback(
     (mix) => {
@@ -493,22 +576,6 @@ export function useListenMixes({
     }
   }, [hasUserMixes, fetchUserMixes]);
 
-  const fetchUserMixes = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      setLoadingUserMixes(true);
-      const mixes = await db.getUserMixes(user.id);
-      setUserMixes(mixes || []);
-      const pinnedCount = (mixes || []).filter((m) => m.is_pinned).length;
-      setPinnedMixesCount(pinnedCount);
-    } catch (error) {
-      console.error("❌ Error fetching user mixes:", error);
-      setUserMixes([]);
-    } finally {
-      setLoadingUserMixes(false);
-    }
-  }, [user?.id]);
-
   // Handle pin/unpin mix
   const handlePinMix = async (mix) => {
     if (!user?.id) return;
@@ -574,62 +641,17 @@ export function useListenMixes({
           style: "destructive",
           onPress: async () => {
             try {
-              // Delete from database
-              const { error: dbError } = await supabase
-                .from("mixes")
-                .delete()
-                .eq("id", mix.id);
-
-              if (dbError) {
-                console.error("❌ Error deleting mix:", dbError);
-                Alert.alert("Error", "Failed to delete mix. Please try again.");
-                return;
-              }
-
-              // Delete audio file from storage
-              if (mix.file_url && typeof mix.file_url === "string") {
-                const audioPath = mix.file_url.split("/mixes/")[1];
-                if (audioPath) {
-                  const { error: audioError } = await supabase.storage
-                    .from("mixes")
-                    .remove([audioPath]);
-
-                  if (audioError) {
-                    console.error("❌ Error deleting audio file:", audioError);
-                  }
-                }
-              }
-
-              // Delete artwork from storage if it exists
-              if (
-                mix.artwork_url &&
-                typeof mix.artwork_url === "string" &&
-                mix.artwork_url.includes("supabase")
-              ) {
-                const artworkPath = mix.artwork_url.split("/mixes/")[1];
-                if (artworkPath) {
-                  const { error: artworkError } = await supabase.storage
-                    .from("mixes")
-                    .remove([artworkPath]);
-
-                  if (artworkError) {
-                    console.error("❌ Error deleting artwork:", artworkError);
-                  }
-                }
-              }
-
-              // Stop audio if this mix is currently playing
               if (playingMixId === mix.id) {
                 onStopAudio();
               }
-
-              // Refresh mixes list
+              const result = await deleteMixFromDatabaseAndStorage(mix);
+              if (!result.ok) {
+                console.error("❌ Error deleting mix:", result.error);
+                Alert.alert("Error", "Failed to delete mix. Please try again.");
+                return;
+              }
+              setMixes((prev) => prev.filter((m) => m.id !== mix.id));
               await fetchUserMixes();
-              
-              // Update hasUserMixes state
-              const remainingMixes = userMixes.filter((m) => m.id !== mix.id);
-              setHasUserMixes(remainingMixes.length > 0);
-              
               HapticPatterns.success();
             } catch (error) {
               console.error("❌ Error deleting mix:", error);
@@ -658,71 +680,6 @@ export function useListenMixes({
     ),
     [refreshing, handleRefresh]
   );
-
-  const handleDeleteMix = async (mix) => {
-    try {
-      console.log("🗑️ Deleting mix:", mix.title);
-
-      // Stop audio if this mix is currently playing
-      if (playingMixId === mix.id) {
-        onStopAudio();
-      }
-
-      // Delete from database
-      const { error: dbError } = await supabase
-        .from("mixes")
-        .delete()
-        .eq("id", mix.id);
-
-      if (dbError) {
-        console.error("❌ Error deleting mix from database:", dbError);
-        Alert.alert("Error", "Failed to delete mix. Please try again.");
-        return;
-      }
-
-      // Delete audio file from storage
-      if (mix.audioUrl && typeof mix.audioUrl === "string") {
-        const audioPath = mix.audioUrl.split("/mixes/")[1];
-        if (audioPath) {
-          const { error: audioError } = await supabase.storage
-            .from("mixes")
-            .remove([audioPath]);
-
-          if (audioError) {
-            console.error("❌ Error deleting audio file:", audioError);
-          }
-        }
-      }
-
-      // Delete artwork from storage if it exists
-      if (
-        mix.image &&
-        typeof mix.image === "string" &&
-        mix.image.includes("supabase")
-      ) {
-        const artworkPath = mix.image.split("/mixes/")[1];
-        if (artworkPath) {
-          const { error: artworkError } = await supabase.storage
-            .from("mixes")
-            .remove([artworkPath]);
-
-          if (artworkError) {
-            console.error("❌ Error deleting artwork:", artworkError);
-          }
-        }
-      }
-
-      // Remove from local state
-      setMixes((prevMixes) => prevMixes.filter((m) => m.id !== mix.id));
-
-      console.log("✅ Mix deleted successfully");
-      Alert.alert("Success", "Mix deleted successfully");
-    } catch (error) {
-      console.error("❌ Error deleting mix:", error);
-      Alert.alert("Error", "Failed to delete mix. Please try again.");
-    }
-  };
-
 
   const handleAddToQueue = (mix) => {
     if (onAddToQueue) {

@@ -59,6 +59,18 @@ export default {
   clearButton: {
     padding: 4,
   },
+  searchLoadingIndicator: {
+    marginLeft: 4,
+    marginRight: 4,
+  },
+  searchErrorHint: {
+    fontSize: 12,
+    fontFamily: FONT_BODY,
+    color: "hsl(0, 50%, 55%)",
+    marginTop: -4,
+    marginBottom: 4,
+    marginLeft: 4,
+  },
   suggestionsContainer: {
     position: "absolute",
     top: "100%",

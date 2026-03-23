@@ -1,5 +1,7 @@
 /**
- * Discover tab state, loaders, and derived list data.
+ * Discover tab state, loaders, derived filtering, and list layout.
+ * View-model style: imports row component + screen styles for {@link useDiscoverRenderItem}.
+ * Loaders read `user` from {@link discoverCtxRef} for a complete ctx contract and fast paths.
  */
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Animated } from "react-native";
@@ -29,6 +31,7 @@ export function useDiscoverData(user, searchQuery) {
 
   const discoverCtxRef = useRef({});
   discoverCtxRef.current = {
+    user,
     setDiscoverUsers,
     setDiscoverLoading,
     setDiscoverLoadError,
@@ -50,7 +53,10 @@ export function useDiscoverData(user, searchQuery) {
     if (user?.id) {
       loadNearbyOpportunities();
     } else {
+      setNearbyOpportunities([]);
       setNearbyOpportunitiesLoading(false);
+      setNearbyDJs([]);
+      setNearbyDJsLoading(false);
     }
   }, [user?.id, user?.city, loadNearbyOpportunities]);
 

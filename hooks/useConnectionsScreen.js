@@ -1,49 +1,60 @@
 /**
  * Orchestrates Connections screen: composes data/actions hooks, bootstrap, and prop bundles.
+ * Navigation lives here + actions — {@link useConnectionsModalState} is modal-only (no onNavigate).
  */
 import { useState, useCallback } from "react";
-import { Animated } from "react-native";
 import { useDiscoverData, useDiscoverRenderItem } from "./useDiscoverData";
 import { useConnectionsData } from "./useConnectionsData";
 import { useConnectionsActions } from "./useConnectionsActions";
 import { useConnectionsModalState } from "./useConnectionsModalState";
 import { useConnectionsScreenSearch } from "./useConnectionsScreenSearch";
 import { useConnectionsInitialLoad } from "./useConnectionsInitialLoad";
-import { useRenderConnectionSectionItem } from "./useRenderConnectionSectionItem";
+import { useConnectionSectionRenderer } from "./useConnectionSectionRenderer";
 import { useConnectionsScreenPropBundles } from "./useConnectionsScreenPropBundles";
+import { useConnectionsTabChange } from "./useConnectionsTabChange";
+import { CONNECTIONS_SCREEN_TAB } from "../lib/connectionsScreenTabIds";
 
 export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
   const {
     searchQuery,
-    setSearchQuery,
     searchSuggestions,
-    setSearchSuggestions,
     showSuggestions,
-    setShowSuggestions,
+    isSearching,
+    searchError,
+    onSearchChange,
+    clearSearch,
+    selectSuggestion,
   } = useConnectionsScreenSearch();
 
-  const { modalCtx, modalState, ...connectionModalFields } =
-    useConnectionsModalState(onNavigate);
+  const {
+    modalActions,
+    modalState,
+    handleCloseConnectionModal,
+    showConnectionModal,
+    connectionMessage,
+    connectionModalType,
+    connectionModalPrimaryText,
+    connectionModalSecondaryText,
+  } = useConnectionsModalState();
 
   const discoverData = useDiscoverData(propUser, searchQuery);
-  const discoverLoaders = {
-    loadDiscoverDJs: discoverData.loadDiscoverDJs,
-    loadNearbyDJs: discoverData.loadNearbyDJs,
-  };
 
   const connectionsData = useConnectionsData(
     propUser,
     activeTab,
     searchQuery,
-    discoverLoaders,
-    modalCtx
+    discoverData.loadDiscoverDJs,
+    discoverData.loadNearbyDJs,
+    modalActions,
+    onNavigate
   );
 
   const actions = useConnectionsActions(
     connectionsData,
     discoverData,
+    modalActions,
     modalState,
     onNavigate,
     route
@@ -55,64 +66,39 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
     discoverData,
   });
 
-  const renderConnectionSectionItem = useRenderConnectionSectionItem(
-    connectionsData,
-    actions
-  );
+  const renderConnectionSectionItem = useConnectionSectionRenderer({
+    communityMessages: connectionsData.communityMessages,
+    communityUnreadCounts: connectionsData.communityUnreadCounts,
+    getLastMessageSender: connectionsData.getLastMessageSender,
+    getLastMessageContent: connectionsData.getLastMessageContent,
+    getLastMessageTime: connectionsData.getLastMessageTime,
+    handleGroupChatPress: actions.handleGroupChatPress,
+    handleConnectionPress: actions.handleConnectionPress,
+    handleOpenConnectionOptions: actions.handleOpenConnectionOptions,
+  });
   const renderDiscoverItem = useDiscoverRenderItem(discoverData, actions);
 
-  const handleTabChange = useCallback(
-    (tab) => {
-      if (tab === "discover") {
-        setActiveTab("discover");
-        discoverData.discoverFadeAnim.setValue(0);
-        const len = discoverData.discoverUsers?.length ?? 0;
-        if (len === 0) {
-          discoverData.loadDiscoverDJs();
-        } else {
-          Animated.timing(discoverData.discoverFadeAnim, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }).start();
-        }
-      } else if (tab === "connections") {
-        setActiveTab("connections");
-        Animated.timing(connectionsData.connectionsFadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
-        discoverData.discoverFadeAnim.setValue(0);
-      }
-    },
-    [
-      discoverData.discoverFadeAnim,
-      discoverData.discoverUsers,
-      discoverData.loadDiscoverDJs,
-      connectionsData.connectionsFadeAnim,
-    ]
-  );
-
-  const handleClearSearch = useCallback(() => {
-    setSearchQuery("");
-    setSearchSuggestions([]);
-    setShowSuggestions(false);
-  }, [setSearchQuery, setSearchSuggestions, setShowSuggestions]);
+  const handleTabChange = useConnectionsTabChange({
+    setActiveTab,
+    discoverFadeAnim: discoverData.discoverFadeAnim,
+    discoverUsers: discoverData.discoverUsers,
+    loadDiscoverDJs: discoverData.loadDiscoverDJs,
+    connectionsFadeAnim: connectionsData.connectionsFadeAnim,
+  });
 
   const handleSelectSearchSuggestion = useCallback(
     (suggestion) => {
-      setShowSuggestions(false);
+      selectSuggestion(suggestion);
       onNavigate?.("user-profile", {
         userId: suggestion.id,
         djName: suggestion.name,
       });
     },
-    [onNavigate]
+    [onNavigate, selectSuggestion]
   );
 
   const onGoToDiscover = useCallback(
-    () => handleTabChange("discover"),
+    () => handleTabChange(CONNECTIONS_SCREEN_TAB.DISCOVER),
     [handleTabChange]
   );
 
@@ -127,10 +113,12 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
     onTabChange: handleTabChange,
     onGoToDiscover,
     searchQuery,
-    onSearchChange: setSearchQuery,
+    onSearchChange,
     searchSuggestions,
     showSuggestions,
-    onClearSearch: handleClearSearch,
+    isSearching,
+    searchError,
+    onClearSearch: clearSearch,
     onSelectSearchSuggestion: handleSelectSearchSuggestion,
     connectionsData,
     discoverData,
@@ -138,10 +126,15 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
     renderConnectionSectionItem,
     renderDiscoverItem,
     onNavigate,
-    ...connectionModalFields,
+    showConnectionModal,
+    handleCloseConnectionModal,
+    connectionMessage,
+    connectionModalType,
+    connectionModalPrimaryText,
+    connectionModalSecondaryText,
   });
 
-  return {
+  const screenResult = {
     activeTab,
     headerProps,
     connectionsTabProps,
@@ -149,4 +142,14 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
     connectionModalProps,
     locationModalProps,
   };
+
+  if (__DEV__) {
+    screenResult._debug = {
+      searchQuery,
+      activeTab,
+      connectionsCount: connectionsData.connections?.length ?? 0,
+    };
+  }
+
+  return screenResult;
 }

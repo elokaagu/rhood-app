@@ -7,6 +7,8 @@ import {
 
 /**
  * Subscribes to new direct or group messages and appends to local state.
+ * Waits for `loading === false` so the initial fetch and subscription don’t fight; ensure the
+ * initial load covers recent rows so nothing is missed during that window.
  */
 export function useMessagesRealtimeSubscription({
   userId,
@@ -18,12 +20,76 @@ export function useMessagesRealtimeSubscription({
   scrollViewRef,
 }) {
   useEffect(() => {
+    const profileCache = new Map();
+
     if (!userId || loading) return;
+
+    let isActive = true;
+    let scrollRafId = null;
+
+    const getProfile = async (profileId) => {
+      if (!profileId) return null;
+      if (profileCache.has(profileId)) {
+        return profileCache.get(profileId);
+      }
+      const profile = await db.getUserProfilePublic(profileId);
+      if (!isActive) return null;
+      profileCache.set(profileId, profile ?? null);
+      return profile;
+    };
+
+    const appendMessage = (newMessage) => {
+      if (!isActive) return;
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === newMessage.id)) return prev;
+        return [...prev, newMessage];
+      });
+    };
+
+    /** Coalesces rapid inserts into one scroll; uses rAF instead of a fixed timeout. */
+    const scheduleScrollToEnd = () => {
+      if (scrollRafId != null) {
+        cancelAnimationFrame(scrollRafId);
+      }
+      scrollRafId = requestAnimationFrame(() => {
+        scrollRafId = null;
+        if (!isActive) return;
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      });
+    };
+
+    const handleDirectInsert = async (payload) => {
+      if (__DEV__) console.log("📨 New message received:", payload.new);
+      const senderProfile = await getProfile(payload.new.sender_id);
+      if (!isActive) return;
+
+      const newMessage = transformDirectMessageFromRealtime(
+        payload.new,
+        senderProfile,
+        userId
+      );
+      appendMessage(newMessage);
+      scheduleScrollToEnd();
+    };
+
+    const handleGroupInsert = async (payload) => {
+      if (__DEV__) console.log("📨 New group message received:", payload.new);
+      const senderProfile = await getProfile(payload.new.author_id);
+      if (!isActive) return;
+
+      const newMessage = transformGroupMessageFromRealtime(
+        payload.new,
+        senderProfile,
+        userId
+      );
+      appendMessage(newMessage);
+      scheduleScrollToEnd();
+    };
 
     let channel;
 
     if (chatType === "individual" && threadId) {
-      console.log("🔔 Setting up real-time subscription for thread:", threadId);
+      if (__DEV__) console.log("🔔 Setting up real-time subscription for thread:", threadId);
 
       channel = supabase
         .channel(`messages-${threadId}`)
@@ -35,32 +101,15 @@ export function useMessagesRealtimeSubscription({
             table: "messages",
             filter: `thread_id=eq.${threadId}`,
           },
-          async (payload) => {
-            console.log("📨 New message received:", payload.new);
-
-            const senderProfile = await db.getUserProfilePublic(
-              payload.new.sender_id
-            );
-
-            const newMessage = transformDirectMessageFromRealtime(
-              payload.new,
-              senderProfile,
-              userId
-            );
-
-            setMessages((prev) => {
-              if (prev.find((m) => m.id === newMessage.id)) {
-                return prev;
-              }
-              return [...prev, newMessage];
-            });
-
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
+          (payload) => {
+            void handleDirectInsert(payload);
           }
         )
-        .subscribe();
+        .subscribe((status, err) => {
+          if (__DEV__ && err) {
+            console.warn("Messages realtime subscription:", status, err);
+          }
+        });
     } else if (chatType === "group" && communityId) {
       channel = supabase
         .channel(`group-messages-${communityId}`)
@@ -72,37 +121,25 @@ export function useMessagesRealtimeSubscription({
             table: "community_posts",
             filter: `community_id=eq.${communityId}`,
           },
-          async (payload) => {
-            console.log("📨 New group message received:", payload.new);
-
-            const senderProfile = await db.getUserProfilePublic(
-              payload.new.author_id
-            );
-
-            const newMessage = transformGroupMessageFromRealtime(
-              payload.new,
-              senderProfile,
-              userId
-            );
-
-            setMessages((prev) => {
-              if (prev.find((m) => m.id === newMessage.id)) {
-                return prev;
-              }
-              return [...prev, newMessage];
-            });
-
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
+          (payload) => {
+            void handleGroupInsert(payload);
           }
         )
-        .subscribe();
+        .subscribe((status, err) => {
+          if (__DEV__ && err) {
+            console.warn("Group messages realtime subscription:", status, err);
+          }
+        });
     }
 
     return () => {
+      isActive = false;
+      if (scrollRafId != null) {
+        cancelAnimationFrame(scrollRafId);
+        scrollRafId = null;
+      }
       if (channel) {
-        console.log("🔕 Cleaning up subscription");
+        if (__DEV__) console.log("🔕 Cleaning up subscription");
         supabase.removeChannel(channel);
       }
     };

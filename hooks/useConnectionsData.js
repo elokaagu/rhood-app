@@ -2,26 +2,42 @@
  * Connections tab state, loaders, realtime, and derived list data.
  */
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Animated, RefreshControl } from "react-native";
+import { Animated } from "react-native";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
-import { LIST_PERFORMANCE, CONNECTIONS_LIST_PERFORMANCE } from "../lib/performanceConstants";
+import { CONNECTIONS_LIST_PERFORMANCE } from "../lib/performanceConstants";
 import { SCREEN_CACHE_STALE_MS } from "../lib/cacheConstants";
 import {
   normalizeConnectionStatus,
   isAcceptedConnectionStatus,
   isPendingConnectionStatus,
 } from "../lib/connectionStatusUtils";
-import { formatMessageTime, getUserName } from "../lib/connectionListUtils";
+import { formatMessageTime } from "../lib/connectionListUtils";
 import { loadUserAndConnectionsImpl, loadUserCommunitiesImpl } from "../lib/connectionsScreenLoaders";
+import {
+  connectionsSessionCacheGet,
+  connectionsSessionCacheSet,
+  connectionsSessionCacheIsFresh,
+} from "../lib/connectionsSessionCache";
+import { CONNECTION_SECTION_TYPE } from "../lib/connectionsSectionTypes";
+
 const STALE_MS = SCREEN_CACHE_STALE_MS;
 const PERIODIC_REFRESH_INTERVAL_MS = 30 * 1000;
 const REALTIME_DEBOUNCE_MS = 600;
 
-// Cache connections data by userId so revisiting the tab doesn't refetch every time (screen unmounts when switching tabs)
-const connectionsCacheByUser = {};
-
-export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoaders, modalCtx) {
+/**
+ * @param {() => void} [loadDiscoverDJs] - from discover layer; refetched when connections realtime fires
+ * @param {() => void} [loadNearbyDJs] - same
+ */
+export function useConnectionsData(
+  propUser,
+  activeTab,
+  searchQuery,
+  loadDiscoverDJs,
+  loadNearbyDJs,
+  modalActions,
+  onNavigate
+) {
   const [user, setUser] = useState(() =>
     propUser && typeof propUser === "object" && !Array.isArray(propUser) ? propUser : null
   );
@@ -50,27 +66,54 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
   const realtimeDebounceRef = useRef(null);
 
   const { userCommunities, communityMessages, communityUnreadCounts } = communitiesData;
-  const loadDiscoverDJs = discoverLoaders?.loadDiscoverDJs ?? (() => {});
-  const loadNearbyDJs = discoverLoaders?.loadNearbyDJs ?? (() => {});
+  const reloadDiscoverList = loadDiscoverDJs ?? (() => {});
+  const reloadNearbyDJs = loadNearbyDJs ?? (() => {});
 
-  const connectionsLoaderCtxRef = useRef({});
-  connectionsLoaderCtxRef.current = {
-    setConnectionsLoadError,
-    setLoading,
-    setHasLoadedConnections,
-    setUser,
-    setConnections,
-    setLastMessages,
-    hasLoadedMessagesRef,
-    prevConnectionStatusesRef,
-    lastLoadedAtRef,
-    connectionsFadeAnim,
-    propUser,
-    hasLoadedConnections,
-    setCommunitiesData,
-    user,
-    ...(modalCtx || {}),
-  };
+  /** Explicit loader context (rebuilt when deps change) — avoids ref-based service locator. */
+  const getConnectionsLoaderCtx = useCallback(
+    () => ({
+      setConnectionsLoadError,
+      setLoading,
+      setHasLoadedConnections,
+      setUser,
+      setConnections,
+      setLastMessages,
+      hasLoadedMessagesRef,
+      prevConnectionStatusesRef,
+      lastLoadedAtRef,
+      connectionsFadeAnim,
+      propUser,
+      hasLoadedConnections,
+      setCommunitiesData,
+      user,
+      ...(modalActions || {}),
+      onNavigate,
+    }),
+    [
+      setConnectionsLoadError,
+      setLoading,
+      setHasLoadedConnections,
+      setUser,
+      setConnections,
+      setLastMessages,
+      connectionsFadeAnim,
+      propUser,
+      hasLoadedConnections,
+      setCommunitiesData,
+      user,
+      modalActions,
+      onNavigate,
+    ]
+  );
+
+  const loadUserAndConnections = useCallback(
+    (opts) => loadUserAndConnectionsImpl(getConnectionsLoaderCtx(), opts),
+    [getConnectionsLoaderCtx]
+  );
+  const loadUserCommunities = useCallback(
+    () => loadUserCommunitiesImpl(getConnectionsLoaderCtx()),
+    [getConnectionsLoaderCtx]
+  );
 
   useEffect(() => {
     if (propUser && typeof propUser === "object" && !Array.isArray(propUser) && propUser !== user) {
@@ -78,21 +121,29 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
     }
   }, [propUser, user]);
 
-  const loadUserAndConnections = useCallback((opts) => loadUserAndConnectionsImpl(connectionsLoaderCtxRef.current, opts), []);
-  const loadUserCommunities = useCallback(() => loadUserCommunitiesImpl(connectionsLoaderCtxRef.current), []);
-
   const checkRhoodMembership = useCallback(() => loadUserCommunities(), [loadUserCommunities]);
 
   // If we have cached data for this user that's not stale, hydrate state and return true so caller can skip refetch.
   const hydrateFromCacheIfAvailable = useCallback((userId) => {
     if (!userId) return false;
-    const cached = connectionsCacheByUser[userId];
-    if (!cached || !cached.connections || !Number.isFinite(cached.lastLoadedAt)) return false;
-    if (Date.now() - cached.lastLoadedAt > STALE_MS) return false;
-    setUser((prev) => prev?.id === userId ? prev : cached.user || prev);
+    if (!connectionsSessionCacheIsFresh(userId, STALE_MS)) return false;
+    const cached = connectionsSessionCacheGet(userId);
+    if (!cached?.connections || !Number.isFinite(cached.lastLoadedAt)) return false;
+    setUser((prev) => (prev?.id === userId ? prev : cached.user || prev));
     setConnections(cached.connections);
     setLastMessages(cached.lastMessages || {});
-    setCommunitiesData(cached.communitiesData || { userCommunities: [], communityMessages: {}, communityUnreadCounts: {}, rhoodGroupData: null, isRhoodMember: false, rhoodMemberCount: 0, latestGroupMessage: null, unreadGroupCount: 0 });
+    setCommunitiesData(
+      cached.communitiesData || {
+        userCommunities: [],
+        communityMessages: {},
+        communityUnreadCounts: {},
+        rhoodGroupData: null,
+        isRhoodMember: false,
+        rhoodMemberCount: 0,
+        latestGroupMessage: null,
+        unreadGroupCount: 0,
+      }
+    );
     setLoading(false);
     setHasLoadedConnections(true);
     setConnectionsLoadError(null);
@@ -103,17 +154,16 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
 
   // Persist to cache after successful load so next time we open the tab we can show cached data.
   const writeCache = useCallback(() => {
-    const uid = connectionsLoaderCtxRef.current?.user?.id || connectionsLoaderCtxRef.current?.propUser?.id;
+    const uid = user?.id || propUser?.id;
     if (!uid) return;
-    connectionsCacheByUser[uid] = {
-      userId: uid,
-      user: connectionsLoaderCtxRef.current.user,
+    connectionsSessionCacheSet(uid, {
+      user,
       connections,
       lastMessages,
       communitiesData,
       lastLoadedAt: lastLoadedAtRef.current,
-    };
-  }, [connections, lastMessages, communitiesData]);
+    });
+  }, [user, propUser?.id, connections, lastMessages, communitiesData]);
 
   const loadLastMessagesForConnections = useCallback(async (userId) => {
     try {
@@ -130,29 +180,33 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
     if (user?.id && hasLoadedConnections) writeCache();
   }, [user?.id, hasLoadedConnections, connections, lastMessages, communitiesData, writeCache]);
 
+  // First visit to Connections tab when initial bootstrap did not load (e.g. opened Discover first).
   useEffect(() => {
-    if (activeTab !== "connections" || !user?.id) return;
-    const isStale = Date.now() - lastLoadedAtRef.current > STALE_MS;
-    if (!hasLoadedConnections) {
-      if (mountedWithConnectionsTabRef.current) {
-        mountedWithConnectionsTabRef.current = false;
-        return;
-      }
-      const run = async () => {
-        setLoading(true);
-        await loadUserAndConnections({ showLoader: true, deferLoadingEnd: true });
-        await loadUserCommunities();
-        setLoading(false);
-        setHasLoadedConnections(true);
-        lastLoadedAtRef.current = Date.now();
-        Animated.timing(connectionsFadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-      };
-      run();
-    } else if (isStale) {
-      loadUserAndConnections({ showLoader: false });
-      loadUserCommunities();
+    if (activeTab !== "connections" || !user?.id || hasLoadedConnections) return;
+    if (mountedWithConnectionsTabRef.current) {
+      mountedWithConnectionsTabRef.current = false;
+      return;
     }
+    const run = async () => {
+      setLoading(true);
+      await loadUserAndConnections({ showLoader: true, deferLoadingEnd: true });
+      await loadUserCommunities();
+      setLoading(false);
+      setHasLoadedConnections(true);
+      lastLoadedAtRef.current = Date.now();
+      Animated.timing(connectionsFadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    };
+    run();
   }, [activeTab, user?.id, hasLoadedConnections, loadUserAndConnections, loadUserCommunities, connectionsFadeAnim]);
+
+  // Re-entering Connections tab with stale data — background refresh.
+  useEffect(() => {
+    if (activeTab !== "connections" || !user?.id || !hasLoadedConnections) return;
+    const isStale = Date.now() - lastLoadedAtRef.current > STALE_MS;
+    if (!isStale) return;
+    loadUserAndConnections({ showLoader: false });
+    loadUserCommunities();
+  }, [activeTab, user?.id, hasLoadedConnections, loadUserAndConnections, loadUserCommunities]);
   useEffect(() => {
     if (user?.id && connections.length > 0 && hasLoadedConnections && !hasLoadedMessagesRef.current) {
       hasLoadedMessagesRef.current = true;
@@ -209,8 +263,8 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
           realtimeDebounceRef.current = setTimeout(() => {
             realtimeDebounceRef.current = null;
             loadUserAndConnections({ showLoader: false });
-            loadDiscoverDJs();
-            loadNearbyDJs();
+            reloadDiscoverList();
+            reloadNearbyDJs();
           }, REALTIME_DEBOUNCE_MS);
         }
       })
@@ -219,7 +273,7 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
       if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, [user?.id, loadUserAndConnections, loadDiscoverDJs, loadNearbyDJs]);
+  }, [user?.id, loadUserAndConnections, reloadDiscoverList, reloadNearbyDJs]);
 
   const handleRefresh = useCallback(async () => {
     HapticPatterns.pullToRefresh();
@@ -244,11 +298,19 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
     return filtered;
   }, [connections, searchQuery]);
 
-  const connectionsWithMessages = useMemo(
+  /** Connections that appear in the messages-style list (have a previewable last message). */
+  const messageListConnections = useMemo(
     () =>
       filteredConnections.filter((c) => {
         const lm = lastMessages[c.id];
-        return lm && (lm.content || lm.messageType === "image" || lm.messageType === "video" || lm.messageType === "audio" || lm.messageType === "file");
+        return (
+          lm &&
+          (lm.content ||
+            lm.messageType === "image" ||
+            lm.messageType === "video" ||
+            lm.messageType === "audio" ||
+            lm.messageType === "file")
+        );
       }),
     [filteredConnections, lastMessages]
   );
@@ -268,10 +330,18 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
 
   const connectionSections = useMemo(
     () => [
-      { key: "communities", data: userCommunities || [] },
-      { key: "connections", data: connectionsWithMessages || [] },
+      {
+        key: "communities",
+        type: CONNECTION_SECTION_TYPE.COMMUNITY,
+        data: userCommunities || [],
+      },
+      {
+        key: "connections",
+        type: CONNECTION_SECTION_TYPE.CONNECTION,
+        data: messageListConnections || [],
+      },
     ],
-    [userCommunities, connectionsWithMessages]
+    [userCommunities, messageListConnections]
   );
 
   const getLastMessageContent = useCallback(
@@ -321,8 +391,14 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
     [connectionSections]
   );
 
-  const refreshControl = (
-    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="hsl(0, 0%, 100%)" colors={["hsl(0, 0%, 100%)"]} />
+  const refreshControlProps = useMemo(
+    () => ({
+      refreshing,
+      onRefresh: handleRefresh,
+      tintColor: "hsl(0, 0%, 100%)",
+      colors: ["hsl(0, 0%, 100%)"],
+    }),
+    [refreshing, handleRefresh]
   );
 
   return {
@@ -352,17 +428,18 @@ export function useConnectionsData(propUser, activeTab, searchQuery, discoverLoa
     hydrateFromCacheIfAvailable,
     handleRefresh,
     filteredConnections,
-    connectionsWithMessages,
+    messageListConnections,
+    /** @deprecated Use messageListConnections */
+    connectionsWithMessages: messageListConnections,
     connectionSections,
     incomingConnectionRequests,
     getLastMessageContent,
     getLastMessageTime,
     getLastMessageSender,
     getConnectionListItemLayout,
-    refreshControl,
+    refreshControlProps,
     hasLoadedMessagesRef,
     lastLoadedAtRef,
     prevConnectionStatusesRef,
-    connectionsLoaderCtxRef,
   };
 }
