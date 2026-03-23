@@ -3,7 +3,7 @@
  * Uses shared tokens (COLORS, TYPOGRAPHY, SPACING, RADIUS), ProgressiveImage,
  * memoized artwork, and list/scroll perf patterns from lib/performanceConstants.
  */
-import React, { useMemo, useState, useCallback, memo } from "react";
+import React, { useMemo, useState, useCallback, useRef, memo } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,9 @@ import {
   StatusBar,
   ScrollView,
   useWindowDimensions,
+  Animated,
+  PanResponder,
+  Dimensions,
 } from "react-native";
 import {
   SafeAreaView,
@@ -87,6 +90,10 @@ function FullScreenPlayerModalBody({
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const [moreMenuVisible, setMoreMenuVisible] = useState(false);
+  const scrollYRef = useRef(0);
+  const moreMenuOpenRef = useRef(false);
+  moreMenuOpenRef.current = moreMenuVisible;
+  const dragY = useRef(new Animated.Value(0)).current;
 
   /** Top inset inside Modal (often 0 without nested SafeAreaProvider). */
   const topInset = Math.max(
@@ -133,9 +140,54 @@ function FullScreenPlayerModalBody({
   const hasAboutDj = Boolean(djBio);
 
   const handleClose = useCallback(() => {
+    dragY.setValue(0);
     void HapticPatterns.backButton();
     onClose();
-  }, [onClose]);
+  }, [dragY, onClose]);
+
+  const completeSwipeDismiss = useCallback(() => {
+    setMoreMenuVisible(false);
+    const h = Dimensions.get("window").height;
+    Animated.timing(dragY, {
+      toValue: Math.min(h * 0.5, 520),
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      dragY.setValue(0);
+      void HapticPatterns.backButton();
+      onClose();
+    });
+  }, [dragY, onClose]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) =>
+          !moreMenuOpenRef.current &&
+          scrollYRef.current <= 0.5 &&
+          g.dy > 14 &&
+          g.dy > Math.abs(g.dx) * 0.85,
+        onPanResponderMove: (_, g) => {
+          if (g.dy > 0) {
+            dragY.setValue(g.dy);
+          }
+        },
+        onPanResponderRelease: (_, g) => {
+          const shouldDismiss = g.dy > 110 || (g.vy > 0 && g.vy > 1.2);
+          if (shouldDismiss) {
+            completeSwipeDismiss();
+          } else {
+            Animated.spring(dragY, {
+              toValue: 0,
+              useNativeDriver: true,
+              friction: 8,
+              tension: 80,
+            }).start();
+          }
+        },
+      }),
+    [dragY, completeSwipeDismiss]
+  );
 
   const openOverflow = useCallback(() => {
     void HapticPatterns.itemPress();
@@ -181,43 +233,54 @@ function FullScreenPlayerModalBody({
 
   return (
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
-      {/* Top: explicit inset — Modal doesn’t inherit app safe area without nested SafeAreaProvider */}
-      <View style={[styles.topBar, { paddingTop: topInset }]}>
-            <TouchableOpacity
-              onPress={handleClose}
-              style={styles.iconHit}
-              hitSlop={14}
-              accessibilityLabel="Minimize player"
-              accessibilityRole="button"
-              activeOpacity={0.65}
-            >
-              <Ionicons name="chevron-down" size={30} color={COLORS.textPrimary} />
-            </TouchableOpacity>
-            <View style={styles.topBarCenter} pointerEvents="none" />
-            <TouchableOpacity
-              onPress={openOverflow}
-              style={styles.iconHit}
-              hitSlop={14}
-              accessibilityLabel="More options"
-              accessibilityRole="button"
-              activeOpacity={0.65}
-            >
-              <Ionicons name="ellipsis-horizontal" size={26} color={COLORS.textPrimary} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={scrollContentStyle}
-            showsVerticalScrollIndicator={false}
-            bounces
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            removeClippedSubviews={
-              Platform.OS === "android" && LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS
-            }
-            {...(Platform.OS === "android" ? { overScrollMode: "never" } : {})}
+      <Animated.View
+        style={[
+          styles.sheetDraggable,
+          { transform: [{ translateY: dragY }] },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        {/* Top: explicit inset — Modal doesn’t inherit app safe area without nested SafeAreaProvider */}
+        <View style={[styles.topBar, { paddingTop: topInset }]}>
+          <TouchableOpacity
+            onPress={handleClose}
+            style={styles.iconHit}
+            hitSlop={14}
+            accessibilityLabel="Minimize player"
+            accessibilityRole="button"
+            activeOpacity={0.65}
           >
+            <Ionicons name="chevron-down" size={30} color={COLORS.textPrimary} />
+          </TouchableOpacity>
+          <View style={styles.topBarCenter} pointerEvents="none" />
+          <TouchableOpacity
+            onPress={openOverflow}
+            style={styles.iconHit}
+            hitSlop={14}
+            accessibilityLabel="More options"
+            accessibilityRole="button"
+            activeOpacity={0.65}
+          >
+            <Ionicons name="ellipsis-horizontal" size={26} color={COLORS.textPrimary} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={scrollContentStyle}
+          showsVerticalScrollIndicator={false}
+          bounces
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          scrollEventThrottle={16}
+          onScroll={(e) => {
+            scrollYRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          removeClippedSubviews={
+            Platform.OS === "android" && LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS
+          }
+          {...(Platform.OS === "android" ? { overScrollMode: "never" } : {})}
+        >
             <NowPlayingArtwork artUri={artUri} artSize={artSize} />
 
             <View style={styles.metaRow}>
@@ -382,7 +445,8 @@ function FullScreenPlayerModalBody({
                 </View>
               ) : null}
             </View>
-          </ScrollView>
+        </ScrollView>
+      </Animated.View>
 
       {moreMenuVisible ? (
         <View style={styles.moreRoot} pointerEvents="box-none">
@@ -505,6 +569,9 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     position: "relative",
+  },
+  sheetDraggable: {
+    flex: 1,
   },
   moreRoot: {
     ...StyleSheet.absoluteFillObject,
@@ -647,8 +714,8 @@ const styles = StyleSheet.create({
   },
   trackTitle: {
     fontSize: TYPOGRAPHY["2xl"],
-    fontFamily: TYPOGRAPHY.bold,
-    fontWeight: TYPOGRAPHY.black,
+    /** Single face — do not set fontWeight or iOS/Android may substitute system UI. */
+    fontFamily: "TS Block Bold",
     color: COLORS.textPrimary,
     letterSpacing: 0.2,
     lineHeight: 28,

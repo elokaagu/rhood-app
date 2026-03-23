@@ -15,6 +15,10 @@ const ENTRANCE_MS = 800;
 const ROTATION_START_DELAY_MS = 500;
 const ROTATION_DURATION_MS = 4000;
 
+/** Spinning logo / video frame (~20% larger than original 200×200). */
+const SPIN_LOGO_SIZE = Math.round(200 * 1.2);
+const SPIN_LOGO_FALLBACK_INNER = Math.round(120 * 1.2);
+
 const SplashScreen = ({ onFinish }) => {
   const [fontsLoaded] = useFonts({
     "TS Block Bold": require("../assets/TSBlockBold.ttf"),
@@ -226,25 +230,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   logoContainer: {
-    width: 200,
-    height: 200,
+    width: SPIN_LOGO_SIZE,
+    height: SPIN_LOGO_SIZE,
     marginBottom: 30,
     justifyContent: "center",
     alignItems: "center",
   },
   spinningVideo: {
-    width: 200,
-    height: 200,
+    width: SPIN_LOGO_SIZE,
+    height: SPIN_LOGO_SIZE,
   },
   fallbackContainer: {
-    width: 200,
-    height: 200,
+    width: SPIN_LOGO_SIZE,
+    height: SPIN_LOGO_SIZE,
     justifyContent: "center",
     alignItems: "center",
   },
   fallbackLogo: {
-    width: 120,
-    height: 120,
+    width: SPIN_LOGO_FALLBACK_INNER,
+    height: SPIN_LOGO_FALLBACK_INNER,
   },
   brandText: {
     height: 50,
