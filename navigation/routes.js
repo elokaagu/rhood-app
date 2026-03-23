@@ -44,3 +44,14 @@ export const TAB_BAR_HIDDEN_SCREENS = new Set([
 
 /** Inner height of anchored tab row (icon + label + vertical padding); safe area added in AppShell. */
 export const ANCHORED_TAB_BAR_CONTENT_HEIGHT = 56;
+
+/**
+ * Gap between anchored tab bar and mini player (matches GlobalAudioPlayerUI).
+ */
+export const MINI_PLAYER_GAP_ABOVE_TAB_BAR = 8;
+
+/**
+ * Approximate total height of mini player card (main row + progress bar).
+ * Keep in sync with MiniPlayerBar layout.
+ */
+export const MINI_PLAYER_APPROX_TOTAL_HEIGHT = 66;

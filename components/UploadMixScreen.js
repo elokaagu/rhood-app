@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -13,6 +19,7 @@ import {
   Linking,
   Image,
   Animated,
+  KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { HapticPatterns } from "../lib/haptics";
@@ -21,6 +28,14 @@ import { supabase, db } from "../lib/supabase";
 import { track, AnalyticsEvents } from "../lib/analytics";
 import { uploadMixSubmission } from "../lib/mixUploadService";
 import { LinearGradient } from "expo-linear-gradient";
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from "../lib/sharedStyles";
+import {
+  MIX_GENRES,
+  UploadMixLibraryCarousel,
+  UploadMixLibraryPlaceholder,
+  UploadMixLibraryEmptyState,
+  UploadMixGenreStrip,
+} from "./upload/UploadMixPerfParts";
 
 // Conditionally import DocumentPicker
 let DocumentPicker;
@@ -49,7 +64,8 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   const [existingMixes, setExistingMixes] = useState([]);
   const [editingMix, setEditingMix] = useState(null);
   const [showMixSelector, setShowMixSelector] = useState(false);
-  const [loadingMixes, setLoadingMixes] = useState(false);
+  /** True while the first library fetch is in flight — reserve top layout so Step 1 does not jump above Library. */
+  const [loadingMixes, setLoadingMixes] = useState(() => Boolean(user?.id));
   
   const [mixData, setMixData] = useState({
     title: "",
@@ -62,14 +78,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   });
   const [pinnedMixesCount, setPinnedMixesCount] = useState(0);
 
-  // Load existing mixes on mount
-  useEffect(() => {
-    loadExistingMixes();
-    fetchPinnedMixesCount();
-  }, [user?.id]);
-
-  // Fetch count of pinned mixes
-  const fetchPinnedMixesCount = async () => {
+  const fetchPinnedMixesCount = useCallback(async () => {
     if (!user?.id) {
       setPinnedMixesCount(0);
       return;
@@ -83,7 +92,6 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         .eq("is_pinned", true);
 
       if (error) {
-        // If column doesn't exist yet, that's okay
         if (error.code === "42703") {
           setPinnedMixesCount(0);
           return;
@@ -96,7 +104,41 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       console.error("❌ Error fetching pinned mixes count:", error);
       setPinnedMixesCount(0);
     }
-  };
+  }, [user?.id]);
+
+  const loadExistingMixes = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoadingMixes(true);
+      const mixes = await db.getUserMixes(user.id);
+      setExistingMixes(mixes || []);
+
+      if (mixes && mixes.length > 0 && !existingMixId) {
+        setShowMixSelector(true);
+      }
+    } catch (error) {
+      console.error("Error loading existing mixes:", error);
+      setExistingMixes([]);
+    } finally {
+      setLoadingMixes(false);
+    }
+  }, [user?.id, existingMixId]);
+
+  /** Signed-in users should show the Library slot as loading when `user` appears after mount. */
+  useLayoutEffect(() => {
+    if (user?.id) {
+      setLoadingMixes(true);
+    } else {
+      setLoadingMixes(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    void loadExistingMixes();
+    void fetchPinnedMixesCount();
+  }, [user?.id, loadExistingMixes, fetchPinnedMixesCount]);
 
   // Animate progress bar when uploadProgress changes
   useEffect(() => {
@@ -135,37 +177,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     }
   }, [uploading]);
 
-  // If existingMixId is provided, load that mix
-  useEffect(() => {
-    if (existingMixId && existingMixes.length > 0) {
-      const mix = existingMixes.find(m => m.id === existingMixId);
-      if (mix) {
-        handleSelectMixToEdit(mix);
-      }
-    }
-  }, [existingMixId, existingMixes]);
-
-  const loadExistingMixes = async () => {
-    if (!user?.id) return;
-    
-    try {
-      setLoadingMixes(true);
-      const mixes = await db.getUserMixes(user.id);
-      setExistingMixes(mixes || []);
-      
-      // If user has mixes, show selector option
-      if (mixes && mixes.length > 0 && !existingMixId) {
-        setShowMixSelector(true);
-      }
-    } catch (error) {
-      console.error("Error loading existing mixes:", error);
-      setExistingMixes([]);
-    } finally {
-      setLoadingMixes(false);
-    }
-  };
-
-  const handleSelectMixToEdit = async (mix) => {
+  const handleSelectMixToEdit = useCallback(async (mix) => {
     setEditingMix(mix);
     setShowMixSelector(false);
     setMixData({
@@ -176,14 +188,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       setAsPrimary: false, // Don't change primary mix when editing
       isPinned: mix.is_pinned || false,
     });
-    // Refresh pinned count when editing
     await fetchPinnedMixesCount();
     if (mix.artwork_url || mix.image_url) {
       setSelectedArtwork({ uri: mix.artwork_url || mix.image_url });
     }
-  };
+  }, [fetchPinnedMixesCount]);
 
-  const handleStartNewMix = () => {
+  const handleStartNewMix = useCallback(() => {
     setEditingMix(null);
     setShowMixSelector(false);
     setMixData({
@@ -191,32 +202,31 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       description: "",
       genre: "",
       isPublic: true,
-      // Default ON so new uploads become Audio ID unless the user turns the toggle off
       setAsPrimary: true,
       isPinned: false,
     });
     setSelectedFile(null);
     setSelectedArtwork(null);
-  };
+  }, []);
 
-  const genres = [
-    "House",
-    "Techno",
-    "R&B",
-    "Soul",
-    "Hip-Hop",
-    "Electronic",
-    "Drum & Bass",
-    "Dubstep",
-    "Trance",
-    "Deep House",
-    "Tech House",
-    "Disco",
-    "Funk",
-    "Other",
-  ];
+  // If existingMixId is provided, load that mix (after list fetch)
+  useEffect(() => {
+    if (existingMixId && existingMixes.length > 0) {
+      const mix = existingMixes.find((m) => m.id === existingMixId);
+      if (mix) {
+        handleSelectMixToEdit(mix);
+      }
+    }
+  }, [existingMixId, existingMixes, handleSelectMixToEdit]);
 
-  const pickAudioFile = async () => {
+  const onToggleGenre = useCallback((genre) => {
+    setMixData((prev) => ({
+      ...prev,
+      genre: prev.genre === genre ? "" : genre,
+    }));
+  }, []);
+
+  const pickAudioFile = useCallback(async () => {
     try {
       HapticPatterns.buttonPress();
 
@@ -342,9 +352,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       console.error("Error picking file:", error);
       Alert.alert("Error", "Failed to select file. Please try again.");
     }
-  };
+  }, [mixData.title]);
 
-  const pickArtworkImage = async () => {
+  const pickArtworkImage = useCallback(async () => {
     try {
       HapticPatterns.buttonPress();
 
@@ -427,9 +437,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
 
       Alert.alert("Error", errorMessage, [{ text: "OK" }]);
     }
-  };
+  }, []);
 
-  const uploadMix = async () => {
+  const uploadMix = useCallback(async () => {
     try {
       setUploading(true);
       setUploadProgress(0);
@@ -539,431 +549,476 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       setUploadProgress(0);
       setSelectedFileDuration(null);
     }
-  };
+  }, [
+    user,
+    editingMix,
+    selectedFile,
+    selectedArtwork,
+    selectedFileDuration,
+    mixData,
+    onUploadComplete,
+    onBack,
+    fetchPinnedMixesCount,
+  ]);
 
-  const formatFileSize = (bytes) => {
+  const formatFileSize = useCallback((bytes) => {
     if (!bytes) return "0 B";
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-  };
+  }, []);
 
-  const formatDuration = (millis) => {
+  const formatDuration = useCallback((millis) => {
     if (!millis) return "0:00";
     const totalSeconds = Math.floor(millis / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
+  }, []);
+
+  const handleBack = useCallback(() => {
+    HapticPatterns.backButton();
+    onBack?.();
+  }, [onBack]);
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+    >
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => {
-              HapticPatterns.backButton();
-              onBack();
-            }}
-            style={styles.backButton}
-            disabled={uploading}
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.tsBlockBoldHeading}>
-            {editingMix ? "UPDATE MIX" : "UPLOAD MIX"}
-          </Text>
-          <View style={{ width: 40 }} />
+        <View style={styles.headerShell}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={handleBack}
+              style={styles.backButton}
+              disabled={uploading}
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {editingMix ? "UPDATE MIX" : "UPLOAD MIX"}
+            </Text>
+            <View style={styles.headerSpacer} />
+          </View>
         </View>
 
-        {loadingMixes && user?.id && (
-          <View style={styles.loadingMixesRow}>
-            <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
-            <Text style={styles.loadingMixesText}>Loading your mixes…</Text>
-          </View>
-        )}
+        {user?.id && loadingMixes ? (
+          <UploadMixLibraryPlaceholder
+            styles={styles}
+            primaryColor={COLORS.primary}
+          />
+        ) : null}
 
-        {/* Mix Selector - Show if user has existing mixes and not already editing */}
-        {showMixSelector && !editingMix && existingMixes.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Mixes</Text>
-            <Text style={styles.sectionSubtitle}>
-              Select a mix to update, or upload a new one below
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.mixSelectorScroll}
-            >
-              {existingMixes.map((mix) => (
-                <TouchableOpacity
-                  key={mix.id}
-                  style={styles.mixSelectorCard}
-                  onPress={() => handleSelectMixToEdit(mix)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.mixSelectorImageContainer}>
-                  {mix.artwork_url || mix.image_url ? (
-                    <Image
-                      source={{ uri: mix.artwork_url || mix.image_url }}
-                      style={styles.mixSelectorImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={[styles.mixSelectorImage, styles.mixSelectorPlaceholder]}>
-                      <Ionicons name="musical-note" size={32} color="hsl(75, 100%, 60%)" />
-                        <Text style={styles.mixSelectorNoArtworkLabel}>No artwork</Text>
-                    </View>
-                  )}
-                  </View>
-                  <Text style={styles.mixSelectorTitle} numberOfLines={1}>
-                    {mix.title}
-                  </Text>
-                  <Text style={styles.mixSelectorGenre} numberOfLines={1}>
-                    {mix.genre || "No genre"}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.newMixButton}
-              onPress={handleStartNewMix}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add-circle-outline" size={20} color="hsl(75, 100%, 60%)" />
-              <Text style={styles.newMixButtonText}>Upload New Mix</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Mix Selector — virtualized horizontal list + ProgressiveImage */}
+        {showMixSelector && !editingMix && existingMixes.length > 0 ? (
+          <UploadMixLibraryCarousel
+            mixes={existingMixes}
+            styles={styles}
+            primaryColor={COLORS.primary}
+            backgroundColor={COLORS.background}
+            onSelectMix={handleSelectMixToEdit}
+            onNewMix={handleStartNewMix}
+          />
+        ) : null}
+
+        {!loadingMixes &&
+        user?.id &&
+        !editingMix &&
+        existingMixes.length === 0 &&
+        !existingMixId ? (
+          <UploadMixLibraryEmptyState
+            styles={styles}
+            primaryColor={COLORS.primary}
+            backgroundColor={COLORS.background}
+            onNewMix={handleStartNewMix}
+          />
+        ) : null}
 
         {/* Editing Indicator */}
         {editingMix && (
-          <View style={styles.editingIndicator}>
-            <Ionicons name="create-outline" size={16} color="hsl(75, 100%, 60%)" />
-            <Text style={styles.editingText}>
-              Editing: {editingMix.title}
-            </Text>
-            <TouchableOpacity
-              onPress={handleStartNewMix}
-              style={styles.cancelEditButton}
-            >
-              <Text style={styles.cancelEditText}>Cancel</Text>
-            </TouchableOpacity>
+          <View style={styles.section}>
+            <View style={styles.editingBanner}>
+              <View style={styles.editingBannerIcon}>
+                <Ionicons name="create" size={18} color={COLORS.primary} />
+              </View>
+              <View style={styles.editingBannerTextWrap}>
+                <Text style={styles.editingBannerLabel}>Editing</Text>
+                <Text style={styles.editingText} numberOfLines={1}>
+                  {editingMix.title}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={handleStartNewMix}
+                style={styles.cancelEditButton}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.cancelEditText}>New mix</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
         {/* File Picker */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {editingMix ? "Audio File (Optional)" : "Audio File"}
-          </Text>
-          {editingMix && (
-            <Text style={styles.sectionSubtitle}>
-              Leave empty to keep the current audio file
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionKicker}>Step 1</Text>
+            <Text style={styles.sectionTitle}>
+              {editingMix ? "Audio (optional)" : "Audio file"}
             </Text>
-          )}
-          <TouchableOpacity
-            style={styles.filePickerButton}
-            onPress={pickAudioFile}
-            disabled={uploading}
-          >
-            <Ionicons
-              name={selectedFile ? "musical-note" : "cloud-upload-outline"}
-              size={32}
-              color="hsl(75, 100%, 60%)"
-            />
-            {selectedFile ? (
-              <View style={styles.fileInfo}>
-                <Text style={styles.fileName}>{selectedFile.name}</Text>
-                <Text style={styles.fileSize}>
-                  {formatFileSize(selectedFile.size)}
-                </Text>
-                {selectedFileDuration ? (
-                  <Text style={styles.fileSize}>
-                    Duration: {formatDuration(selectedFileDuration)}
-                  </Text>
-                ) : null}
-              </View>
+            {editingMix ? (
+              <Text style={styles.sectionSubtitle}>
+                Skip to keep your current audio. Replace only if you are
+                uploading a new version.
+              </Text>
             ) : (
-              <View style={styles.filePickerGuidelines}>
-                <Text style={styles.filePickerText}>
-                  Tap to select your mix (MP3, max 10 minutes)
-                </Text>
-                <Text style={styles.filePickerSubtext}>
-                  MP3 uploads finish faster and are more reliable than WAV.
-                </Text>
-              </View>
+              <Text style={styles.sectionSubtitle}>
+                MP3 recommended
+              </Text>
             )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filePickerButton,
+                selectedFile && styles.filePickerButtonFilled,
+              ]}
+              onPress={pickAudioFile}
+              disabled={uploading}
+              activeOpacity={0.85}
+            >
+              <View
+                style={[
+                  styles.filePickerIconWrap,
+                  selectedFile && styles.filePickerIconWrapActive,
+                ]}
+              >
+                <Ionicons
+                  name={selectedFile ? "musical-notes" : "cloud-upload-outline"}
+                  size={28}
+                  color={selectedFile ? COLORS.background : COLORS.primary}
+                />
+              </View>
+              {selectedFile ? (
+                <View style={styles.fileInfo}>
+                  <Text style={styles.fileName}>{selectedFile.name}</Text>
+                  <Text style={styles.fileMeta}>
+                    {formatFileSize(selectedFile.size)}
+                    {selectedFileDuration
+                      ? ` · ${formatDuration(selectedFileDuration)}`
+                      : ""}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.filePickerGuidelines}>
+                  <Text style={styles.filePickerText}>
+                    Tap to choose file · MP3 · max 10 min
+                  </Text>
+                  <Text style={styles.filePickerSubtext}>
+                    We will validate length after you pick.
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Artwork Picker */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {editingMix ? "Artwork" : "Artwork *"}
-          </Text>
-          {editingMix && (
-            <Text style={styles.sectionSubtitle}>
-              {editingMix.artwork_url || editingMix.image_url
-                ? "Select new artwork to replace the current image, or leave empty to keep existing"
-                : "Add artwork to your mix (recommended)"}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionKicker}>Step 2</Text>
+            <Text style={styles.sectionTitle}>
+              {editingMix ? "Artwork" : "Artwork *"}
             </Text>
-          )}
-          {/* Show existing artwork preview when editing */}
-          {editingMix && (editingMix.artwork_url || editingMix.image_url) && !selectedArtwork && (
-            <View style={styles.existingArtworkPreview}>
-              <Image
-                source={{ uri: editingMix.artwork_url || editingMix.image_url }}
-                style={styles.existingArtworkImage}
-                resizeMode="cover"
-              />
-              <Text style={styles.existingArtworkLabel}>Current artwork</Text>
-            </View>
-          )}
-          
-          {/* Show preview of selected artwork */}
-          {selectedArtwork && (
-            <View style={styles.artworkPreviewContainer}>
-              <Text style={styles.artworkPreviewLabel}>Preview</Text>
-              <Text style={styles.artworkPreviewSubtext}>
-                This is how your artwork will appear
-              </Text>
-              <View style={styles.artworkPreviewCard}>
-                <Image
-                  source={{ uri: selectedArtwork.uri }}
-                  style={styles.artworkPreviewImage}
-                  resizeMode="cover"
-                />
-                {mixData.title && (
-                  <View style={styles.artworkPreviewOverlay}>
-                    <Text style={styles.artworkPreviewTitle} numberOfLines={1}>
-                      {mixData.title}
-                    </Text>
-                    {mixData.genre && (
-                      <Text style={styles.artworkPreviewGenre} numberOfLines={1}>
-                        {mixData.genre}
-                      </Text>
-                    )}
-                  </View>
-                )}
-              </View>
-              <TouchableOpacity
-                style={styles.removeArtworkButton}
-                onPress={() => {
-                  setSelectedArtwork(null);
-                  HapticPatterns.buttonPress();
-                }}
-                disabled={uploading}
-              >
-                <Ionicons name="close-circle" size={20} color="hsl(0, 100%, 50%)" />
-                <Text style={styles.removeArtworkText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={styles.filePickerButton}
-            onPress={pickArtworkImage}
-            disabled={uploading}
-          >
-            <Ionicons
-              name={selectedArtwork ? "image" : "image-outline"}
-              size={32}
-              color="hsl(75, 100%, 60%)"
-            />
-            {selectedArtwork ? (
-              <View style={styles.fileInfo}>
-                <Text style={styles.fileName}>{selectedArtwork.name}</Text>
-                <Text style={styles.fileSize}>
-                  {formatFileSize(selectedArtwork.size)}
-                </Text>
-              </View>
-            ) : (
-              <Text style={styles.filePickerText}>
-                {editingMix && (editingMix.artwork_url || editingMix.image_url)
-                  ? "Tap to change artwork"
-                  : "Tap to select artwork from photos"}
+            {editingMix && (
+              <Text style={styles.sectionSubtitle}>
+                {editingMix.artwork_url || editingMix.image_url
+                  ? "Replace the cover or keep the current image."
+                  : "Add cover art — it helps your mix stand out in feeds."}
               </Text>
             )}
-          </TouchableOpacity>
+            {!editingMix && (
+              <Text style={styles.sectionSubtitle}>
+                Required for new uploads. Square images look best.
+              </Text>
+            )}
+            {/* Show existing artwork preview when editing */}
+            {editingMix &&
+              (editingMix.artwork_url || editingMix.image_url) &&
+              !selectedArtwork && (
+                <View style={styles.existingArtworkPreview}>
+                  <Image
+                    source={{
+                      uri: editingMix.artwork_url || editingMix.image_url,
+                    }}
+                    style={styles.existingArtworkImage}
+                    resizeMode="cover"
+                  />
+                  <Text style={styles.existingArtworkLabel}>
+                    Current artwork
+                  </Text>
+                </View>
+              )}
+
+            {/* Show preview of selected artwork */}
+            {selectedArtwork && (
+              <View style={styles.artworkPreviewContainer}>
+                <Text style={styles.artworkPreviewLabel}>Preview</Text>
+                <Text style={styles.artworkPreviewSubtext}>
+                  How it will look on your mix card
+                </Text>
+                <View style={styles.artworkPreviewCard}>
+                  <Image
+                    source={{ uri: selectedArtwork.uri }}
+                    style={styles.artworkPreviewImage}
+                    resizeMode="cover"
+                  />
+                  {mixData.title ? (
+                    <View style={styles.artworkPreviewOverlay}>
+                      <Text style={styles.artworkPreviewTitle} numberOfLines={1}>
+                        {mixData.title}
+                      </Text>
+                      {mixData.genre ? (
+                        <Text
+                          style={styles.artworkPreviewGenre}
+                          numberOfLines={1}
+                        >
+                          {mixData.genre}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
+                <TouchableOpacity
+                  style={styles.removeArtworkButton}
+                  onPress={() => {
+                    setSelectedArtwork(null);
+                    HapticPatterns.buttonPress();
+                  }}
+                  disabled={uploading}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={COLORS.error}
+                  />
+                  <Text style={styles.removeArtworkText}>Remove image</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.filePickerButton,
+                selectedArtwork && styles.filePickerButtonFilled,
+              ]}
+              onPress={pickArtworkImage}
+              disabled={uploading}
+              activeOpacity={0.85}
+            >
+              <View
+                style={[
+                  styles.filePickerIconWrap,
+                  selectedArtwork && styles.filePickerIconWrapActive,
+                ]}
+              >
+                <Ionicons
+                  name={selectedArtwork ? "image" : "image-outline"}
+                  size={28}
+                  color={
+                    selectedArtwork ? COLORS.background : COLORS.primary
+                  }
+                />
+              </View>
+              {selectedArtwork ? (
+                <View style={styles.fileInfo}>
+                  <Text style={styles.fileName}>{selectedArtwork.name}</Text>
+                  <Text style={styles.fileMeta}>
+                    {formatFileSize(selectedArtwork.size)}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.filePickerText}>
+                  {editingMix && (editingMix.artwork_url || editingMix.image_url)
+                    ? "Tap to replace from photos"
+                    : "Tap to choose from photos"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Mix Details */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mix Details</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Title *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter mix title"
-              placeholderTextColor="hsl(0, 0%, 40%)"
-              value={mixData.title}
-              onChangeText={(text) =>
-                setMixData((prev) => ({ ...prev, title: text }))
-              }
-              editable={!uploading}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Tell us about your mix..."
-              placeholderTextColor="hsl(0, 0%, 40%)"
-              value={mixData.description}
-              onChangeText={(text) =>
-                setMixData((prev) => ({ ...prev, description: text }))
-              }
-              multiline
-              numberOfLines={4}
-              editable={!uploading}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Genre</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.genreScroll}
-            >
-              {genres.map((genre) => (
-                <TouchableOpacity
-                  key={genre}
-                  style={[
-                    styles.genreChip,
-                    mixData.genre === genre && styles.genreChipSelected,
-                  ]}
-                  onPress={() => {
-                    HapticPatterns.buttonPress();
-                    setMixData((prev) => ({
-                      ...prev,
-                      genre: prev.genre === genre ? "" : genre,
-                    }));
-                  }}
-                  disabled={uploading}
-                >
-                  <Text
-                    style={[
-                      styles.genreChipText,
-                      mixData.genre === genre && styles.genreChipTextSelected,
-                    ]}
-                  >
-                    {genre}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Set as Primary Mix Toggle */}
-          <View style={styles.inputGroup}>
-            <TouchableOpacity
-              style={styles.toggleRow}
-              onPress={() => {
-                HapticPatterns.buttonPress();
-                setMixData((prev) => ({
-                  ...prev,
-                  setAsPrimary: !prev.setAsPrimary,
-                }));
-              }}
-              disabled={uploading}
-            >
-              <View style={styles.toggleLeft}>
-                <Ionicons
-                  name={mixData.setAsPrimary ? "star" : "star-outline"}
-                  size={20}
-                  color={mixData.setAsPrimary ? "hsl(75, 100%, 60%)" : "white"}
-                />
-                <Text style={styles.toggleLabel}>Set as Primary Mix</Text>
-              </View>
-              <View
-                style={[
-                  styles.toggle,
-                  mixData.setAsPrimary && styles.toggleActive,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.toggleThumb,
-                    mixData.setAsPrimary && styles.toggleThumbActive,
-                  ]}
-                />
-              </View>
-            </TouchableOpacity>
-            <Text style={styles.toggleHint}>
-              {mixData.setAsPrimary
-                ? "This mix will be featured on your profile"
-                : "This mix won't be your primary mix"}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionKicker}>Step 3</Text>
+            <Text style={styles.sectionTitle}>Details & visibility</Text>
+            <Text style={styles.sectionSubtitle}>
+              Title is required. Genre helps listeners discover your sound.
             </Text>
-          </View>
 
-          {/* Pin Mix Toggle */}
-          <View style={styles.inputGroup}>
-            <TouchableOpacity
-              style={styles.toggleRow}
-              onPress={() => {
-                HapticPatterns.buttonPress();
-                
-                // Check if we can pin (max 3)
-                if (!mixData.isPinned && pinnedMixesCount >= 3) {
-                  Alert.alert(
-                    "Maximum Pinned Mixes",
-                    "You can only pin up to 3 mixes. Please unpin another mix first.",
-                    [{ text: "OK" }]
-                  );
-                  return;
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Title *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter mix title"
+                placeholderTextColor={COLORS.textMuted}
+                value={mixData.title}
+                onChangeText={(text) =>
+                  setMixData((prev) => ({ ...prev, title: text }))
                 }
+                editable={!uploading}
+              />
+            </View>
 
-                setMixData((prev) => ({
-                  ...prev,
-                  isPinned: !prev.isPinned,
-                }));
-              }}
-              disabled={uploading}
-            >
-              <View style={styles.toggleLeft}>
-                <Ionicons
-                  name={mixData.isPinned ? "pin" : "pin-outline"}
-                  size={20}
-                  color={mixData.isPinned ? "hsl(75, 100%, 60%)" : "white"}
-                />
-                <View style={styles.toggleLabelContainer}>
-                  <Text style={styles.toggleLabel}>Pin as Top Mix</Text>
-                  <Text style={styles.toggleSubLabel}>
-                    Showcase your best work ({pinnedMixesCount}/3 pinned)
-                  </Text>
-                </View>
-              </View>
-              <View
-                style={[
-                  styles.toggle,
-                  mixData.isPinned && styles.toggleActive,
-                ]}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Tell us about your mix..."
+                placeholderTextColor={COLORS.textMuted}
+                value={mixData.description}
+                onChangeText={(text) =>
+                  setMixData((prev) => ({ ...prev, description: text }))
+                }
+                multiline
+                numberOfLines={4}
+                editable={!uploading}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Genre</Text>
+              <UploadMixGenreStrip
+                genres={MIX_GENRES}
+                selectedGenre={mixData.genre}
+                uploading={uploading}
+                styles={styles}
+                onToggleGenre={onToggleGenre}
+              />
+            </View>
+
+            <Text style={styles.subsectionLabel}>Profile</Text>
+
+            {/* Set as Primary Mix Toggle */}
+            <View style={styles.toggleCard}>
+              <TouchableOpacity
+                style={styles.toggleRow}
+                onPress={() => {
+                  HapticPatterns.buttonPress();
+                  setMixData((prev) => ({
+                    ...prev,
+                    setAsPrimary: !prev.setAsPrimary,
+                  }));
+                }}
+                disabled={uploading}
+                activeOpacity={0.85}
               >
+                <View style={styles.toggleLeft}>
+                  <View style={styles.toggleIconWrap}>
+                    <Ionicons
+                      name={mixData.setAsPrimary ? "star" : "star-outline"}
+                      size={20}
+                      color={
+                        mixData.setAsPrimary
+                          ? COLORS.primary
+                          : COLORS.textSecondary
+                      }
+                    />
+                  </View>
+                  <Text style={styles.toggleLabel}>Set as primary mix</Text>
+                </View>
                 <View
                   style={[
-                    styles.toggleThumb,
-                    mixData.isPinned && styles.toggleThumbActive,
+                    styles.toggle,
+                    mixData.setAsPrimary && styles.toggleActive,
                   ]}
-                />
-              </View>
-            </TouchableOpacity>
-            <Text style={styles.toggleHint}>
-              {mixData.isPinned
-                ? "This mix will appear in your pinned mixes section"
-                : pinnedMixesCount >= 3
-                ? "You've reached the maximum of 3 pinned mixes"
-                : "Pin up to 3 mixes to showcase your versatility"}
-            </Text>
+                >
+                  <View
+                    style={[
+                      styles.toggleThumb,
+                      mixData.setAsPrimary && styles.toggleThumbActive,
+                    ]}
+                  />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.toggleHintInside}>
+                {mixData.setAsPrimary
+                  ? "Featured on your profile as your main mix."
+                  : "Not featured as your primary mix."}
+              </Text>
+            </View>
+
+            {/* Pin Mix Toggle */}
+            <View style={[styles.toggleCard, styles.toggleCardLast]}>
+              <TouchableOpacity
+                style={styles.toggleRow}
+                onPress={() => {
+                  HapticPatterns.buttonPress();
+
+                  if (!mixData.isPinned && pinnedMixesCount >= 3) {
+                    Alert.alert(
+                      "Maximum Pinned Mixes",
+                      "You can only pin up to 3 mixes. Please unpin another mix first.",
+                      [{ text: "OK" }]
+                    );
+                    return;
+                  }
+
+                  setMixData((prev) => ({
+                    ...prev,
+                    isPinned: !prev.isPinned,
+                  }));
+                }}
+                disabled={uploading}
+                activeOpacity={0.85}
+              >
+                <View style={styles.toggleLeft}>
+                  <View style={styles.toggleIconWrap}>
+                    <Ionicons
+                      name={mixData.isPinned ? "pin" : "pin-outline"}
+                      size={20}
+                      color={
+                        mixData.isPinned ? COLORS.primary : COLORS.textSecondary
+                      }
+                    />
+                  </View>
+                  <View style={styles.toggleLabelContainer}>
+                    <Text style={styles.toggleLabel}>Pin as top mix</Text>
+                    <Text style={styles.toggleSubLabel}>
+                      {pinnedMixesCount}/3 pinned
+                    </Text>
+                  </View>
+                </View>
+                <View
+                  style={[
+                    styles.toggle,
+                    mixData.isPinned && styles.toggleActive,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.toggleThumb,
+                      mixData.isPinned && styles.toggleThumbActive,
+                    ]}
+                  />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.toggleHintInside}>
+                {mixData.isPinned
+                  ? "Shown in your pinned mixes row."
+                  : pinnedMixesCount >= 3
+                  ? "Max 3 pinned — unpin one to add this."
+                  : "Pin up to 3 mixes to highlight range."}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -975,12 +1030,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           ]}
           onPress={uploadMix}
           disabled={uploading || (!editingMix && !selectedFile)}
+          activeOpacity={0.9}
         >
           <LinearGradient
             colors={
               uploading || (!editingMix && !selectedFile)
-                ? ["hsl(0, 0%, 20%)", "hsl(0, 0%, 15%)"]
-                : ["hsl(75, 100%, 60%)", "hsl(75, 100%, 50%)"]
+                ? [COLORS.borderLight, COLORS.borderDark]
+                : [COLORS.primary, COLORS.primaryDark]
             }
             style={styles.uploadButtonGradient}
           >
@@ -1049,7 +1105,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             <Ionicons
               name="alert-circle-outline"
               size={64}
-              color="hsl(75, 100%, 60%)"
+              color={COLORS.primary}
               style={styles.modalIcon}
             />
             <Text style={styles.modalTitle}>Feature Not Available</Text>
@@ -1063,7 +1119,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
               onPress={() => setShowDevBuildModal(false)}
             >
               <LinearGradient
-                colors={["hsl(75, 100%, 60%)", "hsl(75, 100%, 50%)"]}
+                colors={[COLORS.primary, COLORS.primaryDark]}
                 style={styles.modalButtonGradient}
               >
                 <Text style={styles.modalButtonText}>OK</Text>
@@ -1072,39 +1128,108 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 0%)",
+    backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
     paddingBottom: 120,
+  },
+  headerShell: {
+    marginHorizontal: -SPACING.sm,
+    marginBottom: SPACING.lg,
+    paddingBottom: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 24,
   },
-  loadingMixesRow: {
+  headerTitle: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.bold,
+    fontSize: TYPOGRAPHY["2xl"],
+    color: COLORS.textPrimary,
+    textAlign: "center",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    lineHeight: 26,
+  },
+  headerSpacer: {
+    width: 40,
+    height: 40,
+  },
+  libraryPlaceholderStrip: {
+    marginHorizontal: -SPACING.md,
+    marginTop: SPACING.xs,
+    minHeight: 200,
+    justifyContent: "center",
+    position: "relative",
+  },
+  libraryPlaceholderCards: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.xs,
+    gap: SPACING.md,
+    opacity: 0.5,
   },
-  loadingMixesText: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
+  libraryPlaceholderCard: {
+    width: 144,
+    height: 200,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  libraryPlaceholderSpinner: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  libraryPlaceholderButtonBar: {
+    marginTop: SPACING.md,
+    height: 52,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: "rgba(204, 255, 0, 0.22)",
+    opacity: 0.55,
+  },
+  libraryEmptyMessageWrap: {
+    minHeight: 200,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+  },
+  libraryEmptyTitle: {
+    marginTop: SPACING.sm,
+    fontSize: TYPOGRAPHY.base,
+    fontFamily: TYPOGRAPHY.primary,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.textPrimary,
+  },
+  libraryEmptySubtitle: {
+    marginTop: SPACING.xs,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textTertiary,
+    textAlign: "center",
+    lineHeight: 20,
+    maxWidth: 280,
   },
   backButton: {
     width: 40,
@@ -1112,234 +1237,337 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tsBlockBoldHeading: {
-    fontFamily: "TS Block Bold",
-    fontSize: 22,
-    color: "#FFFFFF", // Brand white
-    textAlign: "left", // Left aligned as per guidelines
-    textTransform: "uppercase", // Always uppercase
-    lineHeight: 26, // Tight line height for stacked effect
-    letterSpacing: 1, // Slight spacing for impact
-    marginBottom: 16,
-  },
   section: {
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
+  },
+  sectionCard: {
+    backgroundColor: COLORS.backgroundSecondary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sectionKicker: {
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.primary,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.textTertiary,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginBottom: SPACING.xs,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "hsl(75, 100%, 60%)",
-    marginBottom: 12,
-    letterSpacing: 0.5,
+    fontSize: TYPOGRAPHY.lg,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.primary,
+    marginBottom: SPACING.sm,
+    letterSpacing: 0.3,
+  },
+  sectionSubtitle: {
+    color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.sm,
+    marginBottom: SPACING.base,
+    fontFamily: TYPOGRAPHY.primary,
+    lineHeight: 18,
+  },
+  subsectionLabel: {
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.primary,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.textTertiary,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: SPACING.sm,
+    marginTop: SPACING.xs,
   },
   filePickerButton: {
-    backgroundColor: "hsl(0, 0%, 10%)",
-    borderRadius: 12,
-    padding: 24,
+    backgroundColor: COLORS.backgroundTertiary,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.xl,
+    paddingHorizontal: SPACING.md,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderWidth: 1.5,
+    borderColor: COLORS.borderLight,
     borderStyle: "dashed",
   },
+  filePickerButtonFilled: {
+    borderStyle: "solid",
+    borderColor: "rgba(204, 255, 0, 0.35)",
+    backgroundColor: COLORS.backgroundCard,
+  },
+  filePickerIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.backgroundCard,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  filePickerIconWrapActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
   filePickerText: {
-    color: "hsl(0, 0%, 60%)",
-    fontSize: 16,
-    marginTop: 12,
+    color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.base,
+    marginTop: SPACING.base,
+    textAlign: "center",
+    fontFamily: TYPOGRAPHY.primary,
+    lineHeight: 20,
   },
   filePickerGuidelines: {
     alignItems: "center",
-    marginTop: 12,
+    marginTop: SPACING.base,
   },
   filePickerSubtext: {
-    color: "hsl(0, 0%, 45%)",
-    fontSize: 12,
-    marginTop: 6,
+    color: COLORS.textTertiary,
+    fontSize: TYPOGRAPHY.sm,
+    marginTop: SPACING.xs,
     textAlign: "center",
+    fontFamily: TYPOGRAPHY.primary,
   },
   fileInfo: {
-    marginTop: 12,
+    marginTop: SPACING.base,
     alignItems: "center",
+    paddingHorizontal: SPACING.sm,
   },
   fileName: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: TYPOGRAPHY.semibold,
     textAlign: "center",
+    fontFamily: TYPOGRAPHY.primary,
   },
-  fileSize: {
-    color: "hsl(0, 0%, 60%)",
-    fontSize: 14,
-    marginTop: 4,
+  fileMeta: {
+    color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.sm,
+    marginTop: SPACING.xs,
+    textAlign: "center",
+    fontFamily: TYPOGRAPHY.primary,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: SPACING.md,
   },
   label: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.sm,
+    fontWeight: TYPOGRAPHY.semibold,
+    marginBottom: SPACING.sm,
+    fontFamily: TYPOGRAPHY.primary,
   },
   input: {
-    backgroundColor: "hsl(0, 0%, 10%)",
-    borderRadius: 8,
-    padding: 12,
-    color: "white",
-    fontSize: 16,
+    backgroundColor: COLORS.backgroundTertiary,
+    borderRadius: RADIUS.base,
+    padding: SPACING.base,
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.lg,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderColor: COLORS.border,
+    fontFamily: TYPOGRAPHY.primary,
   },
   textArea: {
-    height: 100,
+    minHeight: 100,
     textAlignVertical: "top",
   },
   genreScroll: {
     flexGrow: 0,
+    marginHorizontal: -SPACING.xs,
+  },
+  genreScrollContent: {
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: SPACING.xs,
+    gap: SPACING.sm,
+    flexDirection: "row",
   },
   genreChip: {
-    backgroundColor: "hsl(0, 0%, 10%)",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
+    backgroundColor: COLORS.backgroundTertiary,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginRight: SPACING.sm,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderColor: COLORS.border,
   },
   genreChipSelected: {
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderColor: "hsl(75, 100%, 60%)",
+    backgroundColor: "rgba(204, 255, 0, 0.12)",
+    borderColor: COLORS.primary,
+    borderWidth: 1.5,
   },
   genreChipText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "500",
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.sm,
+    fontWeight: TYPOGRAPHY.medium,
+    fontFamily: TYPOGRAPHY.primary,
   },
   genreChipTextSelected: {
-    color: "black",
+    color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.bold,
+  },
+  toggleCard: {
+    backgroundColor: COLORS.backgroundTertiary,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.sm,
+    overflow: "hidden",
+  },
+  toggleCardLast: {
+    marginBottom: 0,
   },
   toggleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "hsl(0, 0%, 10%)",
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.base,
   },
   toggleLeft: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
+    marginRight: SPACING.sm,
+    minWidth: 0,
+  },
+  toggleIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.base,
+    backgroundColor: COLORS.backgroundCard,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   toggleLabel: {
-    color: "white",
-    fontSize: 16,
-    marginLeft: 8,
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.base,
+    fontFamily: TYPOGRAPHY.primary,
+    fontWeight: TYPOGRAPHY.semibold,
+    flexShrink: 1,
+  },
+  toggleLabelContainer: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  toggleSubLabel: {
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textTertiary,
+    marginTop: 2,
+  },
+  toggleHintInside: {
+    color: COLORS.textTertiary,
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.primary,
+    lineHeight: 16,
+    paddingHorizontal: SPACING.base,
+    paddingBottom: SPACING.sm,
+    marginTop: -SPACING.xs,
   },
   toggle: {
     width: 50,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "hsl(0, 0%, 20%)",
+    backgroundColor: COLORS.borderLight,
     padding: 2,
+    justifyContent: "center",
   },
   toggleActive: {
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: COLORS.primary,
   },
   toggleThumb: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "white",
+    backgroundColor: COLORS.textPrimary,
   },
   toggleThumbActive: {
     alignSelf: "flex-end",
   },
-  toggleHint: {
-    color: "hsl(0, 0%, 60%)",
-    fontSize: 12,
-    marginTop: 8,
-  },
-  toggleLabelContainer: {
-    flex: 1,
-    gap: 2,
-  },
-  toggleSubLabel: {
-    fontSize: 11,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-  },
   uploadButton: {
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     overflow: "hidden",
-    marginTop: 12,
+    marginTop: SPACING.sm,
+    minHeight: 56,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 6,
   },
   uploadButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.55,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   uploadButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 16,
-    gap: 8,
+    paddingVertical: SPACING.base,
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.sm,
+    minHeight: 56,
   },
   uploadButtonText: {
-    color: "black",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  sectionSubtitle: {
-    color: "hsl(0, 0%, 60%)",
-    fontSize: 13,
-    marginTop: 4,
-    marginBottom: 12,
-    fontFamily: "Helvetica Neue",
+    color: COLORS.background,
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: TYPOGRAPHY.bold,
+    fontFamily: TYPOGRAPHY.primary,
   },
   existingArtworkPreview: {
-    marginBottom: 16,
+    marginBottom: SPACING.md,
     alignItems: "center",
   },
   existingArtworkImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 8,
-    backgroundColor: "hsl(0, 0%, 10%)",
-    marginBottom: 8,
+    width: 128,
+    height: 128,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.backgroundTertiary,
+    marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   existingArtworkLabel: {
-    color: "hsl(0, 0%, 60%)",
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
+    color: COLORS.textTertiary,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
   },
   artworkPreviewContainer: {
-    marginBottom: 20,
+    marginBottom: SPACING.md,
     alignItems: "center",
   },
   artworkPreviewLabel: {
-    fontSize: 14,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 4,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   artworkPreviewSubtext: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-    marginBottom: 16,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+    textAlign: "center",
   },
   artworkPreviewCard: {
     width: 200,
     height: 200,
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     overflow: "hidden",
-    backgroundColor: "hsl(0, 0%, 12%)",
+    backgroundColor: COLORS.backgroundCard,
     borderWidth: 2,
-    borderColor: "hsl(75, 100%, 60%, 0.3)",
-    shadowColor: "hsl(75, 100%, 60%)",
+    borderColor: "rgba(204, 255, 0, 0.28)",
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
     elevation: 8,
     position: "relative",
   },
@@ -1352,56 +1580,66 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    padding: 12,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
+    padding: SPACING.base,
+    borderBottomLeftRadius: RADIUS.md,
+    borderBottomRightRadius: RADIUS.md,
   },
   artworkPreviewTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 4,
+    fontSize: TYPOGRAPHY.lg,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
   },
   artworkPreviewGenre: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 80%)",
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textSecondary,
   },
   removeArtworkButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "hsl(0, 0%, 12%)",
+    gap: SPACING.sm,
+    marginTop: SPACING.base,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.base,
+    backgroundColor: COLORS.backgroundCard,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   removeArtworkText: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 100%, 50%)",
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.error,
+    fontWeight: TYPOGRAPHY.semibold,
   },
   mixSelectorScroll: {
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
+    marginHorizontal: -SPACING.md,
+    marginTop: SPACING.xs,
+  },
+  mixSelectorScrollContent: {
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.xs,
   },
   mixSelectorCard: {
-    width: 140,
-    marginRight: 16,
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
+    width: 144,
+    height: 200,
+    marginRight: SPACING.md,
+    backgroundColor: COLORS.backgroundTertiary,
+    borderRadius: RADIUS.md,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+    borderColor: COLORS.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  mixSelectorImageContainer: {
-    width: "100%",
-    height: 140,
-    position: "relative",
-    overflow: "hidden",
-    backgroundColor: "hsl(0, 0%, 12%)",
+  mixSelectorFullBleed: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.backgroundCard,
   },
   mixSelectorImage: {
     position: "absolute",
@@ -1411,81 +1649,120 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: "100%",
     height: "100%",
-    backgroundColor: "hsl(0, 0%, 12%)",
+    backgroundColor: COLORS.backgroundCard,
+  },
+  mixSelectorCardGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    minHeight: 72,
+    justifyContent: "flex-end",
+    paddingHorizontal: SPACING.sm,
+    paddingBottom: SPACING.sm,
+    paddingTop: SPACING.lg,
+  },
+  mixSelectorTitleOverlay: {
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.sm,
+    fontWeight: TYPOGRAPHY.semibold,
+    fontFamily: TYPOGRAPHY.primary,
+  },
+  mixSelectorGenreOverlay: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: TYPOGRAPHY.xs,
+    marginTop: 2,
+    fontFamily: TYPOGRAPHY.primary,
   },
   mixSelectorPlaceholder: {
     justifyContent: "center",
     alignItems: "center",
   },
   mixSelectorNoArtworkLabel: {
-    color: "hsl(0, 0%, 60%)",
-    fontSize: 11,
-    marginTop: 4,
-    fontFamily: "Helvetica Neue",
-  },
-  mixSelectorTitle: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
-    padding: 12,
-    paddingBottom: 4,
-    fontFamily: "Helvetica Neue",
-  },
-  mixSelectorGenre: {
-    color: "hsl(0, 0%, 60%)",
-    fontSize: 12,
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    fontFamily: "Helvetica Neue",
+    color: COLORS.textTertiary,
+    fontSize: TYPOGRAPHY.xs,
+    marginTop: SPACING.xs,
+    fontFamily: TYPOGRAPHY.primary,
   },
   newMixButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 12,
+    backgroundColor: COLORS.backgroundTertiary,
+    borderRadius: RADIUS.full,
+    paddingVertical: SPACING.base,
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.3)",
-    gap: 8,
+    borderColor: "rgba(204, 255, 0, 0.28)",
+    gap: SPACING.sm,
+  },
+  newMixButtonIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
   newMixButtonText: {
-    color: "hsl(75, 100%, 60%)",
-    fontSize: 14,
-    fontWeight: "600",
-    fontFamily: "Helvetica Neue",
+    color: COLORS.primary,
+    fontSize: TYPOGRAPHY.base,
+    fontWeight: TYPOGRAPHY.bold,
+    fontFamily: TYPOGRAPHY.primary,
+    letterSpacing: 0.3,
   },
-  editingIndicator: {
+  editingBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
-    borderRadius: 8,
-    padding: 12,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    gap: 8,
+    backgroundColor: COLORS.backgroundSecondary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: "rgba(204, 255, 0, 0.25)",
+    gap: SPACING.sm,
+  },
+  editingBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.md,
+    backgroundColor: "rgba(204, 255, 0, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editingBannerTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  editingBannerLabel: {
+    fontSize: TYPOGRAPHY.xs,
+    color: COLORS.textTertiary,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 2,
+    fontFamily: TYPOGRAPHY.primary,
+    fontWeight: TYPOGRAPHY.semibold,
   },
   editingText: {
-    flex: 1,
-    color: "hsl(75, 100%, 60%)",
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "500",
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.base,
+    fontFamily: TYPOGRAPHY.primary,
+    fontWeight: TYPOGRAPHY.semibold,
   },
   cancelEditButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
   },
   cancelEditText: {
-    color: "hsl(0, 0%, 70%)",
-    fontSize: 13,
-    fontFamily: "Helvetica Neue",
+    color: COLORS.primary,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    fontWeight: TYPOGRAPHY.bold,
   },
   uploadingContent: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: SPACING.sm,
     width: "100%",
   },
   progressBarContainer: {
@@ -1495,13 +1772,13 @@ const styles = StyleSheet.create({
   },
   progressBarBackground: {
     height: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
     borderRadius: 3,
     overflow: "hidden",
   },
   progressBarFill: {
     height: "100%",
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: COLORS.primary,
     borderRadius: 3,
     overflow: "hidden",
     position: "relative",
@@ -1515,52 +1792,54 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.4)",
     width: 50,
   },
-  // Modal Styles - R/HOOD Theme
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    backgroundColor: COLORS.overlayDark,
     justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 20,
-    padding: 32,
+    backgroundColor: COLORS.backgroundSecondary,
+    borderRadius: RADIUS.xl,
+    padding: SPACING["2xl"],
     width: "85%",
     maxWidth: 400,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "hsl(75, 100%, 60%)",
+    borderColor: COLORS.primary,
   },
   modalIcon: {
-    marginBottom: 16,
+    marginBottom: SPACING.md,
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 12,
+    fontSize: TYPOGRAPHY["3xl"],
+    fontWeight: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.base,
     textAlign: "center",
+    fontFamily: TYPOGRAPHY.primary,
   },
   modalDescription: {
-    fontSize: 16,
-    color: "hsl(0, 0%, 70%)",
+    fontSize: TYPOGRAPHY.lg,
+    color: COLORS.textSecondary,
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: SPACING.xl,
     lineHeight: 22,
+    fontFamily: TYPOGRAPHY.primary,
   },
   modalButton: {
     width: "100%",
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     overflow: "hidden",
   },
   modalButtonGradient: {
-    padding: 14,
+    padding: SPACING.base,
     alignItems: "center",
   },
   modalButtonText: {
-    color: "black",
-    fontSize: 16,
-    fontWeight: "bold",
+    color: COLORS.background,
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: TYPOGRAPHY.bold,
+    fontFamily: TYPOGRAPHY.primary,
   },
 });

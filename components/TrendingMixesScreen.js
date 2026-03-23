@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
   RefreshControl,
   Platform,
   ActionSheetIOS,
@@ -18,104 +17,12 @@ import { SkeletonMix } from "./Skeleton";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 import { fetchMixesWithProfilesAndLikeCounts } from "../lib/fetchMixesWithAggregates";
 import { normalizeMixForPlayback } from "../lib/yourLikesUtils";
+import { rankTrendingMixes } from "../lib/trendingScore";
+import MixListRow, {
+  MIX_LIST_ROW_HEIGHT_TRENDING,
+} from "./mixList/MixListRow";
 
-const TrendingMixRow = memo(function TrendingMixRow({ mix, isPlaying, onPress, onLongPress }) {
-  return (
-    <TouchableOpacity
-      style={rowStyles.popularRow}
-      onPress={() => onPress(mix)}
-      onLongPress={() => onLongPress(mix)}
-      delayLongPress={500}
-      activeOpacity={0.8}
-    >
-      <View style={rowStyles.popularImageWrap}>
-        <Image
-          source={
-            mix.artwork_url || mix.image_url || mix.image
-              ? { uri: mix.artwork_url || mix.image_url || mix.image }
-              : require("../assets/rhood_logo.webp")
-          }
-          style={rowStyles.popularImage}
-          resizeMode="cover"
-        />
-        {isPlaying && (
-          <View style={rowStyles.playingOverlay}>
-            <Ionicons name="play" size={20} color="hsl(75, 100%, 60%)" />
-          </View>
-        )}
-      </View>
-      <View style={rowStyles.popularInfo}>
-        <Text style={rowStyles.popularTitle} numberOfLines={1}>
-          {mix.title}
-        </Text>
-        <Text style={rowStyles.popularSubtitle} numberOfLines={1}>
-          {mix.artist || "Unknown"}
-        </Text>
-        <View style={rowStyles.popularMetaRow}>
-          {mix.durationFormatted && (
-            <Text style={rowStyles.popularMeta}>{mix.durationFormatted}</Text>
-          )}
-          {mix.genre && (
-            <>
-              {mix.durationFormatted && (
-                <Text style={rowStyles.popularMeta}> • </Text>
-              )}
-              <Text style={rowStyles.popularMeta}>{mix.genre}</Text>
-            </>
-          )}
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
-    </TouchableOpacity>
-  );
-});
-
-const rowStyles = StyleSheet.create({
-  popularRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
-  },
-  popularImageWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "hsl(0, 0%, 12%)",
-    position: "relative",
-  },
-  popularImage: { width: "100%", height: "100%" },
-  playingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  popularInfo: { flex: 1, gap: 4 },
-  popularTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-  },
-  popularSubtitle: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 80%)",
-  },
-  popularMeta: {
-    fontSize: 13,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-  },
-  popularMetaRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
-});
+const TRENDING_ROW_HEIGHT = MIX_LIST_ROW_HEIGHT_TRENDING;
 
 export default function TrendingMixesScreen({
   globalAudioState,
@@ -130,44 +37,50 @@ export default function TrendingMixesScreen({
   const [playingMixId, setPlayingMixId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  /** Set when fetch fails — never conflate with “empty trending”. */
+  const [loadError, setLoadError] = useState(null);
 
   const loadMixes = useCallback(async ({ isInitial = false } = {}) => {
     if (isInitial) setLoading(true);
+    setLoadError(null);
     try {
       const { mixes: next, error } =
         await fetchMixesWithProfilesAndLikeCounts();
       if (error) {
         console.error("❌ Error fetching mixes:", error);
         setMixes([]);
+        const msg =
+          (typeof error.message === "string" && error.message) ||
+          (typeof error.details === "string" && error.details) ||
+          (typeof error.hint === "string" && error.hint) ||
+          null;
+        setLoadError(
+          msg || "Could not load mixes. Check your connection and try again."
+        );
         return;
       }
       setMixes(next);
     } catch (error) {
       console.error("❌ Error in loadMixes:", error);
       setMixes([]);
+      setLoadError(
+        error?.message ||
+          "Something went wrong while loading trending mixes."
+      );
     } finally {
       if (isInitial) setLoading(false);
     }
   }, []);
 
-  // Calculate trending mixes (ordered by likes + plays)
-  const trendingMixes = useMemo(() => {
-    return [...mixes]
-      .map((mix) => {
-        const likes = mix.likeCount ?? 0;
-        const plays = mix.plays ?? mix.play_count ?? 0;
-        const score = likes * 2 + plays;
-        return { ...mix, trendingScore: score };
-      })
-      .filter((mix) => mix.trendingScore > 0)
-      .sort((a, b) => b.trendingScore - a.trendingScore);
-  }, [mixes]);
+  const trendingMixes = useMemo(
+    () => rankTrendingMixes(mixes, Date.now()),
+    [mixes]
+  );
 
   useEffect(() => {
     loadMixes({ isInitial: true });
   }, [loadMixes]);
 
-  // Sync playing state
   useEffect(() => {
     if (globalAudioState.currentTrack) {
       setPlayingMixId(globalAudioState.currentTrack.id);
@@ -184,6 +97,11 @@ export default function TrendingMixesScreen({
     } finally {
       setRefreshing(false);
     }
+  }, [loadMixes]);
+
+  const handleRetry = useCallback(() => {
+    HapticPatterns.buttonPress();
+    loadMixes({ isInitial: true });
   }, [loadMixes]);
 
   const handleMixPress = useCallback(
@@ -280,18 +198,24 @@ export default function TrendingMixesScreen({
 
   const renderListHeader = useCallback(
     () => (
-      <Text style={styles.subtitle}>
-        Who's hottest on the platform right now
-      </Text>
+      <View style={styles.listHeaderBlock}>
+        <Text style={styles.subtitle}>
+          Hot right now — ranked by plays, likes, and recency (newer mixes get
+          a fair shot).
+        </Text>
+      </View>
     ),
     []
   );
 
   const renderItem = useCallback(
-    ({ item: mix }) => (
+    ({ item: mix, index }) => (
       <View style={styles.popularList}>
-        <TrendingMixRow
+        <MixListRow
           mix={mix}
+          rank={index + 1}
+          showHotBadge={index < 3}
+          showEngagementStats
           isPlaying={
             playingMixId != null &&
             mix.id != null &&
@@ -313,9 +237,31 @@ export default function TrendingMixesScreen({
 
   const keyExtractor = useCallback((item) => `trending-${item.id}`, []);
 
+  const getItemLayout = useCallback(
+    (_, index) => ({
+      length: TRENDING_ROW_HEIGHT,
+      offset: TRENDING_ROW_HEIGHT * index,
+      index,
+    }),
+    []
+  );
+
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      tintColor="hsl(75, 100%, 60%)"
+    />
+  );
+
+  const showError = !loading && loadError;
+  const showEmpty =
+    !loading && !loadError && trendingMixes.length === 0;
+  const showList =
+    !loading && !loadError && trendingMixes.length > 0;
+
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -334,13 +280,7 @@ export default function TrendingMixesScreen({
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor="hsl(75, 100%, 60%)"
-            />
-          }
+          refreshControl={refreshControl}
         >
           <View style={styles.skeletonContainer}>
             <SkeletonMix />
@@ -350,47 +290,71 @@ export default function TrendingMixesScreen({
             <SkeletonMix />
           </View>
         </ScrollView>
-      ) : trendingMixes.length === 0 ? (
+      ) : showError ? (
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor="hsl(75, 100%, 60%)"
+          refreshControl={refreshControl}
+        >
+          <View style={styles.errorState}>
+            <Ionicons
+              name="cloud-offline-outline"
+              size={64}
+              color="hsl(0, 0%, 35%)"
             />
-          }
+            <Text style={styles.errorStateTitle}>Could not load trending</Text>
+            <Text style={styles.errorStateSubtitle}>{loadError}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={handleRetry}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="refresh"
+                size={20}
+                color="hsl(0, 0%, 0%)"
+                style={styles.retryIcon}
+              />
+              <Text style={styles.retryButtonText}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      ) : showEmpty ? (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={refreshControl}
         >
           <View style={styles.emptyState}>
             <Ionicons name="flame-outline" size={64} color="hsl(0, 0%, 30%)" />
-            <Text style={styles.emptyStateTitle}>No trending mixes</Text>
+            <Text style={styles.emptyStateTitle}>
+              {mixes.length === 0
+                ? "No mixes yet"
+                : "Nothing trending yet"}
+            </Text>
             <Text style={styles.emptyStateSubtitle}>
-              Check back later for trending content
+              {mixes.length === 0
+                ? "When DJs publish mixes, they will show up here."
+                : "Once mixes pick up plays and likes, they will rank here. Pull to refresh."}
             </Text>
           </View>
         </ScrollView>
-      ) : (
+      ) : showList ? (
         <FlatList
           data={trendingMixes}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           ListHeaderComponent={renderListHeader}
+          getItemLayout={getItemLayout}
           initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
           maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
           windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
           removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor="hsl(75, 100%, 60%)"
-            />
-          }
+          refreshControl={refreshControl}
           contentContainerStyle={styles.scrollContent}
           style={styles.scrollView}
         />
-      )}
+      ) : null}
     </View>
   );
 }
@@ -430,13 +394,15 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 160,
   },
+  listHeaderBlock: {
+    paddingHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
   subtitle: {
     fontSize: 13,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 60%)",
-    marginBottom: 16,
-    paddingHorizontal: 20,
-    marginTop: 16,
     lineHeight: 18,
   },
   popularList: {
@@ -456,6 +422,7 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     marginTop: 16,
     marginBottom: 8,
+    textAlign: "center",
   },
   emptyStateSubtitle: {
     fontSize: 14,
@@ -464,5 +431,42 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
+  errorState: {
+    alignItems: "center",
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  errorStateTitle: {
+    fontSize: 18,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  errorStateSubtitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 55%)",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  retryIcon: {
+    marginRight: 8,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "700",
+    color: "hsl(0, 0%, 0%)",
+  },
 });
-

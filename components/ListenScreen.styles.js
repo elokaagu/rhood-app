@@ -14,6 +14,56 @@ const styles = StyleSheet.create({
   listenScreenHeaderRoot: {
     width: "100%",
   },
+  /** Top of Listen tab: hero + always-visible upload entry */
+  listenHomeTop: {
+    width: "100%",
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  /** Circular + control — create / upload mix */
+  listenHeaderCreateButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 50%)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  /** Smaller section titles (Trending, Your playlists) on Listen */
+  listenSectionHeroTitleCompact: {
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  /** Search row under Listen hero — uses full width of padded parent */
+  listenHomeSearchSection: {
+    marginTop: 4,
+    marginBottom: 4,
+    width: "100%",
+  },
+  listenHomeSearchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  listenHomeSearchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 15,
+    color: "hsl(0, 0%, 100%)",
+    fontFamily: "Helvetica Neue",
+  },
   listenScreenFooterRoot: {
     width: "100%",
   },
@@ -583,7 +633,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   popularTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
   },

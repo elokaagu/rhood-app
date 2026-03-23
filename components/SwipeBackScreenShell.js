@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect } from "react";
-import { View, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet, Platform, BackHandler } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 import { HapticPatterns } from "../lib/haptics";
@@ -57,6 +57,16 @@ export default function SwipeBackScreenShell({
   }, [runBack]);
 
   const allow = Boolean(enabled && onBack && SWIPE_BACK_SUPPORTED);
+
+  // Android system / predictive back — same as edge swipe + header back
+  useEffect(() => {
+    if (!allow || Platform.OS !== "android") return undefined;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      runBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [allow, runBack]);
 
   if (!allow) {
     return children;

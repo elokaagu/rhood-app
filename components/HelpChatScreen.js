@@ -1,11 +1,18 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+  memo,
+} from "react";
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -27,20 +34,77 @@ import * as Haptics from "expo-haptics";
 import { HapticPatterns } from "../lib/haptics";
 import { getAssistantReply } from "../lib/aiChat";
 import { track, AnalyticsEvents } from "../lib/analytics";
+import {
+  getHelpChatRuleBasedReply,
+  QUICK_ACTION_USER_MESSAGES,
+} from "../lib/helpChatFallback";
+import { runHelpChatEscalation } from "../lib/helpChatEscalation";
+
+const MessageBubble = memo(function MessageBubble({ message, onQuickAction }) {
+  const isUser = message.sender === "user";
+  return (
+    <View
+      style={[
+        styles.messageContainer,
+        isUser ? styles.userMessageContainer : styles.botMessageContainer,
+      ]}
+    >
+      <View
+        style={[
+          styles.messageBubble,
+          isUser ? styles.userMessageBubble : styles.botMessageBubble,
+        ]}
+      >
+        {isUser ? (
+          <Text style={[styles.messageText, styles.userMessageText]}>
+            {message.text}
+          </Text>
+        ) : (
+          <Markdown style={markdownStyles}>{message.text}</Markdown>
+        )}
+      </View>
+      {message.quickActions && message.quickActions.length > 0 && (
+        <View style={styles.quickActionsContainer}>
+          {message.quickActions.map((action, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.quickActionButton}
+              onPress={() => onQuickAction(action.action)}
+            >
+              <Text style={styles.quickActionText}>{action.text}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+});
+
+const TypingFooter = memo(function TypingFooter() {
+  return (
+    <View style={styles.typingIndicator}>
+      <Text style={styles.typingText}>Thinking...</Text>
+    </View>
+  );
+});
 
 export default function HelpChatScreen({ user, onBack }) {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const scrollViewRef = useRef(null);
+  const listRef = useRef(null);
   const insets = useSafeAreaInsets();
 
-  // Reduced padding to sit just above bottom tab bar
-  const TAB_BAR_OVERLAY_OFFSET = 40; // Reduced from 96 for tighter spacing
-  const bottomInputPadding = useMemo(() => {
-    const BASE_PADDING = 0; // Increased to push message bar down
-    return BASE_PADDING + Math.max(insets.bottom, 10) + TAB_BAR_OVERLAY_OFFSET;
-  }, [insets.bottom]);
+  /** Help chat hides the tab bar — pad for home indicator + comfortable input only. */
+  const bottomInputPadding = useMemo(
+    () => Math.max(insets.bottom, 12) + SPACING.lg,
+    [insets.bottom]
+  );
+
+  const headerPaddingTop = useMemo(
+    () => Math.max(SPACING.lg, insets.top),
+    [insets.top]
+  );
 
   const scrollBottomPadding = useMemo(
     () => bottomInputPadding + 24,
@@ -102,175 +166,34 @@ export default function HelpChatScreen({ user, onBack }) {
     loadConversationHistory();
   }, [user?.id]);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollViewRef.current) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-  }, [messages]);
+    const t = requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: true });
+    });
+    return () => cancelAnimationFrame(t);
+  }, [messages.length, isTyping]);
 
-  // Bot response logic
-  const getBotResponse = (userMessage) => {
-    const lowerMessage = userMessage.toLowerCase().trim();
-
-    // Upload issues
-    if (
-      lowerMessage.includes("upload") ||
-      lowerMessage.includes("mix") ||
-      lowerMessage.includes("file") ||
-      lowerMessage.includes("can't upload") ||
-      lowerMessage.includes("upload failed")
-    ) {
-      return {
-        text:
-          "Got it! Let's figure out your upload issue. Can you tell me:\n\n" +
-          "• What happens when you try to upload? Does it fail immediately, or get stuck?\n" +
-          "• What format is your file? (MP3, WAV, etc.)\n" +
-          "• How big is the file? (Max is 500MB)\n" +
-          "• Are you seeing any error messages?\n\n" +
-          "Once I know these details, I can give you the exact fix!",
-        quickActions: [
-          { text: "File too large", action: "file-size" },
-          { text: "Upload keeps failing", action: "upload-failing" },
-          { text: "Contact support", action: "escalate" },
-        ],
-      };
-    }
-
-    // Location issues
-    if (
-      lowerMessage.includes("location") ||
-      lowerMessage.includes("city") ||
-      lowerMessage.includes("where") ||
-      lowerMessage.includes("can't change location") ||
-      lowerMessage.includes("location not working")
-    ) {
-      return {
-        text:
-          "Ah, location issues can be annoying! Let me help you fix this. What's happening exactly?\n\n" +
-          "• Is your city not showing up in the list?\n" +
-          "• Or does it not save when you try to update it?\n" +
-          "• Is it showing the wrong location?\n\n" +
-          "Tell me which one and I'll walk you through the fix step by step!",
-        quickActions: [
-          { text: "Can't find my city", action: "city-not-found" },
-          { text: "Location won't save", action: "location-save" },
-          { text: "Contact support", action: "escalate" },
-        ],
-      };
-    }
-
-    // General help/FAQ
-    if (
-      lowerMessage.includes("help") ||
-      lowerMessage.includes("how") ||
-      lowerMessage.includes("what") ||
-      lowerMessage.includes("faq") ||
-      lowerMessage.includes("question")
-    ) {
-      return {
-        text:
-          "For sure! I'm here to help. What's going on?\n\n" +
-          "Are you having trouble with:\n" +
-          "• Uploading a mix?\n" +
-          "• Finding or applying to opportunities?\n" +
-          "• Your location or profile?\n" +
-          "• Connecting with other DJs?\n" +
-          "• Something else?\n\n" +
-          "Tell me what you're trying to do and what's not working, and I'll help you figure it out!",
-        quickActions: [
-          { text: "Upload help", action: "upload" },
-          { text: "Location help", action: "location" },
-          { text: "Opportunities", action: "general" },
-          { text: "Other questions", action: "general" },
-        ],
-      };
-    }
-
-    // Account issues
-    if (
-      lowerMessage.includes("account") ||
-      lowerMessage.includes("login") ||
-      lowerMessage.includes("password") ||
-      lowerMessage.includes("sign in")
-    ) {
-      return {
-        text:
-          "Got it! Let's sort out your account issue. What's happening?\n\n" +
-          "• Can't log in? Are you getting an error message?\n" +
-          "• Forgot your password? I can walk you through resetting it\n" +
-          "• Need to change account settings? I'll show you where to go\n\n" +
-          "Tell me which one and I'll guide you through it!",
-        quickActions: [
-          { text: "Can't log in", action: "login-issue" },
-          { text: "Forgot password", action: "password-reset" },
-          { text: "Contact support", action: "escalate" },
-        ],
-      };
-    }
-
-    // Default response - be more proactive
-    return {
-      text:
-        "Got it! I'm here to help you figure this out. Can you tell me a bit more about what's going on?\n\n" +
-        "For example:\n" +
-        "• What are you trying to do?\n" +
-        "• What happens when you try?\n" +
-        "• Are you seeing any error messages?\n\n" +
-        "The more details you give me, the better I can help you solve it!",
-      quickActions: [
-        { text: "Upload issues", action: "upload" },
-        { text: "Location issues", action: "location" },
-        { text: "Account problems", action: "account" },
-        { text: "Contact support", action: "escalate" },
-      ],
-    };
-  };
-
-  // Handle quick action
-  const handleQuickAction = (action) => {
-    let message = "";
-    switch (action) {
-      case "upload":
-        message = "I'm having trouble uploading a mix";
-        break;
-      case "location":
-        message = "I'm having trouble with my location";
-        break;
-      case "file-size":
-        message = "My file is too large to upload";
-        break;
-      case "upload-failing":
-        message = "My upload keeps failing";
-        break;
-      case "city-not-found":
-        message = "I can't find my city in the location list";
-        break;
-      case "location-save":
-        message = "My location won't save";
-        break;
-      case "login-issue":
-        message = "I can't log into my account";
-        break;
-      case "password-reset":
-        message = "I need to reset my password";
-        break;
-      case "general":
-        message = "I have a general question";
-        break;
-      case "escalate":
-        handleEscalate();
-        return;
-      default:
-        message = action;
-    }
-    handleSendMessage(message);
-  };
+  const handleEscalate = useCallback(async () => {
+    await runHelpChatEscalation({
+      supabase,
+      user,
+      messages,
+      Linking,
+      Alert,
+      appendBotMessage: (msg) => setMessages((prev) => [...prev, msg]),
+      persistBotMessage: async (msg) => {
+        if (!user?.id) return;
+        try {
+          await db.saveHelpChatMessage(user.id, msg);
+        } catch (error) {
+          console.error("Error saving bot message:", error);
+        }
+      },
+    });
+  }, [user, messages]);
 
   // Send message
-  const handleSendMessage = async (text = null) => {
+  const handleSendMessage = useCallback(async (text = null) => {
     const messageText = text || inputText.trim();
     if (!messageText) return;
 
@@ -310,9 +233,10 @@ export default function HelpChatScreen({ user, onBack }) {
     }
 
     try {
-      // Prefer AI reply if configured; fallback to rules if not
-      const history = messages.slice(-10); // keep context short for latency
-      const ai = await getAssistantReply(messageText, { history });
+      const historyForAi = [...messages, userMessage].slice(-10);
+      const ai = await getAssistantReply(messageText, {
+        history: historyForAi,
+      });
       const textReply = ai?.text;
 
       // Check if AI returned an error message
@@ -325,7 +249,7 @@ export default function HelpChatScreen({ user, onBack }) {
       const reply =
         textReply && typeof textReply === "string" && !isErrorResponse
           ? { text: textReply, quickActions: [] }
-          : getBotResponse(messageText);
+          : getHelpChatRuleBasedReply(messageText);
 
       const botMessage = {
         id: (Date.now() + 1).toString(),
@@ -351,7 +275,7 @@ export default function HelpChatScreen({ user, onBack }) {
         // Continue even if save fails
       }
     } catch (e) {
-      const fallback = getBotResponse(messageText);
+      const fallback = getHelpChatRuleBasedReply(messageText);
       const botMessage = {
         id: (Date.now() + 1).toString(),
         text: fallback.text,
@@ -370,186 +294,32 @@ export default function HelpChatScreen({ user, onBack }) {
         // Continue even if save fails
       }
     }
-  };
+  }, [messages, inputText, user?.id]);
 
-  // Escalate to email support
-  const handleEscalate = async () => {
-    // Collect conversation history
-    const conversationHistory = messages
-      .map(
-        (msg) => `${msg.sender === "user" ? "You" : "Support Bot"}: ${msg.text}`
-      )
-      .join("\n\n");
-
-    const userEmail = user?.email || "user@example.com";
-    const userName =
-      user?.user_metadata?.dj_name || user?.user_metadata?.first_name || "User";
-
-    try {
-      // Try to send via Supabase Edge Function (if available)
-      const { data, error } = await supabase.functions.invoke("send-email", {
-        body: {
-          to: "hello@rhood.io",
-          subject: `Support Request from ${userName}`,
-          html: `
-            <h2>Support Request</h2>
-            <p><strong>User:</strong> ${userName} (${userEmail})</p>
-            <p><strong>User ID:</strong> ${user?.id || "Unknown"}</p>
-            <hr>
-            <h3>Conversation History:</h3>
-            <pre style="white-space: pre-wrap; background: #f5f5f5; padding: 15px; border-radius: 5px;">${conversationHistory}</pre>
-            <hr>
-            <p><em>This message was sent from the in-app help chat.</em></p>
-          `,
-          text: `Support Request from ${userName}\n\nUser: ${userName} (${userEmail})\nUser ID: ${
-            user?.id || "Unknown"
-          }\n\nConversation History:\n\n${conversationHistory}`,
-        },
-      });
-
-      if (error) {
-        // Fallback to mailto link
-        throw new Error("Edge function not available");
+  const handleQuickAction = useCallback(
+    (action) => {
+      if (action === "escalate") {
+        handleEscalate();
+        return;
       }
+      const preset = QUICK_ACTION_USER_MESSAGES[action];
+      const message = preset ?? action;
+      handleSendMessage(message);
+    },
+    [handleEscalate, handleSendMessage]
+  );
 
-      // Success - show confirmation
-      const successMessage = {
-        id: Date.now().toString(),
-        text:
-          "Great! I've sent your message to our support team. They'll get back to you at " +
-          userEmail +
-          " within 24 hours.",
-        sender: "bot",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, successMessage]);
-
-      // Save success message to database
-      if (user?.id) {
-        try {
-          await db.saveHelpChatMessage(user.id, successMessage);
-        } catch (error) {
-          console.error("Error saving success message:", error);
-        }
-      }
-    } catch (error) {
-      // Fallback: Use mailto link with properly formatted body
-      // Format conversation history for email
-      const emailBody = `Hi R/HOOD Support,
-
-I need help with the following issue:
-
-${conversationHistory}
-
-User: ${userName}
-Email: ${userEmail}
-User ID: ${user?.id || "Unknown"}
-
-Thank you!`;
-
-      // Encode only once and use proper URL encoding
-      const encodedSubject = encodeURIComponent(
-        `Support Request from ${userName}`
-      );
-      const encodedBody = encodeURIComponent(emailBody);
-      const mailtoLink = `mailto:hello@rhood.io?subject=${encodedSubject}&body=${encodedBody}`;
-
-      Alert.alert(
-        "Contact Support",
-        "I'll open your email app so you can send us a message directly.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Open Email",
-            onPress: async () => {
-              try {
-                // Check if we can open mailto links
-                const canOpen = await Linking.canOpenURL("mailto:");
-                if (canOpen) {
-                  await Linking.openURL(mailtoLink);
-                  const successMessage = {
-                    id: Date.now().toString(),
-                    text: "I've opened your email app. Please send the message and our team will respond within 24 hours.",
-                    sender: "bot",
-                    timestamp: new Date(),
-                  };
-                  setMessages((prev) => [...prev, successMessage]);
-
-                  // Save success message to database
-                  if (user?.id) {
-                    try {
-                      await db.saveHelpChatMessage(user.id, successMessage);
-                    } catch (error) {
-                      console.error("Error saving success message:", error);
-                    }
-                  }
-                } else {
-                  Alert.alert(
-                    "Error",
-                    "Could not open email app. Please email hello@rhood.io directly."
-                  );
-                }
-              } catch (linkError) {
-                console.error("Error opening mailto link:", linkError);
-                // Fallback: Show email address and let user copy it
-                Alert.alert(
-                  "Email Support",
-                  `Please email us at hello@rhood.io with your question. We'll respond within 24 hours.`,
-                  [{ text: "OK" }]
-                );
-              }
-            },
-          },
-        ]
-      );
-    }
-  };
-
-  const renderMessage = (message) => {
-    const isUser = message.sender === "user";
-    return (
-      <View
-        key={message.id}
-        style={[
-          styles.messageContainer,
-          isUser ? styles.userMessageContainer : styles.botMessageContainer,
-        ]}
-      >
-        <View
-          style={[
-            styles.messageBubble,
-            isUser ? styles.userMessageBubble : styles.botMessageBubble,
-          ]}
-        >
-          {isUser ? (
-            <Text style={[styles.messageText, styles.userMessageText]}>
-              {message.text}
-            </Text>
-          ) : (
-            <Markdown style={markdownStyles}>{message.text}</Markdown>
-          )}
-        </View>
-        {message.quickActions && message.quickActions.length > 0 && (
-          <View style={styles.quickActionsContainer}>
-            {message.quickActions.map((action, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.quickActionButton}
-                onPress={() => handleQuickAction(action.action)}
-              >
-                <Text style={styles.quickActionText}>{action.text}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </View>
-    );
-  };
+  const renderMessageItem = useCallback(
+    ({ item }) => (
+      <MessageBubble message={item} onQuickAction={handleQuickAction} />
+    ),
+    [handleQuickAction]
+  );
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
@@ -572,22 +342,21 @@ Thank you!`;
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <ScrollView
-          ref={scrollViewRef}
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderMessageItem}
           style={styles.messagesContainer}
           contentContainerStyle={[
             styles.messagesContent,
             { paddingBottom: scrollBottomPadding },
           ]}
           showsVerticalScrollIndicator={false}
-        >
-          {messages.map(renderMessage)}
-          {isTyping && (
-            <View style={styles.typingIndicator}>
-              <Text style={styles.typingText}>Thinking...</Text>
-            </View>
-          )}
-        </ScrollView>
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          ListFooterComponent={isTyping ? TypingFooter : null}
+        />
 
         {/* Input */}
         <View
@@ -601,9 +370,9 @@ Thank you!`;
               value={inputText}
               onChangeText={setInputText}
               multiline
+              blurOnSubmit={false}
               maxHeight={100}
               maxLength={500}
-              onSubmitEditing={() => handleSendMessage()}
             />
             <TouchableOpacity
               style={[
@@ -635,7 +404,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.lg,
     paddingBottom: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,

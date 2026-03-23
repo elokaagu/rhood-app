@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import { db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
+import {
+  ANCHORED_TAB_BAR_CONTENT_HEIGHT,
+  MINI_PLAYER_GAP_ABOVE_TAB_BAR,
+  MINI_PLAYER_APPROX_TOTAL_HEIGHT,
+} from "../navigation/routes";
 
 export default function InviteScreen({ user, onBack }) {
   const insets = useSafeAreaInsets();
@@ -25,6 +30,24 @@ export default function InviteScreen({ user, onBack }) {
   });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+
+  const { totalReferrals, totalCreditsEarned } = referralStats;
+
+  /** Invite actions only when data is ready — avoids alerts for known-empty state. */
+  const canUseInviteActions = Boolean(
+    user?.id && !loading && inviteCode && !loadError
+  );
+
+  /** Scroll clearance: tab bar + mini player stack + safe area (matches shell / GlobalAudioPlayerUI). */
+  const scrollBottomPadding = useMemo(() => {
+    const shellBottom =
+      ANCHORED_TAB_BAR_CONTENT_HEIGHT +
+      insets.bottom +
+      MINI_PLAYER_GAP_ABOVE_TAB_BAR +
+      MINI_PLAYER_APPROX_TOTAL_HEIGHT;
+    const comfort = 28;
+    return 20 + shellBottom + comfort;
+  }, [insets.bottom]);
 
   useEffect(() => {
     loadInviteData();
@@ -60,30 +83,22 @@ export default function InviteScreen({ user, onBack }) {
     }
   };
 
-  const ensureInviteReady = () => {
-    if (!inviteCode) {
-      Alert.alert("Error", "Invite code not available");
-      return false;
-    }
-    return true;
-  };
-
   // Generate referral link
   const getReferralLink = () => {
     if (!inviteCode) return null;
-    // Keep the invite-code URL format; server should redirect to app page
     return `https://rhood.io/invite/${inviteCode}`;
   };
 
-  // Generate referral share message
+  /** Single share body: invite URL is the primary CTA (landing page can route to app store). */
   const getReferralShareMessage = () => {
     if (!inviteCode) return "";
-    return `Join R/HOOD - The DJ Community\n\nUse my invite code when you sign up: ${inviteCode}\n\nYou'll help me earn credits and I'll help you get started.\n\nDownload R/HOOD app: https://rhood.io/download`;
+    const link = getReferralLink();
+    return `Join R/HOOD — the DJ community.\n\nSign up with my link:\n${link}\n\n(Or enter code ${inviteCode} in the app.)\n\nYou'll help me earn credits and I'll help you get started.`;
   };
 
   // Copy invite code
   const handleCopyCode = async () => {
-    if (!ensureInviteReady()) return;
+    if (!canUseInviteActions) return;
     try {
       await Clipboard.setStringAsync(inviteCode);
       HapticPatterns.success();
@@ -96,7 +111,7 @@ export default function InviteScreen({ user, onBack }) {
 
   // Copy referral link
   const handleCopyLink = async () => {
-    if (!ensureInviteReady()) return;
+    if (!canUseInviteActions) return;
     const link = getReferralLink();
     if (!link) return;
     try {
@@ -111,17 +126,15 @@ export default function InviteScreen({ user, onBack }) {
 
   /** Opens system share sheet with subject line (Mail and other apps can use it). Not a dedicated mailto: composer. */
   const handleShareWithEmailSubject = async () => {
-    if (!ensureInviteReady()) return;
+    if (!canUseInviteActions) return;
     const message = getReferralShareMessage();
-    const link = getReferralLink();
-    if (!message || !link) return;
+    if (!message) return;
 
     const subject = "Join R/HOOD - The DJ Community";
-    const body = `${message}\n\n${link}`;
 
     try {
       await Share.share({
-        message: body,
+        message,
         subject,
         title: subject,
       });
@@ -133,7 +146,7 @@ export default function InviteScreen({ user, onBack }) {
 
   // Share via SMS
   const handleShareSMS = async () => {
-    if (!ensureInviteReady()) return;
+    if (!canUseInviteActions) return;
     const message = getReferralShareMessage();
     if (!message) return;
     const url = `sms:?body=${encodeURIComponent(message)}`;
@@ -147,13 +160,12 @@ export default function InviteScreen({ user, onBack }) {
 
   // Share via native share sheet
   const handleShareNative = async () => {
-    if (!ensureInviteReady()) return;
+    if (!canUseInviteActions) return;
     const message = getReferralShareMessage();
-    const link = getReferralLink();
-    if (!message || !link) return;
+    if (!message) return;
     try {
       await Share.share({
-        message: `${message}\n\n${link}`,
+        message,
         title: "Invite a DJ to R/HOOD",
       });
     } catch (error) {
@@ -185,7 +197,10 @@ export default function InviteScreen({ user, onBack }) {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
+        contentContainerStyle={[
+          styles.scrollViewContent,
+          { paddingBottom: scrollBottomPadding },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {loadError ? (
@@ -215,8 +230,13 @@ export default function InviteScreen({ user, onBack }) {
             <Text style={styles.inviteCodeTitle}>Your Invite Code</Text>
           </View>
           <TouchableOpacity
-            style={styles.inviteCodeContainer}
+            style={[
+              styles.inviteCodeContainer,
+              !canUseInviteActions && styles.actionDisabled,
+            ]}
             onPress={handleCopyCode}
+            disabled={!canUseInviteActions}
+            activeOpacity={canUseInviteActions ? 0.7 : 1}
           >
             {loading ? (
               <View style={styles.codeLoadingRow}>
@@ -231,7 +251,11 @@ export default function InviteScreen({ user, onBack }) {
             <Ionicons
               name="copy-outline"
               size={18}
-              color="hsl(0, 0%, 70%)"
+              color={
+                canUseInviteActions
+                  ? "hsl(0, 0%, 70%)"
+                  : "hsl(0, 0%, 35%)"
+              }
             />
           </TouchableOpacity>
           <Text style={styles.inviteCodeDescription}>
@@ -247,8 +271,13 @@ export default function InviteScreen({ user, onBack }) {
             <Text style={styles.referralLinkTitle}>Shareable Link</Text>
           </View>
           <TouchableOpacity
-            style={styles.referralLinkContainer}
+            style={[
+              styles.referralLinkContainer,
+              !canUseInviteActions && styles.actionDisabled,
+            ]}
             onPress={handleCopyLink}
+            disabled={!canUseInviteActions}
+            activeOpacity={canUseInviteActions ? 0.7 : 1}
           >
             {loading ? (
               <View style={styles.codeLoadingRow}>
@@ -265,12 +294,21 @@ export default function InviteScreen({ user, onBack }) {
             <Ionicons
               name="copy-outline"
               size={18}
-              color="hsl(0, 0%, 70%)"
+              color={
+                canUseInviteActions
+                  ? "hsl(0, 0%, 70%)"
+                  : "hsl(0, 0%, 35%)"
+              }
             />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.copyLinkButton}
+            style={[
+              styles.copyLinkButton,
+              !canUseInviteActions && styles.primaryButtonDisabled,
+            ]}
             onPress={handleCopyLink}
+            disabled={!canUseInviteActions}
+            activeOpacity={canUseInviteActions ? 0.7 : 1}
           >
             <Ionicons name="copy" size={16} color="hsl(0, 0%, 0%)" />
             <Text style={styles.copyLinkButtonText}>Copy Link</Text>
@@ -280,28 +318,93 @@ export default function InviteScreen({ user, onBack }) {
         {/* Share Options */}
         <View style={styles.shareOptionsContainer}>
           <Text style={styles.shareOptionsTitle}>Share via</Text>
+          {loading && user?.id ? (
+            <Text style={styles.shareOptionsStatus}>
+              Loading your invite… share options unlock in a moment.
+            </Text>
+          ) : null}
           <View style={styles.shareButtonsRow}>
             <TouchableOpacity
-              style={styles.shareButton}
+              style={[
+                styles.shareButton,
+                !canUseInviteActions && styles.shareButtonDisabled,
+              ]}
               onPress={handleShareSMS}
+              disabled={!canUseInviteActions}
+              activeOpacity={canUseInviteActions ? 0.7 : 1}
             >
-              <Ionicons name="chatbubble" size={24} color="hsl(75, 100%, 60%)" />
-              <Text style={styles.shareButtonText}>SMS</Text>
+              <Ionicons
+                name="chatbubble"
+                size={24}
+                color={
+                  canUseInviteActions
+                    ? "hsl(75, 100%, 60%)"
+                    : "hsl(0, 0%, 35%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.shareButtonText,
+                  !canUseInviteActions && styles.shareButtonTextDisabled,
+                ]}
+              >
+                SMS
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.shareButton}
+              style={[
+                styles.shareButton,
+                !canUseInviteActions && styles.shareButtonDisabled,
+              ]}
               onPress={handleShareWithEmailSubject}
+              disabled={!canUseInviteActions}
+              activeOpacity={canUseInviteActions ? 0.7 : 1}
               accessibilityLabel="Share with email subject"
             >
-              <Ionicons name="mail" size={24} color="hsl(75, 100%, 60%)" />
-              <Text style={styles.shareButtonText}>Email</Text>
+              <Ionicons
+                name="mail"
+                size={24}
+                color={
+                  canUseInviteActions
+                    ? "hsl(75, 100%, 60%)"
+                    : "hsl(0, 0%, 35%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.shareButtonText,
+                  !canUseInviteActions && styles.shareButtonTextDisabled,
+                ]}
+              >
+                Email
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.shareButton}
+              style={[
+                styles.shareButton,
+                !canUseInviteActions && styles.shareButtonDisabled,
+              ]}
               onPress={handleShareNative}
+              disabled={!canUseInviteActions}
+              activeOpacity={canUseInviteActions ? 0.7 : 1}
             >
-              <Ionicons name="share-social" size={24} color="hsl(0, 0%, 70%)" />
-              <Text style={styles.shareButtonText}>More</Text>
+              <Ionicons
+                name="share-social"
+                size={24}
+                color={
+                  canUseInviteActions
+                    ? "hsl(0, 0%, 70%)"
+                    : "hsl(0, 0%, 35%)"
+                }
+              />
+              <Text
+                style={[
+                  styles.shareButtonText,
+                  !canUseInviteActions && styles.shareButtonTextDisabled,
+                ]}
+              >
+                More
+              </Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.shareOptionsHint}>
@@ -314,14 +417,14 @@ export default function InviteScreen({ user, onBack }) {
           <View style={styles.referralStatsRow}>
             <View style={styles.referralStatItem}>
               <Text style={styles.referralStatNumber}>
-                {referralStats.totalReferrals}
+                {loading && user?.id ? "—" : totalReferrals}
               </Text>
               <Text style={styles.referralStatLabel}>Referrals</Text>
             </View>
             <View style={styles.referralStatDivider} />
             <View style={styles.referralStatItem}>
               <Text style={styles.referralStatNumber}>
-                {referralStats.totalCreditsEarned}
+                {loading && user?.id ? "—" : totalCreditsEarned}
               </Text>
               <Text style={styles.referralStatLabel}>Credits Earned</Text>
             </View>
@@ -412,7 +515,6 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     padding: 20,
-    paddingBottom: 200, // Increased to account for audio player (120px position + ~70px height + spacing)
   },
   inviteCodeCard: {
     backgroundColor: "hsl(0, 0%, 8%)",
@@ -444,6 +546,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "hsl(75, 100%, 60%)",
+  },
+  actionDisabled: {
+    opacity: 0.45,
   },
   inviteCodeText: {
     fontSize: 20,
@@ -511,6 +616,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "hsl(0, 0%, 0%)",
   },
+  primaryButtonDisabled: {
+    opacity: 0.45,
+  },
   shareOptionsContainer: {
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 12,
@@ -527,6 +635,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+  },
+  shareOptionsStatus: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 50%)",
+    marginBottom: 10,
+    lineHeight: 16,
   },
   shareButtonsRow: {
     flexDirection: "row",
@@ -545,12 +660,18 @@ const styles = StyleSheet.create({
     borderColor: "hsl(0, 0%, 15%)",
     gap: 6,
   },
+  shareButtonDisabled: {
+    opacity: 0.5,
+  },
   shareButtonText: {
     fontSize: 12,
     fontFamily: "Helvetica Neue",
     fontWeight: "500",
     color: "hsl(0, 0%, 70%)",
     textAlign: "center",
+  },
+  shareButtonTextDisabled: {
+    color: "hsl(0, 0%, 40%)",
   },
   shareOptionsHint: {
     fontSize: 11,

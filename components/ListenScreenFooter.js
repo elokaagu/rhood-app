@@ -6,9 +6,10 @@ const DEFAULT_COPY = {
   title: "Share Your Mix",
   descriptionNoMixes:
     "Upload your own DJ mix and connect with the community",
-  descriptionHasMixes: "Update your mix or upload a new one",
+  descriptionHasMixes: "Add another mix or edit from your Profile",
   buttonNoMixes: "Upload Mix",
-  buttonHasMixes: "Manage Mixes",
+  /** Opens upload flow; manage pins/edits on Profile */
+  buttonHasMixes: "Upload another mix",
 };
 
 /**

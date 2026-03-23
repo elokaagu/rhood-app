@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
   RefreshControl,
-  Platform,
-  ActionSheetIOS,
   Alert,
   SectionList,
 } from "react-native";
@@ -19,113 +16,12 @@ import { SkeletonMix } from "./Skeleton";
 import { YOUR_LIKES_LIST_PERFORMANCE } from "../lib/performanceConstants";
 import {
   normalizeMixForPlayback,
+  presentYourLikesLongPressActions,
 } from "../lib/yourLikesUtils";
 import { fetchUserLikedMixesWithMixes } from "../lib/fetchUserLikedMixes";
 import CategoryPickerModal from "./yourLikes/CategoryPickerModal";
 import ManageCategoriesModal from "./yourLikes/ManageCategoriesModal";
-
-const YourLikesRow = memo(function YourLikesRow({
-  mix,
-  isPlaying,
-  onPress,
-  onLongPress,
-}) {
-  return (
-    <TouchableOpacity
-      style={rowStyles.popularRow}
-      onPress={() => onPress(mix)}
-      onLongPress={() => onLongPress(mix)}
-      delayLongPress={500}
-      activeOpacity={0.8}
-    >
-      <View style={rowStyles.popularImageWrap}>
-        <Image
-          source={
-            mix.artwork_url || mix.image_url || mix.image
-              ? { uri: mix.artwork_url || mix.image_url || mix.image }
-              : require("../assets/rhood_logo.webp")
-          }
-          style={rowStyles.popularImage}
-          resizeMode="cover"
-        />
-        {isPlaying && (
-          <View style={rowStyles.playingOverlay}>
-            <Ionicons name="play" size={20} color="hsl(75, 100%, 60%)" />
-          </View>
-        )}
-      </View>
-      <View style={rowStyles.popularInfo}>
-        <Text style={rowStyles.popularTitle} numberOfLines={1}>
-          {mix.title}
-        </Text>
-        <Text style={rowStyles.popularSubtitle} numberOfLines={1}>
-          {mix.artist || "Unknown"}
-        </Text>
-        <View style={rowStyles.popularMetaRow}>
-          {mix.durationFormatted && (
-            <Text style={rowStyles.popularMeta}>{mix.durationFormatted}</Text>
-          )}
-          {mix.genre && (
-            <>
-              {mix.durationFormatted && (
-                <Text style={rowStyles.popularMeta}> • </Text>
-              )}
-              <Text style={rowStyles.popularMeta}>{mix.genre}</Text>
-            </>
-          )}
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
-    </TouchableOpacity>
-  );
-});
-
-const rowStyles = StyleSheet.create({
-  popularRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
-  },
-  popularImageWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "hsl(0, 0%, 12%)",
-    position: "relative",
-  },
-  popularImage: { width: "100%", height: "100%" },
-  playingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  popularInfo: { flex: 1, gap: 4 },
-  popularTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-  },
-  popularSubtitle: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 80%)",
-  },
-  popularMeta: {
-    fontSize: 13,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-  },
-  popularMetaRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
-});
+import YourLikesRow from "./yourLikes/YourLikesRow";
 
 export default function YourLikesScreen({
   globalAudioState,
@@ -143,9 +39,9 @@ export default function YourLikesScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  /** Single surface for category UI: picker vs manage (avoids overlapping booleans). */
+  const [categoryModal, setCategoryModal] = useState(null);
   const [selectedMixForCategory, setSelectedMixForCategory] = useState(null);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
 
   const fetchCategories = useCallback(async () => {
@@ -296,56 +192,22 @@ export default function YourLikesScreen({
     ]
   );
 
-  const openCategoryPickerForMix = useCallback((mix) => {
-    HapticPatterns.itemPress();
-    const normalized = normalizeMixForPlayback(mix);
-    if (!normalized?.audioUrl) return;
-    setSelectedMixForCategory(mix);
-
-    const runQueue = (normalizedMix) => {
-      if (Platform.OS === "ios") {
-        const options = ["Cancel", "Add to Queue", "Play Next", "Move to Category"];
-        ActionSheetIOS.showActionSheetWithOptions(
-          { options, cancelButtonIndex: 0 },
-          (buttonIndex) => {
-            if (buttonIndex === 1) {
-              onAddToQueue?.(normalizedMix);
-              HapticPatterns.success();
-            } else if (buttonIndex === 2) {
-              onPlayNext?.(normalizedMix);
-              HapticPatterns.success();
-            } else if (buttonIndex === 3) {
-              setShowCategoryPicker(true);
-            }
-          }
-        );
-      } else {
-        Alert.alert(mix.title || "Mix", "Choose an option", [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Add to Queue",
-            onPress: () => {
-              onAddToQueue?.(normalizedMix);
-              HapticPatterns.success();
-            },
-          },
-          {
-            text: "Play Next",
-            onPress: () => {
-              onPlayNext?.(normalizedMix);
-              HapticPatterns.success();
-            },
-          },
-          {
-            text: "Move to Category",
-            onPress: () => setShowCategoryPicker(true),
-          },
-        ]);
-      }
-    };
-
-    runQueue(normalized);
-  }, [onAddToQueue, onPlayNext]);
+  const openCategoryPickerForMix = useCallback(
+    (mix) => {
+      HapticPatterns.itemPress();
+      const normalized = normalizeMixForPlayback(mix);
+      if (!normalized?.audioUrl) return;
+      setSelectedMixForCategory(mix);
+      presentYourLikesLongPressActions({
+        mixTitle: mix.title,
+        normalizedMix: normalized,
+        onAddToQueue,
+        onPlayNext,
+        onRequestCategoryPicker: () => setCategoryModal("picker"),
+      });
+    },
+    [onAddToQueue, onPlayNext]
+  );
 
   const handleAssignToCategory = async (categoryId) => {
     if (!selectedMixForCategory || !user?.id) return;
@@ -365,7 +227,7 @@ export default function YourLikesScreen({
       }));
 
       setSelectedMixForCategory(null);
-      setShowCategoryPicker(false);
+      setCategoryModal(null);
       HapticPatterns.success();
     } catch (error) {
       console.error("❌ Error assigning mix to category:", error);
@@ -391,7 +253,7 @@ export default function YourLikesScreen({
       }));
 
       setSelectedMixForCategory(null);
-      setShowCategoryPicker(false);
+      setCategoryModal(null);
       HapticPatterns.success();
     } catch (error) {
       console.error("❌ Error removing mix from category:", error);
@@ -416,7 +278,7 @@ export default function YourLikesScreen({
 
       setCategories((prev) => [...prev, data]);
       setNewCategoryName("");
-      setShowCategoryModal(false);
+      setCategoryModal(null);
       HapticPatterns.success();
     } catch (error) {
       console.error("❌ Error creating category:", error);
@@ -485,7 +347,8 @@ export default function YourLikesScreen({
     [user?.id]
   );
 
-  const connectionSections = useMemo(() => {
+  /** SectionList data: liked mixes grouped by like category (not “connections”). */
+  const likeCategorySections = useMemo(() => {
     const keys = Object.keys(likedMixesByCategory).filter(
       (key) => (likedMixesByCategory[key] || []).length > 0
     );
@@ -506,12 +369,12 @@ export default function YourLikesScreen({
   }, [likedMixesByCategory, categories]);
 
   const closeCategoryPicker = useCallback(() => {
-    setShowCategoryPicker(false);
+    setCategoryModal(null);
     setSelectedMixForCategory(null);
   }, []);
 
   const closeManageModal = useCallback(() => {
-    setShowCategoryModal(false);
+    setCategoryModal(null);
     setNewCategoryName("");
   }, []);
 
@@ -521,7 +384,7 @@ export default function YourLikesScreen({
         <Text style={styles.subtitle}>Organize your inspiration</Text>
         <TouchableOpacity
           style={styles.manageCategoriesButton}
-          onPress={() => setShowCategoryModal(true)}
+          onPress={() => setCategoryModal("manage")}
           activeOpacity={0.7}
         >
           <Ionicons name="folder-outline" size={18} color="hsl(75, 100%, 60%)" />
@@ -664,7 +527,7 @@ export default function YourLikesScreen({
         </ScrollView>
       ) : (
         <SectionList
-          sections={connectionSections}
+          sections={likeCategorySections}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
@@ -687,20 +550,17 @@ export default function YourLikesScreen({
       )}
 
       <CategoryPickerModal
-        visible={showCategoryPicker}
+        visible={categoryModal === "picker"}
         onClose={closeCategoryPicker}
         styles={styles}
         categories={categories}
         onRemoveFromCategory={handleRemoveFromCategory}
         onAssignToCategory={handleAssignToCategory}
-        onOpenCreateCategory={() => {
-          setShowCategoryPicker(false);
-          setShowCategoryModal(true);
-        }}
+        onOpenCreateCategory={() => setCategoryModal("manage")}
       />
 
       <ManageCategoriesModal
-        visible={showCategoryModal}
+        visible={categoryModal === "manage"}
         onClose={closeManageModal}
         styles={styles}
         categories={categories}

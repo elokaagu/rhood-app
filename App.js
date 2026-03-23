@@ -3,6 +3,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
 import {
   View,
@@ -16,6 +17,7 @@ import {
   Alert,
   Platform,
   Dimensions,
+  PanResponder,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -42,6 +44,7 @@ import {
 import AppShell from "./components/AppShell";
 import ScreenRouter from "./navigation/ScreenRouter";
 import {
+  SCREENS,
   TAB_BAR_HIDDEN_SCREENS,
   ANCHORED_TAB_BAR_CONTENT_HEIGHT,
 } from "./navigation/routes";
@@ -128,11 +131,16 @@ export default function App() {
   const fadeOverlayAnim = useRef(new Animated.Value(0)).current;
   const menuSlideAnim = useRef(new Animated.Value(0)).current;
   const menuOpacityAnim = useRef(new Animated.Value(0)).current;
+  /** Extra translateY while dragging the menu sheet down (dismiss). */
+  const menuDragY = useRef(new Animated.Value(0)).current;
+  const finishMenuSwipeDismissRef = useRef(() => {});
   const fullScreenMenuOpacityAnim = useRef(new Animated.Value(0)).current;
 
   // Forward-declaration refs for callbacks referenced before their definition
   const closeMenuRef = useRef(null);
   const fetchUserLocationRef = useRef(null);
+  /** Keeps latest tab/screen for handleMenuNavigation (stable callback, no stale closure). */
+  const currentScreenRef = useRef(currentScreen);
 
   // Authentication state
   const [user, setUser] = useState(null);
@@ -178,8 +186,9 @@ export default function App() {
     })();
   }, []);
 
-  // Track screen views when screen changes
+  // Track screen views when screen changes; keep ref in sync for menu navigation callbacks
   useEffect(() => {
+    currentScreenRef.current = currentScreen;
     if (currentScreen && user) {
       trackScreenView(currentScreen, screenParams);
     }
@@ -933,13 +942,29 @@ export default function App() {
     }
   };
 
-  const handleMenuNavigation = useCallback((screen, params = {}) => {
-    if (__DEV__) console.log("🎯 Navigating to screen:", screen);
-    setCurrentScreen(screen);
-    setScreenParams(params);
-    trackScreenView(screen, params);
-    closeMenuRef.current?.();
-  }, []);
+  const handleMenuNavigation = useCallback(
+    (screen, params = {}) => {
+      if (__DEV__) console.log("🎯 Navigating to screen:", screen);
+      const nextParams = { ...params };
+      // Use `currentScreen` state (last committed route), not `currentScreenRef`.
+      // The ref is updated in useEffect after paint; tab → Create quickly left ref stale
+      // so returnScreen could be "opportunities" while the user was on Listen.
+      if (screen === SCREENS.UPLOAD_MIX && nextParams.returnScreen === undefined) {
+        if (nextParams.mixId != null) {
+          nextParams.returnScreen = SCREENS.PROFILE;
+        } else if (currentScreen === SCREENS.UPLOAD_MIX) {
+          nextParams.returnScreen = SCREENS.LISTEN;
+        } else {
+          nextParams.returnScreen = currentScreen;
+        }
+      }
+      setCurrentScreen(screen);
+      setScreenParams(nextParams);
+      trackScreenView(screen, nextParams);
+      closeMenuRef.current?.();
+    },
+    [currentScreen]
+  );
 
 
   // Global authentication helper
@@ -971,14 +996,67 @@ export default function App() {
 
 
   // Menu animation functions
+  const finishMenuSwipeDismiss = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const offScreen =
+      (Dimensions.get("window")?.height || 600) * 0.45;
+    Animated.parallel([
+      Animated.timing(menuOpacityAnim, {
+        toValue: 0,
+        duration: ANIMATION_DURATION.FAST,
+        useNativeDriver: true,
+      }),
+      Animated.timing(menuDragY, {
+        toValue: offScreen,
+        duration: ANIMATION_DURATION.NORMAL,
+        useNativeDriver: false,
+      }),
+    ]).start(() => {
+      setShowMenu(false);
+      menuSlideAnim.setValue(0);
+      menuDragY.setValue(0);
+      menuOpacityAnim.setValue(0);
+    });
+  }, [menuOpacityAnim, menuDragY, menuSlideAnim]);
+
+  finishMenuSwipeDismissRef.current = finishMenuSwipeDismiss;
+
+  const menuPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) =>
+          g.dy > 10 && g.dy > Math.abs(g.dx) * 0.65,
+        onPanResponderMove: (_, g) => {
+          if (g.dy > 0) {
+            menuDragY.setValue(g.dy);
+          }
+        },
+        onPanResponderRelease: (_, g) => {
+          const shouldClose = g.dy > 110 || g.vy > 1.15;
+          if (shouldClose) {
+            finishMenuSwipeDismissRef.current();
+          } else {
+            Animated.spring(menuDragY, {
+              toValue: 0,
+              useNativeDriver: false,
+              friction: 7,
+              tension: 80,
+            }).start();
+          }
+        },
+      }),
+    [menuDragY]
+  );
+
   const openMenu = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    menuDragY.setValue(0);
     setShowMenu(true);
     Animated.parallel([
       Animated.timing(menuSlideAnim, {
         toValue: 1,
         duration: ANIMATION_DURATION.NORMAL,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(menuOpacityAnim, {
         toValue: 1,
@@ -986,14 +1064,15 @@ export default function App() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [menuSlideAnim, menuOpacityAnim]);
+  }, [menuSlideAnim, menuOpacityAnim, menuDragY]);
 
   const closeMenu = useCallback(() => {
+    menuDragY.setValue(0);
     Animated.parallel([
       Animated.timing(menuSlideAnim, {
         toValue: 0,
         duration: ANIMATION_DURATION.NORMAL,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(menuOpacityAnim, {
         toValue: 0,
@@ -1003,7 +1082,7 @@ export default function App() {
     ]).start(() => {
       setShowMenu(false);
     });
-  }, [menuSlideAnim, menuOpacityAnim]);
+  }, [menuSlideAnim, menuOpacityAnim, menuDragY]);
   closeMenuRef.current = closeMenu;
 
   // Load notification counts
@@ -1417,16 +1496,19 @@ export default function App() {
                 {
                   transform: [
                     {
-                      translateY: menuSlideAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [300, 0],
-                      }),
+                      translateY: Animated.add(
+                        menuSlideAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [300, 0],
+                        }),
+                        menuDragY
+                      ),
                     },
                   ],
                 },
               ]}
             >
-              <View style={styles.menuContent}>
+              <View style={styles.menuContent} {...menuPanResponder.panHandlers}>
                 <View style={styles.menuHeader}>
                   <Text style={styles.menuTitle}>MENU</Text>
                   <TouchableOpacity
@@ -4003,7 +4085,8 @@ const styles = StyleSheet.create({
   // In-App Notification Toast Styles
   inAppNotificationContainer: {
     position: "absolute",
-    top: 60,
+    // Sit just below header bottom border (line) — was 60 and overlapped the rule
+    top: 78,
     left: 20,
     right: 20,
     zIndex: 10000,

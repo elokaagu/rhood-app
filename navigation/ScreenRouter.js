@@ -80,10 +80,19 @@ export default function ScreenRouter({
 
   const navigate = useCallback(
     (nextScreen, params = {}) => {
+      const next = { ...params };
+      if (nextScreen === SCREENS.UPLOAD_MIX && next.returnScreen === undefined) {
+        next.returnScreen =
+          next.mixId != null
+            ? SCREENS.PROFILE
+            : screen === SCREENS.UPLOAD_MIX
+              ? SCREENS.LISTEN
+              : screen;
+      }
       setCurrentScreen(nextScreen);
-      setScreenParams(params);
+      setScreenParams(next);
     },
-    [setCurrentScreen, setScreenParams]
+    [setCurrentScreen, setScreenParams, screen]
   );
 
   /** Standard navigation object for screens that expect React Navigation–like API */
@@ -287,16 +296,21 @@ export default function ScreenRouter({
         />
       );
 
-    case SCREENS.UPLOAD_MIX:
+    case SCREENS.UPLOAD_MIX: {
+      const uploadReturnScreen =
+        screenParams.returnScreen != null
+          ? screenParams.returnScreen
+          : SCREENS.PROFILE;
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.PROFILE),
+        () => setCurrentScreen(uploadReturnScreen),
         <UploadMixScreen
           user={user}
-          onBack={() => setCurrentScreen(SCREENS.PROFILE)}
-          onUploadComplete={() => setCurrentScreen(SCREENS.PROFILE)}
+          onBack={() => setCurrentScreen(uploadReturnScreen)}
+          onUploadComplete={() => setCurrentScreen(uploadReturnScreen)}
           existingMixId={screenParams.mixId || null}
         />
       );
+    }
 
     case SCREENS.RESET_PASSWORD:
       return withSwipeBack(

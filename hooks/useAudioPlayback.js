@@ -10,13 +10,20 @@ import {
   Alert,
   Share,
   InteractionManager,
+  NativeModules,
+  NativeEventEmitter,
 } from "react-native";
-import { Audio } from "expo-av";
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 import * as Haptics from "expo-haptics";
 import { HapticPatterns } from "../lib/haptics";
 import lockScreenControls from "../lib/lockScreenControls";
+import nowPlayingInfo from "../lib/nowPlayingInfo";
 import { db, supabase } from "../lib/supabase";
 import { getAudioErrorMessage } from "../lib/errorMessages";
+import {
+  recordMixPlayStarted,
+  backfillMixDurationFromPlayback,
+} from "../lib/mixStatsRpc";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
 
 /** Mix duration in ms from metadata (Listen/DB). Used when expo-av reports 0 briefly. */
@@ -29,6 +36,57 @@ function trackMetaDurationMs(track) {
   const n = Number(raw);
   if (n > 5_000_000) return Math.round(n);
   return Math.round(n * 1000);
+}
+
+/** Stable https artwork URL for lock screen / notifications. */
+function mixArtworkUrl(track) {
+  if (!track) return null;
+  const candidates = [
+    track.image,
+    track.artwork_url,
+    track.image_url,
+    track.cover_url,
+  ];
+  for (const u of candidates) {
+    if (typeof u === "string" && u.trim()) {
+      const s = u.trim();
+      if (s.startsWith("http://") || s.startsWith("https://")) return s;
+    }
+  }
+  return null;
+}
+
+function mixArtistName(track) {
+  if (!track) return "Unknown Artist";
+  const a =
+    (typeof track.artist === "string" && track.artist.trim()) ||
+    (typeof track.user_dj_name === "string" && track.user_dj_name.trim()) ||
+    (typeof track.user?.dj_name === "string" && track.user.dj_name.trim()) ||
+    "";
+  return a || "Unknown Artist";
+}
+
+/** Payload for lib/nowPlayingInfo.js → native MPNowPlayingInfoCenter. */
+function buildIosNowPlayingPayload(
+  track,
+  positionMillis,
+  durationMillis,
+  isPlaying
+) {
+  const metaDur = trackMetaDurationMs(track);
+  const durMs = Math.max(
+    typeof durationMillis === "number" && durationMillis > 0 ? durationMillis : 0,
+    metaDur
+  );
+  return {
+    title: track?.title || "R/HOOD Mix",
+    artist: mixArtistName(track),
+    album: track?.genre || "R/HOOD",
+    image: mixArtworkUrl(track),
+    durationMillis: durMs,
+    positionMillis: typeof positionMillis === "number" ? positionMillis : 0,
+    isPlaying: !!isPlaying,
+  };
 }
 
 /** Fisher-Yates shuffle */
@@ -88,6 +146,10 @@ export default function useAudioPlayback({ user }) {
   const isPlayingAudioRef = useRef(false);
   /** True for the whole play session (InteractionManager defer + load + play). Prevents overlapping starts. */
   const playGlobalAudioLockRef = useRef(false);
+  /** Latest track requested while a session is in flight — played once the current session finishes. */
+  const deferredPlayTrackRef = useRef(null);
+  /** Always latest `playGlobalAudio` for deferred scheduling (avoids stale closure). */
+  const playGlobalAudioLatestRef = useRef(async (_track) => {});
   const trackFinishedRef = useRef(false);
   const isScrubbingRef = useRef(false);
   const playNextTrackRef = useRef(null);
@@ -137,9 +199,26 @@ export default function useAudioPlayback({ user }) {
      * One session at a time. Do NOT use isPlayingAudioRef for the entry guard: it was set true
      * before InteractionManager ran, so resumeGlobalAudio → playGlobalAudio hit "in progress" while
      * globalAudioRef was still null and the play button did nothing.
+     *
+     * If the user taps another mix while loading/playing, coalesce to the latest request instead of
+     * dropping the tap (which felt like a freeze / dead UI).
      */
     if (playGlobalAudioLockRef.current) {
-      if (__DEV__) console.log("⚠️ playGlobalAudio: session already in progress");
+      if (__DEV__) {
+        console.log("⚠️ playGlobalAudio: session in progress — deferring to latest track:", track.id);
+      }
+      deferredPlayTrackRef.current = track;
+      const trackForUI = {
+        ...track,
+        image: track.image || track.artwork_url || track.image_url || null,
+        isLiked: likedMixIds.has(track.id),
+      };
+      setPendingPlayTrack(trackForUI);
+      setGlobalAudioState((prev) => ({
+        ...prev,
+        currentTrack: trackForUI,
+        isLoading: true,
+      }));
       return;
     }
     playGlobalAudioLockRef.current = true;
@@ -195,9 +274,19 @@ export default function useAudioPlayback({ user }) {
             throw new Error("Invalid audio URL format. The audio file URL must be a valid HTTP/HTTPS or file URL.");
           }
 
-          // Stop current audio if playing
+          // Stop current audio if playing — clear status callback first so stale events
+          // can't flood setState after rapid track switches (reduces jank / freezes).
           if (globalAudioRef.current) {
-            await globalAudioRef.current.unloadAsync();
+            try {
+              globalAudioRef.current.setOnPlaybackStatusUpdate(null);
+            } catch (_) {
+              /* ignore */
+            }
+            try {
+              await globalAudioRef.current.unloadAsync();
+            } catch (_) {
+              /* unload may fail if already released */
+            }
             globalAudioRef.current = null;
           }
 
@@ -206,6 +295,9 @@ export default function useAudioPlayback({ user }) {
             allowsRecordingIOS: false,
             staysActiveInBackground: true,
             playsInSilentModeIOS: true,
+            /** Lock screen / Control Center associate reliably with this session (expo-av / iOS). */
+            interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+            interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
             shouldDuckAndroid: true,
             playThroughEarpieceAndroid: false,
           });
@@ -303,6 +395,9 @@ export default function useAudioPlayback({ user }) {
           let durationUpdated = false;
           sound.setOnPlaybackStatusUpdate((status) => {
             try {
+              if (globalAudioRef.current !== sound) {
+                return;
+              }
               if (status.isLoaded) {
                 const nativeDur =
                   status.durationMillis > 0 ? status.durationMillis : 0;
@@ -334,6 +429,18 @@ export default function useAudioPlayback({ user }) {
                     status.positionMillis || 0,
                     status.durationMillis || 0
                   );
+                } else if (Platform.OS === "ios") {
+                  const nativeDur =
+                    status.durationMillis > 0 ? status.durationMillis : 0;
+                  const metaMs = trackMetaDurationMs(track);
+                  const durMs = Math.max(nativeDur, metaMs);
+                  if (durMs > 0) {
+                    nowPlayingInfo.updatePlaybackTime(
+                      status.positionMillis || 0,
+                      durMs,
+                      status.isPlaying
+                    );
+                  }
                 }
 
                 // Check if track has finished playing
@@ -365,19 +472,11 @@ export default function useAudioPlayback({ user }) {
                   return;
                 }
 
-                // Update duration in DB once (async, don't block)
+                // Backfill duration in DB once (RPC — works for listeners, not only owner)
                 if (!durationUpdated && status.durationMillis > 0 && track.id) {
                   durationUpdated = true;
                   const durationInSeconds = Math.floor(status.durationMillis / 1000);
-                  supabase
-                    .from("mixes")
-                    .update({ duration: durationInSeconds })
-                    .eq("id", track.id)
-                    .is("duration", null)
-                    .then(({ error }) => {
-                      if (error && __DEV__) console.error("❌ Error updating duration:", error);
-                    })
-                    .catch(() => {});
+                  backfillMixDurationFromPlayback(track.id, durationInSeconds);
                 }
               } else if (status.error) {
                 setGlobalAudioState((prev) => ({ ...prev, isLoading: false }));
@@ -395,6 +494,9 @@ export default function useAudioPlayback({ user }) {
           try {
             await sound.playAsync();
             if (__DEV__) console.log("✅ Playback started successfully");
+            if (track?.id) {
+              recordMixPlayStarted(track.id);
+            }
             try {
               await sound.setProgressUpdateIntervalAsync(500);
             } catch (_) {}
@@ -556,13 +658,33 @@ export default function useAudioPlayback({ user }) {
             });
 
             const lockStatus = await sound.getStatusAsync();
+            const lockDur =
+              lockStatus?.isLoaded && lockStatus.durationMillis > 0
+                ? lockStatus.durationMillis
+                : trackMetaDurationMs(track);
             await lockScreenControls.showNotification({
               id: track.id,
               title: track.title || "R/HOOD Mix",
-              artist: track.artist || "Unknown Artist",
-              image: track.image || null,
-              durationMillis: lockStatus.durationMillis || 0,
+              artist: mixArtistName(track),
+              image: mixArtworkUrl(track),
+              durationMillis: lockDur || 0,
             });
+          }
+
+          if (Platform.OS === "ios") {
+            const npStatus = await sound.getStatusAsync();
+            const posMs = npStatus?.isLoaded ? (npStatus.positionMillis ?? 0) : 0;
+            const nativeDur =
+              npStatus?.isLoaded && npStatus.durationMillis > 0
+                ? npStatus.durationMillis
+                : 0;
+            const metaDur = trackMetaDurationMs(track);
+            const durMs = Math.max(nativeDur, metaDur);
+            if (durMs > 0) {
+              await nowPlayingInfo.setNowPlayingInfo(
+                buildIosNowPlayingPayload(track, posMs, durMs, true)
+              );
+            }
           }
 
           if (__DEV__) console.log("🎉 Global audio started successfully:", track.title);
@@ -587,8 +709,22 @@ export default function useAudioPlayback({ user }) {
         }
     } finally {
       playGlobalAudioLockRef.current = false;
+      const deferred = deferredPlayTrackRef.current;
+      const finishedId = track?.id;
+      deferredPlayTrackRef.current = null;
+      if (
+        deferred != null &&
+        deferred.id !== finishedId &&
+        typeof deferred.id !== "undefined"
+      ) {
+        setTimeout(() => {
+          void playGlobalAudioLatestRef.current(deferred);
+        }, 0);
+      }
     }
   }, [user?.id, likedMixIds, setGlobalAudioState, stateRef]);
+
+  playGlobalAudioLatestRef.current = playGlobalAudio;
 
   /** Ref can briefly desync from context (e.g. StrictMode, recovery). Prefer native ref from state.sound. */
   const syncGlobalAudioRefFromState = useCallback(() => {
@@ -611,6 +747,16 @@ export default function useAudioPlayback({ user }) {
             stateRef.current.positionMillis || 0,
             stateRef.current.durationMillis || 0
           );
+        } else if (Platform.OS === "ios") {
+          const d = stateRef.current.durationMillis || 0;
+          if (d > 0) {
+            nowPlayingInfo.updatePlaybackTime(
+              stateRef.current.positionMillis || 0,
+              d,
+              false,
+              true
+            );
+          }
         }
       } else if (stateRef.current.isPlaying) {
         // Ref lost but UI still says playing — sync so controls respond again
@@ -634,6 +780,16 @@ export default function useAudioPlayback({ user }) {
             stateRef.current.positionMillis || 0,
             stateRef.current.durationMillis || 0
           );
+        } else if (Platform.OS === "ios") {
+          const d = stateRef.current.durationMillis || 0;
+          if (d > 0) {
+            nowPlayingInfo.updatePlaybackTime(
+              stateRef.current.positionMillis || 0,
+              d,
+              true,
+              true
+            );
+          }
         }
       } else {
         const t = stateRef.current.currentTrack;
@@ -647,11 +803,20 @@ export default function useAudioPlayback({ user }) {
   }, [setGlobalAudioState, stateRef, syncGlobalAudioRefFromState, playGlobalAudio]);
 
   const stopGlobalAudio = useCallback(async () => {
+    deferredPlayTrackRef.current = null;
     try {
       if (globalAudioRef.current) {
+        try {
+          globalAudioRef.current.setOnPlaybackStatusUpdate(null);
+        } catch (_) {
+          /* ignore */
+        }
         await globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
-        await lockScreenControls.hideNotification();
+      }
+      await lockScreenControls.hideNotification();
+      if (Platform.OS === "ios") {
+        await nowPlayingInfo.clearNowPlayingInfo();
       }
     } catch (error) {
       if (__DEV__) console.log("❌ Error stopping audio:", error);
@@ -696,6 +861,16 @@ export default function useAudioPlayback({ user }) {
             newPosition,
             stateRef.current.durationMillis
           );
+        } else if (Platform.OS === "ios") {
+          const d = stateRef.current.durationMillis || 0;
+          if (d > 0) {
+            nowPlayingInfo.updatePlaybackTime(
+              newPosition,
+              d,
+              stateRef.current.isPlaying,
+              true
+            );
+          }
         }
       }
     } catch (error) {
@@ -757,6 +932,15 @@ export default function useAudioPlayback({ user }) {
         durationMillis:
           prev.durationMillis > 0 ? prev.durationMillis : effectiveDuration,
       }));
+
+      if (Platform.OS === "ios" && effectiveDuration > 0) {
+        nowPlayingInfo.updatePlaybackTime(
+          clampedPosition,
+          effectiveDuration,
+          st.isPlaying,
+          true
+        );
+      }
     } catch (error) {
       if (error.message && error.message.includes("interrupted")) {
         if (__DEV__) console.warn("⚠️ Seek was interrupted - this is normal during rapid scrubbing");
@@ -1411,6 +1595,67 @@ export default function useAudioPlayback({ user }) {
     playPreviousTrackRef.current = playPreviousTrack;
   }, [playPreviousTrack]);
 
+  // iOS: refresh Now Playing when async profile/artwork fields arrive (without spamming on every tick).
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    if (!audioState.currentTrack?.id || !audioState.isPlaying) return;
+    const t = audioState.currentTrack;
+    const durMs = Math.max(
+      audioState.durationMillis || 0,
+      trackMetaDurationMs(t)
+    );
+    if (durMs <= 0) return;
+    const pos = stateRef.current.positionMillis ?? 0;
+    void nowPlayingInfo.setNowPlayingInfo(
+      buildIosNowPlayingPayload(t, pos, durMs, true)
+    );
+  }, [
+    audioState.currentTrack?.id,
+    audioState.currentTrack?.title,
+    audioState.currentTrack?.artist,
+    audioState.currentTrack?.user_dj_name,
+    audioState.currentTrack?.genre,
+    audioState.currentTrack?.image,
+    audioState.currentTrack?.artwork_url,
+    audioState.currentTrack?.image_url,
+    audioState.isPlaying,
+    audioState.durationMillis,
+  ]);
+
+  // iOS: Control Center / lock screen hardware buttons → JS (MPRemoteCommandCenter)
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    const mod = NativeModules.NowPlayingInfoModule;
+    if (!mod) return;
+
+    const emitter = new NativeEventEmitter(mod);
+    const subPlayPause = emitter.addListener(
+      "NowPlayingRemotePlayPause",
+      () => {
+        const playing = stateRef.current.isPlaying;
+        const actions = actionsRef.current;
+        if (!actions) return;
+        if (playing) {
+          actions.pauseGlobalAudio?.();
+        } else {
+          actions.resumeGlobalAudio?.();
+        }
+      }
+    );
+    const subNext = emitter.addListener("NowPlayingRemoteNext", () => {
+      actionsRef.current?.playNextTrack?.();
+    });
+    const subPrev = emitter.addListener("NowPlayingRemotePrevious", () => {
+      actionsRef.current?.playPreviousTrack?.();
+    });
+
+    return () => {
+      subPlayPause.remove();
+      subNext.remove();
+      subPrev.remove();
+    };
+  }, [actionsRef, stateRef]);
+
   // Populate actionsRef so GlobalAudioPlayerUI and background services can call audio functions
   useLayoutEffect(() => {
     if (actionsRef) {
@@ -1439,7 +1684,13 @@ export default function useAudioPlayback({ user }) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      deferredPlayTrackRef.current = null;
       if (globalAudioRef.current) {
+        try {
+          globalAudioRef.current.setOnPlaybackStatusUpdate(null);
+        } catch (_) {
+          /* ignore */
+        }
         globalAudioRef.current.unloadAsync();
         globalAudioRef.current = null;
       }

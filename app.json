@@ -114,7 +114,13 @@
       "./plugins/withFirebaseModularHeaders",
       "@react-native-firebase/app",
       "expo-asset",
-      "expo-audio"
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": false
+        }
+      ]
     ],
     "scheme": "rhoodapp",
     "owner": "elokaagu",

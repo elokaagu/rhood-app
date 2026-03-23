@@ -21,6 +21,11 @@ const MAIN_TABS = [
     label: "Listen",
     icon: "musical-notes-outline",
   },
+  {
+    key: SCREENS.UPLOAD_MIX,
+    label: "Create",
+    icon: "add-outline",
+  },
 ];
 
 const ACTIVE_COLOR = "hsl(75, 100%, 60%)";
@@ -109,6 +114,8 @@ export default function AppShell({
                 key={key}
                 style={[styles.tab, active && styles.activeTab]}
                 onPress={() => onTabPress(key)}
+                accessibilityRole="button"
+                accessibilityLabel={label}
               >
                 <Ionicons
                   name={icon}

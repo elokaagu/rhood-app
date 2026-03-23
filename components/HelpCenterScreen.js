@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -6,71 +6,165 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
+  Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
-  COLORS,
-  TYPOGRAPHY,
   SPACING,
   RADIUS,
   sharedStyles,
 } from "../lib/sharedStyles";
 import { HapticPatterns } from "../lib/haptics";
 
+const SUPPORT_EMAIL = "hello@rhood.io";
+const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Help Request")}`;
+
+async function openMailtoSupport() {
+  try {
+    let can = true;
+    try {
+      can = await Linking.canOpenURL(SUPPORT_MAILTO);
+    } catch {
+      can = true;
+    }
+    if (can) {
+      await Linking.openURL(SUPPORT_MAILTO);
+    } else {
+      Alert.alert(
+        "Email support",
+        `Send a message to ${SUPPORT_EMAIL} from your mail app.`
+      );
+    }
+  } catch {
+    Alert.alert(
+      "Email support",
+      `We couldn't open your mail app. Email us at ${SUPPORT_EMAIL}.`
+    );
+  }
+}
+
+/** Rich FAQ copy: plain string, or an array of strings and { label, href } link objects. */
+function RichAnswerText({ segments, textStyle, linkStyle, onLinkPress }) {
+  if (segments == null) return null;
+  if (typeof segments === "string") {
+    return <Text style={textStyle}>{segments}</Text>;
+  }
+  if (!Array.isArray(segments)) return null;
+
+  return (
+    <Text style={textStyle}>
+      {segments.map((seg, index) => {
+        if (typeof seg === "string") {
+          return seg;
+        }
+        if (seg && typeof seg === "object" && seg.label && seg.href) {
+          return (
+            <Text
+              key={index}
+              style={linkStyle}
+              onPress={() => onLinkPress?.(seg.href)}
+            >
+              {seg.label}
+            </Text>
+          );
+        }
+        return null;
+      })}
+    </Text>
+  );
+}
+
+const FaqItem = memo(function FaqItem({ item, expanded, onToggle }) {
+  return (
+    <View style={styles.faqItem}>
+      <TouchableOpacity
+        style={styles.faqQuestion}
+        onPress={() => onToggle(item.id)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={item.question}
+      >
+        <Text style={styles.questionText}>{item.question}</Text>
+        <Ionicons
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={20}
+          color="hsl(75, 100%, 60%)"
+        />
+      </TouchableOpacity>
+      {expanded && (
+        <View style={styles.faqAnswer}>
+          <RichAnswerText
+            segments={item.answer}
+            textStyle={styles.answerText}
+            linkStyle={styles.linkText}
+            onLinkPress={(href) => {
+              if (href.startsWith("mailto:")) {
+                openMailtoSupport();
+              } else {
+                Linking.openURL(href).catch(() => {
+                  Alert.alert("Unable to open link", "Please try again later.");
+                });
+              }
+            }}
+          />
+          {item.bullets && (
+            <View style={styles.bulletList}>
+              {item.bullets.map((bullet, index) => (
+                <View key={index} style={styles.bulletItem}>
+                  <Text style={styles.bullet}>•</Text>
+                  <View style={styles.bulletTextWrap}>
+                    <RichAnswerText
+                      segments={bullet}
+                      textStyle={styles.bulletText}
+                      linkStyle={styles.linkText}
+                      onLinkPress={(href) => {
+                        if (href.startsWith("mailto:")) {
+                          openMailtoSupport();
+                        } else {
+                          Linking.openURL(href).catch(() => {
+                            Alert.alert(
+                              "Unable to open link",
+                              "Please try again later."
+                            );
+                          });
+                        }
+                      }}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+});
+
 export default function HelpCenterScreen({ onBack, onNavigate }) {
+  const insets = useSafeAreaInsets();
   const [expandedSections, setExpandedSections] = useState({});
 
-  const toggleSection = (sectionId) => {
+  const toggleSection = useCallback((sectionId) => {
     setExpandedSections((prev) => ({
       ...prev,
       [sectionId]: !prev[sectionId],
     }));
-  };
+  }, []);
 
-  const handleContactSupport = () => {
-    Linking.openURL("mailto:hello@rhood.io?subject=Help Request");
-  };
-
-  const handleSupportLinkPress = () => {
-    Linking.openURL("mailto:hello@rhood.io?subject=Help Request");
-  };
-
-  const renderTextWithLinks = (text, textStyle = styles.answerText) => {
-    if (!text) return null;
-    
-    // Replace "here" with a clickable link when it's in support context
-    const parts = text.split(/(\bhere\b)/gi);
-    
-    return (
-      <Text style={textStyle}>
-        {parts.map((part, index) => {
-          if (part.toLowerCase() === "here") {
-            return (
-              <Text
-                key={index}
-                style={styles.linkText}
-                onPress={handleSupportLinkPress}
-              >
-                {part}
-              </Text>
-            );
-          }
-          return part;
-        })}
-      </Text>
-    );
-  };
+  const headerPaddingTop = Math.max(SPACING.lg, insets.top);
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
             HapticPatterns.backButton();
             onBack();
           }}
+          accessibilityLabel="Go back"
         >
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
@@ -78,26 +172,27 @@ export default function HelpCenterScreen({ onBack, onNavigate }) {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Title Section */}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: insets.bottom + SPACING.xl }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.titleSection}>
           <Ionicons name="help-circle" size={60} color="hsl(75, 100%, 60%)" />
           <Text style={styles.title}>How can we help you?</Text>
           <Text style={styles.subtitle}>
-            Find answers to common questions and learn how to get the most out of R/HOOD
+            Find answers to common questions and learn how to get the most out
+            of R/HOOD
           </Text>
         </View>
 
-        {/* Quick Links */}
         <View style={styles.quickLinksSection}>
           <Text style={styles.sectionTitle}>Quick Links</Text>
           <TouchableOpacity
             style={[styles.quickLinkCard, styles.primaryQuickLinkCard]}
-            onPress={() => {
-              if (onNavigate) {
-                onNavigate("help-chat");
-              }
-            }}
+            onPress={() => onNavigate?.("help-chat")}
+            accessibilityRole="button"
+            accessibilityLabel="Chat with support"
           >
             <Ionicons name="chatbubbles" size={24} color="hsl(75, 100%, 60%)" />
             <View style={styles.quickLinkContent}>
@@ -114,7 +209,9 @@ export default function HelpCenterScreen({ onBack, onNavigate }) {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickLinkCard}
-            onPress={handleContactSupport}
+            onPress={openMailtoSupport}
+            accessibilityRole="button"
+            accessibilityLabel="Email support"
           >
             <Ionicons name="mail" size={24} color="hsl(75, 100%, 60%)" />
             <View style={styles.quickLinkContent}>
@@ -131,48 +228,20 @@ export default function HelpCenterScreen({ onBack, onNavigate }) {
           </TouchableOpacity>
         </View>
 
-        {/* FAQ Sections */}
         {helpSections.map((section) => (
           <View key={section.id} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             {section.questions.map((item) => (
-              <View key={item.id} style={styles.faqItem}>
-                <TouchableOpacity
-                  style={styles.faqQuestion}
-                  onPress={() => toggleSection(item.id)}
-                >
-                  <Text style={styles.questionText}>{item.question}</Text>
-                  <Ionicons
-                    name={
-                      expandedSections[item.id]
-                        ? "chevron-up"
-                        : "chevron-down"
-                    }
-                    size={20}
-                    color="hsl(75, 100%, 60%)"
-                  />
-                </TouchableOpacity>
-                {expandedSections[item.id] && (
-                  <View style={styles.faqAnswer}>
-                    {renderTextWithLinks(item.answer)}
-                    {item.bullets && (
-                      <View style={styles.bulletList}>
-                        {item.bullets.map((bullet, index) => (
-                          <View key={index} style={styles.bulletItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            {renderTextWithLinks(bullet, styles.bulletText)}
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
+              <FaqItem
+                key={item.id}
+                item={item}
+                expanded={!!expandedSections[item.id]}
+                onToggle={toggleSection}
+              />
             ))}
           </View>
         ))}
 
-        {/* Contact Section */}
         <View style={styles.contactSection}>
           <Text style={styles.contactTitle}>Still need help?</Text>
           <Text style={styles.contactText}>
@@ -180,14 +249,15 @@ export default function HelpCenterScreen({ onBack, onNavigate }) {
           </Text>
           <TouchableOpacity
             style={styles.contactButton}
-            onPress={handleContactSupport}
+            onPress={openMailtoSupport}
+            accessibilityRole="button"
+            accessibilityLabel="Email support"
           >
             <Ionicons name="mail" size={20} color="hsl(0, 0%, 0%)" />
             <Text style={styles.contactButtonText}>Email Support</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>R/HOOD Help Center</Text>
           <Text style={styles.footerSubtext}>
@@ -198,6 +268,9 @@ export default function HelpCenterScreen({ onBack, onNavigate }) {
     </View>
   );
 }
+
+const LINK = { label: "contact our support team", href: SUPPORT_MAILTO };
+const LINK_SHORT = { label: "contact support", href: SUPPORT_MAILTO };
 
 const helpSections = [
   {
@@ -213,8 +286,7 @@ const helpSections = [
       {
         id: "create-account",
         question: "How do I create an account?",
-        answer:
-          "You can create an account by:",
+        answer: "You can create an account by:",
         bullets: [
           "Signing up with your email and password",
           "Using Sign in with Apple",
@@ -328,8 +400,11 @@ const helpSections = [
       {
         id: "delete-account",
         question: "How do I delete my account?",
-        answer:
-          "To delete your account, please contact our support team here. We'll help you through the process and answer any questions.",
+        answer: [
+          "To delete your account, please ",
+          LINK,
+          ". We'll help you through the process and answer any questions.",
+        ],
       },
       {
         id: "privacy",
@@ -346,40 +421,49 @@ const helpSections = [
       {
         id: "login-issues",
         question: "I'm having trouble logging in",
-        answer:
-          "If you're having login issues:",
+        answer: "If you're having login issues:",
         bullets: [
           "Make sure you're using the correct email and password",
           "Try resetting your password if you forgot it",
           "Check your internet connection",
           "If using social sign-in, make sure you're using the same account you signed up with",
-          "Contact support here if the problem persists",
+          [
+            "If the problem persists, ",
+            LINK_SHORT,
+            " and we'll help.",
+          ],
         ],
       },
       {
         id: "app-crashes",
         question: "The app keeps crashing",
-        answer:
-          "Try these steps:",
+        answer: "Try these steps:",
         bullets: [
           "Close and restart the app",
           "Check for app updates in the App Store",
           "Restart your device",
           "Make sure you have the latest iOS/Android version",
-          "Contact support with details about when the crash occurs",
+          [
+            "Still stuck? ",
+            LINK_SHORT,
+            " with details about when the crash happens.",
+          ],
         ],
       },
       {
         id: "audio-not-playing",
         question: "Audio isn't playing",
-        answer:
-          "If mixes aren't playing:",
+        answer: "If mixes aren't playing:",
         bullets: [
           "Check your internet connection",
           "Make sure your device volume is up",
           "Try closing and reopening the app",
           "Check if other audio apps work on your device",
-          "Contact support if the issue continues",
+          [
+            "If the issue continues, ",
+            LINK_SHORT,
+            " and we'll take a look.",
+          ],
         ],
       },
     ],
@@ -395,7 +479,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.lg,
     paddingBottom: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: "hsl(0, 0%, 15%)",
@@ -440,6 +523,13 @@ const styles = StyleSheet.create({
   quickLinksSection: {
     marginBottom: SPACING.xl,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: "TS Block Bold",
+    fontWeight: "700",
+    color: "hsl(75, 100%, 60%)",
+    marginBottom: SPACING.md,
+  },
   quickLinkCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -472,13 +562,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: SPACING.xl,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: "TS Block Bold",
-    fontWeight: "700",
-    color: "hsl(75, 100%, 60%)",
-    marginBottom: SPACING.md,
   },
   faqItem: {
     marginBottom: SPACING.sm,
@@ -527,8 +610,10 @@ const styles = StyleSheet.create({
     marginRight: SPACING.sm,
     marginTop: 2,
   },
-  bulletText: {
+  bulletTextWrap: {
     flex: 1,
+  },
+  bulletText: {
     fontSize: 14,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 85%)",

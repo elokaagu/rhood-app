@@ -5,21 +5,24 @@ import {
   SectionList,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
   Alert,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useListenPlaylists } from "../hooks/useListenPlaylists";
 import { ListenPlaylistStrip, ListenMixRow } from "./ListenScreenRows";
 import styles from "./ListenScreen.styles";
-import { supabase } from "../lib/supabase";
+import { supabase, db } from "../lib/supabase";
 import { extractDurationSeconds } from "../lib/listenScreenUtils";
 import { HapticPatterns } from "../lib/haptics";
 import { createScreenCache } from "../lib/screenCache";
 import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
+import ListenScreenFooter from "./ListenScreenFooter";
+import { SkeletonMix } from "./Skeleton";
 
 const ICON_COLOR = "hsl(75, 100%, 60%)";
 const TRENDING_LIMIT = 15;
+const TRENDING_SKELETON_ROWS = 5;
 const TRENDING_CACHE_KEY = "trending";
 const trendingCache = createScreenCache("trending");
 
@@ -37,7 +40,8 @@ function PlaylistsSectionHeader() {
         title="Your playlists"
         subtitle="Your saved collections of mixes"
         showTopRule
-        subtitleBottomSpacing={16}
+        subtitleBottomSpacing={12}
+        titleStyle={styles.listenSectionHeroTitleCompact}
       />
     </View>
   );
@@ -49,7 +53,8 @@ function TrendingSectionHeader({ onSeeAll }) {
       <RhoodScreenTitleBlock
         title="Trending"
         subtitle="Who's hottest on the platform right now"
-        subtitleBottomSpacing={16}
+        subtitleBottomSpacing={12}
+        titleStyle={styles.listenSectionHeroTitleCompact}
         titleRight={
           <TouchableOpacity
             onPress={() => {
@@ -78,6 +83,9 @@ function ListenScreen({
   onAddToQueue,
   onPlayNext,
 }) {
+  const [hasUserMixes, setHasUserMixes] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
   const {
     playlists,
     playlistsLoading,
@@ -167,6 +175,23 @@ function ListenScreen({
     fetchTrending();
   }, [fetchTrending]);
 
+  const refreshUserMixPresence = useCallback(async () => {
+    if (!user?.id) {
+      setHasUserMixes(false);
+      return;
+    }
+    try {
+      const mixes = await db.getUserMixes(user.id);
+      setHasUserMixes(Array.isArray(mixes) && mixes.length > 0);
+    } catch {
+      setHasUserMixes(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    refreshUserMixPresence();
+  }, [refreshUserMixPresence]);
+
   // Fetch liked state for trending mix IDs
   const trendingMixIdsStr = trendingMixes.map((m) => m.id).filter(Boolean).join(",");
   useEffect(() => {
@@ -189,8 +214,24 @@ function ListenScreen({
   }, [user?.id, trendingMixIdsStr]);
 
   const onRefresh = useCallback(async () => {
-    await Promise.all([fetchPlaylists(), fetchTrending()]);
-  }, [fetchPlaylists, fetchTrending]);
+    await Promise.all([
+      fetchPlaylists(),
+      fetchTrending(),
+      refreshUserMixPresence(),
+    ]);
+  }, [fetchPlaylists, fetchTrending, refreshUserMixPresence]);
+
+  const handleOpenUpload = useCallback(() => {
+    HapticPatterns.buttonPress();
+    if (!user?.id) {
+      Alert.alert(
+        "Sign in required",
+        "Sign in to upload a mix to R/HOOD."
+      );
+      return;
+    }
+    onNavigate?.("upload-mix");
+  }, [user?.id, onNavigate]);
 
   const retryPlaylists = useCallback(() => {
     fetchPlaylists();
@@ -316,31 +357,89 @@ function ListenScreen({
     [onAddToQueue, onPlayNext, normalizeMixForQueue]
   );
 
+  const filteredTrendingMixes = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return trendingMixes;
+    return trendingMixes.filter((mix) => {
+      const title = (mix.title || "").toLowerCase();
+      const artist = (mix.artist || "").toLowerCase();
+      const genre = (mix.genre || "").toLowerCase();
+      return title.includes(q) || artist.includes(q) || genre.includes(q);
+    });
+  }, [trendingMixes, searchQuery]);
+
+  const filteredPlaylists = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return playlists;
+    return playlists.filter((p) => (p.name || "").toLowerCase().includes(q));
+  }, [playlists, searchQuery]);
+
   const playlistsSectionData = useMemo(() => {
     if (playlistsError) return [{ id: "__error_playlists", _error: true, message: playlistsError }];
     if (!playlistsLoading && playlists.length === 0) return [{ id: "__empty_playlists", _empty: true }];
+    const q = searchQuery.trim();
+    if (!playlistsLoading && q && playlists.length > 0 && filteredPlaylists.length === 0) {
+      return [{ id: "__empty_search_playlists", _emptySearch: true }];
+    }
     return [
       {
         id: "__horizontal_playlists",
         _horizontal: true,
-        playlists,
+        playlists: filteredPlaylists,
       },
     ];
-  }, [playlists, playlistsLoading, playlistsError]);
+  }, [
+    playlists,
+    filteredPlaylists,
+    playlistsLoading,
+    playlistsError,
+    searchQuery,
+  ]);
 
   const trendingData = useMemo(() => {
     if (trendingError) return [{ id: "__error_trending", _error: true, message: trendingError }];
+    // Placeholder rows so Trending occupies the list before mixes arrive (top-to-bottom load order).
+    if (
+      trendingLoading &&
+      trendingMixes.length === 0 &&
+      !trendingError &&
+      !searchQuery.trim()
+    ) {
+      return Array.from({ length: TRENDING_SKELETON_ROWS }, (_, i) => ({
+        id: `__trending_skeleton_${i}`,
+        _skeleton: true,
+      }));
+    }
     if (!trendingLoading && trendingMixes.length === 0) return [{ id: "__empty_trending", _empty: true }];
-    return trendingMixes;
-  }, [trendingMixes, trendingLoading, trendingError]);
+    const q = searchQuery.trim();
+    if (!trendingLoading && q && trendingMixes.length > 0 && filteredTrendingMixes.length === 0) {
+      return [{ id: "__empty_search_trending", _emptySearch: true }];
+    }
+    return filteredTrendingMixes;
+  }, [
+    trendingMixes,
+    filteredTrendingMixes,
+    trendingLoading,
+    trendingError,
+    searchQuery,
+  ]);
 
-  const sections = useMemo(
-    () => [
+  /** Don't mount playlists below until trending fetch has settled — avoids playlists populating first. */
+  const trendingSettled = !trendingLoading || trendingError != null;
+
+  const sections = useMemo(() => {
+    const next = [
       { key: "trending", title: "Trending", data: trendingData },
-      { key: "playlists", title: "Your playlists", data: playlistsSectionData },
-    ],
-    [playlistsSectionData, trendingData]
-  );
+    ];
+    if (trendingSettled) {
+      next.push({
+        key: "playlists",
+        title: "Your playlists",
+        data: playlistsSectionData,
+      });
+    }
+    return next;
+  }, [playlistsSectionData, trendingData, trendingSettled]);
 
   const renderSectionHeader = useCallback(
     ({ section }) => {
@@ -371,6 +470,21 @@ function ListenScreen({
           </View>
         );
       }
+      if (item._emptySearch) {
+        return (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="search-outline" size={44} color="hsl(0, 0%, 40%)" />
+            </View>
+            <Text style={styles.emptyTitle}>No matches</Text>
+            <Text style={styles.emptySubtitle}>
+              {section.key === "playlists"
+                ? "No playlists match your search. Try another name."
+                : "No mixes match that search. Try a different title or DJ name."}
+            </Text>
+          </View>
+        );
+      }
       if (item._empty) {
         return (
           <View style={styles.emptyContainer}>
@@ -389,6 +503,13 @@ function ListenScreen({
                 ? "Create playlists from the playlist detail screen"
                 : "Check back later for new mixes"}
             </Text>
+          </View>
+        );
+      }
+      if (item._skeleton && section.key === "trending") {
+        return (
+          <View style={styles.trendingRowWrap}>
+            <SkeletonMix />
           </View>
         );
       }
@@ -439,6 +560,55 @@ function ListenScreen({
 
   const refreshing = playlistsLoading || trendingLoading;
 
+  /** Stable top chrome: title + search always first; body loads trending then playlists below. */
+  const renderListHeader = useCallback(() => {
+    return (
+      <View style={styles.listenScreenHeaderRoot}>
+        <View style={styles.listenHomeTop}>
+          <RhoodScreenTitleBlock
+            title="Listen"
+            subtitle="DJ mixes from the R/HOOD community."
+            subtitleBottomSpacing={10}
+          />
+          <View style={styles.listenHomeSearchSection}>
+            <View style={styles.listenHomeSearchContainer}>
+              <Ionicons name="search" size={20} color="hsl(0, 0%, 50%)" />
+              <TextInput
+                style={styles.listenHomeSearchInput}
+                placeholder="Search mixes, DJs, or genres…"
+                placeholderTextColor="hsl(0, 0%, 45%)"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 ? (
+                <TouchableOpacity
+                  onPress={() => setSearchQuery("")}
+                  style={styles.clearButton}
+                  accessibilityLabel="Clear search"
+                >
+                  <Ionicons name="close-circle" size={20} color="hsl(0, 0%, 50%)" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }, [searchQuery]);
+
+  const renderListFooter = useCallback(
+    () => (
+      <ListenScreenFooter
+        hasUserMixes={hasUserMixes}
+        onUploadMix={handleOpenUpload}
+      />
+    ),
+    [hasUserMixes, handleOpenUpload]
+  );
+
   return (
     <View style={styles.container}>
       <SectionList
@@ -460,14 +630,8 @@ function ListenScreen({
             tintColor={ICON_COLOR}
           />
         }
-        ListHeaderComponent={
-          playlists.length === 0 && trendingMixes.length === 0 && (playlistsLoading || trendingLoading) ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={ICON_COLOR} />
-              <Text style={styles.loadingText}>Loading…</Text>
-            </View>
-          ) : null
-        }
+        ListHeaderComponent={renderListHeader}
+        ListFooterComponent={renderListFooter}
       />
     </View>
   );

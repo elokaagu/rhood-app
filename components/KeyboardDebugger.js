@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,14 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-const KeyboardDebugger = ({ isVisible = false, onToggle }) => {
+/**
+ * Dev overlay for keyboard / input overlap debugging.
+ *
+ * @param {boolean} isVisible
+ * @param {() => void} onToggle
+ * @param {React.RefObject} inputRef — attach the same ref to your TextInput (or a wrapper View).
+ */
+const KeyboardDebugger = ({ isVisible = false, onToggle, inputRef }) => {
   const [keyboardData, setKeyboardData] = useState({
     height: 0,
     isVisible: false,
@@ -24,7 +31,50 @@ const KeyboardDebugger = ({ isVisible = false, onToggle }) => {
   const [logs, setLogs] = useState([]);
   const [inputMeasurements, setInputMeasurements] = useState(null);
 
+  const flushMeasureInput = useCallback(() => {
+    const node = inputRef?.current;
+    if (!node || typeof node.measure !== "function") {
+      return;
+    }
+    node.measure((x, y, width, height, pageX, pageY) => {
+      const measurements = {
+        x: pageX,
+        y: pageY,
+        width,
+        height,
+        bottom: pageY + height,
+        right: pageX + width,
+      };
+      setInputMeasurements(measurements);
+      const win = Dimensions.get("window");
+      setLogs((prev) =>
+        [
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            event: "INPUT_MEASURED",
+            data: {
+              ...measurements,
+              screenHeight: win.height,
+              screenWidth: win.width,
+            },
+          },
+          ...prev,
+        ].slice(0, 20)
+      );
+    });
+  }, [inputRef]);
+
+  // Keyboard + dimension listeners: register once; use Dimensions.get when logging for fresh values.
   useEffect(() => {
+    const pushLog = (event, data) => {
+      setLogs((prev) =>
+        [{ timestamp: new Date().toLocaleTimeString(), event, data }, ...prev].slice(
+          0,
+          20
+        )
+      );
+    };
+
     const keyboardWillShowListener = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       (event) => {
@@ -36,10 +86,12 @@ const KeyboardDebugger = ({ isVisible = false, onToggle }) => {
         };
         setKeyboardData(newData);
 
-        addLog("KEYBOARD_SHOW", {
+        const win = Dimensions.get("window");
+        pushLog("KEYBOARD_SHOW", {
           height: event.endCoordinates.height,
           duration: event.duration,
-          screenHeight: screenData.height,
+          screenHeight: win.height,
+          screenWidth: win.width,
         });
       }
     );
@@ -55,8 +107,11 @@ const KeyboardDebugger = ({ isVisible = false, onToggle }) => {
         };
         setKeyboardData(newData);
 
-        addLog("KEYBOARD_HIDE", {
+        const win = Dimensions.get("window");
+        pushLog("KEYBOARD_HIDE", {
           duration: event.duration,
+          screenHeight: win.height,
+          screenWidth: win.width,
         });
       }
     );
@@ -69,7 +124,7 @@ const KeyboardDebugger = ({ isVisible = false, onToggle }) => {
           width: window.width,
         });
 
-        addLog("SCREEN_ROTATION", {
+        pushLog("SCREEN_ROTATION", {
           height: window.height,
           width: window.width,
         });
@@ -81,34 +136,16 @@ const KeyboardDebugger = ({ isVisible = false, onToggle }) => {
       keyboardWillHideListener?.remove();
       dimensionListener?.remove();
     };
-  }, [screenData.height]);
+  }, []);
 
-  const addLog = (event, data) => {
-    const logEntry = {
-      timestamp: new Date().toLocaleTimeString(),
-      event,
-      data,
-    };
-    setLogs((prev) => [logEntry, ...prev].slice(0, 20)); // Keep last 20 logs
-  };
-
-  const measureInputField = (inputRef) => {
-    if (inputRef && inputRef.current) {
-      inputRef.current.measure((x, y, width, height, pageX, pageY) => {
-        const measurements = {
-          x: pageX,
-          y: pageY,
-          width,
-          height,
-          bottom: pageY + height,
-          right: pageX + width,
-        };
-        setInputMeasurements(measurements);
-
-        addLog("INPUT_MEASURED", measurements);
-      });
-    }
-  };
+  // Re-measure when overlay opens or keyboard visibility changes (layout may have shifted).
+  useEffect(() => {
+    if (!isVisible) return undefined;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(flushMeasureInput);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isVisible, keyboardData.isVisible, keyboardData.height, flushMeasureInput]);
 
   const clearLogs = () => {
     setLogs([]);
@@ -132,6 +169,9 @@ const KeyboardDebugger = ({ isVisible = false, onToggle }) => {
   const visibility = calculateVisibility();
 
   if (!isVisible) return null;
+
+  /** Ref object may exist before .current is set; Remeasure is still useful after mount. */
+  const remeasureEnabled = !!inputRef;
 
   return (
     <View style={styles.debuggerContainer}>
@@ -164,10 +204,28 @@ const KeyboardDebugger = ({ isVisible = false, onToggle }) => {
             ]}
           >
             Input Field:{" "}
-            {visibility.isVisible
-              ? "Visible"
-              : `Blocked (${visibility.overlap}px overlap)`}
+            {!inputRef
+              ? "Pass inputRef (from useKeyboardDebugger) to KeyboardDebugger"
+              : !inputMeasurements
+                ? "Not measured yet — tap Remeasure (after TextInput mounts)"
+                : visibility.isVisible
+                  ? "Visible"
+                  : `Blocked (${visibility.overlap}px overlap)`}
           </Text>
+          <TouchableOpacity
+            style={styles.remeasureButton}
+            onPress={flushMeasureInput}
+            disabled={!remeasureEnabled}
+          >
+            <Text
+              style={[
+                styles.remeasureButtonText,
+                !remeasureEnabled && styles.remeasureButtonTextDisabled,
+              ]}
+            >
+              Remeasure input layout
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Input Measurements */}
@@ -213,40 +271,28 @@ const KeyboardDebugger = ({ isVisible = false, onToggle }) => {
   );
 };
 
-// Hook to use the debugger
+/**
+ * @returns {{
+ *   isDebuggerVisible: boolean,
+ *   toggleDebugger: () => void,
+ *   inputRef: React.RefObject,
+ * }}
+ *
+ * Attach `inputRef` to the field you care about, then render:
+ * `<KeyboardDebugger isVisible={isDebuggerVisible} onToggle={toggleDebugger} inputRef={inputRef} />`
+ */
 export const useKeyboardDebugger = () => {
   const [isDebuggerVisible, setIsDebuggerVisible] = useState(false);
   const inputRef = useRef(null);
 
-  const toggleDebugger = () => {
+  const toggleDebugger = useCallback(() => {
     setIsDebuggerVisible((prev) => !prev);
-  };
-
-  const measureInput = () => {
-    if (inputRef.current) {
-      inputRef.current.measure((x, y, width, height, pageX, pageY) => {
-        console.log("Input measurements:", {
-          x: pageX,
-          y: pageY,
-          width,
-          height,
-        });
-      });
-    }
-  };
+  }, []);
 
   return {
     isDebuggerVisible,
     toggleDebugger,
     inputRef,
-    measureInput,
-    KeyboardDebugger: (props) => (
-      <KeyboardDebugger
-        {...props}
-        isVisible={isDebuggerVisible}
-        onToggle={toggleDebugger}
-      />
-    ),
   };
 };
 
@@ -300,6 +346,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 4,
     fontFamily: "monospace",
+  },
+  remeasureButton: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    backgroundColor: "hsl(0, 0%, 20%)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 40%)",
+  },
+  remeasureButtonText: {
+    color: "hsl(75, 100%, 60%)",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  remeasureButtonTextDisabled: {
+    color: "hsl(0, 0%, 45%)",
   },
   logsSection: {
     flex: 1,
