@@ -784,24 +784,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 10,
   },
-  /** Horizontal “Your playlists” strip — square cover + title below */
+  /** Horizontal “Your playlists” strip — same horizontal inset as trendingRowWrap */
   playlistStripWrap: {
+    paddingHorizontal: 20,
     marginBottom: 8,
   },
-  playlistStripScroll: {
-    marginHorizontal: -20,
-  },
   playlistStripContent: {
-    paddingHorizontal: 20,
-    paddingRight: 24,
+    paddingRight: 20,
     gap: 14,
     flexDirection: "row",
+    alignItems: "flex-start",
   },
   playlistSquareCard: {
     width: 136,
   },
   playlistSquareTouchable: {
     width: 136,
+    minWidth: 136,
+    flexShrink: 0,
+    alignItems: "flex-start",
   },
   playlistSquareImageWrap: {
     width: 136,

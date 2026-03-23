@@ -146,7 +146,6 @@ export const ListenPlaylistStrip = memo(function ListenPlaylistStrip({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.playlistStripScroll}
         contentContainerStyle={styles.playlistStripContent}
         decelerationRate={Platform.OS === "ios" ? "normal" : 0.98}
       >
