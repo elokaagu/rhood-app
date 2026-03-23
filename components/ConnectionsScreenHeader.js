@@ -20,6 +20,8 @@ export default function ConnectionsScreenHeader({
   onSearchChange,
   searchSuggestions,
   showSuggestions,
+  isSearching = false,
+  searchError = null,
   onClearSearch,
   onSelectSearchSuggestion,
 }) {
