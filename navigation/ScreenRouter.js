@@ -31,6 +31,7 @@ import ResetPasswordScreen from "../components/ResetPasswordScreen";
 import SwipeBackScreenShell from "../components/SwipeBackScreenShell";
 import { db } from "../lib/supabase";
 import { clearScreenCachesForUser } from "../lib/screenCache";
+import { clearMessageThreadSnapshotsForUser } from "../lib/messageThreadSnapshotCache";
 import { clearSessionExpoPushTokenCache } from "../lib/pushNotifications";
 
 /** Same navigation as the header back arrow, plus edge swipe (see SwipeBackScreenShell). */
@@ -151,6 +152,7 @@ export default function ScreenRouter({
 
   const handleSignOut = useCallback(() => {
     clearScreenCachesForUser(user?.id);
+    clearMessageThreadSnapshotsForUser(user?.id);
     clearSessionExpoPushTokenCache();
     setUser(null);
     setIsFirstTime(true);

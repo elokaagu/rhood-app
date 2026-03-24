@@ -34,6 +34,7 @@ import EditProfileScreen from "./components/EditProfileScreen";
 import AuthGate from "./components/AuthGate";
 import { db, auth, supabase } from "./lib/supabase";
 import { clearScreenCachesForUser } from "./lib/screenCache";
+import { clearMessageThreadSnapshotsForUser } from "./lib/messageThreadSnapshotCache";
 import {
   ANIMATION_DURATION,
 } from "./lib/performanceConstants";
@@ -141,6 +142,9 @@ export default function App() {
 
   // Forward-declaration refs for callbacks referenced before their definition
   const closeMenuRef = useRef(null);
+  /** Latest menu visibility — avoid stale `showMenu` when chaining close + navigate */
+  const showMenuRef = useRef(showMenu);
+  showMenuRef.current = showMenu;
   const fetchUserLocationRef = useRef(null);
   /** Keeps latest tab/screen for handleMenuNavigation (stable callback, no stale closure). */
   const currentScreenRef = useRef(currentScreen);
@@ -685,6 +689,7 @@ export default function App() {
       await resetAnalyticsUser();
       await auth.signOut();
       clearScreenCachesForUser(user?.id);
+      clearMessageThreadSnapshotsForUser(user?.id);
       clearSessionExpoPushTokenCache();
       setUser(null);
       setShowAuth(true);
@@ -961,10 +966,17 @@ export default function App() {
           nextParams.returnScreen = currentScreen;
         }
       }
-      setCurrentScreen(screen);
-      setScreenParams(nextParams);
-      trackScreenView(screen, nextParams);
-      closeMenuRef.current?.();
+      const applyNav = () => {
+        setCurrentScreen(screen);
+        setScreenParams(nextParams);
+        trackScreenView(screen, nextParams);
+      };
+      // Close the sheet first, then change the main screen so content doesn’t “snap” under the overlay
+      if (showMenuRef.current) {
+        closeMenuRef.current?.(applyNav);
+      } else {
+        applyNav();
+      }
     },
     [currentScreen]
   );
@@ -1083,7 +1095,7 @@ export default function App() {
     ]).start();
   }, [menuSlideAnim, menuOpacityAnim, menuDragY]);
 
-  const closeMenu = useCallback(() => {
+  const closeMenu = useCallback((onClosed) => {
     menuDragY.setValue(0);
     Animated.parallel([
       Animated.timing(menuSlideAnim, {
@@ -1098,6 +1110,9 @@ export default function App() {
       }),
     ]).start(() => {
       setShowMenu(false);
+      if (typeof onClosed === "function") {
+        onClosed();
+      }
     });
   }, [menuSlideAnim, menuOpacityAnim, menuDragY]);
   closeMenuRef.current = closeMenu;

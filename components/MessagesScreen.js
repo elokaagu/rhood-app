@@ -1,6 +1,7 @@
 import React, {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
   useMemo,
@@ -58,6 +59,10 @@ import MessagesInputFooter from "./messages/MessagesInputFooter";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
+import {
+  getMessageThreadSnapshot,
+  setMessageThreadSnapshot,
+} from "../lib/messageThreadSnapshotCache";
 
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
@@ -120,6 +125,40 @@ const MessagesScreen = ({ user, navigation, route }) => {
     () => `${djId ?? ""}|${communityId ?? ""}|${chatType}`,
     [djId, communityId, chatType]
   );
+  const conversationKeyRef = useRef(conversationKey);
+  conversationKeyRef.current = conversationKey;
+
+  /** WhatsApp-style: show last-known thread immediately when reopening a chat */
+  useLayoutEffect(() => {
+    if (!user?.id) return;
+    if (chatType === "individual" && !djId) return;
+    if (chatType === "group" && !communityId) return;
+
+    const snap = getMessageThreadSnapshot(user.id, chatType, djId, communityId);
+    if (snap) {
+      setMessages(snap.messages ?? []);
+      setThreadId(snap.threadId ?? null);
+      setOtherUser(snap.otherUser ?? null);
+      setCommunityData(snap.communityData ?? null);
+      setMemberCount(snap.memberCount ?? 0);
+      setIsConnected(!!snap.isConnected);
+      setConnectionStatus(snap.connectionStatus ?? null);
+      setLoading(false);
+      requestAnimationFrame(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: false });
+      });
+    } else {
+      setMessages([]);
+      setThreadId(null);
+      setOtherUser(null);
+      setCommunityData(null);
+      setMemberCount(0);
+      setIsConnected(false);
+      setConnectionStatus(null);
+      setLoading(true);
+    }
+  }, [user?.id, conversationKey, chatType, djId, communityId]);
+
   const { messageLinkPreviews, discardPreviewsForMessage } =
     useMessageLinkPreviews(messages, conversationKey);
   const {
@@ -468,6 +507,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
       return;
     }
 
+    const loadId = conversationKey;
+    const stillHere = () => conversationKeyRef.current === loadId;
+
     try {
       console.log("📥 Loading messages...", { chatType, djId, communityId });
 
@@ -478,6 +520,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
           supabase,
           db,
         });
+
+        if (!stillHere()) return;
 
         if (!result.ok) {
           if (result.code === "no_thread") {
@@ -500,6 +544,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         }
 
         const p = result.payload;
+        if (!stillHere()) return;
         setThreadId(p.threadId);
         console.log("🧵 Thread ID:", p.threadId);
         console.log("📨 Loaded messages:", p.messages.length);
@@ -518,11 +563,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
           db,
         });
 
+        if (!stillHere()) return;
+
         if (!result.ok) {
           return;
         }
 
         const p = result.payload;
+        if (!stillHere()) return;
         setMessages(p.messages);
         if (p.community) {
           setCommunityData(p.community);
@@ -531,12 +579,16 @@ const MessagesScreen = ({ user, navigation, route }) => {
         setConnectionStatus(p.connectionStatus);
       }
     } catch (error) {
-      console.error("❌ Error in loadMessages:", error);
-      Alert.alert("Error", "Failed to load messages");
+      if (stillHere()) {
+        console.error("❌ Error in loadMessages:", error);
+        Alert.alert("Error", "Failed to load messages");
+      }
     } finally {
-      setLoading(false);
+      if (stillHere()) {
+        setLoading(false);
+      }
     }
-  }, [user?.id, chatType, djId, communityId]);
+  }, [user?.id, chatType, djId, communityId, conversationKey]);
 
   useMessagesRealtimeSubscription({
     userId: user?.id,
@@ -547,6 +599,37 @@ const MessagesScreen = ({ user, navigation, route }) => {
     setMessages,
     scrollViewRef,
   });
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user?.id) return;
+    if (chatType === "individual" && !djId) return;
+    if (chatType === "group" && !communityId) return;
+    if (chatType === "individual" && !threadId) return;
+
+    setMessageThreadSnapshot(user.id, chatType, djId, communityId, {
+      threadId,
+      messages,
+      otherUser,
+      communityData,
+      memberCount,
+      isConnected,
+      connectionStatus,
+    });
+  }, [
+    loading,
+    user?.id,
+    chatType,
+    djId,
+    communityId,
+    threadId,
+    messages,
+    otherUser,
+    communityData,
+    memberCount,
+    isConnected,
+    connectionStatus,
+  ]);
 
   // Initial load
   useEffect(() => {

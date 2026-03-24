@@ -7,8 +7,9 @@ import {
 
 /**
  * Subscribes to new direct or group messages and appends to local state.
- * Waits for `loading === false` so the initial fetch and subscription don’t fight; ensure the
- * initial load covers recent rows so nothing is missed during that window.
+ * Waits for `loading === false` (including when the screen hydrated from an in-memory snapshot)
+ * so the initial network fetch and subscription don’t fight; the fetch still reconciles the list
+ * shortly after open.
  */
 export function useMessagesRealtimeSubscription({
   userId,

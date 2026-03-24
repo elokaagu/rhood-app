@@ -586,7 +586,7 @@ const RhoodModal = ({
           >
             {icon === "rhood-logo" ? (
               <Image
-                source={require("../assets/rhood_logo.webp")}
+                source={require("../assets/rhood_logo.png")}
                 style={styles.rhoodLogo}
                 resizeMode="contain"
               />
