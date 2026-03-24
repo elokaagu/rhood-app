@@ -10,7 +10,7 @@ import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useConnectionsScreen } from "../hooks/useConnectionsScreen";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
-import { CONNECTIONS_SCREEN_TAB } from "../lib/connectionsScreenTabIds";
+import { CONNECTIONS_SCREEN_TABS } from "../lib/connectionsScreenTabIds";
 import styles from "./ConnectionsScreen.styles";
 
 function isValidConnectionsUser(user) {
@@ -29,7 +29,7 @@ function isValidConnectionsUser(user) {
 function ConnectionsScreenContent({
   user,
   onNavigate,
-  initialTab = CONNECTIONS_SCREEN_TAB.DISCOVER,
+  initialTab = CONNECTIONS_SCREEN_TABS.DISCOVER,
   route = null,
 }) {
   const {
@@ -49,7 +49,7 @@ function ConnectionsScreenContent({
     <View style={styles.container}>
       <ConnectionsScreenHeader {...headerProps} />
 
-      {activeTab === CONNECTIONS_SCREEN_TAB.CONNECTIONS ? (
+      {activeTab === CONNECTIONS_SCREEN_TABS.CONNECTIONS ? (
         <ConnectionsTabContent {...connectionsTabProps} />
       ) : (
         <DiscoverTabContent {...discoverTabProps} />

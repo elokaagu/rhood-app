@@ -82,6 +82,12 @@
       "eas": {
         "projectId": "499f2244-43f3-478d-8b88-85c2da9f1d52"
       },
+      "aiChatTransport": "edge_function",
+      "aiChatEndpoint": "https://ohmekwpmbcwllugafwvd.functions.supabase.co/chat-assistant",
+      "aiChatEndpointBearerToken": "",
+      "aiChatEndpointAuthToken": "",
+      "aiChatAllowDirectFallback": false,
+      "aiChatAllowClientDirectInProduction": false,
       "openaiModel": "gpt-4o-mini",
       "mixpanelToken": "93ccc1f355ea98a1b4a34565320f6a83"
     },

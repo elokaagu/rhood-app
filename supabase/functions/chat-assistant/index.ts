@@ -4,12 +4,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const DEFAULT_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
 
-interface ChatRequest {
+interface LegacyChatRequest {
   userMessage: string;
   history?: Array<{ sender: string; text: string }>;
   model?: string;
   systemPrompt?: string;
   kbContext?: string[];
+}
+
+interface MessageRequest {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+interface EndpointChatRequest {
+  model?: string;
+  messages?: MessageRequest[];
+  max_tokens?: number;
+  temperature?: number;
 }
 
 serve(async (req) => {
@@ -86,29 +98,18 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const body: ChatRequest = await req.json();
-    const {
-      userMessage,
-      history = [],
-      model = DEFAULT_MODEL,
-      systemPrompt,
-      kbContext = [],
-    } = body;
+    const body = (await req.json()) as LegacyChatRequest | EndpointChatRequest;
+    const model = body.model || DEFAULT_MODEL;
+    const temperature =
+      typeof (body as EndpointChatRequest).temperature === "number"
+        ? (body as EndpointChatRequest).temperature
+        : 0.6;
+    const maxTokens =
+      typeof (body as EndpointChatRequest).max_tokens === "number"
+        ? (body as EndpointChatRequest).max_tokens
+        : 500;
 
-    if (!userMessage || !userMessage.trim()) {
-      return new Response(
-        JSON.stringify({ error: "userMessage is required" }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
-    }
-
-    // Build system prompt
+    // Build system prompt (legacy mode only)
     const defaultSystemPrompt = [
       "You are R/HOOD Assistant — an in‑app helper for the R/HOOD mobile app.",
       "STRICT SOURCING POLICY:",
@@ -123,33 +124,57 @@ serve(async (req) => {
       "- Ask one clarifying question if needed.",
     ].join("\n");
 
-    const finalSystemPrompt = systemPrompt || defaultSystemPrompt;
+    let messages: Array<{ role: string; content: string }> = [];
+    const requestMessages = (body as EndpointChatRequest).messages;
+    const hasMessageArray =
+      Array.isArray(requestMessages) &&
+      requestMessages.length > 0 &&
+      requestMessages.every(
+        (m) => typeof m?.role === "string" && typeof m?.content === "string"
+      );
 
-    // Build messages array
-    const messages: Array<{ role: string; content: string }> = [
-      { role: "system", content: finalSystemPrompt },
-    ];
+    if (hasMessageArray) {
+      messages = requestMessages as Array<{ role: string; content: string }>;
+    } else {
+      const legacy = body as LegacyChatRequest;
+      const userMessage = legacy.userMessage;
+      const history = legacy.history || [];
+      const systemPrompt = legacy.systemPrompt;
+      const kbContext = legacy.kbContext || [];
 
-    // Add KB context if provided
-    if (kbContext.length > 0) {
-      messages.push({
-        role: "system",
-        content: `Additional context from R/HOOD documentation:\n\n${kbContext.join(
-          "\n\n"
-        )}`,
-      });
+      if (!userMessage || !userMessage.trim()) {
+        return new Response(
+          JSON.stringify({ error: "userMessage or messages is required" }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      const finalSystemPrompt = systemPrompt || defaultSystemPrompt;
+      messages = [{ role: "system", content: finalSystemPrompt }];
+
+      if (kbContext.length > 0) {
+        messages.push({
+          role: "system",
+          content: `Additional context from R/HOOD documentation:\n\n${kbContext.join(
+            "\n\n"
+          )}`,
+        });
+      }
+
+      for (const msg of history) {
+        messages.push({
+          role: msg.sender === "user" ? "user" : "assistant",
+          content: msg.text,
+        });
+      }
+      messages.push({ role: "user", content: userMessage });
     }
-
-    // Add conversation history
-    for (const msg of history) {
-      messages.push({
-        role: msg.sender === "user" ? "user" : "assistant",
-        content: msg.text,
-      });
-    }
-
-    // Add current user message
-    messages.push({ role: "user", content: userMessage });
 
     // Call OpenAI API
     const openaiResponse = await fetch(
@@ -162,7 +187,8 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model,
-          temperature: 0.6,
+          temperature,
+          max_tokens: maxTokens,
           messages,
         }),
       }

@@ -17,7 +17,6 @@ import { db } from "../lib/supabase";
 import { SkeletonProfile } from "./Skeleton";
 import RhoodModal from "./RhoodModal";
 import { HapticPatterns } from "../lib/haptics";
-import backgroundAudioService from "../lib/backgroundAudioService";
 import { normalizeTrackForPlayback } from "../lib/normalizeTrackForPlayback";
 
 export default function UserProfileView({
@@ -276,9 +275,11 @@ export default function UserProfileView({
 
   useEffect(() => {
     return () => {
-      backgroundAudioService.stopTrack();
+      if (typeof onStopAudio === "function") {
+        onStopAudio();
+      }
     };
-  }, []);
+  }, [onStopAudio]);
 
   const loadUserProfile = async () => {
     try {

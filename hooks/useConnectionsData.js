@@ -2,7 +2,7 @@
  * Connections tab state, loaders, realtime, and derived list data.
  */
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Animated } from "react-native";
+import { Alert, Animated } from "react-native";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { CONNECTIONS_LIST_PERFORMANCE } from "../lib/performanceConstants";
@@ -19,7 +19,7 @@ import {
   connectionsSessionCacheSet,
   connectionsSessionCacheIsFresh,
 } from "../lib/connectionsSessionCache";
-import { CONNECTION_SECTION_TYPE } from "../lib/connectionsSectionTypes";
+import { CONNECTIONS_SECTION_TYPE } from "../lib/connectionsSectionTypes";
 
 const STALE_MS = SCREEN_CACHE_STALE_MS;
 const PERIODIC_REFRESH_INTERVAL_MS = 30 * 1000;
@@ -69,6 +69,39 @@ export function useConnectionsData(
   const reloadDiscoverList = loadDiscoverDJs ?? (() => {});
   const reloadNearbyDJs = loadNearbyDJs ?? (() => {});
 
+  const handleNewlyAcceptedConnections = useCallback(
+    (newlyAcceptedConnections) => {
+      if (!Array.isArray(newlyAcceptedConnections) || newlyAcceptedConnections.length === 0) {
+        return;
+      }
+      const accepted = newlyAcceptedConnections[0];
+      if (!accepted) return;
+      modalActions?.setConnectionMessage?.(
+        `You are now connected with ${accepted.name}! Click below to chat.`
+      );
+      modalActions?.setConnectionModalType?.("success");
+      modalActions?.setConnectionModalPrimaryText?.("Click to Chat");
+      modalActions?.setConnectionModalPrimaryAction?.(() => () => {
+        if (onNavigate) {
+          onNavigate("messages", {
+            isGroupChat: false,
+            djId: accepted.userId,
+            connectionId: accepted.connectionId || null,
+            threadId: accepted.threadId || null,
+            returnToConnectionsTab: "connections",
+          });
+        }
+        modalActions?.handleCloseConnectionModal?.();
+      });
+      modalActions?.setShowConnectionModal?.(true);
+    },
+    [modalActions, onNavigate]
+  );
+
+  const handleAuthRequired = useCallback(() => {
+    Alert.alert("Error", "Please log in to view connections");
+  }, []);
+
   /** Explicit loader context (rebuilt when deps change) — avoids ref-based service locator. */
   const getConnectionsLoaderCtx = useCallback(
     () => ({
@@ -86,8 +119,7 @@ export function useConnectionsData(
       hasLoadedConnections,
       setCommunitiesData,
       user,
-      ...(modalActions || {}),
-      onNavigate,
+      onAuthRequired: handleAuthRequired,
     }),
     [
       setConnectionsLoadError,
@@ -101,14 +133,17 @@ export function useConnectionsData(
       hasLoadedConnections,
       setCommunitiesData,
       user,
-      modalActions,
-      onNavigate,
+      handleAuthRequired,
     ]
   );
 
   const loadUserAndConnections = useCallback(
-    (opts) => loadUserAndConnectionsImpl(getConnectionsLoaderCtx(), opts),
-    [getConnectionsLoaderCtx]
+    async (opts) => {
+      const result = await loadUserAndConnectionsImpl(getConnectionsLoaderCtx(), opts);
+      handleNewlyAcceptedConnections(result?.newlyAcceptedConnections);
+      return result;
+    },
+    [getConnectionsLoaderCtx, handleNewlyAcceptedConnections]
   );
   const loadUserCommunities = useCallback(
     () => loadUserCommunitiesImpl(getConnectionsLoaderCtx()),
@@ -320,7 +355,7 @@ export function useConnectionsData(
       user?.id
         ? filteredConnections.filter(
             (c) =>
-              isPendingConnectionStatus(c.connectionStatus) &&
+              isPendingConnectionStatus(c.connectionStatus || c.connectionStatusRaw) &&
               c.connectionInitiatedBy &&
               c.connectionInitiatedBy !== user.id
           )
@@ -332,12 +367,12 @@ export function useConnectionsData(
     () => [
       {
         key: "communities",
-        type: CONNECTION_SECTION_TYPE.COMMUNITY,
+        type: CONNECTIONS_SECTION_TYPE.COMMUNITY,
         data: userCommunities || [],
       },
       {
         key: "connections",
-        type: CONNECTION_SECTION_TYPE.CONNECTION,
+        type: CONNECTIONS_SECTION_TYPE.CONNECTION,
         data: messageListConnections || [],
       },
     ],

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { Animated } from "react-native";
-import { CONNECTIONS_SCREEN_TAB } from "../lib/connectionsScreenTabIds";
+import { CONNECTIONS_SCREEN_TABS } from "../lib/connectionsScreenTabIds";
 
 /**
  * Connections screen tab switch: active tab + symmetrical fade coordination.
@@ -26,8 +26,8 @@ export function useConnectionsTabChange({
     (tab) => {
       if (tab === activeTab) return;
 
-      if (tab === CONNECTIONS_SCREEN_TAB.DISCOVER) {
-        setActiveTab(CONNECTIONS_SCREEN_TAB.DISCOVER);
+      if (tab === CONNECTIONS_SCREEN_TABS.DISCOVER) {
+        setActiveTab(CONNECTIONS_SCREEN_TABS.DISCOVER);
         connectionsFadeAnim.setValue(0);
         discoverFadeAnim.setValue(0);
 
@@ -43,8 +43,8 @@ export function useConnectionsTabChange({
         return;
       }
 
-      if (tab === CONNECTIONS_SCREEN_TAB.CONNECTIONS) {
-        setActiveTab(CONNECTIONS_SCREEN_TAB.CONNECTIONS);
+      if (tab === CONNECTIONS_SCREEN_TABS.CONNECTIONS) {
+        setActiveTab(CONNECTIONS_SCREEN_TABS.CONNECTIONS);
         discoverFadeAnim.setValue(0);
         connectionsFadeAnim.setValue(0);
         Animated.timing(connectionsFadeAnim, {

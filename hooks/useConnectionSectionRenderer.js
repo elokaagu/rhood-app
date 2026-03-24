@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import ConnectionListItem from "../components/ConnectionListItem";
 import CommunityListItem from "../components/CommunityListItem";
 import { formatMessageTime, getUserName } from "../lib/connectionListUtils";
-import { CONNECTION_SECTION_TYPE } from "../lib/connectionsSectionTypes";
+import { CONNECTIONS_SECTION_TYPE } from "../lib/connectionsSectionTypes";
 import { isRhoodCommunityId } from "../lib/communityConstants";
 import styles from "../components/ConnectionsScreen.styles";
 
@@ -24,7 +24,7 @@ export function useConnectionSectionRenderer({
   return useCallback(
     ({ item, section }) => {
       const isCommunitySection =
-        section.type === CONNECTION_SECTION_TYPE.COMMUNITY ||
+        section.type === CONNECTIONS_SECTION_TYPE.COMMUNITY ||
         section.key === "communities";
 
       if (isCommunitySection) {

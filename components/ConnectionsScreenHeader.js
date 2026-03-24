@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
 import styles from "./ConnectionsScreen.styles";
-import { CONNECTIONS_SCREEN_TAB } from "../lib/connectionsScreenTabIds";
+import { CONNECTIONS_SCREEN_TABS } from "../lib/connectionsScreenTabIds";
 
 export default function ConnectionsScreenHeader({
   activeTab,
@@ -36,15 +36,15 @@ export default function ConnectionsScreenHeader({
         <TouchableOpacity
           style={[
             styles.tabButton,
-            activeTab === CONNECTIONS_SCREEN_TAB.DISCOVER && styles.tabButtonActive,
+            activeTab === CONNECTIONS_SCREEN_TABS.DISCOVER && styles.tabButtonActive,
           ]}
-          onPress={() => onTabChange?.("discover")}
+          onPress={() => onTabChange?.(CONNECTIONS_SCREEN_TABS.DISCOVER)}
         >
           <Ionicons
             name="compass"
             size={16}
             color={
-              activeTab === CONNECTIONS_SCREEN_TAB.DISCOVER
+              activeTab === CONNECTIONS_SCREEN_TABS.DISCOVER
                 ? "hsl(0, 0%, 0%)"
                 : "hsl(0, 0%, 70%)"
             }
@@ -52,7 +52,7 @@ export default function ConnectionsScreenHeader({
           <Text
             style={[
               styles.tabText,
-              activeTab === CONNECTIONS_SCREEN_TAB.DISCOVER && styles.tabTextActive,
+              activeTab === CONNECTIONS_SCREEN_TABS.DISCOVER && styles.tabTextActive,
             ]}
           >
             Discover
@@ -61,19 +61,23 @@ export default function ConnectionsScreenHeader({
         <TouchableOpacity
           style={[
             styles.tabButton,
-            activeTab === CONNECTIONS_SCREEN_TAB.CONNECTIONS && styles.tabButtonActive,
+            activeTab === CONNECTIONS_SCREEN_TABS.CONNECTIONS && styles.tabButtonActive,
           ]}
-          onPress={() => onTabChange?.(CONNECTIONS_SCREEN_TAB.CONNECTIONS)}
+          onPress={() => onTabChange?.(CONNECTIONS_SCREEN_TABS.CONNECTIONS)}
         >
           <Ionicons
             name="people"
             size={16}
-            color={activeTab === "connections" ? "hsl(0, 0%, 0%)" : "hsl(0, 0%, 70%)"}
+            color={
+              activeTab === CONNECTIONS_SCREEN_TABS.CONNECTIONS
+                ? "hsl(0, 0%, 0%)"
+                : "hsl(0, 0%, 70%)"
+            }
           />
           <Text
             style={[
               styles.tabText,
-              activeTab === CONNECTIONS_SCREEN_TAB.CONNECTIONS && styles.tabTextActive,
+              activeTab === CONNECTIONS_SCREEN_TABS.CONNECTIONS && styles.tabTextActive,
             ]}
           >
             Connections
@@ -86,7 +90,7 @@ export default function ConnectionsScreenHeader({
           <TextInput
             style={styles.searchInput}
             placeholder={
-              activeTab === CONNECTIONS_SCREEN_TAB.DISCOVER
+              activeTab === CONNECTIONS_SCREEN_TABS.DISCOVER
                 ? "Search DJs..."
                 : "Search connections..."
             }

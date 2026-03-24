@@ -12,7 +12,7 @@ import { useConnectionsInitialLoad } from "./useConnectionsInitialLoad";
 import { useConnectionSectionRenderer } from "./useConnectionSectionRenderer";
 import { useConnectionsScreenPropBundles } from "./useConnectionsScreenPropBundles";
 import { useConnectionsTabChange } from "./useConnectionsTabChange";
-import { CONNECTIONS_SCREEN_TAB } from "../lib/connectionsScreenTabIds";
+import { CONNECTIONS_SCREEN_TABS } from "../lib/connectionsScreenTabIds";
 
 export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -98,7 +98,7 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
   );
 
   const onGoToDiscover = useCallback(
-    () => handleTabChange(CONNECTIONS_SCREEN_TAB.DISCOVER),
+    () => handleTabChange(CONNECTIONS_SCREEN_TABS.DISCOVER),
     [handleTabChange]
   );
 
