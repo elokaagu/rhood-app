@@ -18,6 +18,7 @@ import {
   Platform,
   Dimensions,
   PanResponder,
+  InteractionManager,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -145,6 +146,10 @@ export default function App() {
   /** Latest menu visibility — avoid stale `showMenu` when chaining close + navigate */
   const showMenuRef = useRef(showMenu);
   showMenuRef.current = showMenu;
+  /** Navigation to run after the menu sheet finishes closing (last tap wins if user taps twice). */
+  const pendingAfterMenuCloseRef = useRef(null);
+  /** Invalidates in-flight close animations so rapid menu picks don’t double-navigate. */
+  const menuCloseGenerationRef = useRef(0);
   const fetchUserLocationRef = useRef(null);
   /** Keeps latest tab/screen for handleMenuNavigation (stable callback, no stale closure). */
   const currentScreenRef = useRef(currentScreen);
@@ -971,11 +976,12 @@ export default function App() {
         setScreenParams(nextParams);
         trackScreenView(screen, nextParams);
       };
-      // Close the sheet first, then change the main screen so content doesn’t “snap” under the overlay
+      // Menu open: dismiss the sheet first, then commit route after interactions idle (RN guidance).
+      // Tabs / push: no sheet — still defer one frame so presses don’t compete with tab bar layout.
       if (showMenuRef.current) {
         closeMenuRef.current?.(applyNav);
       } else {
-        applyNav();
+        InteractionManager.runAfterInteractions(applyNav);
       }
     },
     [currentScreen]
@@ -1095,8 +1101,46 @@ export default function App() {
     ]).start();
   }, [menuSlideAnim, menuOpacityAnim, menuDragY]);
 
-  const closeMenu = useCallback((onClosed) => {
+  /**
+   * Dismiss the hamburger sheet. Optional `afterClose` runs once the modal is gone and
+   * interactions have settled — use for route changes so the main screen doesn’t swap under the overlay.
+   * Rapid successive calls invalidate older animation completions (generation guard).
+   */
+  const closeMenu = useCallback((afterClose) => {
+    if (typeof afterClose === "function") {
+      pendingAfterMenuCloseRef.current = afterClose;
+    } else {
+      pendingAfterMenuCloseRef.current = null;
+    }
+
+    const generation = ++menuCloseGenerationRef.current;
+
+    const flushPendingNavigation = () => {
+      const fn = pendingAfterMenuCloseRef.current;
+      pendingAfterMenuCloseRef.current = null;
+      if (typeof fn !== "function") return;
+      InteractionManager.runAfterInteractions(() => {
+        if (generation !== menuCloseGenerationRef.current) return;
+        fn();
+      });
+    };
+
+    const finalizeClose = () => {
+      if (generation !== menuCloseGenerationRef.current) return;
+      setShowMenu(false);
+      flushPendingNavigation();
+    };
+
+    if (!showMenuRef.current) {
+      finalizeClose();
+      return;
+    }
+
+    menuSlideAnim.stopAnimation();
+    menuOpacityAnim.stopAnimation();
+    menuDragY.stopAnimation();
     menuDragY.setValue(0);
+
     Animated.parallel([
       Animated.timing(menuSlideAnim, {
         toValue: 0,
@@ -1108,11 +1152,14 @@ export default function App() {
         duration: ANIMATION_DURATION.FAST,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      setShowMenu(false);
-      if (typeof onClosed === "function") {
-        onClosed();
+    ]).start(({ finished }) => {
+      if (generation !== menuCloseGenerationRef.current) return;
+      if (!finished) {
+        setShowMenu(false);
+        pendingAfterMenuCloseRef.current = null;
+        return;
       }
+      finalizeClose();
     });
   }, [menuSlideAnim, menuOpacityAnim, menuDragY]);
   closeMenuRef.current = closeMenu;
