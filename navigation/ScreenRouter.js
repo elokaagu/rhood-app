@@ -206,6 +206,23 @@ export default function ScreenRouter({
     }));
   }, [setCurrentScreen, setScreenParams, screenParams?.returnToConnectionsTab]);
 
+  /** Messages swipe / header back: respect where the user opened chat from */
+  const exitMessagesScreen = useCallback(() => {
+    if (screenParams?.messagesBackScreen === SCREENS.COMMUNITY) {
+      setCurrentScreen(SCREENS.COMMUNITY);
+      return;
+    }
+    if (screenParams?.messagesBackScreen === SCREENS.MESSAGES_LIST) {
+      setCurrentScreen(SCREENS.MESSAGES_LIST);
+      return;
+    }
+    exitMessagesToConnections();
+  }, [
+    screenParams?.messagesBackScreen,
+    exitMessagesToConnections,
+    setCurrentScreen,
+  ]);
+
   const exitResetPasswordToLogin = useCallback(() => {
     setCurrentScreen(SCREENS.LOGIN);
     setShowAuth?.(true);
@@ -216,6 +233,7 @@ export default function ScreenRouter({
     case SCREENS.OPPORTUNITIES:
       return (
         <OpportunitiesScreen
+          user={user}
           styles={styles}
           opportunities={opportunities}
           currentOpportunityIndex={currentOpportunityIndex}
@@ -366,7 +384,10 @@ export default function ScreenRouter({
               setCurrentScreen(SCREENS.MESSAGES);
               setScreenParams({
                 communityId: screenParams.communityId,
+                communityName: screenParams.communityName,
                 chatType: "group",
+                messagesBackScreen: screenParams.messagesBackScreen,
+                returnToConnectionsTab: screenParams.returnToConnectionsTab,
               });
             } else {
               setCurrentScreen(SCREENS.CONNECTIONS);

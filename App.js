@@ -256,6 +256,7 @@ export default function App() {
   const opp = useOpportunities({
     user,
     currentScreen,
+    screenParams,
     userLocation,
     showCustomModal,
     hideCustomModal,
@@ -2317,7 +2318,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.1)",
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
@@ -2327,24 +2328,27 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    minWidth: 0,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
     alignItems: "center",
     flexDirection: "column",
     gap: 4,
-    marginHorizontal: 1,
+    marginHorizontal: 0,
     backgroundColor: "transparent", // Ensure 0 opacity for all tabs
   },
   activeTab: {
     backgroundColor: "transparent", // Remove background for active tab
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 11,
+    lineHeight: 13,
     fontFamily: "Helvetica Neue",
     fontWeight: "500", // Medium weight
     color: "hsl(0, 0%, 70%)", // Muted foreground
     textTransform: "capitalize", // Proper capitalization instead of uppercase
-    letterSpacing: 0.2,
+    letterSpacing: 0,
+    textAlign: "center",
   },
   activeTabText: {
     color: "hsl(75, 100%, 60%)", // Brand lime green for active text
@@ -2435,15 +2439,36 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
     marginBottom: 8,
   },
-  dailyApplicationCounter: {
+  dailyApplicationChip: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 4,
+    alignSelf: "flex-start",
+    gap: 10,
+    marginTop: 2,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "hsla(75, 100%, 60%, 0.18)",
+    maxWidth: "100%",
   },
-  dailyApplicationText: {
-    fontSize: 12,
+  dailyApplicationChipLimited: {
+    borderColor: "hsla(0, 100%, 55%, 0.35)",
+  },
+  dailyApplicationChipText: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 14,
     fontFamily: "Helvetica Neue",
-    marginLeft: 6,
+    lineHeight: 20,
+  },
+  dailyApplicationNumber: {
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+  },
+  dailyApplicationRest: {
+    color: "hsl(0, 0%, 68%)",
     fontWeight: "500",
   },
   opportunitiesCardContainer: {

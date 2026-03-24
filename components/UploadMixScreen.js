@@ -581,11 +581,6 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }, []);
 
-  const handleBack = useCallback(() => {
-    HapticPatterns.backButton();
-    onBack?.();
-  }, [onBack]);
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -601,19 +596,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       >
         {/* Header */}
         <View style={styles.headerShell}>
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={handleBack}
-              style={styles.backButton}
-              disabled={uploading}
-            >
-              <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {editingMix ? "UPDATE MIX" : "UPLOAD MIX"}
-            </Text>
-            <View style={styles.headerSpacer} />
-          </View>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {editingMix ? "UPDATE MIX" : "UPLOAD MIX"}
+          </Text>
         </View>
 
         {user?.id && loadingMixes ? (
@@ -1160,24 +1145,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   headerTitle: {
-    flex: 1,
     fontFamily: TYPOGRAPHY.bold,
     fontSize: TYPOGRAPHY["2xl"],
     color: COLORS.textPrimary,
-    textAlign: "center",
+    textAlign: "left",
     textTransform: "uppercase",
     letterSpacing: 1,
     lineHeight: 26,
-  },
-  headerSpacer: {
-    width: 40,
-    height: 40,
   },
   libraryPlaceholderStrip: {
     marginHorizontal: -SPACING.md,
@@ -1237,12 +1212,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
     maxWidth: 280,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
   },
   section: {
     marginBottom: SPACING.lg,

@@ -172,11 +172,15 @@ export default {
     borderRadius: 4,
   },
   ctaSection: {
-    padding: 16,
+    paddingTop: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 0,
     borderTopWidth: 1,
     borderTopColor: "hsl(0, 0%, 15%)",
   },
   ctaCard: {
+    alignSelf: "stretch",
+    width: "100%",
     backgroundColor: "hsl(0, 0%, 5%)",
     borderRadius: 12,
     padding: 20,

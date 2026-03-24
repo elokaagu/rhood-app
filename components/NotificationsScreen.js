@@ -23,6 +23,36 @@ import { createScreenCache } from "../lib/screenCache";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
+import { SCREENS } from "../navigation/routes";
+
+async function getDjIdForMessageNotification(messageId) {
+  if (!messageId) return null;
+  const { data, error } = await supabase
+    .from("messages")
+    .select("sender_id")
+    .eq("id", messageId)
+    .maybeSingle();
+  if (error || !data?.sender_id) return null;
+  return data.sender_id;
+}
+
+/** `related_id` may be an application row or an opportunity row (depending on trigger). */
+async function resolveOpportunityIdForRelatedRow(relatedId) {
+  if (!relatedId) return null;
+  const { data: appRow, error: appErr } = await supabase
+    .from("applications")
+    .select("opportunity_id")
+    .eq("id", relatedId)
+    .maybeSingle();
+  if (!appErr && appRow?.opportunity_id) return appRow.opportunity_id;
+  const { data: oppRow, error: oppErr } = await supabase
+    .from("opportunities")
+    .select("id")
+    .eq("id", relatedId)
+    .maybeSingle();
+  if (!oppErr && oppRow?.id) return oppRow.id;
+  return null;
+}
 
 // Helper function to format relative time
 const formatRelativeTime = (timestamp) => {
@@ -416,8 +446,10 @@ export default function NotificationsScreen({
 
   const handleNotificationPress = async (notification) => {
     HapticPatterns.itemPress();
-    
-    if (notification.type === "connection") {
+
+    const type = (notification.type || "").toLowerCase();
+
+    if (type === "connection" || type === "connection_request") {
       setActiveConnectionNotification(notification);
       setShowConnectionPrompt(true);
       return;
@@ -427,16 +459,50 @@ export default function NotificationsScreen({
       await markNotificationAsRead(notification.id);
     }
 
-    switch (notification.type) {
-      case "opportunity":
-      case "application":
-        onNavigate("opportunities");
-        break;
-      case "message":
-        onNavigate("messages");
-        break;
-      default:
-        break;
+    if (type === "message") {
+      const messageId = notification.relatedId;
+      if (messageId) {
+        const djId = await getDjIdForMessageNotification(messageId);
+        if (djId) {
+          onNavigate(SCREENS.MESSAGES, {
+            djId,
+            chatType: "individual",
+            messagesBackScreen: SCREENS.NOTIFICATIONS,
+          });
+          return;
+        }
+      }
+      onNavigate(SCREENS.MESSAGES_LIST);
+      return;
+    }
+
+    const opportunityLinkedTypes = new Set([
+      "opportunity",
+      "application",
+      "application_approved",
+      "application_rejected",
+      "application_status",
+    ]);
+    if (opportunityLinkedTypes.has(type)) {
+      const focusId = await resolveOpportunityIdForRelatedRow(
+        notification.relatedId
+      );
+      if (focusId) {
+        onNavigate(SCREENS.OPPORTUNITIES, { focusOpportunityId: focusId });
+      } else {
+        onNavigate(SCREENS.OPPORTUNITIES);
+      }
+      return;
+    }
+
+    if (type === "system") {
+      const focusId = await resolveOpportunityIdForRelatedRow(
+        notification.relatedId
+      );
+      if (focusId) {
+        onNavigate(SCREENS.OPPORTUNITIES, { focusOpportunityId: focusId });
+      }
+      return;
     }
   };
 
@@ -748,10 +814,15 @@ export default function NotificationsScreen({
       case "opportunity":
         return "briefcase-outline";
       case "application":
+      case "application_approved":
         return "checkmark-circle-outline";
+      case "application_rejected":
+      case "application_status":
+        return "mail-outline";
       case "message":
         return "chatbubble-outline";
       case "connection":
+      case "connection_request":
         return "person-add-outline";
       case "system":
         return "settings-outline";
@@ -805,6 +876,7 @@ export default function NotificationsScreen({
           style={[
             styles.notificationCard,
             !notification.isRead && styles.unreadCard,
+            index === 0 && styles.notificationCardFirst,
           ]}
           onPress={() => handleNotificationPress(notification)}
           onLongPress={() => {
@@ -971,6 +1043,7 @@ export default function NotificationsScreen({
         renderItem={renderNotificationItem}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmptyComponent}
+        contentContainerStyle={styles.listContentContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
@@ -1077,8 +1150,10 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  listContentContainer: {
+    flexGrow: 1,
+    paddingBottom: 140,
   },
   tsBlockBoldHeading: {
     fontFamily: "TS Block Bold",
@@ -1176,6 +1251,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     overflow: "hidden",
+  },
+  notificationCardFirst: {
+    marginTop: 12,
   },
   unreadCard: {
     borderColor: "hsl(75, 100%, 60%)",

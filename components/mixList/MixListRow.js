@@ -1,10 +1,11 @@
 import React, { memo } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { resolveMixPlayCount } from "../../lib/mixPlayCount";
 import ProgressiveImage from "../ProgressiveImage";
 
-/** TS Block list title: 60% of former 16px (matches Listen `popularTitle`) */
-const MIX_ROW_TS_BLOCK_TITLE_SIZE = 16 * 0.6;
+/** Align with Listen screen `popularTitle` (ListenScreen.styles.js) */
+const MIX_ROW_TS_BLOCK_TITLE_SIZE = 12;
 
 /** @param {number} n */
 export function formatEngagementCount(n) {
@@ -38,12 +39,13 @@ const MixListRow = memo(function MixListRow({
 }) {
   const uri = mix.artwork_url || mix.image_url || mix.image;
   const likes = mix.likeCount ?? mix.like_count ?? mix.likes ?? 0;
-  const plays =
-    mix.plays ??
-    mix.play_count ??
-    mix.plays_count ??
-    mix.total_plays ??
-    0;
+  const enrichedPlays = Number(mix.plays);
+  const plays = Math.max(
+    resolveMixPlayCount(mix),
+    Number.isFinite(enrichedPlays) && enrichedPlays >= 0
+      ? Math.floor(enrichedPlays)
+      : 0
+  );
 
   return (
     <TouchableOpacity

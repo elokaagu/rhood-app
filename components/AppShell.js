@@ -124,7 +124,7 @@ export default function AppShell({
                 />
                 <Text
                   style={[styles.tabText, active && styles.activeTabText]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {label}
                 </Text>

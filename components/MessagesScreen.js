@@ -61,7 +61,12 @@ import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
-  const { djId, communityId, chatType = "individual" } = params || {};
+  const {
+    djId,
+    communityId,
+    chatType = "individual",
+    communityName: communityNameParam,
+  } = params || {};
 
   const insets = useSafeAreaInsets();
   const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.MESSAGES);
@@ -458,7 +463,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   // Load messages
   const loadMessages = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
 
     try {
       console.log("📥 Loading messages...", { chatType, djId, communityId });
@@ -1149,28 +1157,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
     []
   );
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => {
-              HapticPatterns.backButton();
-              navigation.goBack();
-            }}
-          >
-            <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
-          <Text style={styles.loadingText}>Loading messages...</Text>
-        </View>
-      </View>
-    );
-  }
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -1227,16 +1213,32 @@ const MessagesScreen = ({ user, navigation, route }) => {
             </TouchableOpacity>
           )}
 
-          {chatType === "group" && communityData && (
+          {chatType === "individual" && loading && !otherUser && (
+            <View style={styles.headerInfo} pointerEvents="none">
+              <View style={styles.headerAvatarPlaceholder} />
+              <View style={styles.headerText}>
+                <Text style={styles.headerName} numberOfLines={1}>
+                  …
+                </Text>
+                <Text style={styles.headerLocation}>Loading chat…</Text>
+              </View>
+            </View>
+          )}
+
+          {chatType === "group" && (communityData || communityNameParam || communityId) && (
             <TouchableOpacity
               style={styles.headerInfo}
               onPress={() => {
                 HapticPatterns.buttonPress();
-                if (navigation && communityData.id) {
+                const navId = communityData?.id || communityId;
+                if (navigation && navId) {
                   navigation.navigate("community-members", {
-                    communityId: communityData.id,
-                    communityName: communityData.name,
+                    communityId: navId,
+                    communityName:
+                      communityData?.name || communityNameParam || "Community",
                     returnToMessages: true,
+                    messagesBackScreen: route?.params?.messagesBackScreen,
+                    returnToConnectionsTab: route?.params?.returnToConnectionsTab,
                   });
                 }
               }}
@@ -1244,7 +1246,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
             >
               <ProgressiveImage
                 source={
-                  communityData.image_url
+                  communityData?.image_url
                     ? { uri: communityData.image_url }
                     : require("../assets/rhood_logo.webp")
                 }
@@ -1255,9 +1257,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 contentFit="cover"
               />
               <View style={styles.headerText}>
-                <Text style={styles.headerName}>{communityData.name}</Text>
+                <Text style={styles.headerName} numberOfLines={1}>
+                  {communityData?.name || communityNameParam || "Community"}
+                </Text>
                 <Text style={styles.headerLocation}>
-                  {memberCount} member{memberCount !== 1 ? "s" : ""}
+                  {loading && !communityData
+                    ? "…"
+                    : `${memberCount} member${memberCount !== 1 ? "s" : ""}`}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -1270,23 +1276,31 @@ const MessagesScreen = ({ user, navigation, route }) => {
           data={messages}
           keyExtractor={(item) => item.id}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Image
-                source={require("../assets/rhood_logo.webp")}
-                style={styles.emptyIcon}
-                resizeMode="contain"
-              />
-              <Text style={styles.emptyTitle}>No messages yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Start the conversation by sending a message!
-              </Text>
-            </View>
+            loading ? (
+              <View style={styles.messagesInlineLoading}>
+                <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
+                <Text style={styles.loadingText}>Loading messages…</Text>
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Image
+                  source={require("../assets/rhood_logo.webp")}
+                  style={styles.emptyIcon}
+                  resizeMode="contain"
+                />
+                <Text style={styles.emptyTitle}>No messages yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  Start the conversation by sending a message!
+                </Text>
+              </View>
+            )
           }
           renderItem={renderMessageItem}
           getItemLayout={getMessageItemLayout}
           contentContainerStyle={[
             styles.messagesContent,
             { paddingBottom: scrollBottomPadding },
+            (loading || messages.length === 0) && styles.messagesContentFlexGrow,
           ]}
           style={styles.messagesContainer}
           onContentSizeChange={() => {
@@ -1332,6 +1346,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           chatType={chatType}
           isConnected={isConnected}
           connectionStatus={connectionStatus}
+          messagesLoading={loading}
           bottomInputPadding={bottomInputPadding}
           styles={styles}
           navigation={navigation}
@@ -1466,6 +1481,16 @@ const styles = StyleSheet.create({
   messagesContent: {
     padding: 16,
     paddingBottom: 20,
+  },
+  messagesContentFlexGrow: {
+    flexGrow: 1,
+  },
+  messagesInlineLoading: {
+    flex: 1,
+    minHeight: 220,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 32,
   },
   emptyContainer: {
     flex: 1,

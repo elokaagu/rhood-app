@@ -8,8 +8,6 @@ export default {
   header: {
     padding: 20,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
     zIndex: 100,
     elevation: 24,
     position: "relative",
@@ -78,11 +76,12 @@ export default {
     right: 0,
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 12,
-    marginTop: 16,
+    marginTop: 10,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     maxHeight: 300,
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
@@ -95,8 +94,8 @@ export default {
     maxHeight: 300,
   },
   suggestionsScrollContent: {
-    paddingTop: 4,
-    paddingBottom: 4,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   suggestionItem: {
     flexDirection: "row",
@@ -107,8 +106,8 @@ export default {
     gap: 12,
     minHeight: 64,
   },
-  suggestionItemFirst: {
-    paddingTop: 20,
+  suggestionItemLast: {
+    borderBottomWidth: 0,
   },
   suggestionImage: {
     width: 40,

@@ -8,10 +8,27 @@ import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
+const DEFAULT_OPPORTUNITIES_SUBTITLE = "Swipe to find your next gig";
+
+function personalizedOpportunitiesSubtitle(user) {
+  const meta = user?.user_metadata || {};
+  const raw =
+    (typeof meta.first_name === "string" && meta.first_name.trim()) ||
+    (typeof meta.given_name === "string" && meta.given_name.trim()) ||
+    (typeof meta.full_name === "string" &&
+      meta.full_name.trim().split(/\s+/).filter(Boolean)[0]) ||
+    "";
+  if (!raw) return DEFAULT_OPPORTUNITIES_SUBTITLE;
+  const first =
+    raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+  return `Hi ${first}, ${DEFAULT_OPPORTUNITIES_SUBTITLE.toLowerCase()}`;
+}
+
 /**
  * Home swipe deck for gigs. Logic/state lives in App / useOpportunities; this is presentation only.
  */
 export default function OpportunitiesScreen({
+  user,
   styles,
   opportunities,
   currentOpportunityIndex,
@@ -33,6 +50,9 @@ export default function OpportunitiesScreen({
   const canApplyColor = dailyApplicationStats?.can_apply
     ? "hsl(75, 100%, 60%)"
     : "hsl(0, 100%, 60%)";
+  const remaining = dailyApplicationStats?.remaining_applications ?? 0;
+  const applyLabel =
+    remaining === 1 ? "application left today" : "applications left today";
 
   return (
     <View style={[styles.screen, { backgroundColor: "hsl(0, 0%, 0%)" }]}>
@@ -40,23 +60,32 @@ export default function OpportunitiesScreen({
         <View style={styles.opportunitiesHeader}>
           <RhoodScreenTitleBlock
             title="Opportunities"
-            subtitle="Swipe to find your next gig"
-            subtitleBottomSpacing={8}
+            subtitle={personalizedOpportunitiesSubtitle(user)}
+            subtitleBottomSpacing={12}
           >
-            <View style={styles.dailyApplicationCounter}>
+            <View
+              style={[
+                styles.dailyApplicationChip,
+                dailyApplicationStats?.can_apply === false &&
+                  styles.dailyApplicationChipLimited,
+              ]}
+              accessibilityRole="text"
+              accessibilityLabel={`${remaining} ${applyLabel}`}
+            >
               <Ionicons
-                name="checkmark-circle-outline"
-                size={16}
+                name={
+                  dailyApplicationStats?.can_apply
+                    ? "checkmark-circle"
+                    : "alert-circle"
+                }
+                size={18}
                 color={canApplyColor}
               />
-              <Text
-                style={[
-                  styles.dailyApplicationText,
-                  { color: canApplyColor },
-                ]}
-              >
-                {dailyApplicationStats?.remaining_applications ?? 0} applications
-                remaining today
+              <Text style={styles.dailyApplicationChipText}>
+                <Text style={[styles.dailyApplicationNumber, { color: canApplyColor }]}>
+                  {remaining}
+                </Text>
+                <Text style={styles.dailyApplicationRest}> {applyLabel}</Text>
               </Text>
             </View>
           </RhoodScreenTitleBlock>

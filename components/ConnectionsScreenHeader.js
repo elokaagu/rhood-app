@@ -129,7 +129,11 @@ export default function ConnectionsScreenHeader({
               {searchSuggestions.map((suggestion, index) => (
                 <TouchableOpacity
                   key={suggestion.id}
-                  style={[styles.suggestionItem, index === 0 && styles.suggestionItemFirst]}
+                  style={[
+                    styles.suggestionItem,
+                    index === searchSuggestions.length - 1 &&
+                      styles.suggestionItemLast,
+                  ]}
                   onPress={() => onSelectSearchSuggestion?.(suggestion)}
                   activeOpacity={0.7}
                   hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}

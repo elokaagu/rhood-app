@@ -565,9 +565,23 @@ function ListenScreen({
 
   const refreshing = playlistsLoading || trendingLoading;
 
-  /** Stable top chrome: title + search always first; body loads trending then playlists below. */
-  const renderListHeader = useCallback(() => {
-    return (
+  /**
+   * Title + search live outside SectionList so the TextInput is not remounted on every
+   * keystroke (ListHeaderComponent used to use useCallback([searchQuery]), which changed
+   * the header callback each render and killed focus).
+   */
+  const renderListFooter = useCallback(
+    () => (
+      <ListenScreenFooter
+        hasUserMixes={hasUserMixes}
+        onUploadMix={handleOpenUpload}
+      />
+    ),
+    [hasUserMixes, handleOpenUpload]
+  );
+
+  return (
+    <View style={styles.container}>
       <View style={styles.listenScreenHeaderRoot}>
         <View style={styles.listenHomeTop}>
           <RhoodScreenTitleBlock
@@ -601,22 +615,8 @@ function ListenScreen({
           </View>
         </View>
       </View>
-    );
-  }, [searchQuery]);
-
-  const renderListFooter = useCallback(
-    () => (
-      <ListenScreenFooter
-        hasUserMixes={hasUserMixes}
-        onUploadMix={handleOpenUpload}
-      />
-    ),
-    [hasUserMixes, handleOpenUpload]
-  );
-
-  return (
-    <View style={styles.container}>
       <SectionList
+        style={{ flex: 1 }}
         sections={sections}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
@@ -628,6 +628,7 @@ function ListenScreen({
         windowSize={6}
         removeClippedSubviews={true}
         stickySectionHeadersEnabled={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -635,7 +636,6 @@ function ListenScreen({
             tintColor={ICON_COLOR}
           />
         }
-        ListHeaderComponent={renderListHeader}
         ListFooterComponent={renderListFooter}
       />
       {tutorialModalProps ? (

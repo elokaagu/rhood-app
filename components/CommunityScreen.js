@@ -17,6 +17,7 @@ import { createScreenCache } from "../lib/screenCache";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
+import { SCREENS } from "../navigation/routes";
 
 const COMMUNITY_CACHE_KEY = "list";
 const communityCache = createScreenCache("community");
@@ -77,6 +78,7 @@ export default function CommunityScreen({ onNavigate }) {
         communityId: community.id,
         communityName: community.name || "Community",
         chatType: "group",
+        messagesBackScreen: SCREENS.COMMUNITY,
       });
   };
 

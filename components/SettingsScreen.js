@@ -267,7 +267,6 @@ export default function SettingsScreen({
             icon: "log-out",
             type: "action",
             action: handleSignOut,
-            destructive: true,
           },
         ],
       },
@@ -319,54 +318,27 @@ export default function SettingsScreen({
       const containerProps =
         item.type === "toggle"
           ? {
-              style: [
-                styles.settingItem,
-                isLast && styles.settingItemLast,
-                item.destructive && styles.destructiveRow,
-              ],
+              style: [styles.settingItem, isLast && styles.settingItemLast],
             }
           : {
-              style: [
-                styles.settingItem,
-                isLast && styles.settingItemLast,
-                item.destructive && styles.destructiveRow,
-              ],
+              style: [styles.settingItem, isLast && styles.settingItemLast],
               onPress: handlePress,
               activeOpacity: 0.7,
             };
 
-      const iconColor = item.destructive
-        ? "hsl(0, 0%, 100%)"
-        : "hsl(75, 100%, 60%)";
-
       return (
         <SettingContainer key={item.id} {...containerProps}>
           <View style={styles.settingLeft}>
-            <View
-              style={[
-                styles.settingIcon,
-                item.destructive && styles.destructiveIconWrap,
-              ]}
-            >
-              <Ionicons name={item.icon} size={20} color={iconColor} />
+            <View style={styles.settingIcon}>
+              <Ionicons
+                name={item.icon}
+                size={20}
+                color="hsl(75, 100%, 60%)"
+              />
             </View>
             <View style={styles.settingContent}>
-              <Text
-                style={[
-                  styles.settingTitle,
-                  item.destructive && styles.destructiveTitle,
-                ]}
-              >
-                {item.title}
-              </Text>
-              <Text
-                style={[
-                  styles.settingSubtitle,
-                  item.destructive && styles.destructiveSubtitle,
-                ]}
-              >
-                {item.subtitle}
-              </Text>
+              <Text style={styles.settingTitle}>{item.title}</Text>
+              <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
             </View>
           </View>
 
@@ -405,11 +377,7 @@ export default function SettingsScreen({
               <Ionicons
                 name="chevron-forward"
                 size={16}
-                color={
-                  item.destructive
-                    ? "hsl(0, 100%, 55%)"
-                    : "hsl(0, 0%, 50%)"
-                }
+                color="hsl(0, 0%, 50%)"
               />
             )}
           </View>
@@ -593,9 +561,6 @@ const styles = StyleSheet.create({
   settingItemLast: {
     borderBottomWidth: 0,
   },
-  destructiveRow: {
-    paddingVertical: 14,
-  },
   settingLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -611,9 +576,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
-  destructiveIconWrap: {
-    backgroundColor: "hsla(0, 100%, 55%, 0.25)",
-  },
   settingContent: {
     flex: 1,
   },
@@ -623,9 +585,6 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     fontWeight: "500",
     marginBottom: 2,
-  },
-  destructiveTitle: {
-    color: "hsl(0, 100%, 58%)",
   },
   settingSubtitle: {
     fontSize: 14,

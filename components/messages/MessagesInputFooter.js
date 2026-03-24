@@ -15,6 +15,7 @@ export default function MessagesInputFooter({
   chatType,
   isConnected,
   connectionStatus,
+  messagesLoading = false,
   bottomInputPadding,
   styles,
   navigation,
@@ -28,6 +29,34 @@ export default function MessagesInputFooter({
   onOpenMediaPicker,
   uploadingMedia,
 }) {
+  if (messagesLoading) {
+    return (
+      <View
+        style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}
+      >
+        <View style={styles.inputWrapper}>
+          <View style={styles.attachButton} accessibilityElementsHidden>
+            <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+          </View>
+          <TextInput
+            style={[styles.messageInput, { opacity: 0.65 }]}
+            editable={false}
+            placeholder="Loading messages…"
+            placeholderTextColor="hsl(0, 0%, 45%)"
+            value=""
+          />
+          <View style={[styles.sendButton, styles.sendButtonDisabled]}>
+            <Ionicons
+              name="hourglass-outline"
+              size={20}
+              color="hsl(0, 0%, 40%)"
+            />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   const showConnectionGate = chatType === "individual" && !isConnected;
 
   if (showConnectionGate) {

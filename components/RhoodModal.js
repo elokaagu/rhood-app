@@ -14,6 +14,7 @@ import {
   Alert,
   ActionSheetIOS,
   Platform,
+  ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -497,6 +498,32 @@ const RhoodModal = ({
       ? message
       : "";
 
+  const overlayVerticalPad = SPACING.lg * 2;
+  const modalMaxHeight = Math.min(
+    height * 0.92,
+    height - insets.top - insets.bottom - overlayVerticalPad
+  );
+  const modalPaddingTop = Math.max(insets.top + SPACING.xl, SPACING.xl);
+  const modalPaddingBottom = Math.max(insets.bottom, SPACING.md);
+  const titleUsesEventDetailStyle =
+    shouldRenderStructuredDetails || shouldRenderParsedDetails;
+  /** Event-style modals use a fixed-height flex column so the scroll region cannot run under the buttons. */
+  const useStrictEventLayout = titleUsesEventDetailStyle;
+  const modalChromeHeight =
+    modalPaddingTop +
+    modalPaddingBottom +
+    40 +
+    SPACING.md +
+    80 +
+    SPACING.lg +
+    SPACING.lg +
+    (SPACING.lg * 2 + 26) +
+    SPACING.base;
+  const scrollMaxHeight = Math.max(
+    120,
+    modalMaxHeight - modalChromeHeight
+  );
+
   return (
     <Modal
       visible={visible}
@@ -508,7 +535,20 @@ const RhoodModal = ({
         <View
           style={[
             styles.modalContainer,
-            { paddingTop: Math.max(insets.top + SPACING.xl, SPACING.xl) },
+            useStrictEventLayout
+              ? {
+                  height: modalMaxHeight,
+                  maxHeight: modalMaxHeight,
+                  flexShrink: 1,
+                  paddingTop: modalPaddingTop,
+                  paddingBottom: modalPaddingBottom,
+                }
+              : {
+                  maxHeight: modalMaxHeight,
+                  flexShrink: 1,
+                  paddingTop: modalPaddingTop,
+                  paddingBottom: modalPaddingBottom,
+                },
           ]}
         >
           {/* Header */}
@@ -555,38 +595,66 @@ const RhoodModal = ({
             )}
           </View>
 
-          {/* Content */}
-          <View style={styles.content}>
-            <Text style={styles.title}>{title}</Text>
-
-            {/* Enhanced Message Parsing for Event Details */}
-            {shouldRenderStructuredDetails ? (
-              <View style={styles.eventDetailsContainer}>
-                {renderStructuredEventDetails(eventDetails)}
-              </View>
-            ) : shouldRenderParsedDetails ? (
-              <View style={styles.eventDetailsContainer}>
-                {parseEventDetails(message)}
-              </View>
-            ) : (
-              <>
-                {message ? (
-                  <Text style={styles.message}>
-                    {renderTextWithLinks(message)}
-                  </Text>
-                ) : null}
-              </>
-            )}
-
-            {shouldRenderStructuredDetails && supplementalMessage ? (
-              <Text style={[styles.message, { marginTop: SPACING.md }]}>
-                {renderTextWithLinks(supplementalMessage)}
+          <ScrollView
+            style={[
+              styles.modalScroll,
+              useStrictEventLayout
+                ? styles.modalScrollFlexFill
+                : { maxHeight: scrollMaxHeight },
+            ]}
+            contentContainerStyle={[
+              styles.modalScrollContent,
+              useStrictEventLayout && styles.modalScrollContentEvent,
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            {/* Content */}
+            <View style={styles.content}>
+              <Text
+                style={[
+                  styles.title,
+                  titleUsesEventDetailStyle && styles.titleEventDetail,
+                ]}
+              >
+                {title}
               </Text>
-            ) : null}
-          </View>
+
+              {/* Enhanced Message Parsing for Event Details */}
+              {shouldRenderStructuredDetails ? (
+                <View style={styles.eventDetailsContainer}>
+                  {renderStructuredEventDetails(eventDetails)}
+                </View>
+              ) : shouldRenderParsedDetails ? (
+                <View style={styles.eventDetailsContainer}>
+                  {parseEventDetails(message)}
+                </View>
+              ) : (
+                <>
+                  {message ? (
+                    <Text style={styles.message}>
+                      {renderTextWithLinks(message)}
+                    </Text>
+                  ) : null}
+                </>
+              )}
+
+              {shouldRenderStructuredDetails && supplementalMessage ? (
+                <Text style={[styles.message, { marginTop: SPACING.md }]}>
+                  {renderTextWithLinks(supplementalMessage)}
+                </Text>
+              ) : null}
+            </View>
+          </ScrollView>
 
           {/* Buttons */}
-          <View style={styles.buttonContainer}>
+          <View
+            style={[
+              styles.buttonContainer,
+              useStrictEventLayout && styles.buttonContainerEvent,
+            ]}
+          >
             {secondaryButtonText && (
               <TouchableOpacity
                 style={styles.secondaryButton}
@@ -620,6 +688,7 @@ const styles = StyleSheet.create({
     ...sharedStyles.modalOverlay,
   },
   modalContainer: {
+    flexDirection: "column",
     backgroundColor: COLORS.backgroundSecondary,
     borderRadius: RADIUS.xl,
     padding: SPACING.xl,
@@ -680,9 +749,27 @@ const styles = StyleSheet.create({
     height: 72,
     backgroundColor: "transparent",
   },
+  modalScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+    minHeight: 0,
+  },
+  modalScrollFlexFill: {
+    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    minHeight: 0,
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+    paddingBottom: SPACING.md,
+  },
+  modalScrollContentEvent: {
+    paddingBottom: SPACING.xl,
+  },
   content: {
     alignItems: "center",
-    marginBottom: SPACING.xl,
+    marginBottom: 0,
   },
   title: {
     fontSize: TYPOGRAPHY["3xl"],
@@ -691,6 +778,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: SPACING.lg,
     letterSpacing: 0.5,
+  },
+  titleEventDetail: {
+    fontSize: TYPOGRAPHY.xl,
+    lineHeight: 26,
+    marginBottom: SPACING.md,
   },
   message: {
     fontSize: TYPOGRAPHY.lg,
@@ -701,6 +793,11 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: "row",
     gap: SPACING.base,
+    flexShrink: 0,
+  },
+  buttonContainerEvent: {
+    marginTop: SPACING.lg,
+    paddingTop: SPACING.sm,
   },
   primaryButton: {
     flex: 1,

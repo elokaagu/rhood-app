@@ -13,6 +13,7 @@ import {
   loadPostApplySuccessContext,
   classifyApplicationError,
 } from "../lib/opportunities/applicationFlow";
+import { SCREENS } from "../navigation/routes";
 
 /** Fallback stats refresh while on screen; primary updates are mount, foreground, and post-apply. */
 const DAILY_STATS_REFRESH_INTERVAL_MS = 90_000;
@@ -27,6 +28,7 @@ const DAILY_STATS_REFRESH_INTERVAL_MS = 90_000;
 export default function useOpportunities({
   user,
   currentScreen,
+  screenParams,
   userLocation,
   showCustomModal,
   hideCustomModal,
@@ -132,6 +134,33 @@ export default function useOpportunities({
   useEffect(() => {
     fetchOpportunities();
   }, [fetchOpportunities]);
+
+  /** Deep link from notifications: jump swipe deck to a specific opportunity once rows are loaded. */
+  useEffect(() => {
+    const focusId = screenParams?.focusOpportunityId;
+    if (
+      !focusId ||
+      currentScreen !== SCREENS.OPPORTUNITIES ||
+      !opportunities?.length
+    ) {
+      return;
+    }
+    const idx = opportunities.findIndex(
+      (o) => String(o.id) === String(focusId)
+    );
+    if (idx < 0) return;
+    setCurrentOpportunityIndex(idx);
+    setScreenParams((prev) => {
+      if (!prev || typeof prev !== "object") return prev;
+      const { focusOpportunityId: _removed, ...rest } = prev;
+      return rest;
+    });
+  }, [
+    currentScreen,
+    screenParams?.focusOpportunityId,
+    opportunities,
+    setScreenParams,
+  ]);
 
   useEffect(() => {
     if (!opportunities?.length) return;

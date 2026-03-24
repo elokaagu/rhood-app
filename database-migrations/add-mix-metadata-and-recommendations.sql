@@ -1,5 +1,9 @@
 -- Add Mix Metadata and Recommendation System
 -- Run this in your Supabase SQL editor
+--
+-- Required for VECTOR(...) columns below. If this fails, enable "vector" under
+-- Supabase Dashboard → Database → Extensions, then run again.
+CREATE EXTENSION IF NOT EXISTS vector;
 
 -- ============================================
 -- STEP 1: Add metadata columns to mixes table
@@ -9,7 +13,9 @@ ADD COLUMN IF NOT EXISTS bpm INTEGER,
 ADD COLUMN IF NOT EXISTS sub_genre VARCHAR(100),
 ADD COLUMN IF NOT EXISTS mood_tags TEXT[], -- Array of mood tags
 ADD COLUMN IF NOT EXISTS audio_features JSONB, -- Store waveform, energy, etc.
-ADD COLUMN IF NOT EXISTS metadata_extracted BOOLEAN DEFAULT false;
+ADD COLUMN IF NOT EXISTS metadata_extracted BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS play_count INTEGER DEFAULT 0;
 
 -- Create indexes for metadata queries
 CREATE INDEX IF NOT EXISTS idx_mixes_bpm ON mixes(bpm) WHERE bpm IS NOT NULL;
@@ -63,9 +69,7 @@ CREATE TABLE IF NOT EXISTS user_embeddings (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create index for vector similarity search (requires pgvector extension)
--- Note: You may need to enable pgvector extension first:
--- CREATE EXTENSION IF NOT EXISTS vector;
+-- Create index for vector similarity search (pgvector enabled at top of file)
 CREATE INDEX IF NOT EXISTS idx_user_embeddings_user_id ON user_embeddings(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_embeddings_last_updated ON user_embeddings(last_updated);
 
@@ -384,9 +388,9 @@ BEGIN
   )
   RETURNING id INTO session_id;
 
-  -- Update mix play count
+  -- Update mix play count (COALESCE: column may be NULL on older rows)
   UPDATE mixes
-  SET play_count = play_count + 1
+  SET play_count = COALESCE(play_count, 0) + 1
   WHERE id = p_mix_id;
 
   -- Trigger user embedding recalculation (async, can be done via trigger or job)
@@ -405,20 +409,24 @@ ALTER TABLE user_embeddings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mix_embeddings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_mix_similarity ENABLE ROW LEVEL SECURITY;
 
--- Policies: Users can only see their own data
+-- Policies: Users can only see their own data (DROP first so re-running this script is safe)
+DROP POLICY IF EXISTS "Users can view own listening sessions" ON mix_listening_sessions;
 CREATE POLICY "Users can view own listening sessions" ON mix_listening_sessions
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own listening sessions" ON mix_listening_sessions;
 CREATE POLICY "Users can insert own listening sessions" ON mix_listening_sessions
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own embeddings" ON user_embeddings;
 CREATE POLICY "Users can view own embeddings" ON user_embeddings
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own similarity scores" ON user_mix_similarity;
 CREATE POLICY "Users can view own similarity scores" ON user_mix_similarity
   FOR SELECT USING (auth.uid() = user_id);
 
--- Mix embeddings are public (for recommendation calculations)
+DROP POLICY IF EXISTS "Anyone can view mix embeddings" ON mix_embeddings;
 CREATE POLICY "Anyone can view mix embeddings" ON mix_embeddings
   FOR SELECT USING (true);
 
