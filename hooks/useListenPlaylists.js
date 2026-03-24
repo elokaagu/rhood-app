@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { createScreenCache } from "../lib/screenCache";
 
-const playlistsCache = createScreenCache("playlists");
+const playlistsCache = createScreenCache("playlists", { userScoped: true });
 
 const isMissingTableError = (error) =>
   error?.code === "42P01" || error?.code === "PGRST205";

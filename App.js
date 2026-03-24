@@ -45,12 +45,14 @@ import AppShell from "./components/AppShell";
 import ScreenRouter from "./navigation/ScreenRouter";
 import {
   SCREENS,
-  TAB_BAR_HIDDEN_SCREENS,
+  TAB_BAR_HIDDEN_SCREEN_IDS,
   ANCHORED_TAB_BAR_CONTENT_HEIGHT,
 } from "./navigation/routes";
 import {
   registerForPushNotifications,
   setupNotificationListeners,
+  setPushNotificationTapHandler,
+  clearSessionExpoPushTokenCache,
 } from "./lib/pushNotifications";
 import {
   getCurrentLocation,
@@ -119,7 +121,7 @@ export default function App() {
   const [screenParams, setScreenParams] = useState({});
 
   const insets = useSafeAreaInsets();
-  const showMainTabBar = !TAB_BAR_HIDDEN_SCREENS.has(currentScreen);
+  const showMainTabBar = !TAB_BAR_HIDDEN_SCREEN_IDS.includes(currentScreen);
   const anchoredTabBottomPad = showMainTabBar
     ? ANCHORED_TAB_BAR_CONTENT_HEIGHT + insets.bottom
     : 0;
@@ -154,25 +156,16 @@ export default function App() {
 
   // Initialize notification setup for lock screen audio controls
   useEffect(() => {
+    let audioNotifSubscription = null;
+
     const initializeNotifications = async () => {
       try {
-        // Request notification permissions
         await requestNotificationPermissions();
-
-        // Set up notification categories for iOS
         await setupAudioNotificationCategories();
-
-        // Set up notification listeners
-        const removeListeners = setupAudioNotificationListeners();
-
-        // Initialize lock screen controls
-        // Lock screen: Android uses lockScreenControls; iOS uses system now playing if configured
-        // On Android, this sets up MediaStyle notifications
+        audioNotifSubscription = setupAudioNotificationListeners();
         await lockScreenControls.initialize();
 
         if (__DEV__) console.log("✅ Lock screen audio controls initialized");
-
-        return removeListeners;
       } catch (error) {
         if (__DEV__) console.error("❌ Error initializing notifications:", error);
       }
@@ -185,6 +178,10 @@ export default function App() {
       await initAnalytics();
       await track(AnalyticsEvents.APP_OPEN);
     })();
+
+    return () => {
+      audioNotifSubscription?.remove?.();
+    };
   }, []);
 
   // Track screen views when screen changes; keep ref in sync for menu navigation callbacks
@@ -503,6 +500,7 @@ export default function App() {
         // Clear invalid session
         setUser(null);
         setAuthLoading(false);
+        clearSessionExpoPushTokenCache();
         await checkFirstTime(null);
       } else {
         setUser(session?.user ?? null);
@@ -524,6 +522,7 @@ export default function App() {
           }
           setUser(null);
           setAuthLoading(false);
+          clearSessionExpoPushTokenCache();
           await checkFirstTime(null);
           return;
         }
@@ -540,6 +539,7 @@ export default function App() {
           }
           setUser(session.user);
         } else if (event === "SIGNED_OUT") {
+          clearSessionExpoPushTokenCache();
           // User signed out, reset state
           setDjProfile({
             djName: "",
@@ -684,6 +684,7 @@ export default function App() {
       await resetAnalyticsUser();
       await auth.signOut();
       clearScreenCachesForUser(user?.id);
+      clearSessionExpoPushTokenCache();
       setUser(null);
       setShowAuth(true);
       setAuthMode("login");
@@ -967,6 +968,20 @@ export default function App() {
     [currentScreen]
   );
 
+  useEffect(() => {
+    setPushNotificationTapHandler(({ type, data }) => {
+      if (
+        type === "application_approved" ||
+        type === "application_rejected" ||
+        type === "application_status"
+      ) {
+        handleMenuNavigation(SCREENS.OPPORTUNITIES, {
+          applicationId: data?.application_id ?? undefined,
+        });
+      }
+    });
+    return () => setPushNotificationTapHandler(null);
+  }, [handleMenuNavigation]);
 
   // Global authentication helper
   const ensureAuthenticated = async () => {

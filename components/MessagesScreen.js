@@ -563,16 +563,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
         return;
       }
 
-      if (picked.type === "error" && picked.available === false) {
-        Alert.alert(
-          "Feature Unavailable",
-          picked.message ||
-            "This action requires a development build or production app."
-        );
-        setShowMediaPicker(false);
-        return;
-      }
-
       const uploadResult = await multimediaService.uploadToStorage(picked);
       const normalizedType = picked.type === "document" ? "file" : picked.type;
 
@@ -621,7 +611,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     } catch (error) {
       console.error(`❌ Error uploading ${label}:`, error);
       Alert.alert(
-        "Upload Error",
+        error.alertTitle || "Upload Error",
         error.message || `Failed to upload ${label}. Please try again.`
       );
     } finally {
@@ -667,7 +657,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     } catch (error) {
       console.error("❌ Error in handleImageUpload:", error);
       Alert.alert(
-        "Image Upload Error",
+        error.alertTitle || "Image Upload Error",
         error.message || "Failed to pick images. Please try again."
       );
     } finally {
@@ -681,7 +671,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     } catch (error) {
       console.error("❌ Error in handleVideoUpload:", error);
       Alert.alert(
-        "Video Upload Error",
+        error.alertTitle || "Video Upload Error",
         error.message || "Failed to pick video. Please try again."
       );
       setUploadingMedia(false);
@@ -734,7 +724,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
               } catch (error) {
                 console.error("❌ Error uploading audio:", error);
                 Alert.alert(
-                  "Audio Upload Error",
+                  error.alertTitle || "Audio Upload Error",
                   error.message || "Failed to upload audio. Please try again."
                 );
                 setUploadingMedia(false);
@@ -749,7 +739,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     } catch (error) {
       console.error("❌ Error in handleAudioUpload:", error);
       Alert.alert(
-        "Audio Upload Error",
+        error.alertTitle || "Audio Upload Error",
         error.message || "Failed to pick audio. Please try again."
       );
       setUploadingMedia(false);
@@ -766,7 +756,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     } catch (error) {
       console.error("❌ Error in handleDocumentUpload:", error);
       Alert.alert(
-        "File Upload Error",
+        error.alertTitle || "File Upload Error",
         error.message || "Failed to pick file. Please try again."
       );
       setUploadingMedia(false);

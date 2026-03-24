@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Image } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SCREENS, TAB_BAR_HIDDEN_SCREENS } from "../navigation/routes";
+import { SCREENS, TAB_BAR_HIDDEN_SCREEN_IDS } from "../navigation/routes";
 
 const MAIN_TABS = [
   {
@@ -60,7 +60,7 @@ export default function AppShell({
   styles,
 }) {
   const insets = useSafeAreaInsets();
-  const showTabBar = !TAB_BAR_HIDDEN_SCREENS.has(currentScreen);
+  const showTabBar = !TAB_BAR_HIDDEN_SCREEN_IDS.includes(currentScreen);
 
   const tabBarLayoutStyle = useMemo(
     () => ({

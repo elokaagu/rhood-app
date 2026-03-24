@@ -322,7 +322,7 @@ export default function OnboardingForm({
 
         try {
           // Upload image to Supabase storage
-          const publicUrl = await uploadOnboardingProfileImage(localUri);
+          const { publicUrl } = await uploadOnboardingProfileImage(localUri);
 
           setProfileImage(publicUrl);
           setDjProfile((prev) => ({

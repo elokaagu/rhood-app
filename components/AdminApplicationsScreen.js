@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
   },
   boostBadgeText: {
     fontSize: TYPOGRAPHY.xs,
-    fontWeight: TYPOGRAPHY.bold,
+    fontWeight: TYPOGRAPHY.weightBold,
     color: COLORS.background,
     letterSpacing: 0.5,
   },

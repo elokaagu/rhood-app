@@ -2,11 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, Animated, Image } from "react-native";
 import { useFonts } from "expo-font";
 import { Video, ResizeMode } from "expo-av";
-import {
-  SPLASH_SPINNER_VIDEO,
-  SPLASH_LETTERING_WHITE,
-  SPLASH_LOGO_FALLBACK,
-} from "../lib/splashMedia";
+import { SPLASH_VIDEO, SPLASH_LETTERING, SPLASH_LOGO } from "../lib/splashMedia";
 
 /** Timed brand intro — not a full app-readiness gate (see AuthGate / data loading). */
 const SPLASH_VISIBLE_MS = 2200;
@@ -167,7 +163,7 @@ const SplashScreen = ({ onFinish }) => {
         <View style={styles.logoContainer}>
           {!videoError ? (
             <Video
-              source={SPLASH_SPINNER_VIDEO}
+              source={SPLASH_VIDEO}
               style={styles.spinningVideo}
               resizeMode={ResizeMode.CONTAIN}
               isLooping
@@ -185,7 +181,7 @@ const SplashScreen = ({ onFinish }) => {
               ]}
             >
               <Image
-                source={SPLASH_LOGO_FALLBACK}
+                source={SPLASH_LOGO}
                 style={styles.fallbackLogo}
                 resizeMode="contain"
               />
@@ -194,7 +190,7 @@ const SplashScreen = ({ onFinish }) => {
         </View>
 
         <Image
-          source={SPLASH_LETTERING_WHITE}
+          source={SPLASH_LETTERING}
           style={styles.brandText}
           resizeMode="contain"
         />

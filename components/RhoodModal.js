@@ -686,8 +686,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: TYPOGRAPHY["3xl"],
-    fontFamily: TYPOGRAPHY.brand, // Use R/HOOD brand font
-    fontWeight: TYPOGRAPHY.bold,
+    fontFamily: TYPOGRAPHY.brand,
     color: COLORS.textPrimary,
     textAlign: "center",
     marginBottom: SPACING.lg,

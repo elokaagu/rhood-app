@@ -31,6 +31,7 @@ import ResetPasswordScreen from "../components/ResetPasswordScreen";
 import SwipeBackScreenShell from "../components/SwipeBackScreenShell";
 import { db } from "../lib/supabase";
 import { clearScreenCachesForUser } from "../lib/screenCache";
+import { clearSessionExpoPushTokenCache } from "../lib/pushNotifications";
 
 /** Same navigation as the header back arrow, plus edge swipe (see SwipeBackScreenShell). */
 function withSwipeBack(onBack, screen) {
@@ -150,6 +151,7 @@ export default function ScreenRouter({
 
   const handleSignOut = useCallback(() => {
     clearScreenCachesForUser(user?.id);
+    clearSessionExpoPushTokenCache();
     setUser(null);
     setIsFirstTime(true);
     setDjProfile({
@@ -190,6 +192,26 @@ export default function ScreenRouter({
     [user, setUser, setCurrentScreen, setScreenParams]
   );
 
+  /** `() => setCurrentScreen(target)` for swipe shell + simple backs */
+  const pickScreen = useCallback(
+    (target) => () => setCurrentScreen(target),
+    [setCurrentScreen]
+  );
+
+  const exitMessagesToConnections = useCallback(() => {
+    setCurrentScreen(SCREENS.CONNECTIONS);
+    setScreenParams((prev) => ({
+      ...prev,
+      initialTab: screenParams?.returnToConnectionsTab || "discover",
+    }));
+  }, [setCurrentScreen, setScreenParams, screenParams?.returnToConnectionsTab]);
+
+  const exitResetPasswordToLogin = useCallback(() => {
+    setCurrentScreen(SCREENS.LOGIN);
+    setShowAuth?.(true);
+    setAuthMode?.("login");
+  }, [setCurrentScreen, setShowAuth, setAuthMode]);
+
   switch (screen) {
     case SCREENS.OPPORTUNITIES:
       return (
@@ -210,25 +232,11 @@ export default function ScreenRouter({
 
     case SCREENS.MESSAGES:
       return withSwipeBack(
-        () => {
-          setCurrentScreen(SCREENS.CONNECTIONS);
-          setScreenParams((prev) => ({
-            ...prev,
-            initialTab:
-              screenParams?.returnToConnectionsTab || "discover",
-          }));
-        },
+        exitMessagesToConnections,
         <MessagesScreen
           user={user}
           navigation={createNavigation({
-            goBack: () => {
-              setCurrentScreen(SCREENS.CONNECTIONS);
-              setScreenParams((prev) => ({
-                ...prev,
-                initialTab:
-                  screenParams?.returnToConnectionsTab || "discover",
-              }));
-            },
+            goBack: exitMessagesToConnections,
           })}
           route={{ params: screenParams }}
         />
@@ -302,12 +310,13 @@ export default function ScreenRouter({
         screenParams.returnScreen != null
           ? screenParams.returnScreen
           : SCREENS.PROFILE;
+      const backFromUpload = pickScreen(uploadReturnScreen);
       return withSwipeBack(
-        () => setCurrentScreen(uploadReturnScreen),
+        backFromUpload,
         <UploadMixScreen
           user={user}
-          onBack={() => setCurrentScreen(uploadReturnScreen)}
-          onUploadComplete={() => setCurrentScreen(uploadReturnScreen)}
+          onBack={backFromUpload}
+          onUploadComplete={backFromUpload}
           existingMixId={screenParams.mixId || null}
         />
       );
@@ -315,38 +324,26 @@ export default function ScreenRouter({
 
     case SCREENS.RESET_PASSWORD:
       return withSwipeBack(
-        () => {
-          setCurrentScreen(SCREENS.LOGIN);
-          setShowAuth?.(true);
-          setAuthMode?.("login");
-        },
+        exitResetPasswordToLogin,
         <ResetPasswordScreen
-          onBack={() => {
-            setCurrentScreen(SCREENS.LOGIN);
-            setShowAuth?.(true);
-            setAuthMode?.("login");
-          }}
-          onSuccess={() => {
-            setCurrentScreen(SCREENS.LOGIN);
-            setShowAuth?.(true);
-            setAuthMode?.("login");
-          }}
+          onBack={exitResetPasswordToLogin}
+          onSuccess={exitResetPasswordToLogin}
         />
       );
 
     case SCREENS.EDIT_PROFILE:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.PROFILE),
+        pickScreen(SCREENS.PROFILE),
         <EditProfileScreen
           user={user}
           onSave={handleEditProfileSave}
-          onCancel={() => setCurrentScreen(SCREENS.PROFILE)}
+          onCancel={pickScreen(SCREENS.PROFILE)}
         />
       );
 
     case SCREENS.USER_PROFILE:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.CONNECTIONS),
+        pickScreen(SCREENS.CONNECTIONS),
         <UserProfileView
           userId={screenParams.userId}
           globalAudioState={globalAudioState}
@@ -354,7 +351,7 @@ export default function ScreenRouter({
           onPauseAudio={pauseGlobalAudio}
           onResumeAudio={resumeGlobalAudio}
           onStopAudio={stopGlobalAudio}
-          onBack={() => setCurrentScreen(SCREENS.CONNECTIONS)}
+          onBack={pickScreen(SCREENS.CONNECTIONS)}
           onNavigate={navigate}
         />
       );
@@ -381,10 +378,10 @@ export default function ScreenRouter({
 
     case SCREENS.CONNECTIONS_LIST:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.PROFILE),
+        pickScreen(SCREENS.PROFILE),
         <ConnectionsListScreen
           user={user}
-          onBack={() => setCurrentScreen(SCREENS.PROFILE)}
+          onBack={pickScreen(SCREENS.PROFILE)}
           onNavigate={navigate}
         />
       );
@@ -393,79 +390,79 @@ export default function ScreenRouter({
       return (
         <AchievementsListScreen
           user={user}
-          onBack={() => setCurrentScreen(SCREENS.PROFILE)}
+          onBack={pickScreen(SCREENS.PROFILE)}
         />
       );
 
     case SCREENS.INVITE:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.PROFILE),
+        pickScreen(SCREENS.PROFILE),
         <InviteScreen
           user={user}
-          onBack={() => setCurrentScreen(SCREENS.PROFILE)}
+          onBack={pickScreen(SCREENS.PROFILE)}
         />
       );
 
     case SCREENS.ADMIN_APPLICATIONS:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.PROFILE),
+        pickScreen(SCREENS.PROFILE),
         <AdminApplicationsScreen user={user} onNavigate={navigate} />
       );
 
     case SCREENS.BRAND_GIGS_PORTAL:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.ADMIN_APPLICATIONS),
+        pickScreen(SCREENS.ADMIN_APPLICATIONS),
         <BrandGigsPortal
           user={user}
-          onBack={() => setCurrentScreen(SCREENS.ADMIN_APPLICATIONS)}
+          onBack={pickScreen(SCREENS.ADMIN_APPLICATIONS)}
         />
       );
 
     case SCREENS.ABOUT:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.OPPORTUNITIES),
-        <AboutScreen onBack={() => setCurrentScreen(SCREENS.OPPORTUNITIES)} />
+        pickScreen(SCREENS.OPPORTUNITIES),
+        <AboutScreen onBack={pickScreen(SCREENS.OPPORTUNITIES)} />
       );
 
     case SCREENS.TERMS:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.SETTINGS),
+        pickScreen(SCREENS.SETTINGS),
         <TermsOfServiceScreen
-          onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
+          onBack={pickScreen(SCREENS.SETTINGS)}
         />
       );
 
     case SCREENS.PRIVACY:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.SETTINGS),
+        pickScreen(SCREENS.SETTINGS),
         <PrivacyPolicyScreen
-          onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
+          onBack={pickScreen(SCREENS.SETTINGS)}
         />
       );
 
     case SCREENS.HELP:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.SETTINGS),
+        pickScreen(SCREENS.SETTINGS),
         <HelpCenterScreen
-          onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
+          onBack={pickScreen(SCREENS.SETTINGS)}
           onNavigate={navigate}
         />
       );
 
     case SCREENS.HELP_CHAT:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.HELP),
+        pickScreen(SCREENS.HELP),
         <HelpChatScreen
           user={user}
-          onBack={() => setCurrentScreen(SCREENS.HELP)}
+          onBack={pickScreen(SCREENS.HELP)}
         />
       );
 
     case SCREENS.TUTORIAL_MODE:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.SETTINGS),
+        pickScreen(SCREENS.SETTINGS),
         <TutorialModeScreen
-          onBack={() => setCurrentScreen(SCREENS.SETTINGS)}
+          onBack={pickScreen(SCREENS.SETTINGS)}
         />
       );
 
@@ -474,13 +471,13 @@ export default function ScreenRouter({
 
     case SCREENS.TRENDING_MIXES:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.LISTEN),
+        pickScreen(SCREENS.LISTEN),
         <TrendingMixesScreen
           globalAudioState={globalAudioState}
           onPlayAudio={playGlobalAudio}
           onPauseAudio={pauseGlobalAudio}
           onResumeAudio={resumeGlobalAudio}
-          onBack={() => setCurrentScreen(SCREENS.LISTEN)}
+          onBack={pickScreen(SCREENS.LISTEN)}
           onAddToQueue={addToQueue}
           onPlayNext={playNextTrack}
         />
@@ -488,13 +485,13 @@ export default function ScreenRouter({
 
     case SCREENS.YOUR_LIKES:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.LISTEN),
+        pickScreen(SCREENS.LISTEN),
         <YourLikesScreen
           globalAudioState={globalAudioState}
           onPlayAudio={playGlobalAudio}
           onPauseAudio={pauseGlobalAudio}
           onResumeAudio={resumeGlobalAudio}
-          onBack={() => setCurrentScreen(SCREENS.LISTEN)}
+          onBack={pickScreen(SCREENS.LISTEN)}
           user={user}
           onAddToQueue={addToQueue}
           onPlayNext={playNextTrack}
@@ -503,13 +500,13 @@ export default function ScreenRouter({
 
     case SCREENS.PLAYLIST_DETAIL:
       return withSwipeBack(
-        () => setCurrentScreen(SCREENS.LISTEN),
+        pickScreen(SCREENS.LISTEN),
         <PlaylistDetailScreen
           globalAudioState={globalAudioState}
           onPlayAudio={playGlobalAudio}
           onPauseAudio={pauseGlobalAudio}
           onResumeAudio={resumeGlobalAudio}
-          onBack={() => setCurrentScreen(SCREENS.LISTEN)}
+          onBack={pickScreen(SCREENS.LISTEN)}
           user={user}
           onAddToQueue={addToQueue}
           onPlayNext={playNextTrack}
@@ -519,6 +516,12 @@ export default function ScreenRouter({
       );
 
     default:
+      if (__DEV__) {
+        console.warn(
+          "[ScreenRouter] Unknown screen id, falling back to Listen:",
+          screen
+        );
+      }
       return <ListenScreen {...listenScreenProps} />;
   }
 }

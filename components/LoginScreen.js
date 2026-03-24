@@ -412,7 +412,6 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: TYPOGRAPHY["5xl"],
     fontFamily: TYPOGRAPHY.bold,
-    fontWeight: TYPOGRAPHY.black,
     letterSpacing: 1,
     marginBottom: SPACING.base,
   },
@@ -446,7 +445,7 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: TYPOGRAPHY["3xl"],
     fontFamily: TYPOGRAPHY.primary,
-    fontWeight: TYPOGRAPHY.bold,
+    fontWeight: TYPOGRAPHY.weightBold,
     color: COLORS.textPrimary,
     textAlign: "center",
     marginBottom: SPACING.xl,

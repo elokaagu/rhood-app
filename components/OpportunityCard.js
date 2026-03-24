@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.xs,
     fontFamily: TYPOGRAPHY.primary,
     color: COLORS.textPrimary,
-    fontWeight: TYPOGRAPHY.bold,
+    fontWeight: TYPOGRAPHY.weightBold,
   },
   eventTitle: {
     fontSize: TYPOGRAPHY["2xl"],

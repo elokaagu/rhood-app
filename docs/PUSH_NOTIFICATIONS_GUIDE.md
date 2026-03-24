@@ -4,27 +4,32 @@ This guide explains the complete push notification system implemented for the Rh
 
 ## 🎯 Overview
 
-The notification system sends push notifications to users when their applications are approved or rejected. It includes:
+The notification system sends push notifications to users when their application status changes (e.g. approved or rejected). It includes:
 
-- ✅ **Expo Push Notifications** - Cross-platform push notifications
-- ✅ **In-app Notifications** - Stored in database and displayed in the app
-- ✅ **Real-time Updates** - Live notification delivery via Supabase
-- ✅ **Token Management** - Automatic registration and cleanup
-- ✅ **Test Interface** - Built-in testing in Settings screen
+- ✅ **Expo Push Notifications** — Cross-platform push; **all stored Expo tokens per user** are targeted in one batch request
+- ✅ **In-app Notifications** — Stored in database and displayed in the app (optional `skipInApp` when a DB trigger already inserts the row)
+- ✅ **Optional email** — Via Supabase Edge Function `send-email` when `userEmail` and `userName` are passed
+- ✅ **Real-time Updates** — Live notification delivery via Supabase
+- ✅ **Token Management** — Registration per device; **unregistration removes only the current device’s token**
+- ✅ **Stale tokens** — Push tickets that indicate an unregistered device cause that token row to be removed from `user_expo_tokens`
+- ✅ **Test Interface** — Built-in testing in Settings screen
+
+**Production note:** Push is currently sent from the client through Expo’s HTTP API. For production hardening, plan to move sending to a **trusted backend** (secrets, retries, full receipt handling).
 
 ## 📁 Files Added/Modified
 
 ### New Files:
-- `lib/notificationService.js` - Core notification service
-- `lib/pushNotifications.js` - Push notification setup and handlers
-- `components/NotificationHandler.js` - Notification management component
-- `components/NotificationTest.js` - Test interface for notifications
-- `database/create-expo-tokens-table.sql` - Database schema for tokens
+- `lib/notificationService.js` — Orchestration: in-app row, Expo push batch, optional email invoke
+- `lib/notificationTemplates.js` — Application-status copy and HTML/text email templates (`APPLICATION_NOTIFICATION_CONFIG`, helpers)
+- `lib/pushNotifications.js` — Push setup, `registerForPushNotifications` / `unregisterPushNotifications`, listeners
+- `components/NotificationHandler.js` — Notification management component
+- `components/NotificationTest.js` — Test interface for notifications
+- `database/create-expo-tokens-table.sql` — Database schema for tokens
 
 ### Modified Files:
-- `app.json` - Added Expo notifications plugin and configuration
-- `App.js` - Integrated push notification setup
-- `components/SettingsScreen.js` - Added notification test interface
+- `app.json` — Expo notifications plugin and configuration
+- `App.js` — Integrated push notification setup
+- `components/SettingsScreen.js` — Notification test interface
 
 ## 🚀 Setup Instructions
 
@@ -52,65 +57,105 @@ npx expo install expo-notifications expo-device expo-constants
 
 ## 🔧 How It Works
 
-### Token Registration
-1. App starts and calls `setupPushNotifications()`
-2. Requests notification permissions from user
-3. Gets Expo push token from device
-4. Stores token in Supabase `user_expo_tokens` table
-5. Sets up notification listeners
+### Token registration
+1. App starts and calls `setupPushNotifications()` (or your app’s equivalent).
+2. Requests notification permissions from the user.
+3. Gets Expo push token from the device.
+4. Stores token in Supabase `user_expo_tokens` via `registerExpoToken(userId, expoToken, deviceId, platform)` (upsert).
+5. Sets up notification listeners.
 
-### Sending Notifications
-1. When application status changes (approved/rejected)
-2. `sendApplicationStatusNotification()` is called
-3. Creates in-app notification in database
-4. Sends push notification via Expo Push API
-5. User receives notification on device
+### Token unregistration (single device)
+1. `unregisterPushNotifications()` in `lib/pushNotifications.js` reads the **current** Expo push token.
+2. Calls `unregisterExpoToken(userId, expoToken)` so **only that token’s row** is deleted — other devices for the same user keep receiving pushes.
+3. If the token cannot be read (e.g. Expo Go), unregister is skipped.
 
-### Notification Handling
-1. App listens for incoming notifications
-2. Handles notification taps and navigation
-3. Updates notification read status
-4. Shows in-app notification UI
+### Sending notifications
+1. When application status changes, call `sendApplicationStatusNotification(...)`.
+2. Copy and notification **type** are chosen from `lib/notificationTemplates.js` (`approved`, `rejected`, or a **default** for any other status).
+3. Unless `skipInApp: true`, creates an in-app notification in the database.
+4. Loads **all** `expo_token` values for the user, dedupes them, sends **one** batch POST to the Expo Push API.
+5. On ticket errors such as **DeviceNotRegistered**, the matching token is removed from `user_expo_tokens`.
+6. Optionally sends email if `userEmail` and `userName` are provided.
+7. Success if any channel succeeded (aligned with partial-success behavior in code).
+
+### Notification handling
+1. App listens for incoming notifications.
+2. Handles notification taps (including `application_approved`, `application_rejected`, and generic `application_status`).
+3. Updates notification read status and in-app UI as implemented in your screens.
 
 ## 🧪 Testing
 
-### Built-in Test Interface
-1. Go to **Settings** screen in the app
-2. Scroll down to see "Test Push Notifications" section
-3. Tap "Send Approved Notification" or "Send Rejected Notification"
-4. Check your device for the notification
+### Built-in test interface
+1. Go to **Settings** in the app.
+2. Find **Test Push Notifications**.
+3. Tap **Send Approved Notification** or **Send Rejected Notification**.
+4. Check the physical device for the notification.
 
-### Manual Testing
-You can also test by calling the notification service directly:
+### Manual testing
+You can call the service directly:
 
 ```javascript
 import { sendApplicationStatusNotification } from './lib/notificationService';
 
-// Send test notification
+// Minimal (push + in-app; no email)
 await sendApplicationStatusNotification(
   'user-id-here',
   'Test Opportunity',
-  'approved', // or 'rejected'
-  'test-application-id'
+  'approved', // or 'rejected', or any other status (uses default template)
+  'test-application-id-uuid',
+  undefined,
+  undefined,
+);
+
+// With optional email (requires `send-email` Edge Function)
+await sendApplicationStatusNotification(
+  'user-id-here',
+  'Test Opportunity',
+  'approved',
+  'test-application-id-uuid',
+  'user@example.com',
+  'DJ Name',
+);
+
+// When a database trigger already inserted the in-app row
+await sendApplicationStatusNotification(
+  userId,
+  opportunityTitle,
+  status,
+  applicationId,
+  userEmail,
+  userName,
+  { skipInApp: true },
 );
 ```
 
-## 📱 Device Requirements
+### Low-level token API
+```javascript
+import { registerExpoToken, unregisterExpoToken } from './lib/notificationService';
 
-- **Physical Device Required**: Push notifications don't work in simulators
-- **iOS**: Requires Apple Developer account for production
-- **Android**: Works with Expo development builds
+// After you obtain expoToken from expo-notifications
+await registerExpoToken(userId, expoToken, deviceId, platform);
+
+// Remove only this device’s token (both arguments required)
+await unregisterExpoToken(userId, expoToken);
+```
+
+## 📱 Device requirements
+
+- **Physical device** — Push does not work in simulators for real delivery.
+- **iOS** — Apple Developer setup for production.
+- **Android** — Works with Expo development builds.
 
 ## 🔐 Permissions
 
-The app will automatically request notification permissions when:
-1. User first opens the app
-2. User goes to Settings screen
-3. User tries to test notifications
+The app requests notification permissions when:
+1. The user first opens the app (per your `App.js` flow),
+2. The user visits Settings,
+3. The user runs a notification test.
 
-## 🗄️ Database Schema
+## 🗄️ Database schema
 
-### `user_expo_tokens` Table
+### `user_expo_tokens` table
 ```sql
 CREATE TABLE user_expo_tokens (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -123,7 +168,7 @@ CREATE TABLE user_expo_tokens (
 );
 ```
 
-### `notifications` Table (if not exists)
+### `notifications` table (if not exists)
 ```sql
 CREATE TABLE notifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -137,89 +182,83 @@ CREATE TABLE notifications (
 );
 ```
 
-## 🔄 Integration with Application System
-
-To integrate with your application approval/rejection system:
+## 🔄 Integration with the application system
 
 ```javascript
 import { sendApplicationStatusNotification } from './lib/notificationService';
 
-// When approving an application
-const approveApplication = async (applicationId, userId, opportunityTitle) => {
-  // Your approval logic here...
-  
-  // Send notification
+const approveApplication = async (applicationId, userId, opportunityTitle, applicantEmail, applicantName) => {
+  // Your approval logic…
+
   await sendApplicationStatusNotification(
     userId,
     opportunityTitle,
     'approved',
-    applicationId
+    applicationId,
+    applicantEmail,
+    applicantName,
   );
 };
 
-// When rejecting an application
-const rejectApplication = async (applicationId, userId, opportunityTitle) => {
-  // Your rejection logic here...
-  
-  // Send notification
+const rejectApplication = async (applicationId, userId, opportunityTitle, applicantEmail, applicantName) => {
+  // Your rejection logic…
+
   await sendApplicationStatusNotification(
     userId,
     opportunityTitle,
     'rejected',
-    applicationId
+    applicationId,
+    applicantEmail,
+    applicantName,
   );
 };
 ```
 
+To add a new first-class status, extend `APPLICATION_NOTIFICATION_CONFIG` in `lib/notificationTemplates.js`.
+
 ## 🐛 Troubleshooting
 
-### Common Issues:
+### Common issues
 
 1. **"No Expo token found"**
-   - User hasn't granted notification permissions
-   - Token registration failed
-   - User is not logged in
+   - User has not granted notification permissions.
+   - Token registration failed or user is not logged in.
+   - No rows in `user_expo_tokens` for that user (multi-device: at least one token must be registered).
 
 2. **Notifications not appearing**
-   - Check if using physical device (not simulator)
-   - Verify notification permissions are granted
-   - Check Expo push token is valid
+   - Use a physical device.
+   - Confirm permissions and a valid Expo push token.
+   - Verify the user has a token row in Supabase.
 
-3. **Database errors**
-   - Ensure `user_expo_tokens` table exists
-   - Check user_id foreign key constraints
-   - Verify Supabase connection
+3. **Unregister did nothing**
+   - `unregisterExpoToken` requires the **exact** `expoToken` for that device; `unregisterPushNotifications()` reads it from `expo-notifications`.
 
-### Debug Steps:
-1. Check console logs for token registration
-2. Verify token is stored in database
-3. Test with Expo Push Tool: https://expo.dev/notifications
-4. Check notification permissions in device settings
+4. **Database errors**
+   - Ensure `user_expo_tokens` and `notifications` exist and RLS policies allow your operations.
+
+### Debug steps
+1. Check console logs for token registration (many logs are dev-only).
+2. Confirm tokens in Supabase for the target `user_id`.
+3. Test with [Expo’s push tool](https://expo.dev/notifications).
+4. Check device notification settings.
 
 ## 📊 Monitoring
 
-Monitor notification delivery:
-- Check Supabase logs for database operations
-- Monitor Expo push notification delivery
-- Track notification open rates
-- Monitor token registration success
+- Supabase logs for inserts/deletes on `user_expo_tokens` and `notifications`.
+- Expo push dashboard / tooling for delivery.
+- Plan server-side logging when push moves off the client.
 
-## 🔮 Future Enhancements
+## 🔮 Future enhancements
 
-Potential improvements:
-- Rich notifications with images
-- Notification categories and channels
-- Scheduled notifications
-- Notification analytics
-- Batch notification sending
-- Notification templates
+- Move push (and optional receipt polling) to **backend or Edge Function**.
+- Rich notifications with images; categories/channels; scheduling; analytics.
 
 ## 📞 Support
 
 If you encounter issues:
-1. Check the troubleshooting section above
-2. Review console logs for errors
-3. Test with Expo Push Tool
-4. Verify database schema and permissions
+1. Use the troubleshooting section above.
+2. Review console logs for errors.
+3. Test with Expo’s push tool.
+4. Verify schema and RLS policies.
 
-The notification system is now fully integrated and ready for testing! 🎉
+The notification system is integrated for development and staging; treat **server-side delivery** as the next maturity step for production.

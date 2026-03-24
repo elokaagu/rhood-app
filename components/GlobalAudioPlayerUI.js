@@ -20,7 +20,7 @@ import { useAudioState, useAudioActions } from "../context/AudioContext";
 import MiniPlayerBar from "./MiniPlayerBar";
 import FullScreenPlayerModal from "./FullScreenPlayerModal";
 import {
-  TAB_BAR_HIDDEN_SCREENS,
+  TAB_BAR_HIDDEN_SCREEN_IDS,
   ANCHORED_TAB_BAR_CONTENT_HEIGHT,
 } from "../navigation/routes";
 
@@ -66,7 +66,7 @@ function GlobalAudioPlayerUI({
     if (!track?.id) lastOpenedTrackIdRef.current = null;
   }, [track?.id]);
 
-  const hideMini = currentScreen === "messages" || currentScreen === "help-chat";
+  const hideMini = TAB_BAR_HIDDEN_SCREEN_IDS.includes(currentScreen);
   const showMini = !!track && !hideMini;
 
   const pause = () => actionsRef?.current?.pauseGlobalAudio?.();
@@ -134,7 +134,7 @@ function GlobalAudioPlayerUI({
   const durationUnknown = !!track && durationMillis === 0;
 
   const miniBarLayoutStyle = useMemo(() => {
-    const tabBarVisible = !TAB_BAR_HIDDEN_SCREENS.has(currentScreen);
+    const tabBarVisible = !TAB_BAR_HIDDEN_SCREEN_IDS.includes(currentScreen);
     const stackAboveBottom = tabBarVisible
       ? ANCHORED_TAB_BAR_CONTENT_HEIGHT + MINI_PLAYER_GAP_ABOVE_TAB
       : 12;

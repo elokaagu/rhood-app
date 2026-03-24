@@ -24,6 +24,7 @@ import {
   recordMixPlayStarted,
   backfillMixDurationFromPlayback,
 } from "../lib/mixStatsRpc";
+import { audioPlaybackBridge } from "../lib/audioPlaybackBridge";
 import { normalizeTrackForPlayback } from "../lib/normalizeTrackForPlayback";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
 
@@ -1707,10 +1708,17 @@ export default function useAudioPlayback({ user }) {
     }
   });
 
+  useLayoutEffect(() => {
+    audioPlaybackBridge.actionsRef = actionsRef;
+    audioPlaybackBridge.stateRef = stateRef;
+  }, [actionsRef, stateRef]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       deferredPlayTrackRef.current = null;
+      audioPlaybackBridge.actionsRef = null;
+      audioPlaybackBridge.stateRef = null;
       if (globalAudioRef.current) {
         try {
           globalAudioRef.current.setOnPlaybackStatusUpdate(null);

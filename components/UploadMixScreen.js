@@ -1410,7 +1410,7 @@ const styles = StyleSheet.create({
   },
   genreChipTextSelected: {
     color: COLORS.primary,
-    fontWeight: TYPOGRAPHY.bold,
+    fontWeight: TYPOGRAPHY.weightBold,
   },
   toggleCard: {
     backgroundColor: COLORS.backgroundTertiary,
@@ -1523,7 +1523,7 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     color: COLORS.background,
     fontSize: TYPOGRAPHY.lg,
-    fontWeight: TYPOGRAPHY.bold,
+    fontWeight: TYPOGRAPHY.weightBold,
     fontFamily: TYPOGRAPHY.primary,
   },
   existingArtworkPreview: {
@@ -1715,7 +1715,7 @@ const styles = StyleSheet.create({
   newMixButtonText: {
     color: COLORS.primary,
     fontSize: TYPOGRAPHY.base,
-    fontWeight: TYPOGRAPHY.bold,
+    fontWeight: TYPOGRAPHY.weightBold,
     fontFamily: TYPOGRAPHY.primary,
     letterSpacing: 0.3,
   },
@@ -1764,7 +1764,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: TYPOGRAPHY.sm,
     fontFamily: TYPOGRAPHY.primary,
-    fontWeight: TYPOGRAPHY.bold,
+    fontWeight: TYPOGRAPHY.weightBold,
   },
   uploadingContent: {
     flexDirection: "row",
@@ -1820,7 +1820,8 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: TYPOGRAPHY["3xl"],
-    fontWeight: TYPOGRAPHY.bold,
+    fontFamily: TYPOGRAPHY.primary,
+    fontWeight: TYPOGRAPHY.weightBold,
     color: COLORS.textPrimary,
     marginBottom: SPACING.base,
     textAlign: "center",
@@ -1846,7 +1847,7 @@ const styles = StyleSheet.create({
   modalButtonText: {
     color: COLORS.background,
     fontSize: TYPOGRAPHY.lg,
-    fontWeight: TYPOGRAPHY.bold,
+    fontWeight: TYPOGRAPHY.weightBold,
     fontFamily: TYPOGRAPHY.primary,
   },
 });

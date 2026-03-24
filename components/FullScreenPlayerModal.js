@@ -838,7 +838,7 @@ const styles = StyleSheet.create({
   aboutHeading: {
     fontSize: TYPOGRAPHY.sm,
     fontFamily: TYPOGRAPHY.primary,
-    fontWeight: TYPOGRAPHY.bold,
+    fontWeight: TYPOGRAPHY.weightBold,
     color: COLORS.primary,
     letterSpacing: 0.6,
     textTransform: "uppercase",

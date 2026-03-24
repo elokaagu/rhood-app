@@ -49,7 +49,9 @@ const formatRelativeTime = (timestamp) => {
 const removeCelebrateEmoji = (title = "") =>
   title.replace(/🎉/g, "").trim();
 
-const notificationsCache = createScreenCache("notifications");
+const notificationsCache = createScreenCache("notifications", {
+  userScoped: true,
+});
 
 export default function NotificationsScreen({
   user: propUser,

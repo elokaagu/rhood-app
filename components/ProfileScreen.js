@@ -23,7 +23,7 @@ import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
-const profileCache = createScreenCache("profile");
+const profileCache = createScreenCache("profile", { userScoped: true });
 
 /** DB / cache may expose genres as a string or non-array; socialLinks may be missing on old cache. */
 function normalizeGenres(g) {
