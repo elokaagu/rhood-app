@@ -216,6 +216,10 @@ export default function ScreenRouter({
       setCurrentScreen(SCREENS.MESSAGES_LIST);
       return;
     }
+    if (screenParams?.messagesBackScreen === SCREENS.NOTIFICATIONS) {
+      setCurrentScreen(SCREENS.NOTIFICATIONS);
+      return;
+    }
     exitMessagesToConnections();
   }, [
     screenParams?.messagesBackScreen,
@@ -250,11 +254,11 @@ export default function ScreenRouter({
 
     case SCREENS.MESSAGES:
       return withSwipeBack(
-        exitMessagesToConnections,
+        exitMessagesScreen,
         <MessagesScreen
           user={user}
           navigation={createNavigation({
-            goBack: exitMessagesToConnections,
+            goBack: exitMessagesScreen,
           })}
           route={{ params: screenParams }}
         />
