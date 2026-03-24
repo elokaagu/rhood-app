@@ -13,7 +13,7 @@ import {
   NativeModules,
   NativeEventEmitter,
 } from "react-native";
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
+import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
 import { HapticPatterns } from "../lib/haptics";
 import lockScreenControls from "../lib/lockScreenControls";
@@ -25,6 +25,7 @@ import {
   backfillMixDurationFromPlayback,
 } from "../lib/mixStatsRpc";
 import { audioPlaybackBridge } from "../lib/audioPlaybackBridge";
+import { applyMixPlaybackAudioMode } from "../lib/audioSessionMode";
 import { normalizeTrackForPlayback } from "../lib/normalizeTrackForPlayback";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
 
@@ -294,16 +295,7 @@ export default function useAudioPlayback({ user }) {
           }
 
           // Configure audio mode for playback
-          await Audio.setAudioModeAsync({
-            allowsRecordingIOS: false,
-            staysActiveInBackground: true,
-            playsInSilentModeIOS: true,
-            /** Lock screen / Control Center associate reliably with this session (expo-av / iOS). */
-            interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-            interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-            shouldDuckAndroid: true,
-            playThroughEarpieceAndroid: false,
-          });
+          await applyMixPlaybackAudioMode();
 
           // Determine audio source
           const audioSource =

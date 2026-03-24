@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Alert } from "react-native";
 import { Audio } from "expo-av";
+import {
+  applyMixPlaybackAudioMode,
+  applyMessageAttachmentPlaybackAudioMode,
+} from "../lib/audioSessionMode";
 
 /**
  * In-thread audio message playback + duration extraction for message list items.
@@ -143,6 +147,7 @@ export function useMessagesScreenAudio(messages) {
           await sound.pauseAsync();
           if (!isMountedRef.current || requestId !== playbackRequestRef.current) return;
           setPlayingAudioId(null);
+          void applyMixPlaybackAudioMode();
         }
         return;
       }
@@ -158,11 +163,7 @@ export function useMessagesScreenAudio(messages) {
         }
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: false,
-        playsInSilentModeIOS: true,
-      });
+      await applyMessageAttachmentPlaybackAudioMode();
 
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUrl },
@@ -172,6 +173,7 @@ export function useMessagesScreenAudio(messages) {
       if (!isMountedRef.current || requestId !== playbackRequestRef.current) {
         sound.setOnPlaybackStatusUpdate(null);
         await sound.unloadAsync();
+        void applyMixPlaybackAudioMode();
         return;
       }
 
@@ -216,6 +218,7 @@ export function useMessagesScreenAudio(messages) {
           sound.setOnPlaybackStatusUpdate(null);
           void sound.unloadAsync();
           delete audioSoundsRef.current[messageId];
+          void applyMixPlaybackAudioMode();
         }
       });
     } catch (error) {
@@ -225,6 +228,7 @@ export function useMessagesScreenAudio(messages) {
         code: error.code,
         audioUrl,
       });
+      void applyMixPlaybackAudioMode();
       Alert.alert(
         "Error",
         `Failed to play audio: ${error.message || "Unknown error"}`
@@ -249,7 +253,9 @@ export function useMessagesScreenAudio(messages) {
             console.error("Error cleaning up audio:", error);
           }
         })
-      );
+      ).then(() => {
+        void applyMixPlaybackAudioMode();
+      });
     };
   }, []);
 
