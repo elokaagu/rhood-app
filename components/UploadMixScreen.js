@@ -405,7 +405,12 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         const imageFile = {
           uri: asset.uri,
           name: asset.fileName || `artwork_${Date.now()}.jpg`,
-          type: asset.type || "image/jpeg",
+          mimeType: asset.mimeType,
+          type:
+            asset.mimeType ||
+            (typeof asset.type === "string" && asset.type.includes("/")
+              ? asset.type
+              : undefined),
           size: asset.fileSize || 0,
           width: asset.width,
           height: asset.height,
@@ -581,6 +586,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }, []);
 
+  const androidSubtitleTextProps =
+    Platform.OS === "android" ? { includeFontPadding: false } : {};
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -665,12 +673,18 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
               {editingMix ? "Audio (optional)" : "Audio file"}
             </Text>
             {editingMix ? (
-              <Text style={styles.sectionSubtitle}>
+              <Text
+                style={styles.sectionSubtitle}
+                {...androidSubtitleTextProps}
+              >
                 Skip to keep your current audio. Replace only if you are
                 uploading a new version.
               </Text>
             ) : (
-              <Text style={styles.sectionSubtitle}>
+              <Text
+                style={styles.sectionSubtitle}
+                {...androidSubtitleTextProps}
+              >
                 MP3 recommended
               </Text>
             )}
@@ -727,14 +741,20 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
               {editingMix ? "Artwork" : "Artwork *"}
             </Text>
             {editingMix && (
-              <Text style={styles.sectionSubtitle}>
+              <Text
+                style={styles.sectionSubtitle}
+                {...androidSubtitleTextProps}
+              >
                 {editingMix.artwork_url || editingMix.image_url
                   ? "Replace the cover or keep the current image."
                   : "Add cover art — it helps your mix stand out in feeds."}
               </Text>
             )}
             {!editingMix && (
-              <Text style={styles.sectionSubtitle}>
+              <Text
+                style={styles.sectionSubtitle}
+                {...androidSubtitleTextProps}
+              >
                 Required for new uploads. Square images look best.
               </Text>
             )}
@@ -761,7 +781,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
               <View style={styles.artworkPreviewContainer}>
                 <Text style={styles.artworkPreviewLabel}>Preview</Text>
                 <Text style={styles.artworkPreviewSubtext}>
-                  How it will look on your mix card
+                  Square cover art only — title and genre are set in the next step.
                 </Text>
                 <View style={styles.artworkPreviewCard}>
                   <Image
@@ -769,21 +789,6 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
                     style={styles.artworkPreviewImage}
                     resizeMode="cover"
                   />
-                  {mixData.title ? (
-                    <View style={styles.artworkPreviewOverlay}>
-                      <Text style={styles.artworkPreviewTitle} numberOfLines={1}>
-                        {mixData.title}
-                      </Text>
-                      {mixData.genre ? (
-                        <Text
-                          style={styles.artworkPreviewGenre}
-                          numberOfLines={1}
-                        >
-                          {mixData.genre}
-                        </Text>
-                      ) : null}
-                    </View>
-                  ) : null}
                 </View>
                 <TouchableOpacity
                   style={styles.removeArtworkButton}
@@ -849,8 +854,11 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           <View style={styles.sectionCard}>
             <Text style={styles.sectionKicker}>Step 3</Text>
             <Text style={styles.sectionTitle}>Details & visibility</Text>
-            <Text style={styles.sectionSubtitle}>
-              Title is required. Genre helps listeners discover your sound.
+            <Text
+              style={styles.sectionSubtitle}
+              {...androidSubtitleTextProps}
+            >
+              Add a title (required) and genre so listeners can find your mix.
             </Text>
 
             <View style={styles.inputGroup}>
@@ -1066,7 +1074,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
                     </Animated.View>
                   </View>
                 </View>
-                <Text style={styles.uploadButtonText}>
+                <Text style={styles.uploadProgressPercentText}>
                   {uploadProgress}%
                 </Text>
               </View>
@@ -1134,7 +1142,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.sm,
+    paddingTop: SPACING.md,
     paddingBottom: 120,
   },
   headerShell: {
@@ -1244,7 +1252,8 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sm,
     marginBottom: SPACING.base,
     fontFamily: TYPOGRAPHY.primary,
-    lineHeight: 18,
+    lineHeight: 22,
+    paddingVertical: 2,
   },
   subsectionLabel: {
     fontSize: TYPOGRAPHY.xs,
@@ -1495,6 +1504,15 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weightBold,
     fontFamily: TYPOGRAPHY.primary,
   },
+  /** Uploading state uses a dark track; black (background) would disappear. */
+  uploadProgressPercentText: {
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: TYPOGRAPHY.weightBold,
+    fontFamily: TYPOGRAPHY.primary,
+    minWidth: 44,
+    textAlign: "right",
+  },
   existingArtworkPreview: {
     marginBottom: SPACING.md,
     alignItems: "center",
@@ -1550,27 +1568,6 @@ const styles = StyleSheet.create({
   artworkPreviewImage: {
     width: "100%",
     height: "100%",
-  },
-  artworkPreviewOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.72)",
-    padding: SPACING.base,
-    borderBottomLeftRadius: RADIUS.md,
-    borderBottomRightRadius: RADIUS.md,
-  },
-  artworkPreviewTitle: {
-    fontSize: TYPOGRAPHY.lg,
-    fontFamily: TYPOGRAPHY.bold,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.xs,
-  },
-  artworkPreviewGenre: {
-    fontSize: TYPOGRAPHY.sm,
-    fontFamily: TYPOGRAPHY.primary,
-    color: COLORS.textSecondary,
   },
   removeArtworkButton: {
     flexDirection: "row",

@@ -389,14 +389,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollViewContent: {
-    paddingBottom: 120,
+    /* Tab bar + mini player stack + last card legibility (see MiniPlayerBar anchor height) */
+    paddingBottom: 200,
   },
   bottomGradient: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: 120,
+    height: 160,
+    pointerEvents: "none",
   },
   header: {
     padding: 20,

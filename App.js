@@ -1849,6 +1849,7 @@ export default function App() {
         {/* Black fade overlay for splash screen transition */}
         {showFadeOverlay && (
           <Animated.View
+            pointerEvents="none"
             style={[
               styles.fadeOverlay,
               {
@@ -3697,6 +3698,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "#000000",
     zIndex: 10000,
+    pointerEvents: "none",
   },
 
   // New Profile Page Styles

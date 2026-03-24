@@ -391,7 +391,10 @@ export default function SettingsScreen({
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         <View style={styles.header}>
           <Text style={styles.tsBlockBoldHeading}>SETTINGS</Text>
@@ -482,7 +485,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 120,
+    height: 160,
+    pointerEvents: "none",
   },
   header: {
     padding: SPACING.lg,

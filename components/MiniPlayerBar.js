@@ -4,9 +4,27 @@
  */
 import React, { memo, useMemo } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressiveImage from "./ProgressiveImage";
 import { COLORS } from "../lib/sharedStyles";
+import {
+  ANCHORED_TAB_BAR_CONTENT_HEIGHT,
+  MINI_PLAYER_GAP_ABOVE_TAB_BAR,
+  MINI_PLAYER_APPROX_TOTAL_HEIGHT,
+} from "../navigation/routes";
+
+/**
+ * Only cover the bottom band where the mini player + fade sit — not full screen.
+ * A full-screen absoluteFill anchor with high zIndex often steals scroll/taps on
+ * Community, Listen, etc. even with pointerEvents="box-none" (OS-specific).
+ */
+/** Base stack: tab row + gap + mini card + fade band; bottom inset added per device in component. */
+const MINI_PLAYER_ANCHOR_BASE =
+  ANCHORED_TAB_BAR_CONTENT_HEIGHT +
+  MINI_PLAYER_GAP_ABOVE_TAB_BAR +
+  MINI_PLAYER_APPROX_TOTAL_HEIGHT +
+  96;
 
 /** R/HOOD lime — device + headphones accent (Spotify green analogue) */
 const ACCENT = "hsl(75, 100%, 60%)";
@@ -35,6 +53,12 @@ function MiniPlayerBar({
   wrapperPointerEvents = "box-none",
   fadeOverlayStyle,
 }) {
+  const insets = useSafeAreaInsets();
+  const anchorHeight = useMemo(
+    () => MINI_PLAYER_ANCHOR_BASE + Math.ceil(insets.bottom || 0),
+    [insets.bottom]
+  );
+
   const progress = useMemo(() => {
     if (!durationMillis || durationMillis <= 0) return 0;
     return Math.max(0, Math.min(1, (positionMillis ?? 0) / durationMillis));
@@ -133,10 +157,13 @@ function MiniPlayerBar({
 
 const styles = StyleSheet.create({
   anchor: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: "flex-end",
     zIndex: 10000,
-    elevation: 10000,
+    elevation: 24,
   },
   card: {
     position: "absolute",

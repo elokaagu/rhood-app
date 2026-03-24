@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
-  TouchableWithoutFeedback,
+  Pressable,
   Modal,
   StyleSheet,
   Dimensions,
@@ -12,8 +12,6 @@ import {
   Linking,
   Share,
   Alert,
-  ActionSheetIOS,
-  Platform,
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -368,48 +366,30 @@ const RhoodModal = ({
 
   const [showShareOptions, setShowShareOptions] = useState(false);
 
-  const handleShare = async () => {
-    // If this is an opportunity share and we have share options, show action sheet
-    if (shareOpportunity && shareUserId) {
-      if (Platform.OS === "ios") {
-        ActionSheetIOS.showActionSheetWithOptions(
-          {
-            options: ["Cancel", "Share via DM", "Share Outside App"],
-            cancelButtonIndex: 0,
-          },
-          async (buttonIndex) => {
-            if (buttonIndex === 1) {
-              // Share via DM (in-app)
-              await handleShareInApp();
-            } else if (buttonIndex === 2) {
-              // Share outside app
-              await handleShareExternal();
-            }
-          }
-        );
-      } else {
-        // Android - show Alert with options
-        Alert.alert(
-          "Share Opportunity",
-          "How would you like to share?",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Share via DM",
-              onPress: handleShareInApp,
-            },
-            {
-              text: "Share Outside App",
-              onPress: handleShareExternal,
-            },
-          ],
-          { cancelable: true }
-        );
-      }
-    } else {
-      // Legacy share for non-opportunity shares
-      await handleShareExternal();
+  const dismissShareSheet = () => setShowShareOptions(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setShowShareOptions(false);
     }
+  }, [visible]);
+
+  const handleShare = () => {
+    if (shareOpportunity && shareUserId) {
+      setShowShareOptions(true);
+      return;
+    }
+    void handleShareExternal();
+  };
+
+  const onShareSheetDm = async () => {
+    dismissShareSheet();
+    await handleShareInApp();
+  };
+
+  const onShareSheetExternal = async () => {
+    dismissShareSheet();
+    await handleShareExternal();
   };
 
   const handleShareInApp = async () => {
@@ -529,9 +509,16 @@ const RhoodModal = ({
       visible={visible}
       transparent={true}
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (showShareOptions) {
+          dismissShareSheet();
+          return;
+        }
+        onClose();
+      }}
     >
-      <View style={styles.overlay}>
+      <View style={styles.modalRoot}>
+        <View style={styles.overlay}>
         <View
           style={[
             styles.modalContainer,
@@ -566,7 +553,16 @@ const RhoodModal = ({
               </TouchableOpacity>
             )}
             {showCloseButton && (
-              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => {
+                  if (showShareOptions) {
+                    dismissShareSheet();
+                    return;
+                  }
+                  onClose();
+                }}
+              >
                 <Ionicons name="close" size={24} color={COLORS.textSecondary} />
               </TouchableOpacity>
             )}
@@ -578,10 +574,7 @@ const RhoodModal = ({
               icon === "rhood-logo"
                 ? styles.rhoodLogoContainer
                 : styles.iconContainer,
-              {
-                backgroundColor:
-                  icon === "rhood-logo" ? "transparent" : bgColor,
-              },
+              icon !== "rhood-logo" && { backgroundColor: bgColor },
             ]}
           >
             {icon === "rhood-logo" ? (
@@ -678,12 +671,84 @@ const RhoodModal = ({
             </TouchableOpacity>
           </View>
         </View>
+        </View>
+
+        {showShareOptions ? (
+          <View style={styles.shareSheetRoot} pointerEvents="box-none">
+            <Pressable
+              style={styles.shareSheetBackdrop}
+              onPress={dismissShareSheet}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss share options"
+            />
+            <View style={styles.shareSheetCenter} pointerEvents="box-none">
+              <View
+                style={styles.shareSheetCard}
+                accessibilityRole="dialog"
+                accessibilityLabel="Share opportunity"
+              >
+                <Text style={styles.shareSheetTitle}>Share opportunity</Text>
+                <Text style={styles.shareSheetSubtitle}>
+                  Send this gig to another DJ or outside the app
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.shareSheetOptionLime}
+                  onPress={() => void onShareSheetDm()}
+                  activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="Share via direct message"
+                >
+                  <Ionicons
+                    name="chatbubbles-outline"
+                    size={22}
+                    color={COLORS.background}
+                    style={styles.shareSheetOptionIcon}
+                  />
+                  <Text style={styles.shareSheetOptionLimeText}>
+                    Share via DM
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.shareSheetOptionOutline}
+                  onPress={() => void onShareSheetExternal()}
+                  activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="Share outside the app"
+                >
+                  <Ionicons
+                    name="share-outline"
+                    size={22}
+                    color={COLORS.primary}
+                    style={styles.shareSheetOptionIcon}
+                  />
+                  <Text style={styles.shareSheetOptionOutlineText}>
+                    Share outside app
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.shareSheetCancel}
+                  onPress={dismissShareSheet}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel"
+                >
+                  <Text style={styles.shareSheetCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : null}
       </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  modalRoot: {
+    flex: 1,
+  },
   overlay: {
     ...sharedStyles.modalOverlay,
   },
@@ -737,16 +802,20 @@ const styles = StyleSheet.create({
   rhoodLogoContainer: {
     width: 80,
     height: 80,
+    borderRadius: 40,
+    overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
     marginBottom: SPACING.lg,
-    backgroundColor: "transparent",
-    borderWidth: 0,
+    backgroundColor: "hsl(0, 0%, 0%)",
+    borderWidth: 2,
+    borderColor: "hsl(75, 100%, 60%, 0.3)",
   },
   rhoodLogo: {
-    width: 72,
-    height: 72,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: "transparent",
   },
   modalScroll: {
@@ -807,9 +876,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 8,
   },
   primaryButtonFull: {
     flex: 1,
@@ -840,12 +909,12 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   eventDetailsGrid: {
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: COLORS.backgroundTertiary,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.1)",
+    borderColor: COLORS.borderLight,
   },
   eventDetailItem: {
     flexDirection: "row",
@@ -883,12 +952,12 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.medium,
   },
   descriptionContainer: {
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: COLORS.backgroundTertiary,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.1)",
+    borderColor: COLORS.borderLight,
   },
   descriptionText: {
     fontSize: TYPOGRAPHY.md,
@@ -900,7 +969,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   linkText: {
-    color: "hsl(75, 100%, 60%)",
+    color: COLORS.primary,
     textDecorationLine: "underline",
     fontWeight: "500",
   },
@@ -921,6 +990,93 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sm,
     color: COLORS.primary,
     fontWeight: TYPOGRAPHY.semibold,
+  },
+  shareSheetRoot: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 2000,
+  },
+  shareSheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.overlayDark,
+  },
+  shareSheetCenter: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: SPACING.lg,
+  },
+  shareSheetCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: COLORS.backgroundSecondary,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    borderWidth: 1,
+    borderColor: "rgba(217, 255, 51, 0.35)",
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    elevation: 18,
+  },
+  shareSheetTitle: {
+    fontFamily: TYPOGRAPHY.brand,
+    fontSize: TYPOGRAPHY.xl,
+    color: COLORS.textPrimary,
+    textAlign: "center",
+    letterSpacing: 0.5,
+    marginBottom: SPACING.xs,
+  },
+  shareSheetSubtitle: {
+    fontSize: TYPOGRAPHY.sm,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: SPACING.lg,
+  },
+  shareSheetOptionLime: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md + 2,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.sm,
+  },
+  shareSheetOptionIcon: {
+    marginRight: SPACING.sm,
+  },
+  shareSheetOptionLimeText: {
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.background,
+  },
+  shareSheetOptionOutline: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.backgroundTertiary,
+    paddingVertical: SPACING.md + 2,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  shareSheetOptionOutlineText: {
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.textPrimary,
+  },
+  shareSheetCancel: {
+    alignItems: "center",
+    paddingVertical: SPACING.sm,
+  },
+  shareSheetCancelText: {
+    fontSize: TYPOGRAPHY.md,
+    fontWeight: TYPOGRAPHY.medium,
+    color: COLORS.textSecondary,
   },
 });
 

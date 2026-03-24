@@ -121,6 +121,7 @@ CREATE TABLE messages (
   media_mime_type VARCHAR(100),
   thumbnail_url TEXT,
   file_extension VARCHAR(10),
+  duration BIGINT, -- optional; media duration in ms — add via database-migrations/add-messages-media-duration.sql
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
@@ -168,6 +169,7 @@ CREATE TABLE community_posts (
   media_mime_type VARCHAR(100),
   thumbnail_url TEXT,
   file_extension VARCHAR(10),
+  duration BIGINT, -- optional; media duration in ms — add via database-migrations/add-messages-media-duration.sql
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```

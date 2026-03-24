@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -106,6 +112,9 @@ export default function NotificationsScreen({
     pushNotifications: true,
     messageNotifications: true,
   });
+  const [bulkActionBusy, setBulkActionBusy] = useState(false);
+
+  const loadUserAndNotificationsRef = useRef(async () => {});
 
   // Load current user and notifications on component mount (use cache if fresh)
   useEffect(() => {
@@ -120,7 +129,7 @@ export default function NotificationsScreen({
         return;
       }
     }
-    loadUserAndNotifications();
+    loadUserAndNotificationsRef.current({ showFullScreenLoading: true });
   }, [propUser?.id]);
 
   // Set up real-time subscription for notifications
@@ -130,6 +139,17 @@ export default function NotificationsScreen({
     console.log(
       "🔔 Setting up real-time subscription for notifications screen"
     );
+
+    let debounceTimer = null;
+    const scheduleSilentReload = () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        loadUserAndNotificationsRef.current({ showFullScreenLoading: false });
+      }, 450);
+    };
 
     const channel = supabase
       .channel(`notifications-screen-${currentUser.id}`)
@@ -143,8 +163,7 @@ export default function NotificationsScreen({
         },
         (payload) => {
           console.log("🔔 New notification received in screen:", payload.new);
-          // Refresh notifications when new one arrives
-          handleRefresh();
+          scheduleSilentReload();
         }
       )
       .on(
@@ -157,13 +176,15 @@ export default function NotificationsScreen({
         },
         (payload) => {
           console.log("🔔 Notification updated in screen:", payload.new);
-          // Refresh notifications when one is updated
-          handleRefresh();
+          scheduleSilentReload();
         }
       )
       .subscribe();
 
     return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       console.log("🔔 Cleaning up notifications screen subscription");
       supabase.removeChannel(channel);
     };
@@ -175,7 +196,7 @@ export default function NotificationsScreen({
 
     const interval = setInterval(() => {
       console.log("🔄 Periodic notification refresh");
-      handleRefresh();
+      loadUserAndNotificationsRef.current({ showFullScreenLoading: false });
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
@@ -197,9 +218,19 @@ export default function NotificationsScreen({
     }
   }, [showAcceptModal, acceptedUser, onNavigate]);
 
-  const loadUserAndNotifications = async () => {
+  /**
+   * @param {{ showFullScreenLoading?: boolean }} [options]
+   * When `showFullScreenLoading` is true, toggles `loading` (FlatList uses empty data while loading — only for first paint).
+   * Background/realtime/interval refresh must keep it false or the list disappears and the UI feels frozen.
+   */
+  const loadUserAndNotifications = async (
+    options = { showFullScreenLoading: false }
+  ) => {
+    const showFullScreenLoading = options.showFullScreenLoading === true;
     try {
-      setLoading(true);
+      if (showFullScreenLoading) {
+        setLoading(true);
+      }
 
       // Use prop user first, then try to fetch if not available
       let user = propUser;
@@ -245,7 +276,9 @@ export default function NotificationsScreen({
       if (!user) {
         console.log("No authenticated user found");
         setNotifications([]);
-        setLoading(false);
+        if (showFullScreenLoading) {
+          setLoading(false);
+        }
         return;
       }
 
@@ -266,7 +299,9 @@ export default function NotificationsScreen({
       if (!user?.id) {
         console.error("❌ Cannot load notifications: user.id is missing");
         setNotifications([]);
-        setLoading(false);
+        if (showFullScreenLoading) {
+          setLoading(false);
+        }
         return;
       }
 
@@ -371,9 +406,13 @@ export default function NotificationsScreen({
       Alert.alert("Error", "Failed to load notifications");
       setNotifications([]);
     } finally {
-      setLoading(false);
+      if (showFullScreenLoading) {
+        setLoading(false);
+      }
     }
   };
+
+  loadUserAndNotificationsRef.current = loadUserAndNotifications;
 
   // Enhanced priority system with numeric values for better sorting
   const getPriorityScore = (notification) => {
@@ -723,7 +762,7 @@ export default function NotificationsScreen({
     try {
       if (!currentUser) return;
 
-      setLoading(true);
+      setBulkActionBusy(true);
 
       const { error } = await supabase
         .from("notifications")
@@ -743,7 +782,7 @@ export default function NotificationsScreen({
       console.error("Error marking all notifications as read:", error);
       Alert.alert("Error", "Failed to mark all notifications as read");
     } finally {
-      setLoading(false);
+      setBulkActionBusy(false);
     }
   };
 
@@ -758,7 +797,7 @@ export default function NotificationsScreen({
     try {
       if (!currentUser) return;
 
-      setLoading(true);
+      setBulkActionBusy(true);
       setShowClearAllModal(false);
 
       const { error } = await supabase
@@ -777,15 +816,18 @@ export default function NotificationsScreen({
       console.error("Error clearing notifications:", error);
       Alert.alert("Error", "Failed to clear notifications");
     } finally {
-      setLoading(false);
+      setBulkActionBusy(false);
     }
   };
 
   const handleRefresh = async () => {
     HapticPatterns.pullToRefresh();
     setRefreshing(true);
-    await loadUserAndNotifications();
-    setRefreshing(false);
+    try {
+      await loadUserAndNotifications({ showFullScreenLoading: false });
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   // Sort notifications by priority score, unread status, and timestamp
@@ -991,7 +1033,11 @@ export default function NotificationsScreen({
           <TouchableOpacity
             style={styles.headerActionButton}
             onPress={markAllAsRead}
-            disabled={loading || notifications.length === 0}
+            disabled={
+              loading ||
+              bulkActionBusy ||
+              notifications.length === 0
+            }
           >
             <Ionicons name="checkmark-done" size={16} color="hsl(75, 100%, 60%)" />
             <Text style={styles.headerActionText}>Mark All Read</Text>
@@ -999,7 +1045,11 @@ export default function NotificationsScreen({
           <TouchableOpacity
             style={styles.headerActionButton}
             onPress={handleClearAllPress}
-            disabled={loading || notifications.length === 0}
+            disabled={
+              loading ||
+              bulkActionBusy ||
+              notifications.length === 0
+            }
           >
             <Ionicons name="trash-outline" size={16} color="hsl(0, 0%, 70%)" />
             <Text style={styles.headerActionText}>Clear All</Text>
