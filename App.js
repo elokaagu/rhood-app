@@ -18,7 +18,7 @@ import {
   Platform,
   Dimensions,
   PanResponder,
-  InteractionManager,
+  Easing,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -72,6 +72,21 @@ import GlobalAudioPlayerUI from "./components/GlobalAudioPlayerUI";
 import { AppTutorialProvider } from "./context/AppTutorialContext";
 import useAudioPlayback from "./hooks/useAudioPlayback";
 import useOpportunities from "./hooks/useOpportunities";
+
+/** Menu sheet motion — cubic easing reads smoother than linear defaults */
+const MENU_EASE = {
+  out: Easing.out(Easing.cubic),
+  in: Easing.in(Easing.cubic),
+  outSoft: Easing.out(Easing.quad),
+};
+
+const MENU_TIMINGS = {
+  openSlideMs: 340,
+  openOverlayMs: 220,
+  closeSlideMs: 300,
+  closeOverlayMs: 210,
+  swipeDismissMs: 280,
+};
 
 // Notification Badge Component (defined outside App to maintain stable identity)
 const NotificationBadge = ({ count, style }) => {
@@ -141,15 +156,26 @@ export default function App() {
   const finishMenuSwipeDismissRef = useRef(() => {});
   const fullScreenMenuOpacityAnim = useRef(new Animated.Value(0)).current;
 
+  const menuSheetHiddenOffset = useMemo(
+    () =>
+      Math.min(
+        440,
+        Math.max(280, Math.round((Dimensions.get("window")?.height || 700) * 0.36))
+      ),
+    []
+  );
+
+  const menuSlideTranslateY = useMemo(
+    () =>
+      menuSlideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [menuSheetHiddenOffset, 0],
+      }),
+    [menuSlideAnim, menuSheetHiddenOffset]
+  );
+
   // Forward-declaration refs for callbacks referenced before their definition
   const closeMenuRef = useRef(null);
-  /** Latest menu visibility — avoid stale `showMenu` when chaining close + navigate */
-  const showMenuRef = useRef(showMenu);
-  showMenuRef.current = showMenu;
-  /** Navigation to run after the menu sheet finishes closing (last tap wins if user taps twice). */
-  const pendingAfterMenuCloseRef = useRef(null);
-  /** Invalidates in-flight close animations so rapid menu picks don’t double-navigate. */
-  const menuCloseGenerationRef = useRef(0);
   const fetchUserLocationRef = useRef(null);
   /** Keeps latest tab/screen for handleMenuNavigation (stable callback, no stale closure). */
   const currentScreenRef = useRef(currentScreen);
@@ -971,20 +997,14 @@ export default function App() {
           nextParams.returnScreen = currentScreen;
         }
       }
-      const applyNav = () => {
-        setCurrentScreen(screen);
-        setScreenParams(nextParams);
-        trackScreenView(screen, nextParams);
-      };
-      // Menu open: dismiss the sheet first, then commit route after interactions idle (RN guidance).
-      // Tabs / push: no sheet — still defer one frame so presses don’t compete with tab bar layout.
-      if (showMenuRef.current) {
-        closeMenuRef.current?.(applyNav);
-      } else {
-        InteractionManager.runAfterInteractions(applyNav);
+      setCurrentScreen(screen);
+      setScreenParams(nextParams);
+      trackScreenView(screen, nextParams);
+      if (showMenu) {
+        closeMenuRef.current?.();
       }
     },
-    [currentScreen]
+    [currentScreen, showMenu]
   );
 
   useEffect(() => {
@@ -1038,12 +1058,14 @@ export default function App() {
     Animated.parallel([
       Animated.timing(menuOpacityAnim, {
         toValue: 0,
-        duration: ANIMATION_DURATION.FAST,
+        duration: MENU_TIMINGS.closeOverlayMs,
+        easing: MENU_EASE.outSoft,
         useNativeDriver: true,
       }),
       Animated.timing(menuDragY, {
         toValue: offScreen,
-        duration: ANIMATION_DURATION.NORMAL,
+        duration: MENU_TIMINGS.swipeDismissMs,
+        easing: MENU_EASE.in,
         useNativeDriver: false,
       }),
     ]).start(() => {
@@ -1074,8 +1096,9 @@ export default function App() {
             Animated.spring(menuDragY, {
               toValue: 0,
               useNativeDriver: false,
-              friction: 7,
-              tension: 80,
+              friction: 8,
+              tension: 72,
+              overshootClamping: true,
             }).start();
           }
         },
@@ -1090,51 +1113,22 @@ export default function App() {
     Animated.parallel([
       Animated.timing(menuSlideAnim, {
         toValue: 1,
-        duration: ANIMATION_DURATION.NORMAL,
+        duration: MENU_TIMINGS.openSlideMs,
+        easing: MENU_EASE.out,
         useNativeDriver: false,
       }),
       Animated.timing(menuOpacityAnim, {
         toValue: 1,
-        duration: ANIMATION_DURATION.FAST,
+        duration: MENU_TIMINGS.openOverlayMs,
+        easing: MENU_EASE.outSoft,
         useNativeDriver: true,
       }),
     ]).start();
   }, [menuSlideAnim, menuOpacityAnim, menuDragY]);
 
-  /**
-   * Dismiss the hamburger sheet. Optional `afterClose` runs once the modal is gone and
-   * interactions have settled — use for route changes so the main screen doesn’t swap under the overlay.
-   * Rapid successive calls invalidate older animation completions (generation guard).
-   */
-  const closeMenu = useCallback((afterClose) => {
-    if (typeof afterClose === "function") {
-      pendingAfterMenuCloseRef.current = afterClose;
-    } else {
-      pendingAfterMenuCloseRef.current = null;
-    }
-
-    const generation = ++menuCloseGenerationRef.current;
-
-    const flushPendingNavigation = () => {
-      const fn = pendingAfterMenuCloseRef.current;
-      pendingAfterMenuCloseRef.current = null;
-      if (typeof fn !== "function") return;
-      InteractionManager.runAfterInteractions(() => {
-        if (generation !== menuCloseGenerationRef.current) return;
-        fn();
-      });
-    };
-
-    const finalizeClose = () => {
-      if (generation !== menuCloseGenerationRef.current) return;
-      setShowMenu(false);
-      flushPendingNavigation();
-    };
-
-    if (!showMenuRef.current) {
-      finalizeClose();
-      return;
-    }
+  const closeMenu = useCallback(() => {
+    menuDragY.setValue(0);
+    if (!showMenu) return;
 
     menuSlideAnim.stopAnimation();
     menuOpacityAnim.stopAnimation();
@@ -1144,24 +1138,24 @@ export default function App() {
     Animated.parallel([
       Animated.timing(menuSlideAnim, {
         toValue: 0,
-        duration: ANIMATION_DURATION.NORMAL,
+        duration: MENU_TIMINGS.closeSlideMs,
+        easing: MENU_EASE.in,
         useNativeDriver: false,
       }),
       Animated.timing(menuOpacityAnim, {
         toValue: 0,
-        duration: ANIMATION_DURATION.FAST,
+        duration: MENU_TIMINGS.closeOverlayMs,
+        easing: MENU_EASE.outSoft,
         useNativeDriver: true,
       }),
     ]).start(({ finished }) => {
-      if (generation !== menuCloseGenerationRef.current) return;
       if (!finished) {
         setShowMenu(false);
-        pendingAfterMenuCloseRef.current = null;
         return;
       }
-      finalizeClose();
+      setShowMenu(false);
     });
-  }, [menuSlideAnim, menuOpacityAnim, menuDragY]);
+  }, [showMenu, menuSlideAnim, menuOpacityAnim, menuDragY]);
   closeMenuRef.current = closeMenu;
 
   // Load notification counts
@@ -1576,13 +1570,7 @@ export default function App() {
                 {
                   transform: [
                     {
-                      translateY: Animated.add(
-                        menuSlideAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [300, 0],
-                        }),
-                        menuDragY
-                      ),
+                      translateY: Animated.add(menuSlideTranslateY, menuDragY),
                     },
                   ],
                 },
@@ -1606,7 +1594,7 @@ export default function App() {
                       currentScreen === "about" && styles.menuItemActive,
                     ]}
                     onPress={() => handleMenuNavigation("about")}
-                    activeOpacity={0.7}
+                    activeOpacity={0.85}
                   >
                     <Ionicons
                       name="information-circle-outline"
@@ -1631,7 +1619,7 @@ export default function App() {
                         initialTab: "connections",
                       })
                     }
-                    activeOpacity={0.7}
+                    activeOpacity={0.85}
                   >
                     <Ionicons
                       name="chatbubbles-outline"
@@ -1653,7 +1641,7 @@ export default function App() {
                         styles.menuItemActive,
                     ]}
                     onPress={() => handleMenuNavigation("notifications")}
-                    activeOpacity={0.7}
+                    activeOpacity={0.85}
                   >
                     <View style={styles.tabIconContainer}>
                       <Ionicons
@@ -1680,7 +1668,7 @@ export default function App() {
                       currentScreen === "community" && styles.menuItemActive,
                     ]}
                     onPress={() => handleMenuNavigation("community")}
-                    activeOpacity={0.7}
+                    activeOpacity={0.85}
                   >
                     <Ionicons
                       name="people-outline"
@@ -1701,7 +1689,7 @@ export default function App() {
                       currentScreen === "profile" && styles.menuItemActive,
                     ]}
                     onPress={() => handleMenuNavigation("profile")}
-                    activeOpacity={0.7}
+                    activeOpacity={0.85}
                   >
                     <Ionicons
                       name="person-outline"
@@ -1722,7 +1710,7 @@ export default function App() {
                       currentScreen === "settings" && styles.menuItemActive,
                     ]}
                     onPress={() => handleMenuNavigation("settings")}
-                    activeOpacity={0.7}
+                    activeOpacity={0.85}
                   >
                     <Ionicons
                       name="settings-outline"
@@ -2876,7 +2864,7 @@ const styles = StyleSheet.create({
   },
   menuOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
     justifyContent: "flex-end",
   },
   menuOverlayTouchable: {
@@ -4099,7 +4087,7 @@ const styles = StyleSheet.create({
   },
   menuOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
     justifyContent: "flex-end",
   },
   menuItemText: {
