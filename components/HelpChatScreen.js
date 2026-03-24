@@ -256,6 +256,9 @@ export default function HelpChatScreen({ user, onBack }) {
         text: reply.text,
         sender: "bot",
         timestamp: new Date(),
+        category: reply.category || "general",
+        shouldEscalate: !!reply.shouldEscalate,
+        priority: reply.priority || "normal",
         quickActions:
           reply.quickActions && reply.quickActions.length
             ? reply.quickActions
@@ -281,6 +284,9 @@ export default function HelpChatScreen({ user, onBack }) {
         text: fallback.text,
         sender: "bot",
         timestamp: new Date(),
+        category: fallback.category || "general",
+        shouldEscalate: !!fallback.shouldEscalate,
+        priority: fallback.priority || "normal",
         quickActions: fallback.quickActions,
       };
       setIsTyping(false);

@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { HapticPatterns } from "../lib/haptics";
 import { SkeletonMix } from "./Skeleton";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
-import { fetchMixesWithProfilesAndLikeCounts } from "../lib/fetchMixesWithAggregates";
+import { fetchMixesWithAggregates } from "../lib/fetchMixesWithAggregates";
 import { normalizeMixForPlayback } from "../lib/yourLikesUtils";
 import { rankTrendingMixes } from "../lib/trendingScore";
 import MixListRow, {
@@ -45,7 +45,7 @@ export default function TrendingMixesScreen({
     setLoadError(null);
     try {
       const { mixes: next, error } =
-        await fetchMixesWithProfilesAndLikeCounts();
+        await fetchMixesWithAggregates();
       if (error) {
         console.error("❌ Error fetching mixes:", error);
         setMixes([]);

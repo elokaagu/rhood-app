@@ -18,7 +18,7 @@ import {
   normalizeMixForPlayback,
   presentYourLikesLongPressActions,
 } from "../lib/yourLikesUtils";
-import { fetchUserLikedMixesWithMixes } from "../lib/fetchUserLikedMixes";
+import { fetchUserLikedMixes } from "../lib/fetchUserLikedMixes";
 import CategoryPickerModal from "./yourLikes/CategoryPickerModal";
 import ManageCategoriesModal from "./yourLikes/ManageCategoriesModal";
 import YourLikesRow from "./yourLikes/YourLikesRow";
@@ -80,7 +80,7 @@ export default function YourLikesScreen({
     }
 
     const { mixes: nextMixes, categoryMap, error } =
-      await fetchUserLikedMixesWithMixes(user.id);
+      await fetchUserLikedMixes(user.id);
 
     if (error) {
       setMixes([]);
@@ -101,7 +101,7 @@ export default function YourLikesScreen({
       }
       setLoading(true);
       const { mixes: nextMixes, categoryMap, error } =
-        await fetchUserLikedMixesWithMixes(user.id);
+        await fetchUserLikedMixes(user.id);
       if (cancelled) return;
       if (error) {
         setMixes([]);
