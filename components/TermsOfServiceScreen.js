@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SPACING, RADIUS, sharedStyles } from "../lib/sharedStyles";
+import { SPACING, RADIUS } from "../lib/sharedStyles";
 import { HapticPatterns } from "../lib/haptics";
 import {
   termsMeta,
@@ -37,9 +37,7 @@ export default function TermsOfServiceScreen({ onBack }) {
           </TouchableOpacity>
         </View>
         <View style={styles.headerTitleContainer} pointerEvents="none">
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            Terms of Service
-          </Text>
+          <Text style={styles.headerTitle}>Terms of Service</Text>
         </View>
         <View style={styles.headerSide} />
       </View>
@@ -129,10 +127,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: SPACING.xs,
+    minWidth: 0,
   },
+  /** Narrow bar: avoid TS Block here — it truncates “Service” on small phones */
   headerTitle: {
-    ...sharedStyles.tsBlockBoldHeading,
-    fontSize: 18,
+    width: "100%",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "700",
+    fontSize: 15,
+    letterSpacing: 0.75,
+    textTransform: "uppercase",
+    color: "hsl(0, 0%, 100%)",
     textAlign: "center",
   },
   scroll: {
@@ -173,7 +179,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
+    lineHeight: 22,
     fontFamily: "TS Block Bold",
     color: "hsl(75, 100%, 60%)",
     marginBottom: SPACING.md,
@@ -230,7 +237,8 @@ const styles = StyleSheet.create({
   },
   contactLabel: {
     fontSize: 16,
-    fontFamily: "TS Block Bold",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
     marginBottom: SPACING.xs,
   },
