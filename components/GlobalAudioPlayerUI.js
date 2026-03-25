@@ -58,6 +58,7 @@ function GlobalAudioPlayerUI({
   const playPauseGuardRef = useRef(false);
   const {
     playlists,
+    playlistsLoading,
     showSaveToPlaylistModal,
     setShowSaveToPlaylistModal,
     selectedMixForPlaylist,
@@ -466,6 +467,7 @@ function GlobalAudioPlayerUI({
         newPlaylistName={newPlaylistName}
         setNewPlaylistName={setNewPlaylistName}
         creatingPlaylist={creatingPlaylist}
+        playlistsLoading={playlistsLoading}
         handleCreatePlaylist={handleCreatePlaylist}
         playlists={playlists}
         handleSelectPlaylist={handleSelectPlaylist}

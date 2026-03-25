@@ -664,6 +664,7 @@ function ListenScreen({
         newPlaylistName={newPlaylistName}
         setNewPlaylistName={setNewPlaylistName}
         creatingPlaylist={creatingPlaylist}
+        playlistsLoading={playlistsLoading}
         handleCreatePlaylist={handleCreatePlaylist}
         playlists={playlists}
         handleSelectPlaylist={handleSelectPlaylist}

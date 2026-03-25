@@ -942,6 +942,13 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     marginBottom: 12,
   },
+  createPlaylistHelperText: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 70%)",
+    marginBottom: 10,
+    lineHeight: 18,
+  },
   createPlaylistInputContainer: {
     flexDirection: "row",
     gap: 12,
@@ -980,6 +987,18 @@ const styles = StyleSheet.create({
   },
   existingPlaylistsSection: {
     padding: 20,
+  },
+  playlistLoadingState: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  playlistLoadingText: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 65%)",
   },
   existingPlaylistsTitle: {
     fontSize: 16,

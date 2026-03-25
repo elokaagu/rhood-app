@@ -19,10 +19,14 @@ export default function SaveToPlaylistModal({
   newPlaylistName,
   setNewPlaylistName,
   creatingPlaylist,
+  playlistsLoading,
   handleCreatePlaylist,
   playlists,
   handleSelectPlaylist,
 }) {
+  const hasPlaylists = playlists.length > 0;
+  const createButtonLabel = hasPlaylists ? "Create" : "Create First Playlist";
+
   return (
     <Modal
       visible={visible}
@@ -72,7 +76,14 @@ export default function SaveToPlaylistModal({
 
           <ScrollView style={styles.playlistModalScroll}>
             <View style={styles.createPlaylistSection}>
-              <Text style={styles.createPlaylistTitle}>Create New Playlist</Text>
+              <Text style={styles.createPlaylistTitle}>
+                {hasPlaylists ? "Create New Playlist" : "Create Your First Playlist"}
+              </Text>
+              {!hasPlaylists ? (
+                <Text style={styles.createPlaylistHelperText}>
+                  Start with one playlist and save this track to it.
+                </Text>
+              ) : null}
               <View style={styles.createPlaylistInputContainer}>
                 <TextInput
                   style={styles.createPlaylistInput}
@@ -99,13 +110,20 @@ export default function SaveToPlaylistModal({
                   {creatingPlaylist ? (
                     <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
                   ) : (
-                    <Text style={styles.createPlaylistButtonText}>Create</Text>
+                    <Text style={styles.createPlaylistButtonText}>{createButtonLabel}</Text>
                   )}
                 </TouchableOpacity>
               </View>
             </View>
 
-            {playlists.length > 0 && (
+            {playlistsLoading ? (
+              <View style={styles.playlistLoadingState}>
+                <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+                <Text style={styles.playlistLoadingText}>Loading playlists...</Text>
+              </View>
+            ) : null}
+
+            {hasPlaylists && (
               <View style={styles.existingPlaylistsSection}>
                 <Text style={styles.existingPlaylistsTitle}>Add to Existing Playlist</Text>
                 {playlists.map((playlist) => (

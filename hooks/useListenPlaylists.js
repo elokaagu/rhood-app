@@ -114,6 +114,7 @@ export function useListenPlaylists(user) {
       }
       setSelectedMixForPlaylist(mix);
       await fetchPlaylists();
+      setNewPlaylistName((prev) => (prev?.trim() ? prev : "My first playlist"));
       setShowSaveToPlaylistModal(true);
     },
     [user?.id, fetchPlaylists]
