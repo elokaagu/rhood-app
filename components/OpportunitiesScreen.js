@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import SwipeableOpportunityCard from "./SwipeableOpportunityCard";
 import OpportunitiesSwipeTutorialModal from "./OpportunitiesSwipeTutorialModal";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
@@ -41,12 +42,16 @@ export default function OpportunitiesScreen({
   showSwipeTutorial,
   handleDismissSwipeTutorial,
 }) {
+  const insets = useSafeAreaInsets();
   const { tutorialModalProps } = useAppTutorialModal(
     APP_TUTORIAL_SCREEN_IDS.OPPORTUNITIES,
     { preventShow: !!showSwipeTutorial }
   );
 
   const current = opportunities?.[currentOpportunityIndex];
+  const isEmptyDeck =
+    !isLoadingOpportunities &&
+    currentOpportunityIndex >= (opportunities?.length ?? 0);
   const canApplyColor = dailyApplicationStats?.can_apply
     ? "hsl(75, 100%, 60%)"
     : "hsl(0, 100%, 60%)";
@@ -90,7 +95,12 @@ export default function OpportunitiesScreen({
             </View>
           </RhoodScreenTitleBlock>
         </View>
-        <View style={styles.opportunitiesCardContainer}>
+        <View
+          style={[
+            styles.opportunitiesCardContainer,
+            isEmptyDeck && styles.opportunitiesCardContainerEmpty,
+          ]}
+        >
           {isLoadingOpportunities ? (
             <View style={styles.loadingContainer}>
               <Text style={styles.loadingText}>Loading opportunities...</Text>
@@ -109,16 +119,31 @@ export default function OpportunitiesScreen({
               dailyApplicationStats={dailyApplicationStats}
             />
           ) : (
-            <View style={styles.noMoreOpportunities}>
+            <View
+              style={[
+                styles.noMoreOpportunities,
+                {
+                  paddingTop: 14 + Math.max(0, Math.min(insets.top * 0.25, 6)),
+                  paddingBottom: 12 + Math.max(insets.bottom, 6),
+                },
+              ]}
+            >
               <View style={styles.noMoreBadgeWrap}>
                 <Ionicons
                   name="checkmark"
-                  size={36}
+                  size={22}
                   color="hsl(0, 0%, 0%)"
                 />
               </View>
               <Text style={styles.noMoreEyebrow}>Opportunities</Text>
-              <Text style={styles.noMoreTitle}>All caught up</Text>
+              <Text
+                style={styles.noMoreTitle}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.82}
+              >
+                All Caught Up
+              </Text>
               <Text style={styles.noMoreSubtitle}>
                 You have seen every available opportunity for now.
                 {"\n"}
