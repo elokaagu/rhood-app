@@ -100,7 +100,9 @@ export default function AppScreenTutorialModal({
   modalTitle,
   rows = [],
 }) {
-  if (!rows.length) return null;
+  // On some real devices, keeping a hidden RN Modal mounted can still interfere with touches.
+  // Only mount the native modal when we truly intend to show it.
+  if (!visible || !rows.length) return null;
 
   return (
     <Modal

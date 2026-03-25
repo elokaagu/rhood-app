@@ -1888,16 +1888,14 @@ export default function App() {
     </AppShell>
 
     {shouldRenderGlobalAudioUI ? (
-      <View pointerEvents="box-none" style={styles.globalAudioTouchPassthrough}>
-        <GlobalAudioPlayerUI
-          currentScreen={currentScreen}
-          currentTrack={audio.audioState.currentTrack}
-          pendingTrack={audio.pendingPlayTrack}
-          onNavigateToProfile={handleNavigateToProfile}
-          styles={styles}
-          globalAudioRef={audio.globalAudioRef}
-        />
-      </View>
+      <GlobalAudioPlayerUI
+        currentScreen={currentScreen}
+        currentTrack={audio.audioState.currentTrack}
+        pendingTrack={audio.pendingPlayTrack}
+        onNavigateToProfile={handleNavigateToProfile}
+        styles={styles}
+        globalAudioRef={audio.globalAudioRef}
+      />
     ) : null}
     </View>
     </AppTutorialProvider>
@@ -1908,10 +1906,6 @@ export default function App() {
 const styles = StyleSheet.create({
   appRoot: {
     flex: 1,
-  },
-  /** Sits above AppShell; passes touches through except to GlobalAudioPlayerUI children. */
-  globalAudioTouchPassthrough: {
-    ...StyleSheet.absoluteFillObject,
   },
   container: {
     flex: 1,

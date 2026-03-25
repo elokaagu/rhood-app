@@ -38,6 +38,7 @@ export function useAppTutorialModal(screenId, options = {}) {
 
   const tutorialModalProps = useMemo(() => {
     if (!content) return null;
+    if (!visible) return null;
 
     return {
       visible,
