@@ -3,18 +3,19 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Modal,
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 const localStyles = StyleSheet.create({
   tutorialOverlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.85)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    zIndex: 9999,
+    elevation: 9999,
   },
   tutorialContent: {
     backgroundColor: "hsl(0, 0%, 8%)",
@@ -110,70 +111,63 @@ export default function AppScreenTutorialModal({
   const compactTitle = String(modalTitle || "").trim().length >= 12;
 
   return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="fade"
-      onRequestClose={onDismiss}
-    >
-      <View style={localStyles.tutorialOverlay}>
-        <View style={localStyles.tutorialContent}>
-          <View style={localStyles.tutorialHeader}>
-            <Text
-              style={[
-                localStyles.tutorialTitle,
-                compactTitle ? localStyles.tutorialTitleCompact : null,
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
-            >
-              {modalTitle}
-            </Text>
-            <TouchableOpacity
-              onPress={onDismiss}
-              style={localStyles.tutorialCloseButton}
-              accessibilityRole="button"
-              accessibilityLabel="Close tutorial"
-            >
-              <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-            </TouchableOpacity>
-          </View>
-          <View style={localStyles.tutorialInstructions}>
-            {rows.map((row, i) => (
-              <View
-                key={`${row.title}-${i}`}
-                style={localStyles.tutorialInstructionRow}
-              >
-                <View style={localStyles.tutorialIconContainer}>
-                  <Ionicons
-                    name={row.icon}
-                    size={28}
-                    color={row.iconColor || "hsl(75, 100%, 60%)"}
-                  />
-                </View>
-                <View style={localStyles.tutorialTextContainer}>
-                  <Text style={localStyles.tutorialInstructionTitle}>
-                    {row.title}
-                  </Text>
-                  <Text style={localStyles.tutorialInstructionText}>
-                    {row.body}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-          <TouchableOpacity
-            style={localStyles.tutorialGotItButton}
-            onPress={onDismiss}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss tutorial"
+    <View style={localStyles.tutorialOverlay} pointerEvents="auto">
+      <View style={localStyles.tutorialContent}>
+        <View style={localStyles.tutorialHeader}>
+          <Text
+            style={[
+              localStyles.tutorialTitle,
+              compactTitle ? localStyles.tutorialTitleCompact : null,
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
           >
-            <Text style={localStyles.tutorialGotItButtonText}>Got it</Text>
+            {modalTitle}
+          </Text>
+          <TouchableOpacity
+            onPress={onDismiss}
+            style={localStyles.tutorialCloseButton}
+            accessibilityRole="button"
+            accessibilityLabel="Close tutorial"
+          >
+            <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
         </View>
+        <View style={localStyles.tutorialInstructions}>
+          {rows.map((row, i) => (
+            <View
+              key={`${row.title}-${i}`}
+              style={localStyles.tutorialInstructionRow}
+            >
+              <View style={localStyles.tutorialIconContainer}>
+                <Ionicons
+                  name={row.icon}
+                  size={28}
+                  color={row.iconColor || "hsl(75, 100%, 60%)"}
+                />
+              </View>
+              <View style={localStyles.tutorialTextContainer}>
+                <Text style={localStyles.tutorialInstructionTitle}>
+                  {row.title}
+                </Text>
+                <Text style={localStyles.tutorialInstructionText}>
+                  {row.body}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+        <TouchableOpacity
+          style={localStyles.tutorialGotItButton}
+          onPress={onDismiss}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss tutorial"
+        >
+          <Text style={localStyles.tutorialGotItButtonText}>Got it</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </View>
   );
 }
