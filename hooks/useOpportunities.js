@@ -74,6 +74,20 @@ export default function useOpportunities({
     try {
       setIsLoadingOpportunities(true);
 
+      // Run in parallel with the opportunities query so we don't stack latency
+      // (previously stats ran after rows returned, delaying the card).
+      const statsPromise =
+        user?.id != null
+          ? db.getUserDailyApplicationStats(user.id).catch((statsError) => {
+              if (__DEV__) console.error("Error loading daily stats:", statsError);
+              return {
+                daily_count: 0,
+                remaining_applications: 5,
+                can_apply: true,
+              };
+            })
+          : Promise.resolve(null);
+
       const { data: opportunitiesData, error: opportunitiesError } =
         await supabase
           .from("opportunities")
@@ -99,25 +113,35 @@ export default function useOpportunities({
         transformOpportunityRow(opp, userLocation)
       );
 
-      setOpportunities(transformedOpportunities);
-
-      if (user?.id) {
-        try {
-          const stats = await db.getUserDailyApplicationStats(user.id);
-          if (requestId !== fetchOpportunitiesRequestIdRef.current) return;
-          setDailyApplicationStats(stats);
-          if (__DEV__) console.log("User daily application stats:", stats);
-        } catch (statsError) {
-          if (__DEV__) console.error("Error loading daily stats:", statsError);
-          if (requestId === fetchOpportunitiesRequestIdRef.current) {
-            setDailyApplicationStats({
-              daily_count: 0,
-              remaining_applications: 5,
-              can_apply: true,
-            });
-          }
+      // Warm cache for the first few cards before paint (same URIs as post-load effect).
+      const prefetchUris = new Set();
+      for (let i = 0; i < 4 && i < transformedOpportunities.length; i++) {
+        const raw =
+          transformedOpportunities[i]?.image ||
+          transformedOpportunities[i]?.image_url ||
+          transformedOpportunities[i]?.cover_image_url ||
+          null;
+        if (typeof raw === "string" && /^https?:\/\//i.test(raw.trim())) {
+          prefetchUris.add(raw.trim());
         }
       }
+      prefetchUris.forEach((uri) => {
+        Image.prefetch(uri).catch(() => {});
+      });
+
+      setOpportunities(transformedOpportunities);
+      // Show the deck as soon as rows are ready; stats finish in parallel / shortly after.
+      if (requestId === fetchOpportunitiesRequestIdRef.current) {
+        setIsLoadingOpportunities(false);
+      }
+
+      statsPromise.then((stats) => {
+        if (requestId !== fetchOpportunitiesRequestIdRef.current) return;
+        if (stats && typeof stats === "object") {
+          setDailyApplicationStats(stats);
+          if (__DEV__) console.log("User daily application stats:", stats);
+        }
+      });
     } catch (error) {
       if (__DEV__) console.error("Error fetching opportunities:", error);
       if (requestId === fetchOpportunitiesRequestIdRef.current) {

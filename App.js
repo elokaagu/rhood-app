@@ -1535,6 +1535,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
     <AppTutorialProvider>
+    <View style={styles.appRoot}>
     <AppShell
       currentScreen={currentScreen}
       onOpenMenu={openMenu}
@@ -1730,15 +1731,6 @@ export default function App() {
           </Animated.View>
         </Modal>
 
-        <GlobalAudioPlayerUI
-          currentScreen={currentScreen}
-          currentTrack={audio.audioState.currentTrack}
-          pendingTrack={audio.pendingPlayTrack}
-          onNavigateToProfile={handleNavigateToProfile}
-          styles={styles}
-          globalAudioRef={audio.globalAudioRef}
-        />
-
         {/* Application Sent Modal */}
 
         {/* Edit Profile Modal */}
@@ -1890,12 +1882,34 @@ export default function App() {
         />
 
     </AppShell>
+
+    {/* Above shell: mini/full player. box-none so scroll/taps reach screens; only the bar captures touches. */}
+    <View pointerEvents="box-none" style={styles.globalAudioTouchPassthrough}>
+      <GlobalAudioPlayerUI
+        currentScreen={currentScreen}
+        currentTrack={audio.audioState.currentTrack}
+        pendingTrack={audio.pendingPlayTrack}
+        onNavigateToProfile={handleNavigateToProfile}
+        styles={styles}
+        globalAudioRef={audio.globalAudioRef}
+      />
+    </View>
+    </View>
     </AppTutorialProvider>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  appRoot: {
+    flex: 1,
+  },
+  /** Sits above AppShell; passes touches through except to GlobalAudioPlayerUI children. */
+  globalAudioTouchPassthrough: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 500,
+    elevation: 500,
+  },
   container: {
     flex: 1,
     backgroundColor: "#000000", // Pure black background to match tab bar

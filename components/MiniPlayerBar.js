@@ -71,14 +71,15 @@ function MiniPlayerBar({
 
   return (
     <View
-      style={[styles.anchor, { pointerEvents: wrapperPointerEvents }]}
+      style={[styles.anchor, { height: anchorHeight }]}
+      pointerEvents={wrapperPointerEvents}
       collapsable={false}
     >
       {fadeOverlayStyle ? (
         <View style={fadeOverlayStyle} pointerEvents="none" />
       ) : null}
 
-      <View style={[styles.card, layoutStyle]}>
+      <View style={[styles.card, layoutStyle]} pointerEvents="auto">
         <View style={styles.mainRow}>
           <Pressable
             style={({ pressed }) => [styles.leading, pressed && styles.leadingPressed]}

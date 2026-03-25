@@ -1101,7 +1101,7 @@ export default function NotificationsScreen({
         initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
         maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
         windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
-        removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+        removeClippedSubviews={false}
       />
 
       {/* Bottom gradient fade overlay */}

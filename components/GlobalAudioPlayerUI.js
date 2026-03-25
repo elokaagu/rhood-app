@@ -181,8 +181,9 @@ function GlobalAudioPlayerUI({
         />
       ) : null}
 
+      {fullScreenVisible && track ? (
       <FullScreenPlayerModal
-        visible={fullScreenVisible}
+        visible
         onClose={() => setFullScreenVisible(false)}
         overlayStyle={s.fullScreenPlayerOverlay}
         track={track}
@@ -210,6 +211,7 @@ function GlobalAudioPlayerUI({
         onNextTrack={onFullScreenNext}
         onPreviousTrack={onFullScreenPrevious}
       />
+      ) : null}
 
       {/* ——— Queue modal ——— */}
       <Modal
