@@ -242,9 +242,9 @@ const RecommendationCard = memo(function RecommendationCard({
           style={styles.recommendationGradientOverlay}
         />
         <View style={styles.recommendationInfo}>
-          <Text style={styles.recommendationTitle} numberOfLines={1}>{mix.title}</Text>
-          <Text style={styles.recommendationArtist} numberOfLines={1}>{artist}</Text>
-          {mix.genre && <Text style={styles.recommendationGenre} numberOfLines={1}>{mix.genre}</Text>}
+          <Text style={styles.recommendationTitle}>{mix.title}</Text>
+          <Text style={styles.recommendationArtist}>{artist}</Text>
+          {mix.genre && <Text style={styles.recommendationGenre}>{mix.genre}</Text>}
         </View>
       </View>
     </TouchableOpacity>

@@ -39,6 +39,10 @@ const localStyles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  tutorialTitleCompact: {
+    fontSize: 18,
+    letterSpacing: 0.2,
+  },
   tutorialCloseButton: {
     padding: 4,
   },
@@ -103,6 +107,7 @@ export default function AppScreenTutorialModal({
   // On some real devices, keeping a hidden RN Modal mounted can still interfere with touches.
   // Only mount the native modal when we truly intend to show it.
   if (!visible || !rows.length) return null;
+  const compactTitle = String(modalTitle || "").trim().length >= 12;
 
   return (
     <Modal
@@ -114,7 +119,15 @@ export default function AppScreenTutorialModal({
       <View style={localStyles.tutorialOverlay}>
         <View style={localStyles.tutorialContent}>
           <View style={localStyles.tutorialHeader}>
-            <Text style={localStyles.tutorialTitle} numberOfLines={2}>
+            <Text
+              style={[
+                localStyles.tutorialTitle,
+                compactTitle ? localStyles.tutorialTitleCompact : null,
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
               {modalTitle}
             </Text>
             <TouchableOpacity

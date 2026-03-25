@@ -110,22 +110,30 @@ export default function OpportunitiesScreen({
             />
           ) : (
             <View style={styles.noMoreOpportunities}>
-              <Ionicons
-                name="checkmark-circle"
-                size={64}
-                color="hsl(75, 100%, 60%)"
-              />
-              <Text style={styles.noMoreTitle}>All Caught Up!</Text>
+              <View style={styles.noMoreBadgeWrap}>
+                <Ionicons
+                  name="checkmark"
+                  size={36}
+                  color="hsl(0, 0%, 0%)"
+                />
+              </View>
+              <Text style={styles.noMoreEyebrow}>Opportunities</Text>
+              <Text style={styles.noMoreTitle}>All caught up</Text>
               <Text style={styles.noMoreSubtitle}>
-                You've seen all available opportunities. Check back later for new
-                gigs!
+                You have seen every available opportunity for now.
+                {"\n"}
+                New gigs will appear here as they go live.
               </Text>
               <TouchableOpacity
                 style={styles.resetButton}
                 onPress={resetOpportunities}
+                activeOpacity={0.85}
               >
                 <Text style={styles.resetButtonText}>Start Over</Text>
               </TouchableOpacity>
+              <Text style={styles.resetHintText}>
+                Tip: Pull down later to refresh for new listings.
+              </Text>
             </View>
           )}
         </View>

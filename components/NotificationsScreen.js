@@ -524,14 +524,18 @@ export default function NotificationsScreen({
 
     const type = (notification.type || "").toLowerCase();
 
+    // Optimistically clear unread highlight immediately on engagement.
+    if (!notification.isRead) {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
+      );
+      void markNotificationAsRead(notification.id);
+    }
+
     if (type === "connection" || type === "connection_request") {
       setActiveConnectionNotification(notification);
       setShowConnectionPrompt(true);
       return;
-    }
-
-    if (!notification.isRead) {
-      await markNotificationAsRead(notification.id);
     }
 
     if (type === "message") {
@@ -583,7 +587,8 @@ export default function NotificationsScreen({
 
   const markNotificationAsRead = async (notificationId) => {
     try {
-      if (!currentUser?.id) {
+      const userId = currentUser?.id || propUser?.id;
+      if (!userId) {
         console.error("No current user found for marking notification as read");
         return;
       }
@@ -592,7 +597,7 @@ export default function NotificationsScreen({
         .from("notifications")
         .update({ is_read: true })
         .eq("id", notificationId)
-        .eq("user_id", currentUser.id);
+        .eq("user_id", userId);
 
       if (error) throw error;
 
@@ -607,7 +612,6 @@ export default function NotificationsScreen({
       }
     } catch (error) {
       console.error("Error marking notification as read:", error);
-      Alert.alert("Error", "Failed to mark notification as read");
     }
   };
 

@@ -16,7 +16,7 @@ import {
 
 const AppTutorialContext = createContext(null);
 
-export function AppTutorialProvider({ children }) {
+export function AppTutorialProvider({ children, activeScreenId = null }) {
   const [hydrated, setHydrated] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [dismissed, setDismissed] = useState({});
@@ -68,6 +68,7 @@ export function AppTutorialProvider({ children }) {
       hydrated,
       enabled,
       dismissed,
+      activeScreenId,
       setTutorialEnabled,
       dismissFor,
       resetDismissed,
@@ -77,6 +78,7 @@ export function AppTutorialProvider({ children }) {
       hydrated,
       enabled,
       dismissed,
+      activeScreenId,
       setTutorialEnabled,
       dismissFor,
       resetDismissed,

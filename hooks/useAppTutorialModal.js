@@ -1,7 +1,9 @@
 import { useCallback, useMemo } from "react";
-import { useIsFocused } from "@react-navigation/native";
 import { useOptionalAppTutorialContext } from "../context/AppTutorialContext";
-import { APP_TUTORIAL_CONTENT } from "../lib/appTutorialContent";
+import {
+  APP_TUTORIAL_CONTENT,
+  resolveTutorialScreenId,
+} from "../lib/appTutorialContent";
 
 /** Stable no-op for screens with no tutorial content (avoids new fn each render). */
 const NOOP = () => {};
@@ -14,30 +16,31 @@ const NOOP = () => {};
  * @param {{ preventShow?: boolean }} [options] — e.g. defer until first-run Opportunities swipe tutorial finishes
  */
 export function useAppTutorialModal(screenId, options = {}) {
-  const { preventShow = false, respectFocus = true } = options;
+  const { preventShow = false } = options;
   const ctx = useOptionalAppTutorialContext();
-  const isFocused = useIsFocused();
 
   const hydrated = ctx?.hydrated ?? false;
   const enabled = ctx?.enabled ?? false;
   const dismissed = ctx?.dismissed ?? {};
   const dismissFor = ctx?.dismissFor;
+  const activeScreenId = resolveTutorialScreenId(ctx?.activeScreenId);
+  const targetScreenId = resolveTutorialScreenId(screenId);
 
-  const content = APP_TUTORIAL_CONTENT[screenId];
+  const content = APP_TUTORIAL_CONTENT[targetScreenId || screenId];
 
   const visible = Boolean(
     ctx &&
       hydrated &&
       enabled &&
       content &&
-      !dismissed[screenId] &&
-      (!respectFocus || isFocused) &&
+      !dismissed[targetScreenId || screenId] &&
+      (!activeScreenId || activeScreenId === (targetScreenId || screenId)) &&
       !preventShow
   );
 
   const onDismiss = useCallback(() => {
-    dismissFor?.(screenId);
-  }, [dismissFor, screenId]);
+    dismissFor?.(targetScreenId || screenId);
+  }, [dismissFor, targetScreenId, screenId]);
 
   const tutorialModalProps = useMemo(() => {
     if (!content) return null;

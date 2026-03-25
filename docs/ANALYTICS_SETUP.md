@@ -125,6 +125,8 @@ The app tracks the following events:
 ### User Lifecycle
 
 - `App Open` - When app launches
+- `Session Start` - App foreground/session begins
+- `Session End` - App background/logout session ends
 - `User Signed Up` - New user registration
 - `User Logged In` - User login
 - `Profile Completed` - User completes onboarding
@@ -153,6 +155,12 @@ track("Custom Event Name", {
 });
 ```
 
+### Screen Analytics
+
+- `Screen Viewed` - Sent on route changes
+- `Screen Time Spent` - Sent when leaving a screen or ending session
+  - includes: `screen_name`, `duration_seconds`, `session_id`, `reason`
+
 ## 🔍 Viewing Analytics
 
 ### Google Analytics 4
@@ -161,6 +169,16 @@ track("Custom Event Name", {
 2. Select your Firebase project
 3. View real-time events: **Reports → Realtime**
 4. View user properties: **Reports → User → User attributes**
+5. Build DAU/WAU/MAU:
+   - **Reports → Engagement**
+   - Use **Active users** with date granularity (day/week/month)
+6. Build session metrics:
+   - Event: `session_start`
+   - Event: `session_end` with parameter `duration_seconds`
+7. Build screen time:
+   - Event: `screen_time_spent`
+   - Add parameter `screen_name`
+   - Aggregate `duration_seconds` (sum/avg)
 
 ### Mixpanel
 
@@ -169,6 +187,21 @@ track("Custom Event Name", {
 3. View live events: **Live View**
 4. View user profiles: **Users → People**
 5. Create funnels and insights: **Insights**
+6. Build DAU:
+   - Metric: **Uniques**
+   - Event: `Session Start`
+   - Interval: **Day**
+7. Build WAU/MAU:
+   - Duplicate chart with interval **Week** and **Month**
+8. Build time spent:
+   - Metric: **Sum**
+   - Event: `Screen Time Spent`
+   - Property: `duration_seconds`
+   - Break down by `screen_name`
+9. Build avg session duration:
+   - Metric: **Average**
+   - Event: `Session End`
+   - Property: `duration_seconds`
 
 ## 🧪 Testing
 
@@ -181,6 +214,11 @@ track("Custom Event Name", {
 3. **Check analytics dashboards:**
    - GA4: Should show events in Realtime view within seconds
    - Mixpanel: Should show events in Live View with user IDs
+4. **Verify new events are flowing:**
+   - `Session Start`
+   - `Screen Viewed`
+   - `Screen Time Spent`
+   - `Session End`
 
 ## 🔐 Privacy & Compliance
 

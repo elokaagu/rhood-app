@@ -65,7 +65,9 @@ import {
   setAnalyticsUser,
   resetAnalyticsUser,
   track,
-  trackScreenView,
+  setAnalyticsScreen,
+  startAnalyticsSession,
+  endAnalyticsSession,
   AnalyticsEvents,
 } from "./lib/analytics";
 import GlobalAudioPlayerUI from "./components/GlobalAudioPlayerUI";
@@ -108,6 +110,7 @@ const NotificationBadge = ({ count, style }) => {
 };
 
 export default function App() {
+  const appStateRef = useRef(AppState.currentState);
   // Load custom fonts
   // Use the actual font family name "TS Block Bold" (not PostScript name)
   // This matches the internal font name from the TTF file
@@ -213,6 +216,7 @@ export default function App() {
     (async () => {
       await initAnalytics();
       await track(AnalyticsEvents.APP_OPEN);
+      await startAnalyticsSession({ source: "app_open" });
     })();
 
     return () => {
@@ -224,7 +228,7 @@ export default function App() {
   useEffect(() => {
     currentScreenRef.current = currentScreen;
     if (currentScreen && user) {
-      trackScreenView(currentScreen, screenParams);
+      setAnalyticsScreen(currentScreen, screenParams);
     }
   }, [currentScreen, user]);
 
@@ -444,6 +448,21 @@ export default function App() {
   // Refresh notification counts when app becomes active
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextAppState;
+
+      if (
+        previousState.match(/inactive|background/) &&
+        nextAppState === "active"
+      ) {
+        void startAnalyticsSession({ source: "app_foreground" });
+      } else if (
+        previousState === "active" &&
+        nextAppState.match(/inactive|background/)
+      ) {
+        void endAnalyticsSession("app_background");
+      }
+
       if (nextAppState === "active" && user) {
         loadNotificationCounts();
       }
@@ -657,7 +676,7 @@ export default function App() {
         // For login flow, always go to opportunities page
         if (__DEV__) console.log("🎯 Login successful - navigating to opportunities");
         setCurrentScreen("opportunities");
-        await trackScreenView("opportunities");
+        await setAnalyticsScreen("opportunities");
 
         // Check if profile picture is missing and show complete profile modal
         if (!profile.profile_image_url && !hasShownCompleteProfileModal) {
@@ -717,6 +736,7 @@ export default function App() {
 
   const handleLogout = useCallback(async () => {
     try {
+      await endAnalyticsSession("logout");
       await track(AnalyticsEvents.USER_LOGGED_OUT);
       await resetAnalyticsUser();
       await auth.signOut();
@@ -1000,7 +1020,6 @@ export default function App() {
       }
       setCurrentScreen(screen);
       setScreenParams(nextParams);
-      trackScreenView(screen, nextParams);
       if (showMenu) {
         closeMenuRef.current?.();
       }
@@ -1562,7 +1581,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <AppTutorialProvider>
+    <AppTutorialProvider activeScreenId={currentScreen}>
     <View style={styles.appRoot}>
     <AppShell
       currentScreen={currentScreen}
@@ -2568,10 +2587,41 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 0%)", // Black background to prevent white flash
   },
   noMoreOpportunities: {
-    flex: 1,
+    width: "100%",
+    maxWidth: 420,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    marginTop: 12,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 14%)",
+    backgroundColor: "hsl(0, 0%, 6%)",
+  },
+  noMoreBadgeWrap: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 40,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    marginBottom: 16,
+    shadowColor: "hsl(75, 100%, 60%)",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  noMoreEyebrow: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 6,
+    fontWeight: "700",
   },
   loadingContainer: {
     flex: 1,
@@ -2587,32 +2637,42 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   noMoreTitle: {
-    fontSize: 24,
+    fontSize: 44,
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
-    marginTop: 20,
-    marginBottom: 12,
+    marginBottom: 10,
     textAlign: "center",
+    textTransform: "uppercase",
+    lineHeight: 48,
   },
   noMoreSubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
+    color: "hsl(0, 0%, 74%)",
     textAlign: "center",
     lineHeight: 24,
-    marginBottom: 30,
+    marginBottom: 24,
   },
   resetButton: {
     backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 12,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+    borderRadius: 16,
+    paddingHorizontal: 44,
+    paddingVertical: 17,
+    minWidth: 220,
+    alignItems: "center",
   },
   resetButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 0%)",
-    fontWeight: "600",
+    fontWeight: "700",
+  },
+  resetHintText: {
+    marginTop: 14,
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 58%)",
+    textAlign: "center",
   },
 
   // Opportunities Screen Styles

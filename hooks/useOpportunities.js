@@ -435,14 +435,18 @@ export default function useOpportunities({
 
         await refreshDailyApplicationStats(user.id);
 
-        setSwipedOpportunities((prev) => [
-          ...prev,
-          { ...opportunity, action: "applied" },
-        ]);
-        setCurrentOpportunityIndex((prev) => prev + 1);
-
         InteractionManager.runAfterInteractions(() => {
           void showPostApplySuccessModal(opportunity, applicationId);
+          // Decouple deck advancement from modal state update to avoid a janky
+          // simultaneous layout change when transitioning Apply -> Sent.
+          setTimeout(() => {
+            if (!isMountedRef.current) return;
+            setSwipedOpportunities((prev) => [
+              ...prev,
+              { ...opportunity, action: "applied" },
+            ]);
+            setCurrentOpportunityIndex((prev) => prev + 1);
+          }, 180);
         });
       } catch (error) {
         handleApplicationFlowError(error);
