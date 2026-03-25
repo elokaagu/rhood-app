@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { useIsFocused } from "@react-navigation/native";
 import { useOptionalAppTutorialContext } from "../context/AppTutorialContext";
 import { APP_TUTORIAL_CONTENT } from "../lib/appTutorialContent";
 
@@ -13,8 +14,9 @@ const NOOP = () => {};
  * @param {{ preventShow?: boolean }} [options] — e.g. defer until first-run Opportunities swipe tutorial finishes
  */
 export function useAppTutorialModal(screenId, options = {}) {
-  const { preventShow = false } = options;
+  const { preventShow = false, respectFocus = true } = options;
   const ctx = useOptionalAppTutorialContext();
+  const isFocused = useIsFocused();
 
   const hydrated = ctx?.hydrated ?? false;
   const enabled = ctx?.enabled ?? false;
@@ -29,6 +31,7 @@ export function useAppTutorialModal(screenId, options = {}) {
       enabled &&
       content &&
       !dismissed[screenId] &&
+      (!respectFocus || isFocused) &&
       !preventShow
   );
 

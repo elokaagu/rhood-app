@@ -387,12 +387,12 @@ const RhoodModal = ({
 
   const onShareSheetDm = async () => {
     dismissShareSheet();
-    await handleShareInApp();
+              await handleShareInApp();
   };
 
   const onShareSheetExternal = async () => {
     dismissShareSheet();
-    await handleShareExternal();
+              await handleShareExternal();
   };
 
   const handleShareInApp = async () => {
@@ -521,7 +521,7 @@ const RhoodModal = ({
       }}
     >
       <View style={styles.modalRoot}>
-        <View style={styles.overlay}>
+      <View style={styles.overlay}>
         <View
           style={[
             styles.modalContainer,
@@ -606,8 +606,8 @@ const RhoodModal = ({
             keyboardShouldPersistTaps="handled"
             bounces={false}
           >
-            {/* Content */}
-            <View style={styles.content}>
+          {/* Content */}
+          <View style={styles.content}>
               <Text
                 style={[
                   styles.title,
@@ -617,31 +617,31 @@ const RhoodModal = ({
                 {title}
               </Text>
 
-              {/* Enhanced Message Parsing for Event Details */}
-              {shouldRenderStructuredDetails ? (
-                <View style={styles.eventDetailsContainer}>
-                  {renderStructuredEventDetails(eventDetails)}
-                </View>
-              ) : shouldRenderParsedDetails ? (
-                <View style={styles.eventDetailsContainer}>
-                  {parseEventDetails(message)}
-                </View>
-              ) : (
-                <>
-                  {message ? (
-                    <Text style={styles.message}>
-                      {renderTextWithLinks(message)}
-                    </Text>
-                  ) : null}
-                </>
-              )}
+            {/* Enhanced Message Parsing for Event Details */}
+            {shouldRenderStructuredDetails ? (
+              <View style={styles.eventDetailsContainer}>
+                {renderStructuredEventDetails(eventDetails)}
+              </View>
+            ) : shouldRenderParsedDetails ? (
+              <View style={styles.eventDetailsContainer}>
+                {parseEventDetails(message)}
+              </View>
+            ) : (
+              <>
+                {message ? (
+                  <Text style={styles.message}>
+                    {renderTextWithLinks(message)}
+                  </Text>
+                ) : null}
+              </>
+            )}
 
-              {shouldRenderStructuredDetails && supplementalMessage ? (
-                <Text style={[styles.message, { marginTop: SPACING.md }]}>
-                  {renderTextWithLinks(supplementalMessage)}
-                </Text>
-              ) : null}
-            </View>
+            {shouldRenderStructuredDetails && supplementalMessage ? (
+              <Text style={[styles.message, { marginTop: SPACING.md }]}>
+                {renderTextWithLinks(supplementalMessage)}
+              </Text>
+            ) : null}
+          </View>
           </ScrollView>
 
           {/* Buttons */}

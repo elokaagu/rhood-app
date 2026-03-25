@@ -1010,14 +1010,38 @@ export default function App() {
 
   useEffect(() => {
     setPushNotificationTapHandler(({ type, data }) => {
+      const normalizedType = String(type || "").toLowerCase();
       if (
-        type === "application_approved" ||
-        type === "application_rejected" ||
-        type === "application_status"
+        normalizedType === "application_approved" ||
+        normalizedType === "application_rejected" ||
+        normalizedType === "application_status"
       ) {
         handleMenuNavigation(SCREENS.OPPORTUNITIES, {
           applicationId: data?.application_id ?? undefined,
         });
+        return;
+      }
+
+      if (normalizedType.includes("message")) {
+        const djId =
+          data?.sender_id ??
+          data?.senderId ??
+          data?.from_user_id ??
+          data?.fromUserId ??
+          null;
+        if (djId) {
+          handleMenuNavigation(SCREENS.MESSAGES, {
+            djId,
+            chatType: "individual",
+          });
+        } else {
+          handleMenuNavigation(SCREENS.MESSAGES_LIST);
+        }
+        return;
+      }
+
+      if (normalizedType.includes("connection")) {
+        handleMenuNavigation(SCREENS.NOTIFICATIONS);
       }
     });
     return () => setPushNotificationTapHandler(null);

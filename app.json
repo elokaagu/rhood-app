@@ -25,6 +25,10 @@
       "googleServicesFile": "./ios/GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        },
         "UIBackgroundModes": [
           "audio"
         ],

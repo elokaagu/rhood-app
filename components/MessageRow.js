@@ -27,6 +27,13 @@ const MessageRow = memo(function MessageRow({
   formatDuration,
   styles,
 }) {
+  if (message.rowType === "separator") {
+    return (
+      <View style={styles.timeSeparatorWrap}>
+        <Text style={styles.timeSeparatorText}>{message.label}</Text>
+      </View>
+    );
+  }
   const isOwn = message.isOwn;
   const messageType = message.messageType;
   const mediaUrlRaw = message.mediaUrl;
@@ -39,8 +46,14 @@ const MessageRow = memo(function MessageRow({
   const hasCaption = Boolean(message.content?.trim());
 
   const senderAvatarSource = safeImageSource(message.senderImage);
+  const showSenderHeader = !isOwn && message.showSenderHeader !== false;
+  const showTimestamp = message.showTimestamp !== false;
 
-  const audioDurationMs = audioDurations[message.id] ?? 0;
+  const fallbackDurationMs =
+    Number(message?.metadata?.duration_millis) ||
+    Number(message?.metadata?.durationMillis) ||
+    0;
+  const audioDurationMs = audioDurations[message.id] ?? fallbackDurationMs;
   const audioProgressMs = audioProgress[message.id] ?? 0;
   const audioProgressPct = useMemo(() => {
     if (audioDurationMs <= 0) return 0;
@@ -69,8 +82,9 @@ const MessageRow = memo(function MessageRow({
     () => [
       styles.messageContainer,
       isOwn ? styles.ownMessage : styles.otherMessage,
+      message.isGrouped ? styles.messageContainerGrouped : null,
     ],
-    [styles, isOwn]
+    [styles, isOwn, message.isGrouped]
   );
 
   const onLongPressRow = useCallback(
@@ -112,7 +126,7 @@ const MessageRow = memo(function MessageRow({
 
   return (
     <View style={containerStyle}>
-      {!isOwn && (
+      {showSenderHeader && (
         <View style={styles.messageHeader}>
           <ProgressiveImage
             source={senderAvatarSource}
@@ -149,6 +163,7 @@ const MessageRow = memo(function MessageRow({
                 isOwn={isOwn}
                 thumbnailUrl={message.thumbnailUrl}
                 mediaFilename={message.mediaFilename}
+                durationMs={Number(message?.metadata?.duration_millis) || 0}
                 styles={styles}
                 onPlay={onPlayVideo}
               />
@@ -187,9 +202,9 @@ const MessageRow = memo(function MessageRow({
           renderMessageText(message)
         )}
         {messageType !== "opportunity" && renderLinkPreviews(message)}
-        <Text style={messageTimeStyle}>
-          {formatTime(message.timestamp)}
-        </Text>
+        {showTimestamp ? (
+          <Text style={messageTimeStyle}>{formatTime(message.timestamp)}</Text>
+        ) : null}
       </Pressable>
     </View>
   );

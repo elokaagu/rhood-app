@@ -275,6 +275,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - ExpoSecureStore (15.0.8):
+    - ExpoModulesCore
   - ExpoTrackingTransparency (6.0.7):
     - ExpoModulesCore
   - ExpoVideo (3.0.14):
@@ -2409,6 +2411,7 @@ DEPENDENCIES:
   - ExpoLinking (from `../node_modules/expo-linking/ios`)
   - ExpoLocation (from `../node_modules/expo-location/ios`)
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
+  - ExpoSecureStore (from `../node_modules/expo-secure-store/ios`)
   - ExpoTrackingTransparency (from `../node_modules/expo-tracking-transparency/ios`)
   - ExpoVideo (from `../node_modules/expo-video/ios`)
   - ExpoWebBrowser (from `../node_modules/expo-web-browser/ios`)
@@ -2579,6 +2582,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-location/ios"
   ExpoModulesCore:
     :path: "../node_modules/expo-modules-core"
+  ExpoSecureStore:
+    :path: "../node_modules/expo-secure-store/ios"
   ExpoTrackingTransparency:
     :path: "../node_modules/expo-tracking-transparency/ios"
   ExpoVideo:
@@ -2781,6 +2786,7 @@ SPEC CHECKSUMS:
   ExpoLinking: 77455aa013e9b6a3601de03ecfab09858ee1b031
   ExpoLocation: 93d7faa0c2adbd5a04686af0c1a61bc6ed3ee2f7
   ExpoModulesCore: 9460546192590b0ed13493d9b01bed256d3440b0
+  ExpoSecureStore: d32f751874a2ceb5aaeebeb3578e165c1ba2b24a
   ExpoTrackingTransparency: f9ad2b1955c71085aa9208ed180721301614bac9
   ExpoVideo: 50f5b3f31c7b5fb5a8f61a0137e674096c54eb4f
   ExpoWebBrowser: b973e1351fdcf5fec0c400997b1851f5a8219ec3

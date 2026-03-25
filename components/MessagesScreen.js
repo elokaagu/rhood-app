@@ -116,6 +116,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [selectedMessageForOptions, setSelectedMessageForOptions] = useState(null);
   const [showMessageOptionsModal, setShowMessageOptionsModal] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState(null);
+  const [errorModal, setErrorModal] = useState({
+    visible: false,
+    title: "",
+    message: "",
+  });
 
   // Refs
   const scrollViewRef = useRef(null);
@@ -127,6 +132,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
   );
   const conversationKeyRef = useRef(conversationKey);
   conversationKeyRef.current = conversationKey;
+
+  const showThemedError = useCallback((title, message) => {
+    setErrorModal({
+      visible: true,
+      title: title || "Error",
+      message: message || "Something went wrong.",
+    });
+  }, []);
 
   /** WhatsApp-style: show last-known thread immediately when reopening a chat */
   useLayoutEffect(() => {
@@ -182,13 +195,59 @@ const MessagesScreen = ({ user, navigation, route }) => {
       if (supported) {
         await Linking.openURL(sanitizedUrl);
       } else {
-        Alert.alert("Cannot Open Link", sanitizedUrl);
+        showThemedError("Cannot Open Link", sanitizedUrl);
       }
     } catch (error) {
       console.error("Error opening link:", error);
-      Alert.alert("Link Error", "Unable to open this link right now.");
+      showThemedError("Link Error", "Unable to open this link right now.");
     }
-  }, []);
+  }, [showThemedError]);
+
+  const handleUrlLongPress = useCallback(
+    (rawUrl) => {
+      if (!rawUrl) return;
+      const sanitizedUrl =
+        rawUrl.startsWith("http://") || rawUrl.startsWith("https://")
+          ? rawUrl
+          : `https://${rawUrl}`;
+
+      const copyAction = async () => {
+        try {
+          await Clipboard.setStringAsync(sanitizedUrl);
+        } catch (_) {}
+      };
+
+      const openAction = () => handleUrlPress(sanitizedUrl);
+      const shareAction = async () => {
+        try {
+          await Share.share({ message: sanitizedUrl, url: sanitizedUrl });
+        } catch (_) {}
+      };
+
+      if (Platform.OS === "ios") {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            options: ["Cancel", "Copy Link", "Open Link", "Share Link"],
+            cancelButtonIndex: 0,
+          },
+          (buttonIndex) => {
+            if (buttonIndex === 1) copyAction();
+            if (buttonIndex === 2) openAction();
+            if (buttonIndex === 3) shareAction();
+          }
+        );
+        return;
+      }
+
+      Alert.alert("Link actions", sanitizedUrl, [
+        { text: "Copy Link", onPress: copyAction },
+        { text: "Open Link", onPress: openAction },
+        { text: "Share Link", onPress: shareAction },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    },
+    [handleUrlPress]
+  );
 
   const renderMessageText = useCallback(
     (message) => {
@@ -252,6 +311,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                     : styles.otherMessageLink,
                 ]}
                 onPress={() => handleUrlPress(segment.value)}
+                onLongPress={() => handleUrlLongPress(segment.value)}
               >
                 {segment.value}
               </Text>
@@ -262,7 +322,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         </Text>
       );
     },
-    [handleUrlPress]
+    [handleUrlPress, handleUrlLongPress]
   );
 
   const renderLinkPreviews = useCallback(
@@ -284,6 +344,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           ]}
           activeOpacity={0.85}
           onPress={() => handleUrlPress(preview.url)}
+          onLongPress={() => handleUrlLongPress(preview.url)}
         >
           {preview.image ? (
             <Image
@@ -352,7 +413,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         );
       });
     },
-    [handleUrlPress, messageLinkPreviews]
+    [handleUrlPress, handleUrlLongPress, messageLinkPreviews]
   );
 
   const handleForwardMessage = useCallback(async (message) => {
@@ -701,14 +762,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
       setShowMediaPicker(false);
     } catch (error) {
       console.error(`❌ Error uploading ${label}:`, error);
-      Alert.alert(
+      showThemedError(
         error.alertTitle || "Upload Error",
         error.message || `Failed to upload ${label}. Please try again.`
       );
     } finally {
       setUploadingMedia(false);
     }
-  }, []);
+  }, [showThemedError]);
 
   const handleImageUpload = useCallback(async () => {
     try {
@@ -747,28 +808,28 @@ const MessagesScreen = ({ user, navigation, route }) => {
       setShowMediaPicker(false);
     } catch (error) {
       console.error("❌ Error in handleImageUpload:", error);
-      Alert.alert(
+      showThemedError(
         error.alertTitle || "Image Upload Error",
         error.message || "Failed to pick images. Please try again."
       );
     } finally {
       setUploadingMedia(false);
     }
-  }, []);
+  }, [showThemedError]);
 
   const handleVideoUpload = useCallback(async () => {
     try {
       await selectAndUploadMedia(() => multimediaService.pickVideo(), "video");
     } catch (error) {
       console.error("❌ Error in handleVideoUpload:", error);
-      Alert.alert(
+      showThemedError(
         error.alertTitle || "Video Upload Error",
         error.message || "Failed to pick video. Please try again."
       );
       setUploadingMedia(false);
       setShowMediaPicker(false);
     }
-  }, [selectAndUploadMedia]);
+  }, [selectAndUploadMedia, showThemedError]);
 
   const handleAudioUpload = useCallback(async () => {
     try {
@@ -814,7 +875,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 );
               } catch (error) {
                 console.error("❌ Error uploading audio:", error);
-                Alert.alert(
+                showThemedError(
                   error.alertTitle || "Audio Upload Error",
                   error.message || "Failed to upload audio. Please try again."
                 );
@@ -829,14 +890,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
       );
     } catch (error) {
       console.error("❌ Error in handleAudioUpload:", error);
-      Alert.alert(
+      showThemedError(
         error.alertTitle || "Audio Upload Error",
         error.message || "Failed to pick audio. Please try again."
       );
       setUploadingMedia(false);
       setShowMediaPicker(false);
     }
-  }, [selectAndUploadMedia]);
+  }, [selectAndUploadMedia, showThemedError]);
 
   const handleDocumentUpload = useCallback(async () => {
     try {
@@ -846,14 +907,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
       );
     } catch (error) {
       console.error("❌ Error in handleDocumentUpload:", error);
-      Alert.alert(
+      showThemedError(
         error.alertTitle || "File Upload Error",
         error.message || "Failed to pick file. Please try again."
       );
       setUploadingMedia(false);
       setShowMediaPicker(false);
     }
-  }, [selectAndUploadMedia]);
+  }, [selectAndUploadMedia, showThemedError]);
 
   const clearSelectedMedia = useCallback(() => {
     setSelectedMedia([]);
@@ -1021,13 +1082,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
         );
       } catch (error) {
         console.error("❌ Error handling file:", error);
-        Alert.alert(
+        showThemedError(
           "Error",
           `Failed to handle file: ${error.message || "Unknown error"}`
         );
       }
     },
-    [downloadFile]
+    [downloadFile, showThemedError]
   );
 
   // Send message
@@ -1043,7 +1104,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
     if (!user?.id) {
       console.error("❌ No user ID");
-      Alert.alert("Error", "You must be logged in to send messages");
+      showThemedError("Error", "You must be logged in to send messages");
       return;
     }
 
@@ -1090,7 +1151,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
               hint: err.hint,
               details: err.details,
             });
-            Alert.alert(
+            showThemedError(
               "Error",
               `Failed to send message: ${err.message || "Unknown error"}`
             );
@@ -1131,7 +1192,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
             hint: err?.hint,
             details: err?.details,
           });
-          Alert.alert(
+          showThemedError(
             "Error",
             `Failed to send message: ${err?.message || "Unknown error"}`
           );
@@ -1155,7 +1216,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     } catch (error) {
       console.error("❌ Error in sendMessage:", error);
       console.error("❌ Error stack:", error.stack);
-      Alert.alert(
+      showThemedError(
         "Error",
         `Failed to send message: ${error.message || "Unknown error"}`
       );
@@ -1175,6 +1236,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     threadId,
     selectedMedia,
     loadMessages,
+    showThemedError,
   ]);
 
   // Format timestamp
@@ -1188,6 +1250,68 @@ const MessagesScreen = ({ user, navigation, route }) => {
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
     return date.toLocaleDateString();
   }, []);
+
+  const formatDaySeparator = useCallback((timestamp) => {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return "";
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfThatDay = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    );
+    const diffDays = Math.round(
+      (startOfToday.getTime() - startOfThatDay.getTime()) / (24 * 60 * 60 * 1000)
+    );
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: now.getFullYear() === date.getFullYear() ? undefined : "numeric",
+    });
+  }, []);
+
+  const chatListRows = useMemo(() => {
+    const rows = [];
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      const prev = messages[i - 1];
+      const next = messages[i + 1];
+      const msgTime = new Date(msg.timestamp).getTime();
+      const prevTime = prev ? new Date(prev.timestamp).getTime() : null;
+      const nextTime = next ? new Date(next.timestamp).getTime() : null;
+
+      const isNewDay =
+        !prev ||
+        new Date(prev.timestamp).toDateString() !== new Date(msg.timestamp).toDateString();
+      if (isNewDay) {
+        rows.push({
+          id: `sep-${msg.id}`,
+          rowType: "separator",
+          label: formatDaySeparator(msg.timestamp),
+        });
+      }
+
+      const groupedWithPrev =
+        !!prev &&
+        prev.senderId === msg.senderId &&
+        Math.abs(msgTime - (prevTime || 0)) < 5 * 60 * 1000;
+      const groupedWithNext =
+        !!next &&
+        next.senderId === msg.senderId &&
+        Math.abs((nextTime || 0) - msgTime) < 5 * 60 * 1000;
+
+      rows.push({
+        ...msg,
+        showSenderHeader: !groupedWithPrev,
+        showTimestamp: !groupedWithNext,
+        isGrouped: groupedWithPrev,
+      });
+    }
+    return rows;
+  }, [messages, formatDaySeparator]);
 
   const handleOpportunityPress = useCallback((opp) => {
     setSelectedOpportunity(opp);
@@ -1229,15 +1353,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
       formatDuration,
       styles,
     ]
-  );
-
-  const getMessageItemLayout = useCallback(
-    (data, index) => ({
-      length: LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT_MESSAGES,
-      offset: LIST_PERFORMANCE.ESTIMATED_ROW_HEIGHT_MESSAGES * index,
-      index,
-    }),
-    []
   );
 
   return (
@@ -1286,13 +1401,24 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 <Text style={styles.headerName}>
                   {otherUser.dj_name || otherUser.full_name || otherUser.username || "DJ"}
                 </Text>
-                <Text style={styles.headerLocation}>
-                  {otherUser.location ||
-                    otherUser.city ||
-                    otherUser.country ||
-                    "Unknown Location"}
-                </Text>
+                <View style={styles.headerMetaRow}>
+                  <Text style={styles.headerLocation}>
+                    {otherUser.location ||
+                      otherUser.city ||
+                      otherUser.country ||
+                      "Unknown Location"}
+                  </Text>
+                  <Text style={styles.headerStatusToken}>
+                    {isConnected ? "Online" : "Last seen recently"}
+                  </Text>
+                </View>
               </View>
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color="hsl(0, 0%, 65%)"
+                style={styles.headerChevron}
+              />
             </TouchableOpacity>
           )}
 
@@ -1343,12 +1469,21 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 <Text style={styles.headerName} numberOfLines={1}>
                   {communityData?.name || communityNameParam || "Community"}
                 </Text>
-                <Text style={styles.headerLocation}>
-                  {loading && !communityData
-                    ? "…"
-                    : `${memberCount} member${memberCount !== 1 ? "s" : ""}`}
-                </Text>
+                <View style={styles.headerMetaRow}>
+                  <Text style={styles.headerLocation}>
+                    {loading && !communityData
+                      ? "…"
+                      : `${memberCount} member${memberCount !== 1 ? "s" : ""}`}
+                  </Text>
+                  <Text style={styles.headerStatusToken}>Group chat</Text>
+                </View>
               </View>
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color="hsl(0, 0%, 65%)"
+                style={styles.headerChevron}
+              />
             </TouchableOpacity>
           )}
         </View>
@@ -1356,8 +1491,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
         {/* Messages */}
         <FlatList
           ref={scrollViewRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
+          data={chatListRows}
+          keyExtractor={(item) => String(item.id)}
           ListEmptyComponent={
             loading ? (
               <View style={styles.messagesInlineLoading}>
@@ -1379,7 +1514,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
             )
           }
           renderItem={renderMessageItem}
-          getItemLayout={getMessageItemLayout}
           contentContainerStyle={[
             styles.messagesContent,
             { paddingBottom: scrollBottomPadding },
@@ -1488,6 +1622,17 @@ const MessagesScreen = ({ user, navigation, route }) => {
         primaryButtonText="Close"
         showCloseButton={true}
       />
+      <RhoodModal
+        visible={errorModal.visible}
+        onClose={() => setErrorModal({ visible: false, title: "", message: "" })}
+        type="error"
+        title={errorModal.title || "Error"}
+        message={errorModal.message || "Something went wrong."}
+        primaryButtonText="OK"
+        onPrimaryPress={() =>
+          setErrorModal({ visible: false, title: "", message: "" })
+        }
+      />
       {tutorialModalProps ? (
         <AppScreenTutorialModal {...tutorialModalProps} />
       ) : null}
@@ -1543,20 +1688,35 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+    justifyContent: "center",
   },
   headerName: {
     color: "hsl(75, 100%, 60%)",
     fontSize: 16,
     fontWeight: "700",
     fontFamily: "TS Block Bold",
-    marginBottom: 2,
+    marginBottom: 1,
     letterSpacing: 0.5,
   },
   headerLocation: {
-    color: "hsl(0, 0%, 60%)",
-    fontSize: 14,
+    color: "hsl(0, 0%, 68%)",
+    fontSize: 13,
     fontFamily: "Helvetica Neue",
     fontWeight: "500",
+  },
+  headerMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerStatusToken: {
+    color: "hsl(75, 45%, 72%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "500",
+  },
+  headerChevron: {
+    marginLeft: 8,
   },
   messagesContainer: {
     flex: 1,
@@ -1607,6 +1767,9 @@ const styles = StyleSheet.create({
   messageContainer: {
     marginBottom: 16,
   },
+  messageContainerGrouped: {
+    marginBottom: 8,
+  },
   ownMessage: {
     alignItems: "flex-end",
   },
@@ -1616,7 +1779,7 @@ const styles = StyleSheet.create({
   messageHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   messageAvatar: {
     width: 24,
@@ -1696,8 +1859,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(0, 0, 0, 0.15)",
   },
   otherLinkPreviewCard: {
-    backgroundColor: "hsl(0, 0%, 18%)",
-    borderColor: "hsl(75, 100%, 30%)",
+    backgroundColor: "hsl(0, 0%, 14%)",
+    borderColor: "hsl(75, 70%, 38%)",
   },
   linkPreviewImage: {
     width: 88,
@@ -1762,7 +1925,7 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
     fontFamily: "Helvetica Neue",
   },
   ownMessageTime: {
@@ -1808,21 +1971,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   messageInput: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: "hsl(0, 0%, 11%)",
     borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     color: "hsl(0, 0%, 100%)",
     fontSize: 16,
     fontFamily: "Helvetica Neue",
     maxHeight: 100,
     marginRight: 12,
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%)",
+    borderColor: "hsl(75, 75%, 42%)",
   },
   sendButton: {
     backgroundColor: "hsl(75, 100%, 60%)",
@@ -1875,7 +2038,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   attachButton: {
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: "hsl(0, 0%, 11%)",
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -1883,7 +2046,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%)",
+    borderColor: "hsl(75, 75%, 42%)",
   },
   selectedMediaContainer: {
     backgroundColor: "hsl(0, 0%, 8%)",
@@ -2039,7 +2202,7 @@ const styles = StyleSheet.create({
   messageVideo: {
     position: "relative",
     width: 200,
-    height: 150,
+    height: 162,
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 4,
@@ -2108,36 +2271,51 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
     justifyContent: "center",
     alignItems: "center",
   },
   videoPlayButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  videoDurationBadge: {
+    position: "absolute",
+    right: 8,
+    bottom: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  videoDurationText: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 11,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
   },
   messageAudio: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "hsl(0, 0%, 15%)",
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 12,
     marginBottom: 4,
-    minWidth: 200,
-    maxWidth: 280,
+    minWidth: 220,
+    maxWidth: 300,
   },
   ownMessageAudio: {
     backgroundColor: "hsl(75, 100%, 60%)",
   },
   audioPlayButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "hsl(75, 100%, 60%)",
     justifyContent: "center",
     alignItems: "center",
@@ -2150,7 +2328,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   audioProgressBar: {
-    height: 3,
+    height: 4,
     backgroundColor: "hsl(0, 0%, 25%)",
     borderRadius: 2,
     marginBottom: 6,
@@ -2190,7 +2368,7 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 60%)",
   },
   audioDuration: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: "Helvetica Neue",
     fontWeight: "400",
   },
@@ -2230,6 +2408,21 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  fileTypeChip: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(75, 75, 75, 0.35)",
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginBottom: 6,
+  },
+  fileTypeChipText: {
+    color: "hsl(75, 95%, 72%)",
+    fontSize: 10,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "700",
+    letterSpacing: 0.6,
+  },
   fileName: {
     color: "hsl(0, 0%, 100%)",
     fontSize: 14,
@@ -2250,6 +2443,21 @@ const styles = StyleSheet.create({
   },
   downloadIcon: {
     marginLeft: 4,
+  },
+  timeSeparatorWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 8,
+  },
+  timeSeparatorText: {
+    color: "hsl(0, 0%, 68%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderRadius: 999,
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   fullscreenImageContainer: {
     flex: 1,

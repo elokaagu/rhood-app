@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E8A1F0022D0500010044C100 /* NowPlayingInfoModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8A1F0012D0500010044C100 /* NowPlayingInfoModule.swift */; };
-		E8A1F0042D0500010044C100 /* NowPlayingInfoModule.m in Sources */ = {isa = PBXBuildFile; fileRef = E8A1F0032D0500010044C100 /* NowPlayingInfoModule.m */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		17FD5A4CA3EDC46AFA7AEA5F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 60CE38928099599BB8D7E47B /* PrivacyInfo.xcprivacy */; };
 		1FF2035177154C82AFD4EB72 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 33EAE91E81CC4432A3041B45 /* GoogleService-Info.plist */; };
@@ -16,6 +14,8 @@
 		80FEE33037BA0D1EBA1EA94A /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC7442683C6EA053882A586E /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		C7DF5887DD807DE498F7B02D /* Pods_RHOOD.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B2EADF80A4193C38CDAADAA /* Pods_RHOOD.framework */; };
+		E8A1F0022D0500010044C100 /* NowPlayingInfoModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8A1F0012D0500010044C100 /* NowPlayingInfoModule.swift */; };
+		E8A1F0042D0500010044C100 /* NowPlayingInfoModule.m in Sources */ = {isa = PBXBuildFile; fileRef = E8A1F0032D0500010044C100 /* NowPlayingInfoModule.m */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -31,10 +31,10 @@
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = RHOOD/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		CC7442683C6EA053882A586E /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-RHOOD/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = RHOOD/AppDelegate.swift; sourceTree = "<group>"; };
 		E8A1F0012D0500010044C100 /* NowPlayingInfoModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NowPlayingInfoModule.swift; path = RHOOD/NowPlayingInfoModule.swift; sourceTree = "<group>"; };
 		E8A1F0032D0500010044C100 /* NowPlayingInfoModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = NowPlayingInfoModule.m; path = RHOOD/NowPlayingInfoModule.m; sourceTree = "<group>"; };
+		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = RHOOD/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* RHOOD-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "RHOOD-Bridging-Header.h"; path = "RHOOD/RHOOD-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 

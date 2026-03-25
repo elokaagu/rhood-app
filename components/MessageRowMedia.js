@@ -36,6 +36,7 @@ export const MessageRowVideo = memo(function MessageRowVideo({
   isOwn,
   thumbnailUrl,
   mediaFilename,
+  durationMs,
   styles,
   onPlay,
 }) {
@@ -59,6 +60,16 @@ export const MessageRowVideo = memo(function MessageRowVideo({
               <Ionicons name="play" size={32} color="hsl(0, 0%, 100%)" />
             </View>
           </View>
+          {durationMs > 0 ? (
+            <View style={styles.videoDurationBadge}>
+              <Text style={styles.videoDurationText}>
+                {Math.floor(durationMs / 60000)}:
+                {Math.floor((durationMs % 60000) / 1000)
+                  .toString()
+                  .padStart(2, "0")}
+              </Text>
+            </View>
+          ) : null}
         </View>
       ) : (
         <View
@@ -198,6 +209,17 @@ export const MessageRowFile = memo(function MessageRowFile({
   styles,
   onOpen,
 }) {
+  const fileKindLabel = (() => {
+    const ext = String(fileExtension || "").toLowerCase();
+    if (["mp3", "wav", "aac", "m4a", "flac"].includes(ext)) return "AUDIO";
+    if (["pdf"].includes(ext)) return "PDF";
+    if (["doc", "docx"].includes(ext)) return "DOC";
+    if (["xls", "xlsx", "csv"].includes(ext)) return "SHEET";
+    if (["ppt", "pptx"].includes(ext)) return "SLIDE";
+    if (["zip", "rar", "7z"].includes(ext)) return "ARCHIVE";
+    return "FILE";
+  })();
+
   return (
     <TouchableOpacity
       style={[styles.messageFile, isOwn && styles.ownMessageFile]}
@@ -219,9 +241,12 @@ export const MessageRowFile = memo(function MessageRowFile({
         />
       </View>
       <View style={styles.fileInfo}>
+        <View style={styles.fileTypeChip}>
+          <Text style={styles.fileTypeChipText}>{fileKindLabel}</Text>
+        </View>
         <Text
           style={[styles.fileName, isOwn && styles.ownFileName]}
-          numberOfLines={2}
+          numberOfLines={1}
         >
           {mediaFilename || "Attachment"}
         </Text>

@@ -53,6 +53,7 @@ function GlobalAudioPlayerUI({
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [queueVisible, setQueueVisible] = useState(false);
   const [playlistUser, setPlaylistUser] = useState(null);
+  const [pendingPlaylistTrack, setPendingPlaylistTrack] = useState(null);
   const lastOpenedTrackIdRef = useRef(null);
   const playPauseGuardRef = useRef(false);
   const {
@@ -150,7 +151,10 @@ function GlobalAudioPlayerUI({
   }, [track]);
 
   const addTrackToPlaylist = useCallback(() => {
-    if (!track?.id) return;
+    if (!track?.id) {
+      Alert.alert("Unavailable", "This track cannot be added to a playlist yet.");
+      return;
+    }
     const mixLikeTrack = {
       id: track.id,
       title: track.title || "Unknown track",
@@ -159,19 +163,36 @@ function GlobalAudioPlayerUI({
       image_url: track.image_url || track.artwork_url || track.image || null,
       image: track.image || track.artwork_url || track.image_url || null,
     };
-    void handleSaveToPlaylist(mixLikeTrack);
-  }, [track, handleSaveToPlaylist]);
+    // Queue action and wait for full-screen to be fully dismissed before
+    // opening SaveToPlaylistModal. This avoids requiring a manual swipe-down.
+    setPendingPlaylistTrack(mixLikeTrack);
+    setFullScreenVisible(false);
+  }, [track]);
+
+  useEffect(() => {
+    if (fullScreenVisible) return;
+    if (!pendingPlaylistTrack) return;
+    void handleSaveToPlaylist(pendingPlaylistTrack);
+    setPendingPlaylistTrack(null);
+  }, [fullScreenVisible, pendingPlaylistTrack, handleSaveToPlaylist]);
 
   const addTrackToQueue = useCallback(() => {
-    if (!track?.id) return;
+    if (!track?.id) {
+      Alert.alert("Unavailable", "This track cannot be queued right now.");
+      return;
+    }
     const normalized = {
       ...track,
       audioUrl: track.audioUrl || track.file_url || track.audio_url || null,
       image: track.image || track.artwork_url || track.image_url || null,
     };
-    if (!normalized.audioUrl) return;
+    if (!normalized.audioUrl) {
+      Alert.alert("Unavailable", "No playable audio was found for this track.");
+      return;
+    }
     addToQueue(normalized);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert("Added to queue", `"${track.title || "Track"}" is queued.`);
   }, [track]);
 
   const removeTrackFromPlaylist = useCallback(() => {

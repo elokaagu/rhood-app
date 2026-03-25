@@ -82,6 +82,16 @@ export default {
     lineHeight: 18,
     marginBottom: 12,
   },
+  // Status line under location in Discover cards.
+  // Keep it readable on black and aligned with brand neutrals.
+  discoverStatus: {
+    fontSize: 13,
+    fontFamily: FONT_BODY,
+    color: "hsl(0, 0%, 78%)",
+    lineHeight: 17,
+    marginBottom: 12,
+    fontStyle: "italic",
+  },
   discoverGenres: {
     flexDirection: "row",
     flexWrap: "wrap",

@@ -60,6 +60,26 @@ async function resolveOpportunityIdForRelatedRow(relatedId) {
   return null;
 }
 
+async function resolveOtherUserIdFromConnection(connectionId, currentUserId) {
+  if (!connectionId || !currentUserId) return null;
+  const { data, error } = await supabase
+    .from("connections")
+    .select("requester_id, connected_user_id")
+    .eq("id", connectionId)
+    .maybeSingle();
+  if (error || !data) return null;
+  if (data.requester_id && String(data.requester_id) !== String(currentUserId)) {
+    return data.requester_id;
+  }
+  if (
+    data.connected_user_id &&
+    String(data.connected_user_id) !== String(currentUserId)
+  ) {
+    return data.connected_user_id;
+  }
+  return null;
+}
+
 // Helper function to format relative time
 const formatRelativeTime = (timestamp) => {
   const now = new Date();
@@ -668,6 +688,12 @@ export default function NotificationsScreen({
       // Update local state to remove the notification
       setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
 
+      const resolvedSenderId =
+        notification.rawData?.sender_id ||
+        notification.rawData?.senderId ||
+        notification.rawData?.requester_id ||
+        (await resolveOtherUserIdFromConnection(connectionId, currentUser?.id));
+
       // Extract user info from notification for the modal
       const userInfo = {
         name:
@@ -675,7 +701,7 @@ export default function NotificationsScreen({
             " wants to connect with you",
             ""
           )?.trim() || "This DJ",
-        id: notification.rawData?.sender_id || notification.relatedId,
+        id: resolvedSenderId || null,
       };
 
       console.log(
