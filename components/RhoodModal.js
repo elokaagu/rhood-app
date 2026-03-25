@@ -374,6 +374,9 @@ const RhoodModal = ({
     }
   }, [visible]);
 
+  // Keep hidden modals unmounted to avoid touch interception on some devices.
+  if (!visible) return null;
+
   const handleShare = () => {
     if (shareOpportunity && shareUserId) {
       setShowShareOptions(true);

@@ -11,6 +11,8 @@ export default function OpportunitiesSwipeTutorialModal({
   onDismiss,
   styles,
 }) {
+  // Avoid keeping a hidden native Modal mounted (can steal touches on some devices).
+  if (!visible) return null;
   return (
     <Modal
       transparent

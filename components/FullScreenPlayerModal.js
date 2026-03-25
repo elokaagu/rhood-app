@@ -80,6 +80,10 @@ function FullScreenPlayerModalBody({
   onBeginScrubbing,
   onToggleLike,
   onShare,
+  onAddToPlaylist,
+  onAddToQueue,
+  canRemoveFromPlaylist,
+  onRemoveFromPlaylist,
   onArtistPress,
   onOpenQueue,
   isPlaying,
@@ -205,6 +209,21 @@ function FullScreenPlayerModalBody({
     closeMoreMenu();
     onOpenQueue?.();
   }, [closeMoreMenu, onOpenQueue]);
+
+  const onPressAddToPlaylist = useCallback(() => {
+    closeMoreMenu();
+    onAddToPlaylist?.();
+  }, [closeMoreMenu, onAddToPlaylist]);
+
+  const onPressAddToQueue = useCallback(() => {
+    closeMoreMenu();
+    onAddToQueue?.();
+  }, [closeMoreMenu, onAddToQueue]);
+
+  const onPressRemoveFromPlaylist = useCallback(() => {
+    closeMoreMenu();
+    onRemoveFromPlaylist?.();
+  }, [closeMoreMenu, onRemoveFromPlaylist]);
 
   const handleToggleLike = useCallback(() => {
     void HapticPatterns.like();
@@ -480,6 +499,52 @@ function FullScreenPlayerModalBody({
             <View style={styles.moreHairline} />
             <TouchableOpacity
               style={styles.moreRow}
+              onPress={onPressAddToPlaylist}
+              activeOpacity={0.65}
+              accessibilityLabel="Add to playlist"
+              accessibilityRole="button"
+            >
+              <View style={styles.moreIconWrap}>
+                <Ionicons name="add-circle-outline" size={22} color={COLORS.primary} />
+              </View>
+              <Text style={styles.moreRowLabel}>Add to playlist</Text>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textTertiary} />
+            </TouchableOpacity>
+            <View style={styles.moreHairline} />
+            <TouchableOpacity
+              style={styles.moreRow}
+              onPress={onPressAddToQueue}
+              activeOpacity={0.65}
+              accessibilityLabel="Add to queue"
+              accessibilityRole="button"
+            >
+              <View style={styles.moreIconWrap}>
+                <Ionicons name="add-outline" size={22} color={COLORS.primary} />
+              </View>
+              <Text style={styles.moreRowLabel}>Add to queue</Text>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textTertiary} />
+            </TouchableOpacity>
+            <View style={styles.moreHairline} />
+            {canRemoveFromPlaylist ? (
+              <>
+                <TouchableOpacity
+                  style={styles.moreRow}
+                  onPress={onPressRemoveFromPlaylist}
+                  activeOpacity={0.65}
+                  accessibilityLabel="Remove from playlist"
+                  accessibilityRole="button"
+                >
+                  <View style={styles.moreIconWrap}>
+                    <Ionicons name="remove-circle-outline" size={22} color={COLORS.primary} />
+                  </View>
+                  <Text style={styles.moreRowLabel}>Remove from playlist</Text>
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.textTertiary} />
+                </TouchableOpacity>
+                <View style={styles.moreHairline} />
+              </>
+            ) : null}
+            <TouchableOpacity
+              style={styles.moreRow}
               onPress={onPressQueue}
               activeOpacity={0.65}
               accessibilityLabel="View queue"
@@ -518,6 +583,10 @@ function FullScreenPlayerModal({
   onBeginScrubbing,
   onToggleLike,
   onShare,
+  onAddToPlaylist,
+  onAddToQueue,
+  canRemoveFromPlaylist,
+  onRemoveFromPlaylist,
   onArtistPress,
   onOpenQueue,
   isPlaying,
@@ -548,6 +617,10 @@ function FullScreenPlayerModal({
             onBeginScrubbing={onBeginScrubbing}
             onToggleLike={onToggleLike}
             onShare={onShare}
+        onAddToPlaylist={onAddToPlaylist}
+        onAddToQueue={onAddToQueue}
+        canRemoveFromPlaylist={canRemoveFromPlaylist}
+        onRemoveFromPlaylist={onRemoveFromPlaylist}
             onArtistPress={onArtistPress}
             onOpenQueue={onOpenQueue}
             isPlaying={isPlaying}

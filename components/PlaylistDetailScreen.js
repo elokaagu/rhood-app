@@ -277,6 +277,8 @@ function PlaylistDetailScreen({
           user_id: mix.user_id,
           user: userProfile,
           position: positionMap[mix.id] ?? 0,
+          sourcePlaylistId: playlistId,
+          sourcePlaylistName: playlistData?.name || playlistName || "Playlist",
         };
       });
 

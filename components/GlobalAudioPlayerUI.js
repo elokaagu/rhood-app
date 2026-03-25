@@ -19,6 +19,9 @@ import * as Haptics from "expo-haptics";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
 import MiniPlayerBar from "./MiniPlayerBar";
 import FullScreenPlayerModal from "./FullScreenPlayerModal";
+import SaveToPlaylistModal from "./SaveToPlaylistModal";
+import { useListenPlaylists } from "../hooks/useListenPlaylists";
+import { supabase } from "../lib/supabase";
 import {
   TAB_BAR_HIDDEN_SCREEN_IDS,
   ANCHORED_TAB_BAR_CONTENT_HEIGHT,
@@ -49,8 +52,21 @@ function GlobalAudioPlayerUI({
   const insets = useSafeAreaInsets();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [queueVisible, setQueueVisible] = useState(false);
+  const [playlistUser, setPlaylistUser] = useState(null);
   const lastOpenedTrackIdRef = useRef(null);
   const playPauseGuardRef = useRef(false);
+  const {
+    playlists,
+    showSaveToPlaylistModal,
+    setShowSaveToPlaylistModal,
+    selectedMixForPlaylist,
+    newPlaylistName,
+    setNewPlaylistName,
+    creatingPlaylist,
+    handleSaveToPlaylist,
+    handleCreatePlaylist,
+    handleSelectPlaylist,
+  } = useListenPlaylists(playlistUser);
 
   const s = stylesProp || {};
 
@@ -66,6 +82,24 @@ function GlobalAudioPlayerUI({
     if (!track?.id) lastOpenedTrackIdRef.current = null;
   }, [track?.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadUser = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!cancelled) setPlaylistUser(user ?? null);
+      } catch (_) {
+        if (!cancelled) setPlaylistUser(null);
+      }
+    };
+    loadUser();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const hideMini = TAB_BAR_HIDDEN_SCREEN_IDS.includes(currentScreen);
   const showMini = !!track && !hideMini;
 
@@ -77,6 +111,7 @@ function GlobalAudioPlayerUI({
   const clearQueue = () => actionsRef?.current?.clearQueue?.();
   const moveUp = (i) => actionsRef?.current?.moveQueueItemUp?.(i);
   const moveDown = (i) => actionsRef?.current?.moveQueueItemDown?.();
+  const addToQueue = (t) => actionsRef?.current?.addToQueue?.(t);
 
   const onPlayPause = useCallback(() => {
     if (playPauseGuardRef.current) return;
@@ -114,6 +149,62 @@ function GlobalAudioPlayerUI({
     }
   }, [track]);
 
+  const addTrackToPlaylist = useCallback(() => {
+    if (!track?.id) return;
+    const mixLikeTrack = {
+      id: track.id,
+      title: track.title || "Unknown track",
+      artist: track.artist || "Unknown",
+      artwork_url: track.artwork_url || track.image_url || track.image || null,
+      image_url: track.image_url || track.artwork_url || track.image || null,
+      image: track.image || track.artwork_url || track.image_url || null,
+    };
+    void handleSaveToPlaylist(mixLikeTrack);
+  }, [track, handleSaveToPlaylist]);
+
+  const addTrackToQueue = useCallback(() => {
+    if (!track?.id) return;
+    const normalized = {
+      ...track,
+      audioUrl: track.audioUrl || track.file_url || track.audio_url || null,
+      image: track.image || track.artwork_url || track.image_url || null,
+    };
+    if (!normalized.audioUrl) return;
+    addToQueue(normalized);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [track]);
+
+  const removeTrackFromPlaylist = useCallback(() => {
+    const playlistId = track?.sourcePlaylistId;
+    const mixId = track?.id;
+    if (!playlistId || !mixId) return;
+    Alert.alert(
+      "Remove from playlist?",
+      `Remove "${track?.title || "this track"}" from ${track?.sourcePlaylistName || "this playlist"}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from("playlist_mixes")
+                .delete()
+                .eq("playlist_id", playlistId)
+                .eq("mix_id", mixId);
+              if (error) throw error;
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (error) {
+              if (__DEV__) console.error("Error removing track from playlist:", error);
+              Alert.alert("Error", "Failed to remove track from playlist.");
+            }
+          },
+        },
+      ]
+    );
+  }, [track?.id, track?.sourcePlaylistId, track?.sourcePlaylistName, track?.title]);
+
   const trackDurationMs = (() => {
     const t = track;
     if (!t) return 0;
@@ -145,18 +236,6 @@ function GlobalAudioPlayerUI({
     };
   }, [currentScreen, insets.left, insets.right, insets.bottom]);
 
-  const playBarFadeStyle = useMemo(() => {
-    if (!s.playBarFadeOverlay) return null;
-    const base = s.playBarFadeOverlay;
-    return [
-      base,
-      {
-        left: insets.left,
-        right: insets.right,
-      },
-    ];
-  }, [s.playBarFadeOverlay, insets.left, insets.right]);
-
   if (!showMini) return null;
 
   /** Queue modal: pass-through touches; mini must not cover other modals. */
@@ -177,7 +256,7 @@ function GlobalAudioPlayerUI({
           onClose={onClose}
           layoutStyle={miniBarLayoutStyle}
           wrapperPointerEvents={miniBarPointerEvents}
-          fadeOverlayStyle={playBarFadeStyle}
+          fadeOverlayStyle={null}
         />
       ) : null}
 
@@ -196,6 +275,10 @@ function GlobalAudioPlayerUI({
         onBeginScrubbing={() => actionsRef?.current?.beginScrubbing?.()}
         onToggleLike={() => toggleLike?.()}
         onShare={shareTrack}
+        onAddToPlaylist={addTrackToPlaylist}
+        onAddToQueue={addTrackToQueue}
+        canRemoveFromPlaylist={Boolean(track?.sourcePlaylistId)}
+        onRemoveFromPlaylist={removeTrackFromPlaylist}
         onArtistPress={() => {
           if (track?.user_id) {
             setFullScreenVisible(false);
@@ -355,6 +438,17 @@ function GlobalAudioPlayerUI({
           </View>
         </View>
       </Modal>
+      <SaveToPlaylistModal
+        visible={showSaveToPlaylistModal}
+        onRequestClose={() => setShowSaveToPlaylistModal(false)}
+        selectedMixForPlaylist={selectedMixForPlaylist}
+        newPlaylistName={newPlaylistName}
+        setNewPlaylistName={setNewPlaylistName}
+        creatingPlaylist={creatingPlaylist}
+        handleCreatePlaylist={handleCreatePlaylist}
+        playlists={playlists}
+        handleSelectPlaylist={handleSelectPlaylist}
+      />
     </>
   );
 }
