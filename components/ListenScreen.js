@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useListenPlaylists } from "../hooks/useListenPlaylists";
 import { ListenPlaylistStrip, ListenMixRow } from "./ListenScreenRows";
+import SaveToPlaylistModal from "./SaveToPlaylistModal";
 import styles from "./ListenScreen.styles";
 import { supabase, db } from "../lib/supabase";
 import { extractDurationSeconds } from "../lib/listenScreenUtils";
@@ -96,6 +97,15 @@ function ListenScreen({
     playlistsLoading,
     playlistsError,
     fetchPlaylists,
+    showSaveToPlaylistModal,
+    setShowSaveToPlaylistModal,
+    selectedMixForPlaylist,
+    newPlaylistName,
+    setNewPlaylistName,
+    creatingPlaylist,
+    handleSaveToPlaylist,
+    handleCreatePlaylist,
+    handleSelectPlaylist,
   } = useListenPlaylists(user);
 
   const [trendingMixes, setTrendingMixes] = useState([]);
@@ -343,12 +353,18 @@ function ListenScreen({
 
   const handleMixLongPress = useCallback(
     (mix) => {
-      if (!onAddToQueue && !onPlayNext) return;
+      if (!onAddToQueue && !onPlayNext && !handleSaveToPlaylist) return;
       HapticPatterns.itemLongPress();
       const normalized = normalizeMixForQueue(mix);
       const options = [];
       if (onAddToQueue) options.push({ text: "Add to queue", onPress: () => onAddToQueue(normalized) });
       if (onPlayNext) options.push({ text: "Play next", onPress: () => onPlayNext(normalized) });
+      if (handleSaveToPlaylist) {
+        options.push({
+          text: "Save to Playlist",
+          onPress: () => handleSaveToPlaylist(normalized),
+        });
+      }
       if (options.length === 0) return;
       Alert.alert(
         mix.title || "Mix",
@@ -359,7 +375,7 @@ function ListenScreen({
         ]
       );
     },
-    [onAddToQueue, onPlayNext, normalizeMixForQueue]
+    [onAddToQueue, onPlayNext, handleSaveToPlaylist, normalizeMixForQueue]
   );
 
   const filteredTrendingMixes = useMemo(() => {
@@ -641,6 +657,17 @@ function ListenScreen({
       {tutorialModalProps ? (
         <AppScreenTutorialModal {...tutorialModalProps} />
       ) : null}
+      <SaveToPlaylistModal
+        visible={showSaveToPlaylistModal}
+        onRequestClose={() => setShowSaveToPlaylistModal(false)}
+        selectedMixForPlaylist={selectedMixForPlaylist}
+        newPlaylistName={newPlaylistName}
+        setNewPlaylistName={setNewPlaylistName}
+        creatingPlaylist={creatingPlaylist}
+        handleCreatePlaylist={handleCreatePlaylist}
+        playlists={playlists}
+        handleSelectPlaylist={handleSelectPlaylist}
+      />
     </View>
   );
 }

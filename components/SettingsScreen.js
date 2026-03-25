@@ -3,6 +3,7 @@ import React, {
   useMemo,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import {
   View,
@@ -45,6 +46,8 @@ export default function SettingsScreen({
     pushNotifications: true,
     messageNotifications: false,
   });
+  const [savingKeys, setSavingKeys] = useState({});
+  const savingKeysRef = useRef({});
 
   useEffect(() => {
     let isMounted = true;
@@ -81,7 +84,12 @@ export default function SettingsScreen({
 
   const handleToggle = useCallback(
     async (key, value) => {
-      HapticPatterns.toggle();
+      if (savingKeysRef.current[key]) return;
+      savingKeysRef.current[key] = true;
+      setSavingKeys((prev) => ({ ...prev, [key]: true }));
+      try {
+        HapticPatterns.toggle();
+      } catch (_) {}
 
       setSettings((prev) => ({ ...prev, [key]: value }));
 
@@ -132,6 +140,9 @@ export default function SettingsScreen({
           "Update Failed",
           "We couldn't save your preference. Please try again."
         );
+      } finally {
+        savingKeysRef.current[key] = false;
+        setSavingKeys((prev) => ({ ...prev, [key]: false }));
       }
     },
     [user?.id, onNotificationPreferencesChange]
@@ -347,6 +358,7 @@ export default function SettingsScreen({
               <Switch
                 value={settings[item.id] || false}
                 onValueChange={(newValue) => handleToggle(item.id, newValue)}
+                disabled={!!savingKeys[item.id]}
                 trackColor={{
                   false: "hsl(0, 0%, 20%)",
                   true: "hsl(75, 100%, 60%)",

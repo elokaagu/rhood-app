@@ -93,6 +93,7 @@ const NotificationBadge = ({ count, style }) => {
   if (count === 0) return null;
   const displayValue = count > 99 ? "99+" : `${count}`;
   const isSingleDigit = displayValue.length === 1;
+
   return (
     <View
       style={[
@@ -1532,6 +1533,9 @@ export default function App() {
   );
 
 
+  const shouldRenderGlobalAudioUI =
+    !!audio.audioState.currentTrack || !!audio.pendingPlayTrack;
+
   return (
     <SafeAreaProvider>
     <AppTutorialProvider>
@@ -1883,17 +1887,18 @@ export default function App() {
 
     </AppShell>
 
-    {/* Above shell: mini/full player. box-none so scroll/taps reach screens; only the bar captures touches. */}
-    <View pointerEvents="box-none" style={styles.globalAudioTouchPassthrough}>
-      <GlobalAudioPlayerUI
-        currentScreen={currentScreen}
-        currentTrack={audio.audioState.currentTrack}
-        pendingTrack={audio.pendingPlayTrack}
-        onNavigateToProfile={handleNavigateToProfile}
-        styles={styles}
-        globalAudioRef={audio.globalAudioRef}
-      />
-    </View>
+    {shouldRenderGlobalAudioUI ? (
+      <View pointerEvents="box-none" style={styles.globalAudioTouchPassthrough}>
+        <GlobalAudioPlayerUI
+          currentScreen={currentScreen}
+          currentTrack={audio.audioState.currentTrack}
+          pendingTrack={audio.pendingPlayTrack}
+          onNavigateToProfile={handleNavigateToProfile}
+          styles={styles}
+          globalAudioRef={audio.globalAudioRef}
+        />
+      </View>
+    ) : null}
     </View>
     </AppTutorialProvider>
     </SafeAreaProvider>
@@ -1907,8 +1912,6 @@ const styles = StyleSheet.create({
   /** Sits above AppShell; passes touches through except to GlobalAudioPlayerUI children. */
   globalAudioTouchPassthrough: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 500,
-    elevation: 500,
   },
   container: {
     flex: 1,

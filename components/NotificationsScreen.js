@@ -115,6 +115,8 @@ export default function NotificationsScreen({
   const [bulkActionBusy, setBulkActionBusy] = useState(false);
 
   const loadUserAndNotificationsRef = useRef(async () => {});
+  const loadInFlightRef = useRef(false);
+  const pendingReloadOptionsRef = useRef(null);
 
   // Load current user and notifications on component mount (use cache if fresh)
   useEffect(() => {
@@ -136,9 +138,11 @@ export default function NotificationsScreen({
   useEffect(() => {
     if (!currentUser) return;
 
-    console.log(
-      "🔔 Setting up real-time subscription for notifications screen"
-    );
+    if (__DEV__) {
+      console.log(
+        "🔔 Setting up real-time subscription for notifications screen"
+      );
+    }
 
     let debounceTimer = null;
     const scheduleSilentReload = () => {
@@ -162,7 +166,9 @@ export default function NotificationsScreen({
           filter: `user_id=eq.${currentUser.id}`,
         },
         (payload) => {
-          console.log("🔔 New notification received in screen:", payload.new);
+          if (__DEV__) {
+            console.log("🔔 New notification received in screen:", payload.new);
+          }
           scheduleSilentReload();
         }
       )
@@ -175,7 +181,9 @@ export default function NotificationsScreen({
           filter: `user_id=eq.${currentUser.id}`,
         },
         (payload) => {
-          console.log("🔔 Notification updated in screen:", payload.new);
+          if (__DEV__) {
+            console.log("🔔 Notification updated in screen:", payload.new);
+          }
           scheduleSilentReload();
         }
       )
@@ -185,22 +193,13 @@ export default function NotificationsScreen({
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }
-      console.log("🔔 Cleaning up notifications screen subscription");
+      if (__DEV__) console.log("🔔 Cleaning up notifications screen subscription");
       supabase.removeChannel(channel);
     };
   }, [currentUser]);
 
-  // Set up periodic refresh as fallback (every 30 seconds)
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const interval = setInterval(() => {
-      console.log("🔄 Periodic notification refresh");
-      loadUserAndNotificationsRef.current({ showFullScreenLoading: false });
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [currentUser]);
+  // NOTE: Realtime subscription already keeps this screen fresh.
+  // Leaving interval refresh disabled avoids overlap churn on real devices.
 
   useEffect(() => {
     if (showAcceptModal && acceptedUser?.id) {
@@ -219,14 +218,23 @@ export default function NotificationsScreen({
   }, [showAcceptModal, acceptedUser, onNavigate]);
 
   /**
-   * @param {{ showFullScreenLoading?: boolean }} [options]
+   * @param {{ showFullScreenLoading?: boolean, showErrorAlert?: boolean }} [options]
    * When `showFullScreenLoading` is true, toggles `loading` (FlatList uses empty data while loading — only for first paint).
    * Background/realtime/interval refresh must keep it false or the list disappears and the UI feels frozen.
    */
   const loadUserAndNotifications = async (
-    options = { showFullScreenLoading: false }
+    options = { showFullScreenLoading: false, showErrorAlert: false }
   ) => {
+    if (loadInFlightRef.current) {
+      pendingReloadOptionsRef.current = {
+        ...pendingReloadOptionsRef.current,
+        ...options,
+      };
+      return;
+    }
+    loadInFlightRef.current = true;
     const showFullScreenLoading = options.showFullScreenLoading === true;
+    const showErrorAlert = options.showErrorAlert === true;
     try {
       if (showFullScreenLoading) {
         setLoading(true);
@@ -236,7 +244,7 @@ export default function NotificationsScreen({
       let user = propUser;
 
       if (!user) {
-        console.log("No user prop provided, attempting to fetch user...");
+        if (__DEV__) console.log("No user prop provided, attempting to fetch user...");
 
         // Add a small delay to ensure auth state is fully initialized
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -247,12 +255,12 @@ export default function NotificationsScreen({
             error: userError,
           } = await supabase.auth.getUser();
           if (userError) {
-            console.log("getUser error:", userError);
+            if (__DEV__) console.log("getUser error:", userError);
           } else {
             user = currentUser;
           }
         } catch (getUserError) {
-          console.log("getUser failed:", getUserError);
+          if (__DEV__) console.log("getUser failed:", getUserError);
         }
 
         // If getUser didn't work, try getSession
@@ -263,18 +271,18 @@ export default function NotificationsScreen({
               error: sessionError,
             } = await supabase.auth.getSession();
             if (sessionError) {
-              console.log("getSession error:", sessionError);
+              if (__DEV__) console.log("getSession error:", sessionError);
             } else if (session?.user) {
               user = session.user;
             }
           } catch (getSessionError) {
-            console.log("getSession failed:", getSessionError);
+            if (__DEV__) console.log("getSession failed:", getSessionError);
           }
         }
       }
 
       if (!user) {
-        console.log("No authenticated user found");
+        if (__DEV__) console.log("No authenticated user found");
         setNotifications([]);
         if (showFullScreenLoading) {
           setLoading(false);
@@ -282,7 +290,7 @@ export default function NotificationsScreen({
         return;
       }
 
-      console.log("✅ User found:", user.id);
+      if (__DEV__) console.log("✅ User found:", user.id);
       setCurrentUser(user);
 
       const userSettings = await db.getUserSettings(user.id);
@@ -403,11 +411,19 @@ export default function NotificationsScreen({
       }
     } catch (error) {
       console.error("Error loading notifications:", error);
-      Alert.alert("Error", "Failed to load notifications");
+      if (showErrorAlert) {
+        Alert.alert("Error", "Failed to load notifications");
+      }
       setNotifications([]);
     } finally {
       if (showFullScreenLoading) {
         setLoading(false);
+      }
+      loadInFlightRef.current = false;
+      const pending = pendingReloadOptionsRef.current;
+      pendingReloadOptionsRef.current = null;
+      if (pending) {
+        void loadUserAndNotifications(pending);
       }
     }
   };
@@ -824,7 +840,10 @@ export default function NotificationsScreen({
     HapticPatterns.pullToRefresh();
     setRefreshing(true);
     try {
-      await loadUserAndNotifications({ showFullScreenLoading: false });
+      await loadUserAndNotifications({
+        showFullScreenLoading: false,
+        showErrorAlert: true,
+      });
     } finally {
       setRefreshing(false);
     }
