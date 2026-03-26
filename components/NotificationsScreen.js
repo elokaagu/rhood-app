@@ -17,6 +17,7 @@ import {
   Modal,
   FlatList,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
@@ -137,6 +138,28 @@ export default function NotificationsScreen({
   const loadUserAndNotificationsRef = useRef(async () => {});
   const loadInFlightRef = useRef(false);
   const pendingReloadOptionsRef = useRef(null);
+  const swipeableRefs = useRef(new Map());
+
+  const syncNotificationsState = useCallback(
+    (nextNotificationsOrUpdater) => {
+      setNotifications((prev) => {
+        const next =
+          typeof nextNotificationsOrUpdater === "function"
+            ? nextNotificationsOrUpdater(prev)
+            : nextNotificationsOrUpdater;
+        const userId = currentUser?.id || propUser?.id;
+        if (userId) {
+          notificationsCache.set(userId, {
+            user: currentUser || propUser || null,
+            notifications: next,
+            notificationPreferences,
+          });
+        }
+        return next;
+      });
+    },
+    [currentUser, propUser, notificationPreferences]
+  );
 
   // Load current user and notifications on component mount (use cache if fresh)
   useEffect(() => {
@@ -303,7 +326,7 @@ export default function NotificationsScreen({
 
       if (!user) {
         if (__DEV__) console.log("No authenticated user found");
-        setNotifications([]);
+        syncNotificationsState([]);
         if (showFullScreenLoading) {
           setLoading(false);
         }
@@ -326,7 +349,7 @@ export default function NotificationsScreen({
       // IMPORTANT: Double-check user.id is valid before querying
       if (!user?.id) {
         console.error("❌ Cannot load notifications: user.id is missing");
-        setNotifications([]);
+        syncNotificationsState([]);
         if (showFullScreenLoading) {
           setLoading(false);
         }
@@ -421,7 +444,7 @@ export default function NotificationsScreen({
         return transformedNotification;
         });
 
-      setNotifications(transformedNotifications);
+      syncNotificationsState(transformedNotifications);
       if (user?.id) {
         notificationsCache.set(user.id, {
           user,
@@ -434,7 +457,7 @@ export default function NotificationsScreen({
       if (showErrorAlert) {
         Alert.alert("Error", "Failed to load notifications");
       }
-      setNotifications([]);
+      syncNotificationsState([]);
     } finally {
       if (showFullScreenLoading) {
         setLoading(false);
@@ -526,7 +549,7 @@ export default function NotificationsScreen({
 
     // Optimistically clear unread highlight immediately on engagement.
     if (!notification.isRead) {
-      setNotifications((prev) =>
+      syncNotificationsState((prev) =>
         prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
       );
       void markNotificationAsRead(notification.id);
@@ -602,7 +625,7 @@ export default function NotificationsScreen({
       if (error) throw error;
 
       // Update local state
-      setNotifications((prev) =>
+      syncNotificationsState((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
       );
 
@@ -622,9 +645,19 @@ export default function NotificationsScreen({
 
   const handleDismiss = async (notificationId) => {
     HapticPatterns.delete();
+    let removedNotification = null;
+    syncNotificationsState((prev) => {
+      removedNotification =
+        prev.find((n) => String(n.id) === String(notificationId)) || null;
+      return prev.filter((n) => String(n.id) !== String(notificationId));
+    });
     try {
-      if (!currentUser?.id) {
+      const userId = currentUser?.id || propUser?.id;
+      if (!userId) {
         console.error("No current user found for dismissing notification");
+        if (removedNotification) {
+          syncNotificationsState((prev) => [removedNotification, ...prev]);
+        }
         return;
       }
 
@@ -632,14 +665,14 @@ export default function NotificationsScreen({
         .from("notifications")
         .delete()
         .eq("id", notificationId)
-        .eq("user_id", currentUser.id);
+        .eq("user_id", userId);
 
       if (error) throw error;
-
-      // Update local state
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
     } catch (error) {
       console.error("Error dismissing notification:", error);
+      if (removedNotification) {
+        syncNotificationsState((prev) => [removedNotification, ...prev]);
+      }
       Alert.alert("Error", "Failed to dismiss notification");
     }
   };
@@ -690,7 +723,9 @@ export default function NotificationsScreen({
       await markNotificationAsRead(notification.id);
 
       // Update local state to remove the notification
-      setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+      syncNotificationsState((prev) =>
+        prev.filter((n) => n.id !== notification.id)
+      );
 
       const resolvedSenderId =
         notification.rawData?.sender_id ||
@@ -817,7 +852,7 @@ export default function NotificationsScreen({
 
       if (error) throw error;
 
-      setNotifications((prev) =>
+      syncNotificationsState((prev) =>
         prev.map((notification) => ({ ...notification, isRead: true }))
       );
 
@@ -853,7 +888,7 @@ export default function NotificationsScreen({
 
       if (error) throw error;
 
-      setNotifications([]);
+      syncNotificationsState([]);
 
       if (onNotificationRead) {
         onNotificationRead();
@@ -963,103 +998,129 @@ export default function NotificationsScreen({
         delay={60}
         maxStaggerIndex={6}
       >
-        <TouchableOpacity
-          style={[
-            styles.notificationCard,
-            !notification.isRead && styles.unreadCard,
-            index === 0 && styles.notificationCardFirst,
-          ]}
-          onPress={() => handleNotificationPress(notification)}
-          onLongPress={() => {
-            if (notification.type === "connection" || notification.type === "connection_request") {
-              HapticPatterns.primaryButtonPress();
-              setActiveConnectionNotification(notification);
-              setShowConnectionPrompt(true);
+        <Swipeable
+          ref={(ref) => {
+            if (ref) {
+              swipeableRefs.current.set(notification.id, ref);
+            } else {
+              swipeableRefs.current.delete(notification.id);
             }
           }}
-          activeOpacity={0.7}
+          overshootRight={false}
+          rightThreshold={34}
+          renderRightActions={() => (
+            <TouchableOpacity
+              style={styles.swipeDeleteAction}
+              onPress={() => {
+                const rowRef = swipeableRefs.current.get(notification.id);
+                rowRef?.close?.();
+                handleDismiss(notification.id);
+              }}
+              activeOpacity={0.82}
+            >
+              <Ionicons name="trash-outline" size={18} color="hsl(0, 0%, 100%)" />
+              <Text style={styles.swipeDeleteText}>Delete</Text>
+            </TouchableOpacity>
+          )}
         >
-          <View style={styles.notificationContent}>
-            <View style={styles.notificationLeft}>
-              <View style={styles.iconContainer}>
-                <Ionicons
-                  name={getNotificationIcon(notification.type)}
-                  size={24}
-                  color={
-                    notification.isRead
-                      ? "hsl(0, 0%, 50%)"
-                      : "hsl(75, 100%, 60%)"
-                  }
-                />
-                {!notification.isRead && <View style={styles.unreadDot} />}
+          <TouchableOpacity
+            style={[
+              styles.notificationCard,
+              !notification.isRead && styles.unreadCard,
+              index === 0 && styles.notificationCardFirst,
+            ]}
+            onPress={() => handleNotificationPress(notification)}
+            onLongPress={() => {
+              if (notification.type === "connection" || notification.type === "connection_request") {
+                HapticPatterns.primaryButtonPress();
+                setActiveConnectionNotification(notification);
+                setShowConnectionPrompt(true);
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.notificationContent}>
+              <View style={styles.notificationLeft}>
+                <View style={styles.iconContainer}>
+                  <Ionicons
+                    name={getNotificationIcon(notification.type)}
+                    size={24}
+                    color={
+                      notification.isRead
+                        ? "hsl(0, 0%, 50%)"
+                        : "hsl(75, 100%, 60%)"
+                    }
+                  />
+                  {!notification.isRead && <View style={styles.unreadDot} />}
+                </View>
+                {notification.senderImage && (
+                  <ProgressiveImage
+                    source={{ uri: notification.senderImage }}
+                    style={styles.senderImage}
+                  />
+                )}
               </View>
-              {notification.senderImage && (
-                <ProgressiveImage
-                  source={{ uri: notification.senderImage }}
-                  style={styles.senderImage}
-                />
-              )}
-            </View>
-            <View style={styles.notificationCenter}>
-              <View style={styles.notificationHeader}>
-                <Text
-                  style={[
-                    styles.notificationTitle,
-                    !notification.isRead && styles.unreadTitle,
-                  ]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {notification.title}
-                </Text>
-                <View style={styles.notificationActions}>
-                  {!notification.isRead && (
+              <View style={styles.notificationCenter}>
+                <View style={styles.notificationHeader}>
+                  <Text
+                    style={[
+                      styles.notificationTitle,
+                      !notification.isRead && styles.unreadTitle,
+                    ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {notification.title}
+                  </Text>
+                  <View style={styles.notificationActions}>
+                    {!notification.isRead && (
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleMarkAsRead(notification.id);
+                        }}
+                        style={styles.actionButton}
+                      >
+                        <Ionicons name="checkmark" size={16} color="hsl(0, 0%, 50%)" />
+                      </TouchableOpacity>
+                    )}
                     <TouchableOpacity
                       onPress={(e) => {
                         e.stopPropagation();
-                        handleMarkAsRead(notification.id);
+                        handleDismiss(notification.id);
                       }}
                       style={styles.actionButton}
                     >
-                      <Ionicons name="checkmark" size={16} color="hsl(0, 0%, 50%)" />
+                      <Ionicons name="close" size={16} color="hsl(0, 0%, 50%)" />
                     </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleDismiss(notification.id);
-                    }}
-                    style={styles.actionButton}
-                  >
-                    <Ionicons name="close" size={16} color="hsl(0, 0%, 50%)" />
-                  </TouchableOpacity>
+                  </View>
+                </View>
+                <Text
+                  style={styles.notificationDescription}
+                  numberOfLines={2}
+                >
+                  {notification.description}
+                </Text>
+                <View style={styles.notificationFooter}>
+                  <Text style={styles.notificationTimestamp}>
+                    {notification.timestamp}
+                  </Text>
+                  <View
+                    style={[
+                      styles.priorityIndicator,
+                      {
+                        backgroundColor: getPriorityColor(
+                          notification.priority,
+                          notification.priorityScore
+                        ),
+                      },
+                    ]}
+                  />
                 </View>
               </View>
-              <Text
-                style={styles.notificationDescription}
-                numberOfLines={2}
-              >
-                {notification.description}
-              </Text>
-              <View style={styles.notificationFooter}>
-                <Text style={styles.notificationTimestamp}>
-                  {notification.timestamp}
-                </Text>
-                <View
-                  style={[
-                    styles.priorityIndicator,
-                    {
-                      backgroundColor: getPriorityColor(
-                        notification.priority,
-                        notification.priorityScore
-                      ),
-                    },
-                  ]}
-                />
-              </View>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </Swipeable>
       </AnimatedListItem>
     ),
     [
@@ -1350,6 +1411,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     overflow: "hidden",
+  },
+  swipeDeleteAction: {
+    marginBottom: 12,
+    width: 96,
+    borderRadius: 12,
+    backgroundColor: "hsl(0, 72%, 48%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 78%, 56%)",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 4,
+  },
+  swipeDeleteText: {
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "700",
+    color: "hsl(0, 0%, 100%)",
   },
   notificationCardFirst: {
     marginTop: 12,

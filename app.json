@@ -94,6 +94,12 @@
       "aiChatAllowClientDirectInProduction": false,
       "openaiModel": "gpt-4o-mini",
       "mixpanelToken": "93ccc1f355ea98a1b4a34565320f6a83",
+      "mixpanelSessionReplayEnabled": true,
+      "mixpanelSessionReplayRecordingPercent": 25,
+      "mixpanelSessionReplayWifiOnly": false,
+      "mixpanelSessionReplayAutoStart": true,
+      "mixpanelSessionReplayFlushIntervalSec": 10,
+      "mixpanelSessionReplayEnableLogging": false,
       "remoteLogEnabled": false,
       "remoteLogUrl": "",
       "remoteLogMinLevel": "info"

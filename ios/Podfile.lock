@@ -412,6 +412,30 @@ PODS:
   - MixpanelReactNative (3.1.2):
     - Mixpanel-swift (= 5.1.0)
     - React-Core
+  - MixpanelReactNativeSessionReplay (1.0.1):
+    - hermes-engine
+    - MixpanelSessionReplay (= 1.2.0)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - MixpanelSessionReplay (1.2.0)
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
     - nanopb/encode (= 3.30910.0)
@@ -1698,8 +1722,28 @@ PODS:
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-  - react-native-get-random-values (1.11.0):
+  - react-native-get-random-values (2.0.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
     - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-safe-area-context (5.6.1):
     - hermes-engine
     - RCTRequired
@@ -2421,6 +2465,7 @@ DEPENDENCIES:
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - MixpanelReactNative (from `../node_modules/mixpanel-react-native`)
+  - "MixpanelReactNativeSessionReplay (from `../node_modules/@mixpanel/react-native-session-replay`)"
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
   - RCTRequired (from `../node_modules/react-native/Libraries/Required`)
   - RCTTypeSafety (from `../node_modules/react-native/Libraries/TypeSafety`)
@@ -2511,6 +2556,7 @@ SPEC REPOS:
     - libdav1d
     - libwebp
     - Mixpanel-swift
+    - MixpanelSessionReplay
     - nanopb
     - PromisesObjC
     - ReachabilitySwift
@@ -2603,6 +2649,8 @@ EXTERNAL SOURCES:
     :tag: hermes-2025-07-07-RNv0.81.0-e0fc67142ec0763c6b6153ca2bf96df815539782
   MixpanelReactNative:
     :path: "../node_modules/mixpanel-react-native"
+  MixpanelReactNativeSessionReplay:
+    :path: "../node_modules/@mixpanel/react-native-session-replay"
   RCTDeprecation:
     :path: "../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation"
   RCTRequired:
@@ -2807,6 +2855,8 @@ SPEC CHECKSUMS:
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   Mixpanel-swift: 7b26468fc0e2e521104e51d65c4bbf7cab8162f8
   MixpanelReactNative: cdcfe933b8ce89aadd183f17aad3c8529daccb94
+  MixpanelReactNativeSessionReplay: 8266d70de21250d9027265caf3154063cacc5931
+  MixpanelSessionReplay: 1420951fb33fb3bec17a4228db11da9e1cf3807a
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   RCTDeprecation: 943572d4be82d480a48f4884f670135ae30bf990
@@ -2843,7 +2893,7 @@ SPEC CHECKSUMS:
   React-logger: 50fdb9a8236da90c0b1072da5c32ee03aeb5bf28
   React-Mapbuffer: 0164bc6ba0866e6314d86851620e6f1f95a1b4fb
   React-microtasksnativemodule: f5972fb404f7c363ff34b2292e72a716956c590c
-  react-native-get-random-values: d16467cf726c618e9c7a8c3c39c31faa2244bbba
+  react-native-get-random-values: b5c58b0394402d412415337011bb227495a66380
   react-native-safe-area-context: 8dc43e60dd67fd2be098486fd8195e143fb47c6f
   React-NativeModulesApple: 8969913947d5b576de4ed371a939455a8daf28aa
   React-oscompat: ce47230ed20185e91de62d8c6d139ae61763d09c
