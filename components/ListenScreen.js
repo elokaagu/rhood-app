@@ -43,7 +43,6 @@ function PlaylistsSectionHeader() {
       <RhoodScreenTitleBlock
         title="Your playlists"
         subtitle="Your saved collections of mixes"
-        showTopRule
         subtitleBottomSpacing={12}
         titleStyle={styles.listenSectionHeroTitleCompact}
       />

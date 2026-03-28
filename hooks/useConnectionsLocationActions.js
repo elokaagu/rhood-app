@@ -73,6 +73,11 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
       const { getCurrentLocation, reverseGeocode } = await import(
         "../lib/locationService"
       );
+      const { getGooglePlacesApiKey } = await import("../lib/googlePlacesConfig");
+      const { reverseGeocodeLatLngWithGoogle } = await import(
+        "../lib/googlePlacesClient"
+      );
+
       const location = await getCurrentLocation();
       if (!location) {
         Alert.alert(
@@ -81,7 +86,27 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
         );
         return;
       }
-      const city = await reverseGeocode(location.latitude, location.longitude);
+
+      const apiKey = getGooglePlacesApiKey();
+      let city = null;
+      if (apiKey) {
+        try {
+          city = await reverseGeocodeLatLngWithGoogle(
+            location.latitude,
+            location.longitude,
+            apiKey
+          );
+        } catch (geocodeErr) {
+          if (__DEV__) {
+            console.warn("[useConnectionsLocationActions] Google geocode:", geocodeErr);
+          }
+        }
+      }
+
+      if (!city) {
+        city = await reverseGeocode(location.latitude, location.longitude);
+      }
+
       if (!city) {
         Alert.alert(
           "Location Unavailable",
