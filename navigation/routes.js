@@ -38,6 +38,7 @@ export const SCREENS = Object.freeze({
   HELP: "help",
   HELP_CHAT: "help-chat",
   TUTORIAL_MODE: "tutorial-mode",
+  PRODUCT_FEEDBACK: "product-feedback",
   INVITE: "invite",
   ACHIEVEMENTS_LIST: "achievements-list",
 

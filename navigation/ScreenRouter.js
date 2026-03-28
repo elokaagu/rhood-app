@@ -19,6 +19,7 @@ import PrivacyPolicyScreen from "../components/PrivacyPolicyScreen";
 import HelpCenterScreen from "../components/HelpCenterScreen";
 import HelpChatScreen from "../components/HelpChatScreen";
 import TutorialModeScreen from "../components/TutorialModeScreen";
+import ProductFeedbackScreen from "../components/ProductFeedbackScreen";
 import ConnectionsListScreen from "../components/ConnectionsListScreen";
 import AchievementsListScreen from "../components/AchievementsListScreen";
 import InviteScreen from "../components/InviteScreen";
@@ -489,6 +490,15 @@ export default function ScreenRouter({
       return withSwipeBack(
         pickScreen(SCREENS.SETTINGS),
         <TutorialModeScreen
+          onBack={pickScreen(SCREENS.SETTINGS)}
+        />
+      );
+
+    case SCREENS.PRODUCT_FEEDBACK:
+      return withSwipeBack(
+        pickScreen(SCREENS.SETTINGS),
+        <ProductFeedbackScreen
+          user={user}
           onBack={pickScreen(SCREENS.SETTINGS)}
         />
       );

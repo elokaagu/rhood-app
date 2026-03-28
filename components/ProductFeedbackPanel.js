@@ -10,7 +10,6 @@ import {
   Platform,
 } from "react-native";
 import Constants from "expo-constants";
-import { Ionicons } from "@expo/vector-icons";
 import { db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { track, AnalyticsEvents } from "../lib/analytics";
@@ -81,18 +80,6 @@ export default function ProductFeedbackPanel({ user }) {
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.headerRow}>
-        <View style={styles.headerIcon}>
-          <Ionicons name="chatbox-ellipses" size={20} color="hsl(75, 100%, 60%)" />
-        </View>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>Product feedback</Text>
-          <Text style={styles.subtitle}>
-            Goes to the same inbox as the R/HOOD portal — we see it immediately.
-          </Text>
-        </View>
-      </View>
-
       <Text style={styles.label}>Type</Text>
       <View style={styles.chips}>
         {CATEGORIES.map((c) => {
@@ -146,36 +133,6 @@ export default function ProductFeedbackPanel({ user }) {
 const styles = StyleSheet.create({
   wrap: {
     width: "100%",
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 14,
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "hsl(0, 0%, 15%)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 16,
-    color: "hsl(0, 0%, 100%)",
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: "hsl(0, 0%, 60%)",
-    fontFamily: "Helvetica Neue",
-    lineHeight: 18,
   },
   label: {
     fontSize: 12,

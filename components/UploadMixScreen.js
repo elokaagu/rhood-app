@@ -69,8 +69,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   const [existingMixes, setExistingMixes] = useState([]);
   const [editingMix, setEditingMix] = useState(null);
   const [showMixSelector, setShowMixSelector] = useState(false);
-  /** True while the first library fetch is in flight — reserve top layout so Step 1 does not jump above Library. */
+  /** True only on first library fetch per user — avoids skeleton flash on tab revisits / dependency re-runs. */
   const [loadingMixes, setLoadingMixes] = useState(() => Boolean(user?.id));
+  const libraryHydratedUserIdRef = useRef(null);
+  const contentFadeAnim = useRef(new Animated.Value(0)).current;
   
   const [mixData, setMixData] = useState({
     title: "",
@@ -114,9 +116,14 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   const loadExistingMixes = useCallback(async () => {
     if (!user?.id) return;
 
+    const uid = user.id;
+    const showLibrarySkeleton = libraryHydratedUserIdRef.current !== uid;
+
     try {
-      setLoadingMixes(true);
-      const mixes = await db.getUserMixes(user.id);
+      if (showLibrarySkeleton) {
+        setLoadingMixes(true);
+      }
+      const mixes = await db.getUserMixes(uid);
       setExistingMixes(mixes || []);
 
       if (mixes && mixes.length > 0 && !existingMixId) {
@@ -127,23 +134,39 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       setExistingMixes([]);
     } finally {
       setLoadingMixes(false);
+      libraryHydratedUserIdRef.current = uid;
     }
   }, [user?.id, existingMixId]);
 
-  /** Signed-in users should show the Library slot as loading when `user` appears after mount. */
+  useEffect(() => {
+    if (!user?.id) {
+      libraryHydratedUserIdRef.current = null;
+      setLoadingMixes(false);
+      setExistingMixes([]);
+      return undefined;
+    }
+    void loadExistingMixes();
+    void fetchPinnedMixesCount();
+  }, [user?.id, loadExistingMixes, fetchPinnedMixesCount]);
+
+  /** Before paint when `user` arrives late: reserve library skeleton so Step 1 does not jump. */
   useLayoutEffect(() => {
-    if (user?.id) {
+    if (user?.id && libraryHydratedUserIdRef.current !== user.id) {
       setLoadingMixes(true);
-    } else {
+    }
+    if (!user?.id) {
       setLoadingMixes(false);
     }
   }, [user?.id]);
 
+  /** Same entrance as Messages and other hubs: smooth opacity, not a hard pop-in. */
   useEffect(() => {
-    if (!user?.id) return undefined;
-    void loadExistingMixes();
-    void fetchPinnedMixesCount();
-  }, [user?.id, loadExistingMixes, fetchPinnedMixesCount]);
+    Animated.timing(contentFadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [contentFadeAnim]);
 
   // Animate progress bar when uploadProgress changes
   useEffect(() => {
@@ -615,6 +638,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
+        <Animated.View style={{ opacity: contentFadeAnim }}>
         {/* Header */}
         <View style={styles.headerShell}>
           <Text style={styles.headerTitle} numberOfLines={1}>
@@ -1101,6 +1125,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             )}
           </LinearGradient>
         </TouchableOpacity>
+        </Animated.View>
       </ScrollView>
 
       {/* Development Build Required Modal - R/HOOD Theme */}
