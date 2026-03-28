@@ -29,6 +29,7 @@ import { HapticPatterns } from "../lib/haptics";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
+import ProductFeedbackPanel from "./ProductFeedbackPanel";
 
 export default function SettingsScreen({
   user,
@@ -249,6 +250,12 @@ export default function SettingsScreen({
             action: () => onNavigate?.("tutorial-mode"),
           },
           {
+            id: "productFeedbackEmbed",
+            type: "embed",
+            title: "Product feedback",
+            subtitle: "Send ideas and bug reports to our team",
+          },
+          {
             id: "privacyPolicy",
             title: "Privacy Policy",
             subtitle: "Read our privacy policy",
@@ -445,9 +452,26 @@ export default function SettingsScreen({
                 <Text style={styles.sectionTitle}>{section.title}</Text>
               </View>
               <View style={styles.sectionContent}>
-                {section.items.map((item, index, items) =>
-                  renderSettingItem(item, index === items.length - 1)
-                )}
+                {section.items.map((item, index, items) => {
+                  if (item.type === "embed") {
+                    const isLast = index === items.length - 1;
+                    return (
+                      <View
+                        key={item.id}
+                        style={[
+                          styles.embedPanel,
+                          isLast && styles.settingItemLast,
+                        ]}
+                      >
+                        <ProductFeedbackPanel user={user} />
+                      </View>
+                    );
+                  }
+                  return renderSettingItem(
+                    item,
+                    index === items.length - 1
+                  );
+                })}
               </View>
             </View>
           ))}
@@ -563,6 +587,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     overflow: "hidden",
+  },
+  embedPanel: {
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   settingItem: {
     flexDirection: "row",

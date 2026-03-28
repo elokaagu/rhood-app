@@ -63,19 +63,26 @@ async function resolveOpportunityIdForRelatedRow(relatedId) {
 
 async function resolveOtherUserIdFromConnection(connectionId, currentUserId) {
   if (!connectionId || !currentUserId) return null;
+  const me = String(currentUserId);
   const { data, error } = await supabase
     .from("connections")
-    .select("requester_id, connected_user_id")
+    .select("requester_id, connected_user_id, user_id_1, user_id_2")
     .eq("id", connectionId)
     .maybeSingle();
   if (error || !data) return null;
-  if (data.requester_id && String(data.requester_id) !== String(currentUserId)) {
+
+  // Production schema (see lib/supabase/db.js): user_id_1 / user_id_2
+  if (data.user_id_1 && data.user_id_2) {
+    const u1 = String(data.user_id_1);
+    const u2 = String(data.user_id_2);
+    if (u1 === me) return data.user_id_2;
+    if (u2 === me) return data.user_id_1;
+  }
+
+  if (data.requester_id && String(data.requester_id) !== me) {
     return data.requester_id;
   }
-  if (
-    data.connected_user_id &&
-    String(data.connected_user_id) !== String(currentUserId)
-  ) {
+  if (data.connected_user_id && String(data.connected_user_id) !== me) {
     return data.connected_user_id;
   }
   return null;
@@ -245,19 +252,23 @@ export default function NotificationsScreen({
   // Leaving interval refresh disabled avoids overlap churn on real devices.
 
   useEffect(() => {
-    if (showAcceptModal && acceptedUser?.id) {
-      const timer = setTimeout(() => {
-        setShowAcceptModal(false);
-        if (onNavigate) {
-          onNavigate("messages", {
-            isGroupChat: false,
-            djId: acceptedUser.id,
-          });
-        }
-      }, 1200);
+    if (!showAcceptModal || !acceptedUser) return;
 
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => {
+      setShowAcceptModal(false);
+      if (!onNavigate) return;
+
+      if (acceptedUser.id) {
+        onNavigate(SCREENS.MESSAGES, {
+          chatType: "individual",
+          djId: acceptedUser.id,
+        });
+      } else {
+        onNavigate(SCREENS.MESSAGES_LIST, {});
+      }
+    }, 1200);
+
+    return () => clearTimeout(timer);
   }, [showAcceptModal, acceptedUser, onNavigate]);
 
   /**
@@ -727,11 +738,12 @@ export default function NotificationsScreen({
         prev.filter((n) => n.id !== notification.id)
       );
 
+      const viewerId = currentUser?.id || propUser?.id;
       const resolvedSenderId =
         notification.rawData?.sender_id ||
         notification.rawData?.senderId ||
         notification.rawData?.requester_id ||
-        (await resolveOtherUserIdFromConnection(connectionId, currentUser?.id));
+        (await resolveOtherUserIdFromConnection(connectionId, viewerId));
 
       // Extract user info from notification for the modal
       const userInfo = {

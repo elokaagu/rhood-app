@@ -20,6 +20,7 @@ import {
   Image,
   Animated,
   KeyboardAvoidingView,
+  InteractionManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { HapticPatterns } from "../lib/haptics";
@@ -358,6 +359,18 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     }
   }, [mixData.title]);
 
+  /**
+   * Empty library is already a "new mix" in state — resetting alone does nothing visible.
+   * "Upload new mix" should start the flow by opening the audio picker (same as Step 1).
+   */
+  const handleUploadNewMix = useCallback(() => {
+    if (uploading) return;
+    handleStartNewMix();
+    InteractionManager.runAfterInteractions(() => {
+      void pickAudioFile();
+    });
+  }, [uploading, handleStartNewMix, pickAudioFile]);
+
   const pickArtworkImage = useCallback(async () => {
     try {
       HapticPatterns.buttonPress();
@@ -624,7 +637,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             primaryColor={COLORS.primary}
             backgroundColor={COLORS.background}
             onSelectMix={handleSelectMixToEdit}
-            onNewMix={handleStartNewMix}
+            onNewMix={handleUploadNewMix}
           />
         ) : null}
 
@@ -637,7 +650,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             styles={styles}
             primaryColor={COLORS.primary}
             backgroundColor={COLORS.background}
-            onNewMix={handleStartNewMix}
+            onNewMix={handleUploadNewMix}
           />
         ) : null}
 
