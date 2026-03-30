@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import React, { useState, useEffect, useMemo } from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
+import { optimizeOpportunityImageUrl } from "../lib/opportunities/opportunityImageUrl";
 import {
   COLORS,
   TYPOGRAPHY,
@@ -17,7 +19,11 @@ function resolveImageUri(image) {
 
 export default function OpportunityCard({ opportunity, onPress }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const imageUri = opportunity ? resolveImageUri(opportunity.image) : null;
+  const rawUri = opportunity ? resolveImageUri(opportunity.image) : null;
+  const imageUri = useMemo(
+    () => (rawUri ? optimizeOpportunityImageUrl(rawUri) || rawUri : null),
+    [rawUri]
+  );
 
   useEffect(() => {
     setImageFailed(false);
@@ -49,9 +55,12 @@ export default function OpportunityCard({ opportunity, onPress }) {
       {/* Large featured image */}
       <View style={styles.imageContainer}>
         {showImage ? (
-          <Image
+          <ExpoImage
             source={{ uri: imageUri }}
             style={styles.featuredImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            priority="normal"
             onError={() => setImageFailed(true)}
           />
         ) : (

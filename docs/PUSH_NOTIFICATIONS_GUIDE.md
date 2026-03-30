@@ -13,12 +13,15 @@ The notification system sends push notifications to users when their application
 - ✅ **Token Management** — Registration per device; **unregistration removes only the current device’s token**
 - ✅ **Stale tokens** — Push tickets that indicate an unregistered device cause that token row to be removed from `user_expo_tokens`
 - ✅ **Test Interface** — Built-in testing in Settings screen
+- ✅ **New-message lock-screen push (server)** — After a `notifications` row is inserted for a DM (`type = 'message'`), Postgres queues a call to the Edge Function `send-expo-push`, which sends via Expo’s API. Setup: [`docs/MESSAGE_PUSH_DELIVERY.md`](./MESSAGE_PUSH_DELIVERY.md).
 
-**Production note:** Push is currently sent from the client through Expo’s HTTP API. For production hardening, plan to move sending to a **trusted backend** (secrets, retries, full receipt handling).
+**Production note:** Application-status pushes may still be sent from the client (`lib/notificationService.js`). **Message** pushes use the Edge Function path above; consider moving **all** push sending server-side for consistency.
 
 ## 📁 Files Added/Modified
 
 ### New Files:
+- `supabase/functions/send-expo-push/` — Edge Function: Expo push for new message notifications (invoked from Postgres via `pg_net`)
+- `database/queue-expo-push-on-message-notification.sql` — Trigger + config table for message push delivery
 - `lib/notificationService.js` — Orchestration: in-app row, Expo push batch, optional email invoke
 - `lib/notificationTemplates.js` — Application-status copy and HTML/text email templates (`APPLICATION_NOTIFICATION_CONFIG`, helpers)
 - `lib/pushNotifications.js` — Push setup, `registerForPushNotifications` / `unregisterPushNotifications`, listeners

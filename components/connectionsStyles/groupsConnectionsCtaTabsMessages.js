@@ -348,16 +348,14 @@ export default {
     justifyContent: "space-between",
     marginBottom: 6,
   },
-  /** Single-line preview text (CommunityListItem / Text). */
+  /** Single-line preview — omit FONT_BODY so emoji in snippets use system color emoji fallback. */
   messagePreview: {
     fontSize: 14,
     color: "hsl(0, 0%, 100%)",
-    fontFamily: FONT_BODY,
   },
   messageText: {
     fontSize: 14,
     color: "hsl(0, 0%, 100%)",
-    fontFamily: FONT_BODY,
     flex: 1,
   },
   messageBadges: {

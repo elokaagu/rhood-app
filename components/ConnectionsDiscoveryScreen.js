@@ -55,7 +55,7 @@ function ConnectionsTabSwitcher({ activeTab, onDiscover, onMessages }) {
         ]}
         onPress={onDiscover}
         accessibilityRole="button"
-        accessibilityLabel="Discover DJs"
+        accessibilityLabel="Discover"
         accessibilityState={{ selected: activeTab === "discover" }}
       >
         <Ionicons

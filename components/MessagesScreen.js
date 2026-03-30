@@ -1824,10 +1824,10 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 4,
   },
+  /** No fontFamily — system UI font so iOS/Android can fall back to color emoji (Helvetica Neue breaks emoji glyphs). */
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-    fontFamily: "Helvetica Neue",
     fontWeight: "500",
   },
   ownMessageText: {
@@ -1981,7 +1981,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     color: "hsl(0, 0%, 100%)",
     fontSize: 16,
-    fontFamily: "Helvetica Neue",
     maxHeight: 100,
     marginRight: 12,
     borderWidth: 1,

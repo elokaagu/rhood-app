@@ -19,7 +19,8 @@ function ConnectionListItem({
 }) {
   const userName = getUserName(connection) || "";
   const sender = getLastMessageSender(connection) || "";
-  const content = getLastMessageContent(connection) || "";
+  const rawContent = getLastMessageContent(connection) || "";
+  const content = rawContent === "No messages yet" ? "" : rawContent;
   const lastMessageTime = (getLastMessageTime(connection) || "").trim();
   const statusMessage = (connection.statusMessage || "").trim();
 

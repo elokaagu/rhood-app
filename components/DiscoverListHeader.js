@@ -1,8 +1,17 @@
 import React, { memo } from "react";
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
+import { optimizeOpportunityImageUrl } from "../lib/opportunities/opportunityImageUrl";
 import { HapticPatterns } from "../lib/haptics";
 import styles from "./ConnectionsScreen.styles";
 
@@ -39,7 +48,9 @@ function RecommendationImagePlaceholder() {
 
 function OpportunityImagePlaceholder() {
   return (
-    <View style={[styles.opportunityImage, styles.opportunityImagePlaceholderRoot]}>
+    <View
+      style={[StyleSheet.absoluteFillObject, styles.opportunityImagePlaceholderRoot]}
+    >
       <Ionicons name="briefcase" size={36} color="hsl(75, 100%, 60%)" />
     </View>
   );
@@ -127,12 +138,24 @@ function OpportunityRecommendationCarousel({
           activeOpacity={0.8}
         >
           <View style={styles.opportunityImageContainer}>
-            <ProgressiveImage
-              source={opp.image ? { uri: opp.image } : null}
-              style={styles.opportunityImage}
-              contentFit="cover"
-              placeholder={<OpportunityImagePlaceholder />}
-            />
+            <View style={styles.opportunityImage}>
+              {opp.image ? (
+                <ExpoImage
+                  source={{
+                    uri:
+                      optimizeOpportunityImageUrl(String(opp.image).trim()) ||
+                      String(opp.image).trim(),
+                  }}
+                  style={StyleSheet.absoluteFillObject}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  priority="low"
+                  transition={200}
+                />
+              ) : (
+                <OpportunityImagePlaceholder />
+              )}
+            </View>
             <LinearGradient colors={RECOMMENDATION_CARD_GRADIENT} style={styles.opportunityGradient} />
             <View style={styles.opportunityInfo}>
               <Text style={styles.opportunityTitle} numberOfLines={2}>

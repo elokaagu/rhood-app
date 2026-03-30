@@ -12,7 +12,7 @@ import {
   isAcceptedConnectionStatus,
   isPendingConnectionStatus,
 } from "../lib/connectionStatusUtils";
-import { formatMessageTime } from "../lib/connectionListUtils";
+import { formatMessageTime, lastMessageRepresentsChat } from "../lib/connectionListUtils";
 import { loadUserAndConnectionsImpl, loadUserCommunitiesImpl } from "../lib/connectionsScreenLoaders";
 import {
   connectionsSessionCacheGet,
@@ -333,22 +333,35 @@ export function useConnectionsData(
     return filtered;
   }, [connections, searchQuery]);
 
-  /** Connections that appear in the messages-style list (have a previewable last message). */
-  const messageListConnections = useMemo(
-    () =>
-      filteredConnections.filter((c) => {
-        const lm = lastMessages[c.id];
-        return (
-          lm &&
-          (lm.content ||
-            lm.messageType === "image" ||
-            lm.messageType === "video" ||
-            lm.messageType === "audio" ||
-            lm.messageType === "file")
-        );
-      }),
-    [filteredConnections, lastMessages]
-  );
+  /**
+   * Accepted connections with at least one message in the thread (active chats only).
+   * Sorted by most recent message first, then name.
+   */
+  const friendsListConnections = useMemo(() => {
+    const accepted = filteredConnections.filter((c) =>
+      isAcceptedConnectionStatus(c.connectionStatus || c.connectionStatusRaw)
+    );
+    const withChat = accepted.filter((c) =>
+      lastMessageRepresentsChat(lastMessages[c.id])
+    );
+    const sortName = (c) =>
+      String(c.dj_name || c.name || c.full_name || c.username || "")
+        .toLowerCase()
+        .trim();
+    return [...withChat].sort((a, b) => {
+      const tsA = lastMessages[a.id]?.timestamp
+        ? new Date(lastMessages[a.id].timestamp).getTime()
+        : 0;
+      const tsB = lastMessages[b.id]?.timestamp
+        ? new Date(lastMessages[b.id].timestamp).getTime()
+        : 0;
+      if (tsB !== tsA) return tsB - tsA;
+      return sortName(a).localeCompare(sortName(b));
+    });
+  }, [filteredConnections, lastMessages]);
+
+  /** @deprecated Same as friendsListConnections; kept for older call sites. */
+  const messageListConnections = friendsListConnections;
 
   const incomingConnectionRequests = useMemo(
     () =>
@@ -373,10 +386,10 @@ export function useConnectionsData(
       {
         key: "connections",
         type: CONNECTIONS_SECTION_TYPE.CONNECTION,
-        data: messageListConnections || [],
+        data: friendsListConnections || [],
       },
     ],
-    [userCommunities, messageListConnections]
+    [userCommunities, friendsListConnections]
   );
 
   const getLastMessageContent = useCallback(
@@ -463,9 +476,9 @@ export function useConnectionsData(
     hydrateFromCacheIfAvailable,
     handleRefresh,
     filteredConnections,
+    friendsListConnections,
     messageListConnections,
-    /** @deprecated Use messageListConnections */
-    connectionsWithMessages: messageListConnections,
+    connectionsWithMessages: friendsListConnections,
     connectionSections,
     incomingConnectionRequests,
     getLastMessageContent,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Alert, Image, AppState, InteractionManager } from "react-native";
+import { Alert, AppState, InteractionManager } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { db, supabase } from "../lib/supabase";
@@ -9,6 +10,7 @@ import {
   transformOpportunityRow,
   mergeOpportunityFromRealtime,
 } from "../lib/opportunities/transformOpportunityRow";
+import { optimizeOpportunityImageUrl } from "../lib/opportunities/opportunityImageUrl";
 import {
   loadPostApplySuccessContext,
   classifyApplicationError,
@@ -17,6 +19,35 @@ import { SCREENS } from "../navigation/routes";
 
 /** Fallback stats refresh while on screen; primary updates are mount, foreground, and post-apply. */
 const DAILY_STATS_REFRESH_INTERVAL_MS = 90_000;
+
+/** URIs must match SwipeableOpportunityCard / expo-image (optimize + same cache policy as prefetch). */
+const PREFETCH_CARD_COUNT = 6;
+
+function collectOpportunityImageUris(opportunitiesList, startIndex, count) {
+  const uris = [];
+  const seen = new Set();
+  for (let i = 0; i < count; i++) {
+    const idx = startIndex + i;
+    if (idx >= opportunitiesList.length) break;
+    const opp = opportunitiesList[idx];
+    const raw =
+      opp?.image || opp?.image_url || opp?.cover_image_url || null;
+    if (typeof raw !== "string") continue;
+    const trimmed = raw.trim();
+    if (!/^https?:\/\//i.test(trimmed)) continue;
+    const uri = optimizeOpportunityImageUrl(trimmed) || trimmed;
+    if (!seen.has(uri)) {
+      seen.add(uri);
+      uris.push(uri);
+    }
+  }
+  return uris;
+}
+
+function prefetchOpportunityImages(uris) {
+  if (!uris.length) return;
+  ExpoImage.prefetch(uris, "memory-disk").catch(() => {});
+}
 
 /**
  * Hook that owns opportunity-related state, data fetching, swipe handling,
@@ -113,21 +144,10 @@ export default function useOpportunities({
         transformOpportunityRow(opp, userLocation)
       );
 
-      // Warm cache for the first few cards before paint (same URIs as post-load effect).
-      const prefetchUris = new Set();
-      for (let i = 0; i < 4 && i < transformedOpportunities.length; i++) {
-        const raw =
-          transformedOpportunities[i]?.image ||
-          transformedOpportunities[i]?.image_url ||
-          transformedOpportunities[i]?.cover_image_url ||
-          null;
-        if (typeof raw === "string" && /^https?:\/\//i.test(raw.trim())) {
-          prefetchUris.add(raw.trim());
-        }
-      }
-      prefetchUris.forEach((uri) => {
-        Image.prefetch(uri).catch(() => {});
-      });
+      // Warm expo-image disk cache (RN Image.prefetch does not share this cache).
+      prefetchOpportunityImages(
+        collectOpportunityImageUris(transformedOpportunities, 0, PREFETCH_CARD_COUNT)
+      );
 
       setOpportunities(transformedOpportunities);
       // Show the deck as soon as rows are ready; stats finish in parallel / shortly after.
@@ -188,22 +208,13 @@ export default function useOpportunities({
 
   useEffect(() => {
     if (!opportunities?.length) return;
-    const uris = new Set();
-    const addUri = (opp) => {
-      const raw =
-        opp?.image || opp?.image_url || opp?.cover_image_url || null;
-      if (typeof raw === "string" && /^https?:\/\//i.test(raw.trim())) {
-        uris.add(raw.trim());
-      }
-    };
-    for (let i = 0; i < 4; i++) {
-      const idx = currentOpportunityIndex + i;
-      if (idx >= opportunities.length) break;
-      addUri(opportunities[idx]);
-    }
-    uris.forEach((uri) => {
-      Image.prefetch(uri).catch(() => {});
-    });
+    prefetchOpportunityImages(
+      collectOpportunityImageUris(
+        opportunities,
+        currentOpportunityIndex,
+        PREFETCH_CARD_COUNT
+      )
+    );
   }, [opportunities, currentOpportunityIndex]);
 
   const handleOpportunityPress = useCallback(

@@ -202,7 +202,7 @@ function ListEmptyDiscover({ onNavigate }) {
           onNavigate?.("connections", { initialTab: "discover" })
         }
       >
-        <Text style={styles.discoverButtonText}>Discover DJs</Text>
+        <Text style={styles.discoverButtonText}>Go to Discover</Text>
       </TouchableOpacity>
     </View>
   );

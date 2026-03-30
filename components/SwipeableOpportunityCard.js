@@ -8,9 +8,10 @@ import {
   PanResponder,
   Dimensions,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import ProgressiveImage from "./ProgressiveImage";
+import { optimizeOpportunityImageUrl } from "../lib/opportunities/opportunityImageUrl";
 
 const { width: screenWidth } = Dimensions.get("window");
 const SWIPE_THRESHOLD = screenWidth * 0.25;
@@ -187,11 +188,15 @@ export default function SwipeableOpportunityCard({
     outputRange: ["-15deg", "0deg", "15deg"],
   });
 
-  const imageUri =
+  const rawImageUri =
     opportunity?.image ||
     opportunity?.image_url ||
     opportunity?.cover_image_url ||
     null;
+  const imageUri =
+    typeof rawImageUri === "string"
+      ? optimizeOpportunityImageUrl(rawImageUri.trim()) || rawImageUri.trim()
+      : null;
 
   return (
     <Animated.View
@@ -214,12 +219,13 @@ export default function SwipeableOpportunityCard({
       <View style={styles.cardShadow}>
         <View style={styles.imageContainer}>
           {imageUri ? (
-            <ProgressiveImage
+            <ExpoImage
               source={{ uri: imageUri }}
-              style={styles.progressiveImageWrap}
-              imageStyle={styles.featuredImage}
+              style={[styles.progressiveImageWrap, styles.featuredImage]}
               contentFit="cover"
-              transition={420}
+              cachePolicy="memory-disk"
+              priority={isTopCard ? "high" : "low"}
+              transition={280}
             />
           ) : (
             <Image

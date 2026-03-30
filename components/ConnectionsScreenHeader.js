@@ -29,7 +29,7 @@ export default function ConnectionsScreenHeader({
     <View style={styles.header}>
       <RhoodScreenTitleBlock
         title="Connections"
-        subtitle="Discover DJs and manage your conversations"
+        subtitle="View friends and manage your conversations"
         subtitleBottomSpacing={16}
       />
       <View style={styles.tabContainer}>

@@ -1,0 +1,2 @@
+# Called from Postgres via pg_net; JWT not available on that path.
+verify_jwt = false

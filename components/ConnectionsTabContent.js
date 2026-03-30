@@ -110,7 +110,7 @@ function ConnectionsTabContent({
               <View style={styles.ctaSection}>
                 <View style={styles.ctaCard}>
                   <Ionicons name="compass" size={24} color="hsl(0, 0%, 70%)" />
-                  <Text style={styles.ctaTitle}>Discover DJs</Text>
+                  <Text style={styles.ctaTitle}>View Friends</Text>
                   <Text style={styles.ctaDescription}>
                     Find DJs to connect with and start conversations
                   </Text>

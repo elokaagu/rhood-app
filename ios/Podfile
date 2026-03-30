@@ -66,6 +66,24 @@ target 'RHOOD' do
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
 
+    # New Architecture: pod install clears ios/build/generated/ios. RN's run_codegen! is skipped when
+    # RCT_SKIP_CODEGEN=1 (also set if RCT_IGNORE_PODS_DEPRECATION=1), leaving ReactCodegen without
+    # Mixpanel spec headers. Always regenerate here unless codegen is explicitly disabled.
+    unless ENV["DISABLE_CODEGEN"] == "1"
+      app_root = File.expand_path("..", Pod::Config.instance.installation_root)
+      ios_root = Pod::Config.instance.installation_root.to_s
+      codegen_js = File.join(app_root, "node_modules/react-native/scripts/generate-codegen-artifacts.js")
+      if File.exist?(codegen_js)
+        Pod::UI.puts "[Rhood] Running React Native iOS codegen (build/generated/ios)"
+        Dir.chdir(app_root) do
+          ok = system("node", codegen_js, "-p", app_root, "-o", ios_root, "-t", "ios")
+          unless ok
+            Pod::UI.warn("[Rhood] iOS codegen failed — run: npm run ios:codegen from repo root")
+          end
+        end
+      end
+    end
+
     # Prebuilt React-Core + RN Firebase as static frameworks: without this, RNFBAnalytics fails with
     # "RCTBridgeModule must be imported from module 'RNFBApp.RNFBAppModule'" and RCT_EXPORT_* errors.
     installer.pods_project.targets.each do |target|
