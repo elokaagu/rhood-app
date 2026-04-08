@@ -186,11 +186,26 @@ export function useConnectionsScreenPropBundles({
     ]
   );
 
+  const locationSuccessModalProps = useMemo(
+    () => ({
+      visible: actions.showLocationSuccessModal,
+      onClose: () => actions.setShowLocationSuccessModal(false),
+      title: "Success",
+      message: "Location updated successfully!",
+      type: "success",
+      primaryButtonText: "OK",
+      onPrimaryPress: () => actions.setShowLocationSuccessModal(false),
+      showCloseButton: false,
+    }),
+    [actions.showLocationSuccessModal, actions.setShowLocationSuccessModal]
+  );
+
   return {
     headerProps,
     connectionsTabProps,
     discoverTabProps,
     connectionModalProps,
     locationModalProps,
+    locationSuccessModalProps,
   };
 }

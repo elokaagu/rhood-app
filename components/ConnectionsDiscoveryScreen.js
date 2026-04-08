@@ -118,7 +118,7 @@ function ConnectionsDiscoveryChrome({
   return (
     <View style={styles.header}>
       <RhoodScreenTitleBlock
-        title="Friends"
+        title="Connections"
         subtitle={subtitle}
         subtitleBottomSpacing={16}
       />

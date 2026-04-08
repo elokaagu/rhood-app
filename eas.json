@@ -46,7 +46,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "eloka@satellitelabs.xyz"
+        "appleId": "eloka@satellitelabs.xyz",
+        "ascAppId": "6753610300",
+        "appleTeamId": "499MRF25LG"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",

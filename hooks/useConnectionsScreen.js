@@ -116,6 +116,7 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
     discoverTabProps,
     connectionModalProps,
     locationModalProps,
+    locationSuccessModalProps,
   } = useConnectionsScreenPropBundles({
     activeTab,
     onTabChange: handleTabChange,
@@ -150,6 +151,7 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
     discoverTabProps,
     connectionModalProps,
     locationModalProps,
+    locationSuccessModalProps,
   };
 
   if (__DEV__) {

@@ -1475,6 +1475,7 @@ const styles = StyleSheet.create({
   },
   swipeDeleteAction: {
     width: 88,
+    marginLeft: 8,
     alignSelf: "stretch",
     backgroundColor: "hsl(0, 72%, 48%)",
     borderWidth: 1,

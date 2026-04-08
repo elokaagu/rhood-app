@@ -238,8 +238,8 @@ export default function ConnectionsLocationModal({
                     ]}
                     placeholder={
                       placesKey
-                        ? "Search for a city…"
-                        : "Enter city name (e.g., London, New York)"
+                        ? "Search for area, city, or country…"
+                        : "Enter place, city, or country"
                     }
                     placeholderTextColor="hsl(0, 0%, 50%)"
                     value={newLocationCity}

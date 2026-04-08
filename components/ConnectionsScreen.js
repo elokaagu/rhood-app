@@ -39,6 +39,7 @@ function ConnectionsScreenContent({
     discoverTabProps,
     connectionModalProps,
     locationModalProps,
+    locationSuccessModalProps,
   } = useConnectionsScreen(user, onNavigate, route, initialTab);
 
   const { tutorialModalProps } = useAppTutorialModal(
@@ -63,6 +64,7 @@ function ConnectionsScreenContent({
 
       <RhoodModal {...connectionModalProps} />
       <ConnectionsLocationModal {...locationModalProps} />
+      <RhoodModal {...locationSuccessModalProps} />
       {tutorialModalProps ? (
         <AppScreenTutorialModal {...tutorialModalProps} />
       ) : null}

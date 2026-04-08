@@ -19,7 +19,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rhoodapp.mobile",
-      "buildNumber": "70",
       "newArchEnabled": true,
       "usesAppleSignIn": true,
       "googleServicesFile": "./ios/GoogleService-Info.plist",

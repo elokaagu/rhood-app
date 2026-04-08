@@ -13,6 +13,7 @@ import Constants from "expo-constants";
 import { db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { track, AnalyticsEvents } from "../lib/analytics";
+import RhoodModal from "./RhoodModal";
 
 const CATEGORIES = [
   { id: "idea", label: "Idea" },
@@ -32,6 +33,8 @@ export default function ProductFeedbackPanel({ user }) {
   const [category, setCategory] = useState("general");
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [errorState, setErrorState] = useState({ visible: false, message: "" });
 
   const submit = useCallback(async () => {
     const trimmed = text.trim();
@@ -61,18 +64,16 @@ export default function ProductFeedbackPanel({ user }) {
         category,
         message_length: trimmed.length,
       });
-      Alert.alert(
-        "Thanks!",
-        "Your feedback was sent to the team and will show up in the R/HOOD portal right away."
-      );
+      setSuccessVisible(true);
     } catch (e) {
       console.error("Product feedback submit failed:", e);
       HapticPatterns.error();
-      Alert.alert(
-        "Could not send",
-        e?.message ||
-          "Something went wrong. Check your connection and try again."
-      );
+      setErrorState({
+        visible: true,
+        message:
+          e?.message ||
+          "Something went wrong. Check your connection and try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -126,6 +127,28 @@ export default function ProductFeedbackPanel({ user }) {
           <Text style={styles.submitText}>Send feedback</Text>
         )}
       </TouchableOpacity>
+
+      <RhoodModal
+        visible={successVisible}
+        onClose={() => setSuccessVisible(false)}
+        title="Thanks!"
+        message="Your feedback was sent to the team and will show up in the R/HOOD portal right away."
+        type="success"
+        primaryButtonText="OK"
+        onPrimaryPress={() => setSuccessVisible(false)}
+        showCloseButton={false}
+      />
+
+      <RhoodModal
+        visible={errorState.visible}
+        onClose={() => setErrorState({ visible: false, message: "" })}
+        title="Could not send"
+        message={errorState.message}
+        type="error"
+        primaryButtonText="OK"
+        onPrimaryPress={() => setErrorState({ visible: false, message: "" })}
+        showCloseButton={false}
+      />
     </View>
   );
 }

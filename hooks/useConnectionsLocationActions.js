@@ -18,6 +18,7 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [newLocationCity, setNewLocationCity] = useState("");
   const [updatingLocation, setUpdatingLocation] = useState(false);
+  const [showLocationSuccessModal, setShowLocationSuccessModal] = useState(false);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -54,7 +55,7 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
       setShowLocationModal(false);
       setNewLocationCity("");
       HapticPatterns.success();
-      Alert.alert("Success", "Location updated successfully!");
+      setShowLocationSuccessModal(true);
     } catch (error) {
       console.error("Error updating location:", error);
       if (mountedRef.current) {
@@ -132,6 +133,8 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
     newLocationCity,
     setNewLocationCity,
     updatingLocation,
+    showLocationSuccessModal,
+    setShowLocationSuccessModal,
     handleOpenLocationModal,
     handleUpdateLocation,
     handleUseCurrentLocation,

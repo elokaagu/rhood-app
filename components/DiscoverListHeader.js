@@ -64,6 +64,17 @@ function DJRecommendationCarousel({ djs, loading, skeletonCardStyle, onDjPress }
   if (loading && list.length === 0) {
     return <DiscoverCarouselSkeleton cardStyle={skeletonCardStyle} />;
   }
+  if (!loading && list.length === 0) {
+    return (
+      <View style={styles.nearbyEmptyCard}>
+        <Ionicons name="location-outline" size={20} color="hsl(75, 100%, 60%)" />
+        <Text style={styles.nearbyEmptyTitle}>No DJs near you yet</Text>
+        <Text style={styles.nearbyEmptySubtitle}>
+          Update your location or check back later.
+        </Text>
+      </View>
+    );
+  }
   return (
     <ScrollView
       horizontal
@@ -205,8 +216,8 @@ function DiscoverListHeader({
   const showCarousels = !searchQuery?.trim();
   const showPopularBlock =
     showCarousels && (popularDJsLoading || (popularDJs?.length ?? 0) > 0);
-  const showNearbyBlock =
-    showCarousels && (nearbyDJsLoading || (nearbyDJs?.length ?? 0) > 0);
+  // Keep this section mounted to avoid "load then disappear" jank when empty.
+  const showNearbyBlock = showCarousels;
   const showOpportunitiesBlock =
     showCarousels &&
     (nearbyOpportunitiesLoading || (nearbyOpportunities?.length ?? 0) > 0);

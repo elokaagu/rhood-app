@@ -28,7 +28,7 @@ export default function ConnectionsScreenHeader({
   return (
     <View style={styles.header}>
       <RhoodScreenTitleBlock
-        title="Friends"
+        title="Connections"
         subtitle="Discover DJs and chat with people you know"
         subtitleBottomSpacing={16}
       />
