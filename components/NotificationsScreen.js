@@ -23,6 +23,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import RhoodModal from "./RhoodModal";
+import ApprovedPromoterStamp from "./ApprovedPromoterStamp";
+import { rawNotificationHasApprovedPromoter } from "../lib/approvedPromoterUtils";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
@@ -446,7 +448,24 @@ export default function NotificationsScreen({
             notification.data?.sender_image ||
             notification.metadata?.sender_image ||
             null,
-          rawData: notification.data || notification.metadata || {},
+          rawData: {
+            ...(notification.metadata &&
+            typeof notification.metadata === "object"
+              ? notification.metadata
+              : {}),
+            ...(notification.data && typeof notification.data === "object"
+              ? notification.data
+              : {}),
+          },
+          approvedPromoter: rawNotificationHasApprovedPromoter({
+            ...(notification.metadata &&
+            typeof notification.metadata === "object"
+              ? notification.metadata
+              : {}),
+            ...(notification.data && typeof notification.data === "object"
+              ? notification.data
+              : {}),
+          }),
         };
         
         // Calculate priority score for sorting
@@ -1122,6 +1141,12 @@ export default function NotificationsScreen({
                 >
                   {notification.description}
                 </Text>
+                {notification.approvedPromoter ? (
+                  <ApprovedPromoterStamp
+                    compact
+                    style={styles.notificationPromoterStamp}
+                  />
+                ) : null}
                 <View style={styles.notificationFooter}>
                   <Text style={styles.notificationTimestamp}>
                     {notification.timestamp}
@@ -1252,6 +1277,14 @@ export default function NotificationsScreen({
         message={
           activeConnectionNotification?.description ||
           "This DJ wants to connect with you."
+        }
+        bodyAccessory={
+          activeConnectionNotification?.approvedPromoter ? (
+            <ApprovedPromoterStamp
+              compact
+              style={{ marginTop: 14, alignSelf: "center" }}
+            />
+          ) : null
         }
         primaryButtonText={
           currentConnectionActionState === "accept" ? "Accepting..." : "Accept"
@@ -1565,6 +1598,10 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     lineHeight: 20,
     marginBottom: 8,
+  },
+  notificationPromoterStamp: {
+    marginBottom: 8,
+    alignSelf: "flex-start",
   },
   notificationFooter: {
     flexDirection: "row",

@@ -23,12 +23,15 @@ CREATE INDEX IF NOT EXISTS idx_product_feedback_status
 
 ALTER TABLE public.product_feedback ENABLE ROW LEVEL SECURITY;
 
+-- Safe to re-run in SQL editor (avoids ERROR: policy ... already exists).
+DROP POLICY IF EXISTS "product_feedback_insert_own" ON public.product_feedback;
 CREATE POLICY "product_feedback_insert_own"
   ON public.product_feedback
   FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "product_feedback_select_own" ON public.product_feedback;
 CREATE POLICY "product_feedback_select_own"
   ON public.product_feedback
   FOR SELECT
@@ -37,3 +40,6 @@ CREATE POLICY "product_feedback_select_own"
 
 COMMENT ON TABLE public.product_feedback IS
   'In-app product feedback; visible to full admins via service role in the R/HOOD portal.';
+
+-- If the portal uses the anon key + staff JWT (not service role), run
+-- fix-product-feedback-portal-rls.sql so staff can SELECT/UPDATE all rows.

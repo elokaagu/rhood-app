@@ -21,6 +21,8 @@ import { normalizeTrackForPlayback } from "../lib/normalizeTrackForPlayback";
 import { ListenPlaylistStrip } from "./ListenScreenRows";
 import { fetchPlaylistsForUser } from "../lib/fetchPlaylistsForUser";
 import { SCREENS } from "../navigation/routes";
+import ApprovedPromoterStamp from "./ApprovedPromoterStamp";
+import { profileIsApprovedPromoter } from "../lib/approvedPromoterUtils";
 
 export default function UserProfileView({
   userId,
@@ -764,6 +766,12 @@ export default function UserProfileView({
                 profile.dj_name?.toLowerCase().replace(/\s+/g, "") ||
                 "user"}
             </Text>
+            {profileIsApprovedPromoter(profile) ? (
+              <ApprovedPromoterStamp
+                compact
+                style={{ marginTop: 12, alignSelf: "center" }}
+              />
+            ) : null}
             {profile.status_message ? (
               <Text style={styles.profileStatus}>{profile.status_message}</Text>
             ) : null}

@@ -46,6 +46,7 @@ const RhoodModal = ({
   shareOpportunity = null, // Opportunity object to share
   shareUserId = null, // User ID for referral code
   onShareInApp = null, // Callback for in-app sharing
+  bodyAccessory = null, // Optional node below main message (e.g. trust badges)
 }) => {
   const insets = useSafeAreaInsets();
   const getIconAndColor = () => {
@@ -633,6 +634,7 @@ const RhoodModal = ({
                     {renderTextWithLinks(message)}
                   </Text>
                 ) : null}
+                {bodyAccessory}
               </>
             )}
 

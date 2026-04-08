@@ -57,6 +57,8 @@ import MessagesFullscreenVideoModal from "./messages/MessagesFullscreenVideoModa
 import MessageActionsModal from "./messages/MessageActionsModal";
 import MessagesInputFooter from "./messages/MessagesInputFooter";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import ApprovedPromoterStamp from "./ApprovedPromoterStamp";
+import { profileIsApprovedPromoter } from "../lib/approvedPromoterUtils";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import {
@@ -1488,6 +1490,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
           )}
         </View>
 
+        {chatType === "individual" &&
+        otherUser &&
+        profileIsApprovedPromoter(otherUser) ? (
+          <View style={styles.promoterStampBanner}>
+            <ApprovedPromoterStamp compact />
+          </View>
+        ) : null}
+
         {/* Messages */}
         <FlatList
           ref={scrollViewRef}
@@ -1665,6 +1675,14 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(0, 0%, 8%)",
     borderBottomWidth: 1,
     borderBottomColor: "hsl(75, 100%, 60%)",
+  },
+  promoterStampBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: "hsl(0, 0%, 6%)",
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+    alignItems: "center",
   },
   backButton: {
     marginRight: 16,
