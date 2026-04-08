@@ -8,6 +8,8 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import styles from "./ListenScreen.styles";
@@ -35,134 +37,145 @@ export default function SaveToPlaylistModal({
       onRequestClose={onRequestClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.playlistModalContent}>
-          <View style={styles.playlistModalHeader}>
-            <Text style={styles.playlistModalTitle}>Save to Playlist</Text>
-            <TouchableOpacity onPress={onRequestClose} style={styles.playlistModalClose}>
-              <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
-            </TouchableOpacity>
-          </View>
-
-          {selectedMixForPlaylist && (
-            <View style={styles.playlistMixPreview}>
-              <Image
-                source={
-                  selectedMixForPlaylist.artwork_url ||
-                  selectedMixForPlaylist.image_url ||
-                  selectedMixForPlaylist.image
-                    ? {
-                        uri:
-                          selectedMixForPlaylist.artwork_url ||
-                          selectedMixForPlaylist.image_url ||
-                          selectedMixForPlaylist.image,
-                      }
-                    : require("../assets/rhood_logo.webp")
-                }
-                style={styles.playlistMixPreviewImage}
-                resizeMode="cover"
-              />
-              <View style={styles.playlistMixPreviewInfo}>
-                <Text style={styles.playlistMixPreviewTitle} numberOfLines={1}>
-                  {selectedMixForPlaylist.title}
-                </Text>
-                <Text style={styles.playlistMixPreviewArtist} numberOfLines={1}>
-                  {selectedMixForPlaylist.artist ||
-                    selectedMixForPlaylist.user_dj_name ||
-                    "Unknown"}
-                </Text>
-              </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
+          style={{ width: "100%", alignItems: "center" }}
+        >
+          <View style={styles.playlistModalContent}>
+            <View style={styles.playlistModalHeader}>
+              <Text style={styles.playlistModalTitle}>Save to Playlist</Text>
+              <TouchableOpacity onPress={onRequestClose} style={styles.playlistModalClose}>
+                <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+              </TouchableOpacity>
             </View>
-          )}
 
-          <ScrollView style={styles.playlistModalScroll}>
-            <View style={styles.createPlaylistSection}>
-              <Text style={styles.createPlaylistTitle}>
-                {hasPlaylists ? "Create New Playlist" : "Create Your First Playlist"}
-              </Text>
-              {!hasPlaylists ? (
-                <Text style={styles.createPlaylistHelperText}>
-                  Start with one playlist and save this track to it.
-                </Text>
-              ) : null}
-              <View style={styles.createPlaylistInputContainer}>
-                <TextInput
-                  style={styles.createPlaylistInput}
-                  placeholder="Playlist name"
-                  placeholderTextColor="hsl(0, 0%, 50%)"
-                  value={newPlaylistName}
-                  onChangeText={setNewPlaylistName}
-                  maxLength={50}
-                  autoFocus={true}
-                  returnKeyType="done"
-                  onSubmitEditing={handleCreatePlaylist}
-                  editable={!creatingPlaylist}
+            {selectedMixForPlaylist && (
+              <View style={styles.playlistMixPreview}>
+                <Image
+                  source={
+                    selectedMixForPlaylist.artwork_url ||
+                    selectedMixForPlaylist.image_url ||
+                    selectedMixForPlaylist.image
+                      ? {
+                          uri:
+                            selectedMixForPlaylist.artwork_url ||
+                            selectedMixForPlaylist.image_url ||
+                            selectedMixForPlaylist.image,
+                        }
+                      : require("../assets/rhood_logo.webp")
+                  }
+                  style={styles.playlistMixPreviewImage}
+                  resizeMode="cover"
                 />
-                <TouchableOpacity
-                  style={[
-                    styles.createPlaylistButton,
-                    (!newPlaylistName.trim() || creatingPlaylist) &&
-                      styles.createPlaylistButtonDisabled,
-                  ]}
-                  onPress={handleCreatePlaylist}
-                  disabled={!newPlaylistName.trim() || creatingPlaylist}
-                  activeOpacity={0.8}
-                >
-                  {creatingPlaylist ? (
-                    <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
-                  ) : (
-                    <Text style={styles.createPlaylistButtonText}>{createButtonLabel}</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {playlistsLoading ? (
-              <View style={styles.playlistLoadingState}>
-                <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
-                <Text style={styles.playlistLoadingText}>Loading playlists...</Text>
-              </View>
-            ) : null}
-
-            {hasPlaylists && (
-              <View style={styles.existingPlaylistsSection}>
-                <Text style={styles.existingPlaylistsTitle}>Add to Existing Playlist</Text>
-                {playlists.map((playlist) => (
-                  <TouchableOpacity
-                    key={playlist.id}
-                    style={styles.existingPlaylistItem}
-                    onPress={() => handleSelectPlaylist(playlist)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.existingPlaylistIcon}>
-                      {playlist.image_url ? (
-                        <Image
-                          source={{ uri: playlist.image_url }}
-                          style={styles.existingPlaylistImage}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <Ionicons
-                          name="musical-notes"
-                          size={20}
-                          color="hsl(75, 100%, 60%)"
-                        />
-                      )}
-                    </View>
-                    <View style={styles.existingPlaylistInfo}>
-                      <Text style={styles.existingPlaylistName} numberOfLines={1}>
-                        {playlist.name}
-                      </Text>
-                      <Text style={styles.existingPlaylistMeta}>
-                        {playlist.mixCount || 0} {playlist.mixCount === 1 ? "mix" : "mixes"}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
-                  </TouchableOpacity>
-                ))}
+                <View style={styles.playlistMixPreviewInfo}>
+                  <Text style={styles.playlistMixPreviewTitle} numberOfLines={1}>
+                    {selectedMixForPlaylist.title}
+                  </Text>
+                  <Text style={styles.playlistMixPreviewArtist} numberOfLines={1}>
+                    {selectedMixForPlaylist.artist ||
+                      selectedMixForPlaylist.user_dj_name ||
+                      "Unknown"}
+                  </Text>
+                </View>
               </View>
             )}
-          </ScrollView>
-        </View>
+
+            <ScrollView
+              style={styles.playlistModalScroll}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              <View style={styles.createPlaylistSection}>
+                <Text style={styles.createPlaylistTitle}>
+                  {hasPlaylists ? "Create New Playlist" : "Create Your First Playlist"}
+                </Text>
+                {!hasPlaylists ? (
+                  <Text style={styles.createPlaylistHelperText}>
+                    Start with one playlist and save this track to it.
+                  </Text>
+                ) : null}
+                <View style={styles.createPlaylistInputContainer}>
+                  <TextInput
+                    style={styles.createPlaylistInput}
+                    placeholder="Playlist name"
+                    placeholderTextColor="hsl(0, 0%, 50%)"
+                    value={newPlaylistName}
+                    onChangeText={setNewPlaylistName}
+                    maxLength={50}
+                    autoFocus={true}
+                    returnKeyType="done"
+                    onSubmitEditing={handleCreatePlaylist}
+                    editable={!creatingPlaylist}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.createPlaylistButton,
+                      (!newPlaylistName.trim() || creatingPlaylist) &&
+                        styles.createPlaylistButtonDisabled,
+                    ]}
+                    onPress={handleCreatePlaylist}
+                    disabled={!newPlaylistName.trim() || creatingPlaylist}
+                    activeOpacity={0.8}
+                  >
+                    {creatingPlaylist ? (
+                      <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
+                    ) : (
+                      <Text style={styles.createPlaylistButtonText}>{createButtonLabel}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {playlistsLoading ? (
+                <View style={styles.playlistLoadingState}>
+                  <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.playlistLoadingText}>Loading playlists...</Text>
+                </View>
+              ) : null}
+
+              {hasPlaylists && (
+                <View style={styles.existingPlaylistsSection}>
+                  <Text style={styles.existingPlaylistsTitle}>Add to Existing Playlist</Text>
+                  {playlists.map((playlist) => (
+                    <TouchableOpacity
+                      key={playlist.id}
+                      style={styles.existingPlaylistItem}
+                      onPress={() => handleSelectPlaylist(playlist)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.existingPlaylistIcon}>
+                        {playlist.image_url ? (
+                          <Image
+                            source={{ uri: playlist.image_url }}
+                            style={styles.existingPlaylistImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <Ionicons
+                            name="musical-notes"
+                            size={20}
+                            color="hsl(75, 100%, 60%)"
+                          />
+                        )}
+                      </View>
+                      <View style={styles.existingPlaylistInfo}>
+                        <Text style={styles.existingPlaylistName} numberOfLines={1}>
+                          {playlist.name}
+                        </Text>
+                        <Text style={styles.existingPlaylistMeta}>
+                          {playlist.mixCount || 0} {playlist.mixCount === 1 ? "mix" : "mixes"}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
