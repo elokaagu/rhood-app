@@ -29,8 +29,10 @@ import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 import * as ImagePicker from "expo-image-picker";
 import ProgressiveImage from "./ProgressiveImage";
 import { normalizeMixForPlayback } from "../lib/yourLikesUtils";
+import { invalidateUserPlaylistsCache } from "../hooks/useListenPlaylists";
 
 const SEARCH_DEBOUNCE_MS = 350;
+const PLAYLIST_NAME_MAX_LEN = 255;
 
 // Memoized mix row: stable props reduce re-renders when only playing state changes
 const PlaylistDetailMixRow = memo(function PlaylistDetailMixRow({
@@ -154,10 +156,19 @@ function PlaylistDetailScreen({
   const [loadingMixes, setLoadingMixes] = useState(false);
   const [playlistData, setPlaylistData] = useState(null);
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renamingPlaylist, setRenamingPlaylist] = useState(false);
   const searchDebounceRef = useRef(null);
 
   const displayPlaylistName =
     playlistData?.name || playlistName || "Playlist";
+
+  const isPlaylistOwner =
+    !!playlistData?.user_id &&
+    !!user?.id &&
+    playlistData.user_id === user.id;
+  const effectiveEditMode = isPlaylistOwner && isEditMode;
 
   useEffect(
     () => () => {
@@ -179,23 +190,25 @@ function PlaylistDetailScreen({
     try {
       setLoading(true);
 
-      // First, get the playlist to verify ownership
-      const { data: playlistData, error: playlistError } = await supabase
+      const { data: playlistRow, error: playlistError } = await supabase
         .from("playlists")
         .select("*")
         .eq("id", playlistId)
-        .eq("user_id", user.id)
         .single();
 
-      if (playlistError || !playlistData) {
+      if (playlistError || !playlistRow) {
         console.error("❌ Error fetching playlist:", playlistError);
+        setPlaylistData(null);
         setMixes([]);
+        setIsEditMode(false);
         setLoading(false);
         return;
       }
 
-      // Store playlist data including image_url
-      setPlaylistData(playlistData);
+      setPlaylistData(playlistRow);
+      if (playlistRow.user_id !== user.id) {
+        setIsEditMode(false);
+      }
 
       // Get mix IDs from playlist_mixes, ordered by position
       const { data: playlistMixesData, error: playlistMixesError } = await supabase
@@ -278,7 +291,7 @@ function PlaylistDetailScreen({
           user: userProfile,
           position: positionMap[mix.id] ?? 0,
           sourcePlaylistId: playlistId,
-          sourcePlaylistName: playlistData?.name || playlistName || "Playlist",
+          sourcePlaylistName: playlistRow.name || playlistName || "Playlist",
         };
       });
 
@@ -405,7 +418,7 @@ function PlaylistDetailScreen({
 
   const handleMixPress = useCallback(
     (mix) => {
-      if (isEditMode) return;
+      if (effectiveEditMode) return;
       HapticPatterns.playPause();
       const current = globalAudioState.currentTrack;
       const sameTrack =
@@ -427,7 +440,7 @@ function PlaylistDetailScreen({
       onPlayAudio?.(normalized);
     },
     [
-      isEditMode,
+      effectiveEditMode,
       globalAudioState.currentTrack,
       globalAudioState.isPlaying,
       onPauseAudio,
@@ -438,16 +451,19 @@ function PlaylistDetailScreen({
 
   const handleMixLongPress = useCallback(
     (mix) => {
-      if (isEditMode) return;
+      if (effectiveEditMode) return;
       HapticPatterns.itemPress();
       const normalizedMix = normalizeMixForPlayback(mix);
       if (!normalizedMix?.audioUrl) return;
       if (Platform.OS === "ios") {
+        const options = isPlaylistOwner
+          ? ["Cancel", "Add to Queue", "Play Next", "Remove from Playlist"]
+          : ["Cancel", "Add to Queue", "Play Next"];
         ActionSheetIOS.showActionSheetWithOptions(
           {
-            options: ["Cancel", "Add to Queue", "Play Next", "Remove from Playlist"],
+            options,
             cancelButtonIndex: 0,
-            destructiveButtonIndex: 3,
+            destructiveButtonIndex: isPlaylistOwner ? 3 : undefined,
           },
           (buttonIndex) => {
             if (buttonIndex === 1) {
@@ -456,42 +472,48 @@ function PlaylistDetailScreen({
             } else if (buttonIndex === 2) {
               onPlayNext?.(normalizedMix);
               HapticPatterns.success();
-            } else if (buttonIndex === 3) {
+            } else if (buttonIndex === 3 && isPlaylistOwner) {
               handleRemoveFromPlaylist(mix);
             }
           }
         );
       } else {
-        Alert.alert(
-          mix.title || "Mix",
-          "Choose an option",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Add to Queue",
-              onPress: () => {
-                onAddToQueue?.(normalizedMix);
-                HapticPatterns.success();
-              },
+        const buttons = [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Add to Queue",
+            onPress: () => {
+              onAddToQueue?.(normalizedMix);
+              HapticPatterns.success();
             },
-            {
-              text: "Play Next",
-              onPress: () => {
-                onPlayNext?.(normalizedMix);
-                HapticPatterns.success();
-              },
+          },
+          {
+            text: "Play Next",
+            onPress: () => {
+              onPlayNext?.(normalizedMix);
+              HapticPatterns.success();
             },
-            {
-              text: "Remove from Playlist",
-              style: "destructive",
-              onPress: () => handleRemoveFromPlaylist(mix),
-            },
-          ],
-          { cancelable: true }
-        );
+          },
+        ];
+        if (isPlaylistOwner) {
+          buttons.push({
+            text: "Remove from Playlist",
+            style: "destructive",
+            onPress: () => handleRemoveFromPlaylist(mix),
+          });
+        }
+        Alert.alert(mix.title || "Mix", "Choose an option", buttons, {
+          cancelable: true,
+        });
       }
     },
-    [isEditMode, onAddToQueue, onPlayNext, handleRemoveFromPlaylist]
+    [
+      effectiveEditMode,
+      isPlaylistOwner,
+      onAddToQueue,
+      onPlayNext,
+      handleRemoveFromPlaylist,
+    ]
   );
 
   // Fetch available mixes for adding
@@ -710,9 +732,69 @@ function PlaylistDetailScreen({
 
   // Toggle edit mode
   const toggleEditMode = () => {
+    if (!isPlaylistOwner) return;
     setIsEditMode(!isEditMode);
     HapticPatterns.itemPress();
   };
+
+  const openRenameModal = useCallback(() => {
+    if (!isPlaylistOwner) return;
+    const current = (playlistData?.name || playlistName || "").trim();
+    setRenameDraft(current);
+    setShowRenameModal(true);
+    HapticPatterns.itemPress();
+  }, [isPlaylistOwner, playlistData?.name, playlistName]);
+
+  const handleSaveRename = useCallback(async () => {
+    const nextName = renameDraft.trim();
+    if (!nextName) {
+      Alert.alert("Name required", "Please enter a playlist name.");
+      return;
+    }
+    if (nextName.length > PLAYLIST_NAME_MAX_LEN) {
+      Alert.alert(
+        "Name too long",
+        `Use at most ${PLAYLIST_NAME_MAX_LEN} characters.`
+      );
+      return;
+    }
+    if (!playlistId || !user?.id || !isPlaylistOwner) return;
+    if (nextName === (playlistData?.name || playlistName || "").trim()) {
+      setShowRenameModal(false);
+      return;
+    }
+
+    try {
+      setRenamingPlaylist(true);
+      const { error } = await supabase
+        .from("playlists")
+        .update({
+          name: nextName,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", playlistId)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setPlaylistData((prev) => (prev ? { ...prev, name: nextName } : prev));
+      invalidateUserPlaylistsCache(user.id);
+      setShowRenameModal(false);
+      HapticPatterns.success();
+    } catch (e) {
+      console.error("❌ Error renaming playlist:", e);
+      Alert.alert("Error", "Could not rename playlist. Try again.");
+    } finally {
+      setRenamingPlaylist(false);
+    }
+  }, [
+    renameDraft,
+    playlistId,
+    user?.id,
+    isPlaylistOwner,
+    playlistData?.name,
+    playlistName,
+  ]);
 
   // All hooks must run unconditionally (before any early return)
   const keyExtractor = useCallback((item) => item.id, []);
@@ -728,7 +810,7 @@ function PlaylistDetailScreen({
             String(playingMixId) === String(mix.id) &&
             globalAudioState.isPlaying
           }
-          isEditMode={isEditMode}
+          isEditMode={effectiveEditMode}
           onPress={handleMixPress}
           onLongPress={handleMixLongPress}
           onRemove={handleRemoveFromPlaylist}
@@ -741,7 +823,7 @@ function PlaylistDetailScreen({
       mixes.length,
       playingMixId,
       globalAudioState.isPlaying,
-      isEditMode,
+      effectiveEditMode,
       handleMixPress,
       handleMixLongPress,
       handleRemoveFromPlaylist,
@@ -769,7 +851,7 @@ function PlaylistDetailScreen({
               </View>
             }
           />
-          {isEditMode && (
+          {effectiveEditMode && (
             <TouchableOpacity
               style={styles.artworkEditOverlay}
               onPress={handleEditArtwork}
@@ -780,7 +862,7 @@ function PlaylistDetailScreen({
           )}
         </View>
       ) : null,
-    [playlistData?.image_url, isEditMode]
+    [playlistData?.image_url, effectiveEditMode]
   );
 
   if (loading) {
@@ -790,12 +872,41 @@ function PlaylistDetailScreen({
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
             <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{displayPlaylistName}</Text>
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {displayPlaylistName}
+            </Text>
+          </View>
           <View style={styles.backButton} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
           <Text style={styles.loadingText}>Loading playlist...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (!playlistData) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              Playlist
+            </Text>
+          </View>
+          <View style={styles.backButton} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="lock-closed-outline" size={48} color="hsl(0, 0%, 40%)" />
+          <Text style={styles.emptyTitle}>Couldn&apos;t open this playlist</Text>
+          <Text style={styles.emptySubtitle}>
+            It may be private or you don&apos;t have access.
+          </Text>
         </View>
       </View>
     );
@@ -807,25 +918,55 @@ function PlaylistDetailScreen({
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {displayPlaylistName}
-        </Text>
-        <TouchableOpacity style={styles.backButton} onPress={toggleEditMode}>
-          <Text style={[styles.editButton, isEditMode && styles.editButtonActive]}>
-            {isEditMode ? "Done" : "Edit"}
-          </Text>
-        </TouchableOpacity>
+        {isPlaylistOwner ? (
+          <TouchableOpacity
+            style={styles.headerTitleWrap}
+            onPress={openRenameModal}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Playlist ${displayPlaylistName}. Tap to rename`}
+          >
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {displayPlaylistName}
+            </Text>
+            <Ionicons
+              name="pencil"
+              size={14}
+              color="hsl(0, 0%, 45%)"
+              style={styles.headerRenameHint}
+            />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {displayPlaylistName}
+            </Text>
+          </View>
+        )}
+        {isPlaylistOwner ? (
+          <TouchableOpacity style={styles.backButton} onPress={toggleEditMode}>
+            <Text style={[styles.editButton, isEditMode && styles.editButtonActive]}>
+              {isEditMode ? "Done" : "Edit"}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backButton} />
+        )}
       </View>
 
-      {isEditMode && (
+      {effectiveEditMode && (
         <View style={styles.editToolbar}>
+          <TouchableOpacity style={styles.toolbarButton} onPress={openRenameModal}>
+            <Ionicons name="create-outline" size={20} color="hsl(75, 100%, 60%)" />
+            <Text style={styles.toolbarButtonText}>Rename</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.toolbarButton} onPress={handleOpenAddMixes}>
             <Ionicons name="add-circle" size={20} color="hsl(75, 100%, 60%)" />
             <Text style={styles.toolbarButtonText}>Add Mixes</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.toolbarButton} onPress={handleEditArtwork}>
             <Ionicons name="image" size={20} color="hsl(75, 100%, 60%)" />
-            <Text style={styles.toolbarButtonText}>Edit Artwork</Text>
+            <Text style={styles.toolbarButtonText}>Artwork</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -840,9 +981,11 @@ function PlaylistDetailScreen({
             <Ionicons name="musical-notes-outline" size={64} color="hsl(0, 0%, 30%)" />
             <Text style={styles.emptyTitle}>No mixes in this playlist</Text>
             <Text style={styles.emptySubtitle}>
-              {isEditMode
-                ? "Tap 'Add Mixes' to get started"
-                : "Add mixes to this playlist from the Listen tab"}
+              {!isPlaylistOwner
+                ? "This playlist is empty."
+                : isEditMode
+                  ? "Tap 'Add Mixes' to get started"
+                  : "Add mixes to this playlist from the Listen tab"}
             </Text>
           </View>
         }
@@ -951,6 +1094,53 @@ function PlaylistDetailScreen({
           )}
         </View>
       </Modal>
+
+      <Modal
+        visible={showRenameModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => !renamingPlaylist && setShowRenameModal(false)}
+      >
+        <View style={styles.renameModalOverlay}>
+          <View style={styles.renameModalCard}>
+            <Text style={styles.renameModalTitle}>Rename playlist</Text>
+            <TextInput
+              style={styles.renameModalInput}
+              value={renameDraft}
+              onChangeText={setRenameDraft}
+              placeholder="Playlist name"
+              placeholderTextColor="hsl(0, 0%, 45%)"
+              maxLength={PLAYLIST_NAME_MAX_LEN}
+              autoFocus
+              autoCorrect={false}
+              editable={!renamingPlaylist}
+            />
+            <View style={styles.renameModalActions}>
+              <TouchableOpacity
+                style={styles.renameModalButtonSecondary}
+                onPress={() => setShowRenameModal(false)}
+                disabled={renamingPlaylist}
+              >
+                <Text style={styles.renameModalButtonSecondaryText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.renameModalButtonPrimary,
+                  renamingPlaylist && styles.renameModalButtonDisabled,
+                ]}
+                onPress={handleSaveRename}
+                disabled={renamingPlaylist}
+              >
+                {renamingPlaylist ? (
+                  <ActivityIndicator color="hsl(0, 0%, 0%)" size="small" />
+                ) : (
+                  <Text style={styles.renameModalButtonPrimaryText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -977,13 +1167,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "flex-start",
   },
-  headerTitle: {
+  headerTitleWrap: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  headerTitle: {
+    flexShrink: 1,
     fontSize: 18,
     fontFamily: "TS Block Bold",
     color: "hsl(0, 0%, 100%)",
     textAlign: "center",
     textTransform: "uppercase",
+  },
+  headerRenameHint: {
+    marginTop: 2,
   },
   editButton: {
     fontSize: 16,
@@ -993,8 +1194,74 @@ const styles = StyleSheet.create({
   editButtonActive: {
     fontWeight: "600",
   },
+  renameModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  renameModalCard: {
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+  },
+  renameModalTitle: {
+    fontSize: 18,
+    fontFamily: "TS Block Bold",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 14,
+    textTransform: "uppercase",
+  },
+  renameModalInput: {
+    backgroundColor: "hsl(0, 0%, 6%)",
+    borderWidth: 1,
+    borderColor: "hsl(75, 50%, 35%)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    marginBottom: 18,
+  },
+  renameModalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  renameModalButtonSecondary: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  renameModalButtonSecondaryText: {
+    fontSize: 16,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Helvetica Neue",
+  },
+  renameModalButtonPrimary: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 10,
+    minWidth: 88,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  renameModalButtonPrimaryText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "hsl(0, 0%, 0%)",
+    fontFamily: "Helvetica Neue",
+  },
+  renameModalButtonDisabled: {
+    opacity: 0.6,
+  },
   editToolbar: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,9 @@ import { SkeletonProfile } from "./Skeleton";
 import RhoodModal from "./RhoodModal";
 import { HapticPatterns } from "../lib/haptics";
 import { normalizeTrackForPlayback } from "../lib/normalizeTrackForPlayback";
+import { ListenPlaylistStrip } from "./ListenScreenRows";
+import { fetchPlaylistsForUser } from "../lib/fetchPlaylistsForUser";
+import { SCREENS } from "../navigation/routes";
 
 export default function UserProfileView({
   userId,
@@ -43,6 +46,9 @@ export default function UserProfileView({
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   const [pinnedMixes, setPinnedMixes] = useState([]);
+  const [connectionPlaylists, setConnectionPlaylists] = useState([]);
+  const [connectionPlaylistsLoading, setConnectionPlaylistsLoading] =
+    useState(false);
 
   const formatMillisShort = (ms) => {
     const s = Math.max(0, Math.floor((ms || 0) / 1000));
@@ -198,6 +204,30 @@ export default function UserProfileView({
     loadUserProfile();
     checkConnectionStatus();
   }, [userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isConnected || !userId) {
+        setConnectionPlaylists([]);
+        setConnectionPlaylistsLoading(false);
+        return;
+      }
+      setConnectionPlaylistsLoading(true);
+      try {
+        const list = await fetchPlaylistsForUser(userId);
+        if (!cancelled) setConnectionPlaylists(Array.isArray(list) ? list : []);
+      } catch (e) {
+        if (__DEV__) console.warn("connection playlists:", e);
+        if (!cancelled) setConnectionPlaylists([]);
+      } finally {
+        if (!cancelled) setConnectionPlaylistsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, userId]);
 
   const checkConnectionStatus = async () => {
     try {
@@ -501,6 +531,20 @@ export default function UserProfileView({
       onNavigate("messages", { isGroupChat: false, djId: userId });
     }
   };
+
+  const handleTheirPlaylistPress = useCallback(
+    (playlist) => {
+      if (!playlist?.id) return;
+      HapticPatterns.itemPress();
+      onNavigate?.("playlist-detail", {
+        playlistId: playlist.id,
+        playlistName: playlist.name || "Playlist",
+        playlistBackScreen: SCREENS.USER_PROFILE,
+        playlistBackUserId: userId,
+      });
+    },
+    [onNavigate]
+  );
 
   const handlePlayMix = () => {
     if (profile.primary_mix && onNavigate) {
@@ -1003,6 +1047,38 @@ export default function UserProfileView({
               </View>
             </View>
           )}
+
+          {isConnected &&
+            (connectionPlaylistsLoading || connectionPlaylists.length > 0) && (
+              <View style={styles.pinnedMixesSection}>
+                <View style={styles.sectionTitleContainer}>
+                  <Text style={styles.sectionTitle}>Playlists</Text>
+                  {!connectionPlaylistsLoading ? (
+                    <View style={styles.pinnedTag}>
+                      <Ionicons
+                        name="albums-outline"
+                        size={14}
+                        color="hsl(75, 100%, 60%)"
+                      />
+                      <Text style={styles.pinnedTagText}>
+                        {connectionPlaylists.length}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                {connectionPlaylistsLoading ? (
+                  <ActivityIndicator
+                    color="hsl(75, 100%, 60%)"
+                    style={{ marginVertical: 20 }}
+                  />
+                ) : (
+                  <ListenPlaylistStrip
+                    playlists={connectionPlaylists}
+                    onPlaylistPress={handleTheirPlaylistPress}
+                  />
+                )}
+              </View>
+            )}
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>

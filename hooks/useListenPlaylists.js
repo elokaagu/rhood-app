@@ -6,6 +6,11 @@ import { createScreenCache } from "../lib/screenCache";
 
 const playlistsCache = createScreenCache("playlists", { userScoped: true });
 
+/** Call after mutating playlists outside this hook (e.g. rename on detail screen) so Listen refetches. */
+export function invalidateUserPlaylistsCache(userId) {
+  if (userId) playlistsCache.invalidate(String(userId));
+}
+
 const isMissingTableError = (error) =>
   error?.code === "42P01" || error?.code === "PGRST205";
 

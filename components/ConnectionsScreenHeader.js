@@ -28,8 +28,8 @@ export default function ConnectionsScreenHeader({
   return (
     <View style={styles.header}>
       <RhoodScreenTitleBlock
-        title="Connections"
-        subtitle="View friends and manage your conversations"
+        title="Friends"
+        subtitle="Discover DJs and chat with people you know"
         subtitleBottomSpacing={16}
       />
       <View style={styles.tabContainer}>
@@ -66,7 +66,7 @@ export default function ConnectionsScreenHeader({
           onPress={() => onTabChange?.(CONNECTIONS_SCREEN_TABS.CONNECTIONS)}
         >
           <Ionicons
-            name="people"
+            name="chatbubbles"
             size={16}
             color={
               activeTab === CONNECTIONS_SCREEN_TABS.CONNECTIONS
@@ -80,7 +80,7 @@ export default function ConnectionsScreenHeader({
               activeTab === CONNECTIONS_SCREEN_TABS.CONNECTIONS && styles.tabTextActive,
             ]}
           >
-            Connections
+            Chats
           </Text>
         </TouchableOpacity>
       </View>
@@ -92,7 +92,7 @@ export default function ConnectionsScreenHeader({
             placeholder={
               activeTab === CONNECTIONS_SCREEN_TABS.DISCOVER
                 ? "Search DJs..."
-                : "Search connections..."
+                : "Search people..."
             }
             placeholderTextColor="hsl(0, 0%, 50%)"
             value={searchQuery}

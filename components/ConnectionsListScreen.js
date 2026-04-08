@@ -78,11 +78,11 @@ function ConnectionsListHeader({ onBack, connectionCount, loading }) {
         <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
       </TouchableOpacity>
       <View style={styles.headerContent}>
-        <Text style={styles.headerTitle}>Connections</Text>
+        <Text style={styles.headerTitle}>Friends</Text>
         {!loading && connectionCount != null ? (
           <Text style={styles.headerSubtitle}>
             {connectionCount}{" "}
-            {connectionCount === 1 ? "connection" : "connections"}
+            {connectionCount === 1 ? "friend" : "friends"}
           </Text>
         ) : null}
       </View>
@@ -192,9 +192,9 @@ function ListEmptyDiscover({ onNavigate }) {
   return (
     <View style={styles.emptyContainer}>
       <Ionicons name="people-outline" size={64} color={COLORS.textTertiary} />
-      <Text style={styles.emptyTitle}>No Connections Yet</Text>
+      <Text style={styles.emptyTitle}>No friends yet</Text>
       <Text style={styles.emptyText}>
-        Start connecting with other DJs to build your network
+        Discover DJs and send a connection request to grow your network
       </Text>
       <TouchableOpacity
         style={styles.discoverButton}

@@ -1010,37 +1010,46 @@ export default function NotificationsScreen({
         delay={60}
         maxStaggerIndex={6}
       >
-        <Swipeable
-          ref={(ref) => {
-            if (ref) {
-              swipeableRefs.current.set(notification.id, ref);
-            } else {
-              swipeableRefs.current.delete(notification.id);
-            }
-          }}
-          overshootRight={false}
-          rightThreshold={34}
-          renderRightActions={() => (
-            <TouchableOpacity
-              style={styles.swipeDeleteAction}
-              onPress={() => {
-                const rowRef = swipeableRefs.current.get(notification.id);
-                rowRef?.close?.();
-                handleDismiss(notification.id);
-              }}
-              activeOpacity={0.82}
-            >
-              <Ionicons name="trash-outline" size={18} color="hsl(0, 0%, 100%)" />
-              <Text style={styles.swipeDeleteText}>Delete</Text>
-            </TouchableOpacity>
-          )}
+        <View
+          style={[
+            styles.notificationSwipeRow,
+            index === 0 && styles.notificationSwipeRowFirst,
+          ]}
         >
-          <TouchableOpacity
-            style={[
-              styles.notificationCard,
-              !notification.isRead && styles.unreadCard,
-              index === 0 && styles.notificationCardFirst,
-            ]}
+          <Swipeable
+            ref={(ref) => {
+              if (ref) {
+                swipeableRefs.current.set(notification.id, ref);
+              } else {
+                swipeableRefs.current.delete(notification.id);
+              }
+            }}
+            overshootRight={false}
+            rightThreshold={34}
+            renderRightActions={() => (
+              <TouchableOpacity
+                style={styles.swipeDeleteAction}
+                onPress={() => {
+                  const rowRef = swipeableRefs.current.get(notification.id);
+                  rowRef?.close?.();
+                  handleDismiss(notification.id);
+                }}
+                activeOpacity={0.82}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={18}
+                  color="hsl(0, 0%, 100%)"
+                />
+                <Text style={styles.swipeDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            )}
+          >
+            <TouchableOpacity
+              style={[
+                styles.notificationCard,
+                !notification.isRead && styles.unreadCard,
+              ]}
             onPress={() => handleNotificationPress(notification)}
             onLongPress={() => {
               if (notification.type === "connection" || notification.type === "connection_request") {
@@ -1133,6 +1142,7 @@ export default function NotificationsScreen({
             </View>
           </TouchableOpacity>
         </Swipeable>
+        </View>
       </AnimatedListItem>
     ),
     [
@@ -1416,33 +1426,39 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 70%)",
     lineHeight: 18,
   },
+  /** Margins live outside Swipeable so row height matches the card; delete action aligns to panel. */
+  notificationSwipeRow: {
+    marginBottom: 12,
+  },
+  notificationSwipeRowFirst: {
+    marginTop: 12,
+  },
   notificationCard: {
     backgroundColor: "hsl(0, 0%, 8%)",
     borderRadius: 12,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
     overflow: "hidden",
   },
   swipeDeleteAction: {
-    marginBottom: 12,
-    width: 96,
-    borderRadius: 12,
+    width: 88,
+    alignSelf: "stretch",
     backgroundColor: "hsl(0, 72%, 48%)",
     borderWidth: 1,
     borderColor: "hsl(0, 78%, 56%)",
     justifyContent: "center",
     alignItems: "center",
     gap: 4,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    borderTopLeftRadius: 4,
+    borderBottomLeftRadius: 4,
   },
   swipeDeleteText: {
     fontSize: 12,
     fontFamily: "Helvetica Neue",
     fontWeight: "700",
     color: "hsl(0, 0%, 100%)",
-  },
-  notificationCardFirst: {
-    marginTop: 12,
   },
   unreadCard: {
     borderColor: "hsl(75, 100%, 60%)",

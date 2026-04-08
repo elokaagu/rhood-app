@@ -1008,9 +1008,9 @@ export default function ProfileScreen({
             />
           </View>
           <View style={styles.connectionsInfo}>
-            <Text style={styles.connectionsTitle}>Connections</Text>
+            <Text style={styles.connectionsTitle}>Friends</Text>
             <Text style={styles.connectionsCount}>
-              {connectionsCount} {connectionsCount === 1 ? "connection" : "connections"}
+              {connectionsCount} {connectionsCount === 1 ? "friend" : "friends"}
             </Text>
           </View>
           <Ionicons

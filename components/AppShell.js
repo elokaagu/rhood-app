@@ -13,7 +13,7 @@ const MAIN_TABS = [
   },
   {
     key: SCREENS.CONNECTIONS,
-    label: "Connections",
+    label: "Friends",
     icon: "people-outline",
   },
   {

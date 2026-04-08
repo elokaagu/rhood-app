@@ -31,6 +31,7 @@ import PlaylistDetailScreen from "../components/PlaylistDetailScreen";
 import ResetPasswordScreen from "../components/ResetPasswordScreen";
 import SwipeBackScreenShell from "../components/SwipeBackScreenShell";
 import { db } from "../lib/supabase";
+import { CONNECTIONS_SCREEN_TABS } from "../lib/connectionsScreenTabIds";
 import { clearScreenCachesForUser } from "../lib/screenCache";
 import { clearMessageThreadSnapshotsForUser } from "../lib/messageThreadSnapshotCache";
 import { clearSessionExpoPushTokenCache } from "../lib/pushNotifications";
@@ -404,15 +405,28 @@ export default function ScreenRouter({
         />
       );
 
-    case SCREENS.CONNECTIONS_LIST:
+    case SCREENS.CONNECTIONS_LIST: {
+      const exitConnectionsList = () => {
+        if (screenParams?.connectionsListBackScreen === SCREENS.CONNECTIONS) {
+          setCurrentScreen(SCREENS.CONNECTIONS);
+          setScreenParams({
+            initialTab:
+              screenParams?.connectionsListBackInitialTab ??
+              CONNECTIONS_SCREEN_TABS.CONNECTIONS,
+          });
+          return;
+        }
+        setCurrentScreen(SCREENS.PROFILE);
+      };
       return withSwipeBack(
-        pickScreen(SCREENS.PROFILE),
+        exitConnectionsList,
         <ConnectionsListScreen
           user={user}
-          onBack={pickScreen(SCREENS.PROFILE)}
+          onBack={exitConnectionsList}
           onNavigate={navigate}
         />
       );
+    }
 
     case SCREENS.ACHIEVEMENTS_LIST:
       return (
@@ -537,13 +551,33 @@ export default function ScreenRouter({
 
     case SCREENS.PLAYLIST_DETAIL:
       return withSwipeBack(
-        pickScreen(SCREENS.LISTEN),
+        () => {
+          if (
+            screenParams?.playlistBackScreen === SCREENS.USER_PROFILE &&
+            screenParams?.playlistBackUserId
+          ) {
+            setCurrentScreen(SCREENS.USER_PROFILE);
+            setScreenParams({ userId: screenParams.playlistBackUserId });
+            return;
+          }
+          setCurrentScreen(SCREENS.LISTEN);
+        },
         <PlaylistDetailScreen
           globalAudioState={globalAudioState}
           onPlayAudio={playGlobalAudio}
           onPauseAudio={pauseGlobalAudio}
           onResumeAudio={resumeGlobalAudio}
-          onBack={pickScreen(SCREENS.LISTEN)}
+          onBack={() => {
+            if (
+              screenParams?.playlistBackScreen === SCREENS.USER_PROFILE &&
+              screenParams?.playlistBackUserId
+            ) {
+              setCurrentScreen(SCREENS.USER_PROFILE);
+              setScreenParams({ userId: screenParams.playlistBackUserId });
+              return;
+            }
+            setCurrentScreen(SCREENS.LISTEN);
+          }}
           user={user}
           onAddToQueue={addToQueue}
           onPlayNext={playNextTrack}

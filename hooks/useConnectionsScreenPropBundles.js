@@ -7,6 +7,7 @@ export function useConnectionsScreenPropBundles({
   activeTab,
   onTabChange,
   onGoToDiscover,
+  onViewFriendsList,
   searchQuery,
   onSearchChange,
   searchSuggestions,
@@ -65,6 +66,7 @@ export function useConnectionsScreenPropBundles({
       refreshControlProps: connectionsData.refreshControlProps,
       onRetry: actions.handleConnectionsRetry,
       onGoToDiscover,
+      onViewFriendsList,
       onBrowseCommunities: actions.handleBrowseCommunity,
       renderItem: renderConnectionSectionItem,
       getItemLayout: connectionsData.getConnectionListItemLayout,
@@ -82,6 +84,7 @@ export function useConnectionsScreenPropBundles({
       actions.handleConnectionsRetry,
       actions.handleBrowseCommunity,
       onGoToDiscover,
+      onViewFriendsList,
       renderConnectionSectionItem,
     ]
   );

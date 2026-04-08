@@ -13,6 +13,7 @@ import { useConnectionSectionRenderer } from "./useConnectionSectionRenderer";
 import { useConnectionsScreenPropBundles } from "./useConnectionsScreenPropBundles";
 import { useConnectionsTabChange } from "./useConnectionsTabChange";
 import { CONNECTIONS_SCREEN_TABS } from "../lib/connectionsScreenTabIds";
+import { SCREENS } from "../navigation/routes";
 
 export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -102,6 +103,13 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
     [handleTabChange]
   );
 
+  const onViewFriendsList = useCallback(() => {
+    onNavigate?.("connections-list", {
+      connectionsListBackScreen: SCREENS.CONNECTIONS,
+      connectionsListBackInitialTab: CONNECTIONS_SCREEN_TABS.CONNECTIONS,
+    });
+  }, [onNavigate]);
+
   const {
     headerProps,
     connectionsTabProps,
@@ -112,6 +120,7 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
     activeTab,
     onTabChange: handleTabChange,
     onGoToDiscover,
+    onViewFriendsList,
     searchQuery,
     onSearchChange,
     searchSuggestions,

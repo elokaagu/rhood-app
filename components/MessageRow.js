@@ -2,6 +2,7 @@ import React, { memo, useCallback, useMemo } from "react";
 import { View, Text, Pressable } from "react-native";
 import ProgressiveImage from "./ProgressiveImage";
 import OpportunityMessageCard from "./OpportunityMessageCard";
+import SharedMixMessageCard from "./SharedMixMessageCard";
 import {
   safeImageSource,
   MessageRowImage,
@@ -14,6 +15,7 @@ const MessageRow = memo(function MessageRow({
   message,
   onLongPress,
   onOpportunityPress,
+  onSharedMixPress,
   setFullscreenImage,
   onVideoPlay,
   onAudioToggle,
@@ -43,6 +45,7 @@ const MessageRow = memo(function MessageRow({
   const isNonTextMedia = messageType !== "text" && hasMediaUri;
   const isOpportunityRow =
     messageType === "opportunity" && message.opportunity;
+  const isMixRow = messageType === "mix" && message.sharedMix;
   const hasCaption = Boolean(message.content?.trim());
 
   const senderAvatarSource = safeImageSource(message.senderImage);
@@ -149,6 +152,12 @@ const MessageRow = memo(function MessageRow({
             isOwn={isOwn}
             onPress={onOpportunityPress}
           />
+        ) : isMixRow ? (
+          <SharedMixMessageCard
+            mix={message.sharedMix}
+            isOwn={isOwn}
+            onPress={onSharedMixPress}
+          />
         ) : isNonTextMedia ? (
           <View style={styles.mediaContent}>
             {messageType === "image" && (
@@ -201,7 +210,9 @@ const MessageRow = memo(function MessageRow({
         ) : (
           renderMessageText(message)
         )}
-        {messageType !== "opportunity" && renderLinkPreviews(message)}
+        {messageType !== "opportunity" &&
+          messageType !== "mix" &&
+          renderLinkPreviews(message)}
         {showTimestamp ? (
           <Text style={messageTimeStyle}>{formatTime(message.timestamp)}</Text>
         ) : null}

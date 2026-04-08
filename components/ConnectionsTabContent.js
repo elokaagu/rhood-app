@@ -35,6 +35,7 @@ function ConnectionsTabContent({
   refreshControlProps,
   onRetry,
   onGoToDiscover,
+  onViewFriendsList,
   onBrowseCommunities,
   renderItem,
   getItemLayout,
@@ -109,17 +110,26 @@ function ConnectionsTabContent({
             ListFooterComponent={
               <View style={styles.ctaSection}>
                 <View style={styles.ctaCard}>
-                  <Ionicons name="compass" size={24} color="hsl(0, 0%, 70%)" />
-                  <Text style={styles.ctaTitle}>View Friends</Text>
+                  <Ionicons name="people" size={24} color="hsl(0, 0%, 70%)" />
+                  <Text style={styles.ctaTitle}>Your friends</Text>
                   <Text style={styles.ctaDescription}>
-                    Find DJs to connect with and start conversations
+                    See everyone you&apos;re connected with in one list.
                   </Text>
                   <TouchableOpacity
                     style={styles.ctaButton}
-                    onPress={onGoToDiscover}
+                    onPress={onViewFriendsList}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.ctaButtonText}>Go to Discover</Text>
+                    <Text style={styles.ctaButtonText}>See all friends</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.ctaSecondaryLink}
+                    onPress={onGoToDiscover}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.ctaSecondaryLinkText}>
+                      Discover new DJs
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.ctaSecondaryLink}
