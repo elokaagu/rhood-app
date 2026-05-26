@@ -1528,6 +1528,7 @@ export default function App() {
     onSwitchToSignup: showSignup,
     onSwitchToLogin: showLogin,
     onOnboardingComplete: completeOnboarding,
+    onSignOut: handleLogout,
     styles,
   });
   if (authGateRender !== null) {

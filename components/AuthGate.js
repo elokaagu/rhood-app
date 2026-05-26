@@ -27,6 +27,7 @@ export default function AuthGate({
   onSwitchToSignup,
   onSwitchToLogin,
   onOnboardingComplete,
+  onSignOut,
   styles,
 }) {
   if (showSplash) {
@@ -65,6 +66,7 @@ export default function AuthGate({
         onComplete={onOnboardingComplete}
         djProfile={djProfile}
         setDjProfile={setDjProfile}
+        onSignOut={onSignOut}
       />
     );
   } else if (isProfileLoading) {

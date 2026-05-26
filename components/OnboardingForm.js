@@ -72,6 +72,16 @@ const MAJOR_CITIES = [
   "Chicago",
   "Miami",
   "San Francisco",
+  "Houston",
+  "Atlanta",
+  "Las Vegas",
+  "Seattle",
+  "Boston",
+  "Washington DC",
+  "Philadelphia",
+  "Detroit",
+  "Minneapolis",
+  "Denver",
   "London",
   "Berlin",
   "Amsterdam",
@@ -83,30 +93,71 @@ const MAJOR_CITIES = [
   "Vienna",
   "Prague",
   "Warsaw",
+  "Stockholm",
+  "Copenhagen",
+  "Oslo",
+  "Helsinki",
+  "Dublin",
+  "Brussels",
+  "Zurich",
+  "Geneva",
+  "Lisbon",
+  "Athens",
+  "Budapest",
+  "Bucharest",
+  "Zagreb",
+  "Belgrade",
+  "Kyiv",
   "Moscow",
+  "St. Petersburg",
+  "Istanbul",
+  "Dubai",
+  "Tel Aviv",
+  "Beirut",
+  "Cairo",
+  "Lagos",
+  "Nairobi",
+  "Cape Town",
+  "Johannesburg",
   "Tokyo",
   "Seoul",
+  "Beijing",
   "Shanghai",
+  "Guangzhou",
   "Hong Kong",
+  "Taipei",
   "Singapore",
+  "Bangkok",
+  "Jakarta",
+  "Kuala Lumpur",
+  "Manila",
+  "Osaka",
   "Sydney",
   "Melbourne",
+  "Brisbane",
+  "Auckland",
   "Toronto",
   "Montreal",
   "Vancouver",
   "Mexico City",
   "São Paulo",
+  "Rio de Janeiro",
   "Buenos Aires",
-  "Lima",
   "Bogotá",
+  "Lima",
+  "Santiago",
+  "Caracas",
+  "Medellín",
 ];
 
 export default function OnboardingForm({
   onComplete,
   djProfile,
   setDjProfile,
+  onSignOut,
 }) {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [citySearch, setCitySearch] = useState(djProfile?.city || "");
   const [currentStep, setCurrentStep] = useState(1);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -149,8 +200,8 @@ export default function OnboardingForm({
         }
         break;
       case 2:
-        if (!djProfile.city) {
-          newErrors.city = "Please select your city";
+        if (!djProfile.city?.trim()) {
+          newErrors.city = "Please enter your city";
         }
         break;
       case 3:
@@ -252,11 +303,17 @@ export default function OnboardingForm({
 
   const selectCity = (city) => {
     setDjProfile((prev) => ({ ...prev, city }));
+    setCitySearch(city);
     setShowCityDropdown(false);
   };
 
-  const toggleCityDropdown = () => {
-    setShowCityDropdown(!showCityDropdown);
+  const handleCityChange = (text) => {
+    setCitySearch(text);
+    setDjProfile((prev) => ({ ...prev, city: text }));
+    const hasMatches = MAJOR_CITIES.some((c) =>
+      c.toLowerCase().includes(text.toLowerCase())
+    );
+    setShowCityDropdown(text.length > 0 && hasMatches);
   };
 
   const handleImagePicker = () => {
@@ -366,6 +423,13 @@ export default function OnboardingForm({
       slideAnim={slideAnim}
       style={styles.stepContainer}
     >
+      <View style={styles.betaNotice}>
+        <Text style={styles.betaNoticeText}>
+          🔒 You&apos;re in the private beta. All content you upload is only
+          visible to other beta testers until public launch.
+        </Text>
+      </View>
+
       <Text style={styles.stepTitle}>Basic Information</Text>
       <Text style={styles.stepSubtitle}>Tell us about yourself</Text>
 
@@ -422,6 +486,14 @@ export default function OnboardingForm({
           <Text style={styles.errorText}>{errors.dj_name}</Text>
         )}
       </View>
+
+      {onSignOut && (
+        <TouchableOpacity style={styles.useAnotherAccountBtn} onPress={onSignOut}>
+          <Text style={styles.useAnotherAccountText}>
+            ← Use a different account
+          </Text>
+        </TouchableOpacity>
+      )}
     </StepAnimatedShell>
   );
 
@@ -442,24 +514,21 @@ export default function OnboardingForm({
       >
         <Text style={styles.label}>City *</Text>
         <View style={styles.cityDropdownBlock}>
-          <TouchableOpacity
-            style={[styles.dropdownButton, errors.city && styles.inputError]}
-            onPress={toggleCityDropdown}
-          >
-            <Text
-              style={[
-                styles.dropdownText,
-                !djProfile.city && styles.placeholderText,
-              ]}
-            >
-              {djProfile.city || "Select your city"}
-            </Text>
-            <Text style={styles.dropdownArrow}>▼</Text>
-          </TouchableOpacity>
-
+          <TextInput
+            style={[styles.input, errors.city && styles.inputError]}
+            placeholder="Type your city"
+            placeholderTextColor="hsl(0, 0%, 50%)"
+            value={citySearch}
+            onChangeText={handleCityChange}
+            onBlur={() => setShowCityDropdown(false)}
+            autoCapitalize="words"
+            autoCorrect={false}
+          />
           {showCityDropdown && (
-            <ScrollView style={styles.dropdown} nestedScrollEnabled>
-              {MAJOR_CITIES.map((city, index) => (
+            <ScrollView style={styles.dropdown} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+              {MAJOR_CITIES.filter((c) =>
+                c.toLowerCase().includes(citySearch.toLowerCase())
+              ).map((city, index) => (
                 <TouchableOpacity
                   key={`${city}-${index}`}
                   style={styles.dropdownItem}
@@ -536,7 +605,9 @@ export default function OnboardingForm({
       style={styles.stepContainer}
     >
       <Text style={styles.stepTitle}>Social Links</Text>
-      <Text style={styles.stepSubtitle}>Connect your profiles (optional)</Text>
+      <Text style={styles.stepSubtitle}>
+        Connect your profiles — all optional. Skip this step if you prefer.
+      </Text>
 
       <View style={styles.socialLinksCard}>
         <View style={styles.inputGroup}>
@@ -695,6 +766,9 @@ export default function OnboardingForm({
           <Text style={styles.skipText}>
             You can always add these later in your profile settings
           </Text>
+          <TouchableOpacity style={styles.skipNowBtn} onPress={nextStep}>
+            <Text style={styles.skipNowText}>Skip for now →</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </StepAnimatedShell>
@@ -1204,5 +1278,42 @@ const styles = {
     fontFamily: "Helvetica Neue",
     textAlign: "center",
     lineHeight: 20,
+  },
+  betaNotice: {
+    backgroundColor: "hsl(75, 100%, 60%, 0.08)",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%, 0.25)",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 20,
+  },
+  betaNoticeText: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 75%)",
+    lineHeight: 18,
+  },
+  useAnotherAccountBtn: {
+    marginTop: 24,
+    alignSelf: "center",
+  },
+  useAnotherAccountText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 50%)",
+    textDecorationLine: "underline",
+  },
+  skipNowBtn: {
+    marginTop: 12,
+    alignSelf: "center",
+  },
+  skipNowText: {
+    fontSize: 15,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    fontWeight: "600",
+  },
+  inputGroupDropdownOpen: {
+    zIndex: 10,
   },
 };
