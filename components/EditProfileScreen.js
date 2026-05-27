@@ -654,11 +654,11 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
       // Upload to Supabase storage
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("mixes") // Using existing mixes bucket for now
+        .from("avatars")
         .upload(`profile_images/${fileName}`, fileData, {
           contentType: `image/${fileExt}`,
           cacheControl: "3600",
-          upsert: false,
+          upsert: true,
         });
 
       if (uploadError) {
@@ -667,7 +667,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from("mixes")
+        .from("avatars")
         .getPublicUrl(`profile_images/${fileName}`);
 
       console.log("✅ Profile image uploaded:", urlData.publicUrl);
