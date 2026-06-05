@@ -81,11 +81,14 @@ export default function SwipeableOpportunityCard({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => isTopCard,
+        onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) => {
+          // Only claim the gesture when it's clearly a horizontal swipe.
+          // Letting dy movements through would fight scroll views elsewhere.
           return (
             isTopCard &&
-            (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5)
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
+            Math.abs(gestureState.dx) > 5
           );
         },
         onPanResponderGrant: () => {

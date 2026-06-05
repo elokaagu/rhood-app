@@ -636,7 +636,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode="interactive"
       >
         <Animated.View style={{ opacity: contentFadeAnim }}>
         {/* Header */}

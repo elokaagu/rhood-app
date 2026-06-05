@@ -109,14 +109,13 @@ const DJMix = ({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => isOwnMix,
+        onStartShouldSetPanResponder: () => false,
         onStartShouldSetPanResponderCapture: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) =>
           isOwnMix &&
           gestureState.dx < -10 &&
           Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
-        onMoveShouldSetPanResponderCapture: (_, gestureState) =>
-          isOwnMix && gestureState.dx < -10,
+        onMoveShouldSetPanResponderCapture: () => false,
         onPanResponderGrant: () => {
           if (!isOwnMix) return;
           swipeAnim.stopAnimation((value) => {
