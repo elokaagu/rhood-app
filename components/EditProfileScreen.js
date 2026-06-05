@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { db, supabase } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
@@ -643,20 +644,23 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     try {
       console.log("📤 Uploading profile image...");
 
-      // Generate unique filename
-      const fileExt = imageUri.split(".").pop() || "jpg";
-      const fileName = `profile_${user.id}_${Date.now()}.${fileExt}`;
+      // Lock to JPEG — expo-image-picker with quality < 1 outputs JPEG
+      const fileName = `profile_${user.id}_${Date.now()}.jpg`;
 
-      // Convert image to Uint8Array
-      const response = await fetch(imageUri);
-      const arrayBuffer = await response.arrayBuffer();
-      const fileData = new Uint8Array(arrayBuffer);
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const binaryStr = atob(base64);
+      const fileData = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        fileData[i] = binaryStr.charCodeAt(i);
+      }
 
       // Upload to Supabase storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(`profile_images/${fileName}`, fileData, {
-          contentType: `image/${fileExt}`,
+          contentType: "image/jpeg",
           cacheControl: "3600",
           upsert: true,
         });
