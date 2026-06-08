@@ -133,7 +133,7 @@ function weightedShuffle(items) {
 export default function useAudioPlayback({ user }) {
   // ── Context ──────────────────────────────────────────────
   const audioState = useAudioState();
-  const { setGlobalAudioState, actionsRef, stateRef } = useAudioActions();
+  const { setGlobalAudioState, setPlaybackState, actionsRef, stateRef } = useAudioActions();
 
   // ── Local state ──────────────────────────────────────────
   const [likedMixIds, setLikedMixIds] = useState(() => new Set());
@@ -398,7 +398,10 @@ export default function useAudioPlayback({ user }) {
                   status.durationMillis > 0 ? status.durationMillis : 0;
                 const metaMs = trackMetaDurationMs(track);
                 if (!isScrubbingRef.current) {
-                  setGlobalAudioState((prev) => {
+                  // ── Fast path: position/duration/progress → playback context only.
+                  // This fires every ~250 ms; routing to a separate context prevents
+                  // ScreenRouter and all child screens from re-rendering at 4 Hz.
+                  setPlaybackState((prev) => {
                     const durationMillis =
                       nativeDur > 0
                         ? nativeDur
@@ -408,15 +411,24 @@ export default function useAudioPlayback({ user }) {
                     const pos = status.positionMillis ?? 0;
                     const dur = durationMillis > 0 ? durationMillis : metaMs;
                     return {
-                      ...prev,
-                      isPlaying: status.isPlaying,
-                      isLoading: false,
                       positionMillis: pos,
                       durationMillis: dur > 0 ? dur : prev.durationMillis,
                       progress:
                         dur > 0 ? Math.min(1, pos / dur) : prev.progress ?? 0,
                     };
                   });
+                  // ── Slow path: isPlaying / isLoading only update on state change.
+                  // Check stateRef to avoid redundant setGlobalAudioState calls.
+                  if (
+                    stateRef.current.isPlaying !== status.isPlaying ||
+                    stateRef.current.isLoading !== false
+                  ) {
+                    setGlobalAudioState((prev) => ({
+                      ...prev,
+                      isPlaying: status.isPlaying,
+                      isLoading: false,
+                    }));
+                  }
                 }
                 if (Platform.OS === "android") {
                   lockScreenControls.updatePlaybackState(
@@ -459,10 +471,12 @@ export default function useAudioPlayback({ user }) {
                     ...prev,
                     isPlaying: false,
                     isLoading: false,
+                  }));
+                  setPlaybackState({
                     progress: 1,
                     positionMillis: status.durationMillis || 0,
                     durationMillis: status.durationMillis || 0,
-                  }));
+                  });
                   setTimeout(doPlayNext, 100);
                   return;
                 }
@@ -615,7 +629,8 @@ export default function useAudioPlayback({ user }) {
               isLiked: isLiked,
             };
 
-            const next = {
+            // Slow state only — no position/duration/progress here
+            return {
               ...prev,
               sound: sound,
               isPlaying: true,
@@ -624,19 +639,20 @@ export default function useAudioPlayback({ user }) {
               queue: newQueue,
               currentQueueIndex: newIndex,
             };
-            const trackDur = trackMetaDurationMs(track);
-            if (initialStatus?.isLoaded && initialStatus?.durationMillis > 0) {
-              const d = Math.max(initialStatus.durationMillis ?? 0, trackDur || 0);
-              next.positionMillis = initialStatus.positionMillis ?? 0;
-              next.durationMillis = d;
-              next.progress = d > 0 ? (initialStatus.positionMillis ?? 0) / d : 0;
-            } else if (trackDur > 0) {
-              next.positionMillis = 0;
-              next.durationMillis = trackDur;
-              next.progress = 0;
-            }
-            return next;
           });
+
+          // Seed the fast/playback context with initial position from native status
+          const trackDur = trackMetaDurationMs(track);
+          if (initialStatus?.isLoaded && initialStatus?.durationMillis > 0) {
+            const d = Math.max(initialStatus.durationMillis ?? 0, trackDur || 0);
+            setPlaybackState({
+              positionMillis: initialStatus.positionMillis ?? 0,
+              durationMillis: d,
+              progress: d > 0 ? (initialStatus.positionMillis ?? 0) / d : 0,
+            });
+          } else if (trackDur > 0) {
+            setPlaybackState({ positionMillis: 0, durationMillis: trackDur, progress: 0 });
+          }
 
           // Set up lock screen controls (Android)
           if (Platform.OS === "android") {
@@ -844,17 +860,15 @@ export default function useAudioPlayback({ user }) {
     setGlobalAudioState({
       isPlaying: false,
       currentTrack: null,
-      progress: 0,
       isLoading: false,
       sound: null,
       isShuffled: false,
       repeatMode: "none",
-      positionMillis: 0,
-      durationMillis: 0,
       queue: [],
       currentQueueIndex: -1,
     });
-  }, [setGlobalAudioState]);
+    setPlaybackState({ positionMillis: 0, durationMillis: 0, progress: 0 });
+  }, [setGlobalAudioState, setPlaybackState]);
 
   const seekGlobalAudio = useCallback(async (seekAmount) => {
     try {
@@ -870,10 +884,7 @@ export default function useAudioPlayback({ user }) {
         );
 
         await globalAudioRef.current.setPositionAsync(newPosition);
-        setGlobalAudioState((prev) => ({
-          ...prev,
-          positionMillis: newPosition,
-        }));
+        setPlaybackState((prev) => ({ ...prev, positionMillis: newPosition }));
         if (Platform.OS === "android") {
           lockScreenControls.updatePlaybackState(
             stateRef.current.isPlaying,
@@ -895,7 +906,7 @@ export default function useAudioPlayback({ user }) {
     } catch (error) {
       if (__DEV__) console.log("❌ Error seeking audio:", error);
     }
-  }, [setGlobalAudioState, stateRef, syncGlobalAudioRefFromState]);
+  }, [setGlobalAudioState, setPlaybackState, stateRef, syncGlobalAudioRefFromState]);
 
   /** While true, playback status updates do not overwrite `positionMillis` (full-screen scrub). */
   const beginScrubbing = useCallback(() => {
@@ -944,8 +955,7 @@ export default function useAudioPlayback({ user }) {
 
       await globalAudioRef.current.setPositionAsync(clampedPosition);
 
-      setGlobalAudioState((prev) => ({
-        ...prev,
+      setPlaybackState((prev) => ({
         positionMillis: clampedPosition,
         progress: effectiveDuration ? clampedPosition / effectiveDuration : 0,
         durationMillis:
@@ -969,7 +979,7 @@ export default function useAudioPlayback({ user }) {
     } finally {
       isScrubbingRef.current = false;
     }
-  }, [setGlobalAudioState, stateRef, syncGlobalAudioRefFromState]);
+  }, [setPlaybackState, stateRef, syncGlobalAudioRefFromState]);
 
   // ── Queue management ─────────────────────────────────────
 
@@ -1331,16 +1341,10 @@ export default function useAudioPlayback({ user }) {
             const st = await globalAudioRef.current.getStatusAsync();
             if (st.isLoaded) {
               if (__DEV__) console.log("🎵 Loop same track from beginning (in-place)");
-              setGlobalAudioState((prev) => ({ ...prev, currentQueueIndex: 0 }));
+              setGlobalAudioState((prev) => ({ ...prev, currentQueueIndex: 0, isPlaying: true }));
               await globalAudioRef.current.setPositionAsync(0);
               await globalAudioRef.current.playAsync();
-              setGlobalAudioState((prev) => ({
-                ...prev,
-                isPlaying: true,
-                positionMillis: 0,
-                progress: 0,
-                currentQueueIndex: 0,
-              }));
+              setPlaybackState({ positionMillis: 0, durationMillis: stateRef.current.durationMillis, progress: 0 });
               return;
             }
           } catch (e) {
@@ -1361,12 +1365,8 @@ export default function useAudioPlayback({ user }) {
             if (__DEV__) console.log("🎵 No next track; restarting current mix from beginning");
             await globalAudioRef.current.setPositionAsync(0);
             await globalAudioRef.current.playAsync();
-            setGlobalAudioState((prev) => ({
-              ...prev,
-              isPlaying: true,
-              positionMillis: 0,
-              progress: 0,
-            }));
+            setGlobalAudioState((prev) => ({ ...prev, isPlaying: true }));
+            setPlaybackState({ positionMillis: 0, durationMillis: stateRef.current.durationMillis, progress: 0 });
             return;
           }
         } catch (e) {

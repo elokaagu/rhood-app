@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useAudioPlayback } from "../context/AudioContext";
 import {
   View,
   Text,
@@ -73,6 +74,11 @@ export default function ProfileScreen({
   });
 
   const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.PROFILE);
+
+  // High-frequency position data comes from the fast playback context directly —
+  // not from the globalAudioState prop — so this component doesn't re-render
+  // on every scrubber tick when the profile screen isn't even visible.
+  const audioPlayback = useAudioPlayback();
 
   const audioIdTrackId =
     profile?.audioId?.id || (profile?.id ? `audio-id-${profile.id}` : null);
@@ -201,13 +207,13 @@ export default function ProfileScreen({
     }
 
     const durationMs =
-      match && Number(globalAudioState.durationMillis) > 0
-        ? globalAudioState.durationMillis
+      match && Number(audioPlayback.durationMillis) > 0
+        ? audioPlayback.durationMillis
         : metaMs;
 
     const positionMs =
-      match && Number.isFinite(globalAudioState.positionMillis)
-        ? Math.max(0, globalAudioState.positionMillis)
+      match && Number.isFinite(audioPlayback.positionMillis)
+        ? Math.max(0, audioPlayback.positionMillis)
         : 0;
 
     const progressPct =
@@ -219,8 +225,8 @@ export default function ProfileScreen({
   }, [
     profile,
     globalAudioState.currentTrack?.id,
-    globalAudioState.positionMillis,
-    globalAudioState.durationMillis,
+    audioPlayback.positionMillis,
+    audioPlayback.durationMillis,
   ]);
 
   // Load user profile from database and set up real-time subscription

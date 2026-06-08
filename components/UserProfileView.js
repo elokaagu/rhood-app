@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useAudioPlayback } from "../context/AudioContext";
 import {
   View,
   Text,
@@ -52,6 +53,10 @@ export default function UserProfileView({
   const [connectionPlaylistsLoading, setConnectionPlaylistsLoading] =
     useState(false);
 
+  // High-frequency position data — comes from the fast playback context so
+  // this component is not re-rendered every 250 ms by the slow-state prop.
+  const audioPlayback = useAudioPlayback();
+
   const formatMillisShort = (ms) => {
     const s = Math.max(0, Math.floor((ms || 0) / 1000));
     const m = Math.floor(s / 60);
@@ -66,7 +71,7 @@ export default function UserProfileView({
       String(profile.primaryMix.id);
 
   const audioIdProgress = audioIdTrackActive
-    ? globalAudioState.progress ?? 0
+    ? audioPlayback.progress ?? 0
     : 0;
 
   const primaryMixTrackActive =
@@ -892,7 +897,7 @@ export default function UserProfileView({
               <View style={styles.progressContainer}>
                 <Text style={styles.timeText}>
                   {audioIdTrackActive
-                    ? formatMillisShort(globalAudioState.positionMillis)
+                    ? formatMillisShort(audioPlayback.positionMillis)
                     : "0:00"}
                 </Text>
                 <View style={styles.progressBar}>

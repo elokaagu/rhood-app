@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useAudioState, useAudioActions } from "../context/AudioContext";
+import { useAudioState, useAudioPlayback, useAudioActions } from "../context/AudioContext";
 import MiniPlayerBar from "./MiniPlayerBar";
 import FullScreenPlayerModal from "./FullScreenPlayerModal";
 import SaveToPlaylistModal from "./SaveToPlaylistModal";
@@ -48,6 +48,7 @@ function GlobalAudioPlayerUI({
   globalAudioRef,
 }) {
   const state = useAudioState();
+  const playback = useAudioPlayback(); // position/duration/progress — separate fast context
   const { setGlobalAudioState, actionsRef } = useAudioActions();
   const insets = useSafeAreaInsets();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
@@ -239,8 +240,8 @@ function GlobalAudioPlayerUI({
     return 0;
   })();
   const durationMillis =
-    state.durationMillis > 0
-      ? state.durationMillis
+    playback.durationMillis > 0
+      ? playback.durationMillis
       : trackDurationMs > 0
         ? trackDurationMs
         : 0;
@@ -270,7 +271,7 @@ function GlobalAudioPlayerUI({
         <MiniPlayerBar
           track={track}
           isPlaying={!!state.isPlaying}
-          positionMillis={state.positionMillis ?? 0}
+          positionMillis={playback.positionMillis ?? 0}
           durationMillis={durationMillis}
           durationUnknown={durationUnknown}
           onOpenFullScreen={() => setFullScreenVisible(true)}
@@ -289,7 +290,7 @@ function GlobalAudioPlayerUI({
         overlayStyle={s.fullScreenPlayerOverlay}
         track={track}
         playbackError={state.error}
-        positionMillis={state.positionMillis ?? 0}
+        positionMillis={playback.positionMillis ?? 0}
         durationMillis={durationMillis}
         onSeekToPosition={(ms) =>
           actionsRef?.current?.seekToPosition?.(ms)
