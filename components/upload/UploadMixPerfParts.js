@@ -196,16 +196,24 @@ export const UploadMixLibraryCarousel = memo(function UploadMixLibraryCarousel({
   );
 });
 
+/**
+ * Multi-select genre strip. Passes an array of selected genres via onToggleGenre.
+ * Props:
+ *   selectedGenres — string[]  (array of currently selected genre labels)
+ *   onToggleGenre  — (genre: string) => void  (parent toggles in/out of the array)
+ */
 export const UploadMixGenreStrip = memo(function UploadMixGenreStrip({
   genres,
-  selectedGenre,
+  selectedGenres,
   uploading,
   styles: st,
   onToggleGenre,
 }) {
+  const selectedSet = Array.isArray(selectedGenres) ? new Set(selectedGenres) : new Set();
+
   const renderItem = useCallback(
     ({ item: genre }) => {
-      const selected = selectedGenre === genre;
+      const selected = selectedSet.has(genre);
       return (
         <TouchableOpacity
           style={[st.genreChip, selected && st.genreChipSelected]}
@@ -227,7 +235,7 @@ export const UploadMixGenreStrip = memo(function UploadMixGenreStrip({
         </TouchableOpacity>
       );
     },
-    [selectedGenre, uploading, onToggleGenre, st]
+    [selectedSet, uploading, onToggleGenre, st]
   );
 
   return (

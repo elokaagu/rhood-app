@@ -31,6 +31,8 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorModal, setErrorModal] = useState({ visible: false, title: "", message: "" });
+  const [pendingEmail, setPendingEmail] = useState(null); // set when email confirmation is required
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const updateFormData = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -78,49 +80,73 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
 
     try {
       setLoading(true);
-      const { user } = await auth.signUp(formData.email, formData.password, {
-        dj_name: formData.djName,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        city: formData.city,
-      });
+      const { user, needsEmailConfirmation } = await auth.signUp(
+        formData.email,
+        formData.password
+      );
 
       if (user) {
-        // Create user profile in database (using upsert to handle duplicates)
-        const profileData = {
-          id: user.id, // Use the authenticated user's ID
-          email: formData.email,
-          dj_name: formData.djName,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          city: formData.city,
-          genres: [], // Will be set during onboarding
-          bio: `DJ from ${formData.city}`,
-          profile_image_url: null, // Will use R/HOOD logo as default in UI
-        };
+        if (!needsEmailConfirmation) {
+          // Auto-confirmed (email confirmation disabled in Supabase) — proceed immediately
+          const profileData = {
+            id: user.id,
+            email: formData.email,
+            dj_name: formData.djName,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            city: formData.city,
+            genres: [],
+            bio: `DJ from ${formData.city}`,
+            profile_image_url: null,
+          };
 
-        await db.createUserProfile(profileData);
-        
-        // Process referral if invite code was provided
-        if (formData.inviteCode && formData.inviteCode.trim()) {
-          try {
-            await db.processReferral(formData.inviteCode.trim(), user.id);
-            console.log("✅ Referral processed successfully");
-          } catch (referralError) {
-            // Don't block signup if referral fails, just log it
-            console.warn("⚠️ Referral processing failed:", referralError);
+          await db.createUserProfile(profileData);
+
+          if (formData.inviteCode && formData.inviteCode.trim()) {
+            try {
+              await db.processReferral(formData.inviteCode.trim(), user.id);
+            } catch (referralError) {
+              console.warn("⚠️ Referral processing failed:", referralError);
+            }
           }
+
+          onSignupSuccess(user);
+        } else {
+          // Email confirmation required — show the pending screen
+          setPendingEmail(formData.email);
+          startResendCooldown();
         }
-        
-        onSignupSuccess(user);
       }
     } catch (error) {
       console.error("Signup error:", error);
-      
-      // Convert technical errors to user-friendly plain English messages
       const errorMessage = getSignupErrorMessage(error);
-      
       setErrorModal({ visible: true, title: "Signup Failed", message: errorMessage });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startResendCooldown = () => {
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleResendEmail = async () => {
+    if (!pendingEmail || resendCooldown > 0) return;
+    try {
+      setLoading(true);
+      await auth.resendConfirmationEmail(pendingEmail);
+      startResendCooldown();
+    } catch (error) {
+      setErrorModal({ visible: true, title: "Error", message: "Couldn't resend the email. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -184,6 +210,56 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       setLoading(false);
     }
   };
+
+  // Email confirmation pending screen
+  if (pendingEmail) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.pendingContainer}>
+          <View style={styles.pendingIconCircle}>
+            <Ionicons name="mail-outline" size={40} color="hsl(75, 100%, 60%)" />
+          </View>
+          <Text style={styles.pendingTitle}>Check your inbox</Text>
+          <Text style={styles.pendingBody}>
+            We sent a confirmation link to{"\n"}
+            <Text style={styles.pendingEmail}>{pendingEmail}</Text>
+          </Text>
+          <Text style={styles.pendingHint}>
+            Tap the link in the email to activate your account, then come back and sign in.
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.button, resendCooldown > 0 && styles.buttonDisabled]}
+            onPress={handleResendEmail}
+            disabled={resendCooldown > 0 || loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="hsl(0, 0%, 0%)" />
+            ) : (
+              <Text style={styles.buttonText}>
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend email"}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.switchContainer} onPress={onSwitchToLogin}>
+            <Text style={styles.switchText}>Already confirmed? </Text>
+            <Text style={styles.switchLink}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+
+        <RhoodModal
+          visible={errorModal.visible}
+          onClose={() => setErrorModal({ visible: false, title: "", message: "" })}
+          title={errorModal.title}
+          message={errorModal.message}
+          type="error"
+          primaryButtonText="OK"
+          onPrimaryPress={() => setErrorModal({ visible: false, title: "", message: "" })}
+        />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -615,5 +691,52 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Helvetica Neue",
     marginBottom: 8,
+  },
+  // Email confirmation pending
+  pendingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  pendingIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderWidth: 1,
+    borderColor: "hsl(75, 100%, 60%)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 28,
+  },
+  pendingTitle: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 26,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "bold",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  pendingBody: {
+    color: "hsl(0, 0%, 70%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    textAlign: "center",
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  pendingEmail: {
+    color: "hsl(0, 0%, 100%)",
+    fontWeight: "600",
+  },
+  pendingHint: {
+    color: "hsl(0, 0%, 50%)",
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    textAlign: "center",
+    marginBottom: 36,
+    lineHeight: 20,
+    paddingHorizontal: 8,
   },
 });

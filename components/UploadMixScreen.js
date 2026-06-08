@@ -77,7 +77,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   const [mixData, setMixData] = useState({
     title: "",
     description: "",
-    genre: "",
+    genres: [], // multi-select; minimum 3 required
     isPublic: true,
     // Default ON; user can turn off before upload (single setPrimaryMix in service)
     setAsPrimary: true,
@@ -208,10 +208,14 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   const handleSelectMixToEdit = useCallback(async (mix) => {
     setEditingMix(mix);
     setShowMixSelector(false);
+    // Parse the stored comma-separated genre string back into an array
+    const parsedGenres = mix.genre
+      ? mix.genre.split(",").map((g) => g.trim()).filter(Boolean)
+      : [];
     setMixData({
       title: mix.title || "",
       description: mix.description || "",
-      genre: mix.genre || "",
+      genres: parsedGenres,
       isPublic: mix.is_public !== false,
       setAsPrimary: false, // Don't change primary mix when editing
       isPinned: mix.is_pinned || false,
@@ -228,7 +232,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     setMixData({
       title: "",
       description: "",
-      genre: "",
+      genres: [],
       isPublic: true,
       setAsPrimary: true,
       isPinned: false,
@@ -248,10 +252,16 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   }, [existingMixId, existingMixes, handleSelectMixToEdit]);
 
   const onToggleGenre = useCallback((genre) => {
-    setMixData((prev) => ({
-      ...prev,
-      genre: prev.genre === genre ? "" : genre,
-    }));
+    setMixData((prev) => {
+      const current = prev.genres || [];
+      const isSelected = current.includes(genre);
+      return {
+        ...prev,
+        genres: isSelected
+          ? current.filter((g) => g !== genre)
+          : [...current, genre],
+      };
+    });
   }, []);
 
   const pickAudioFile = useCallback(async () => {
@@ -308,7 +318,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
 
         console.log("✅ File size within limits");
 
-        const maxDurationMillis = 10 * 60 * 1000; // 10 minutes
+        const maxDurationMillis = 30 * 60 * 1000; // 30 minutes
         let detectedDurationMillis = null;
 
         // Check audio duration before accepting
@@ -316,7 +326,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           if (!Audio || !Audio.Sound || !Audio.Sound.createAsync) {
             Alert.alert(
               "Length Check Unavailable",
-              "We couldn't verify this mix's length in the current environment. Please ensure it is no longer than 10 minutes before uploading."
+              "We couldn't verify this mix's length in the current environment. Please ensure it is no longer than 30 minutes before uploading."
             );
           } else {
             const { sound } = await Audio.Sound.createAsync(
@@ -338,14 +348,14 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
               if (detectedDurationMillis > maxDurationMillis) {
                 Alert.alert(
                   "Mix Too Long",
-                  "Please upload a mix that is 10 minutes or shorter."
+                  "Please upload a mix that is 30 minutes or shorter."
                 );
                 return;
               }
             } else {
               Alert.alert(
                 "Unable to Verify Length",
-                "We couldn't read the length of this mix. Please double-check that it is 10 minutes or shorter before uploading."
+                "We couldn't read the length of this mix. Please double-check that it is 30 minutes or shorter before uploading."
               );
             }
           }
@@ -353,7 +363,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           console.warn("⚠️ Could not check duration:", durationError.message);
           Alert.alert(
             "Unable to Verify Length",
-            "We couldn't read the length of this mix. Please double-check that it is 10 minutes or shorter before uploading."
+            "We couldn't read the length of this mix. Please double-check that it is 30 minutes or shorter before uploading."
           );
         }
 
@@ -759,7 +769,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
               ) : (
                 <View style={styles.filePickerGuidelines}>
                   <Text style={styles.filePickerText}>
-                    Tap to choose file · MP3 · max 10 min
+                    Tap to choose file · MP3 · max 30 min
                   </Text>
                   <Text style={styles.filePickerSubtext}>
                     We will validate length after you pick.
@@ -895,7 +905,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
               style={styles.sectionSubtitle}
               {...androidSubtitleTextProps}
             >
-              Add a title (required) and genre so listeners can find your mix.
+              Add a title (required) and at least 3 genres so listeners can find your mix.
             </Text>
 
             <View style={styles.inputGroup}>
@@ -929,10 +939,20 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Genre</Text>
+              <View style={styles.genreLabelRow}>
+                <Text style={styles.label}>Genres *</Text>
+                <Text
+                  style={[
+                    styles.genreCount,
+                    (mixData.genres || []).length >= 3 && styles.genreCountMet,
+                  ]}
+                >
+                  {(mixData.genres || []).length}/3 min
+                </Text>
+              </View>
               <UploadMixGenreStrip
                 genres={MIX_GENRES}
-                selectedGenre={mixData.genre}
+                selectedGenres={mixData.genres}
                 uploading={uploading}
                 styles={styles}
                 onToggleGenre={onToggleGenre}
@@ -1393,6 +1413,21 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
     textAlignVertical: "top",
+  },
+  genreLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: SPACING.sm,
+  },
+  genreCount: {
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textTertiary,
+  },
+  genreCountMet: {
+    color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.semibold,
   },
   genreScroll: {
     flexGrow: 0,

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -39,116 +40,44 @@ function StepAnimatedShell({ fadeAnim, slideAnim, style, children }) {
   );
 }
 
-// Music genres for selection
+// Music genres for selection — ordered by popularity/breadth first
 const MUSIC_GENRES = [
+  // Core urban / crossover (most requested additions)
+  "Hip-Hop",
+  "R&B",
+  "Soul",
+  "Afrobeats",
+  "Dancehall",
+  "Reggae",
+  "Funk",
+  "Jazz",
+  // Electronic / club
   "House",
-  "Techno",
-  "Trance",
-  "Dubstep",
-  "Drum & Bass",
-  "Ambient",
-  "Progressive",
-  "Minimal",
-  "Deep House",
   "Tech House",
-  "Hardstyle",
-  "Trap",
-  "Future Bass",
-  "Breakbeat",
+  "Deep House",
+  "Techno",
+  "Drum & Bass",
   "Garage",
   "Jungle",
-  "Industrial",
+  "Dubstep",
+  "Trance",
+  "Psytrance",
+  "Hardstyle",
+  "Hardcore",
+  "Breakbeat",
+  // Electronic production
+  "Electronic",
   "Electro",
   "Synthwave",
+  "Ambient",
   "Downtempo",
-  "Psytrance",
-  "Hardcore",
+  "Future Bass",
+  "Trap",
+  "Progressive",
+  "Minimal",
+  "Industrial",
 ];
 
-// Major cities for selection
-const MAJOR_CITIES = [
-  "New York",
-  "Los Angeles",
-  "Chicago",
-  "Miami",
-  "San Francisco",
-  "Houston",
-  "Atlanta",
-  "Las Vegas",
-  "Seattle",
-  "Boston",
-  "Washington DC",
-  "Philadelphia",
-  "Detroit",
-  "Minneapolis",
-  "Denver",
-  "London",
-  "Berlin",
-  "Amsterdam",
-  "Paris",
-  "Barcelona",
-  "Madrid",
-  "Rome",
-  "Milan",
-  "Vienna",
-  "Prague",
-  "Warsaw",
-  "Stockholm",
-  "Copenhagen",
-  "Oslo",
-  "Helsinki",
-  "Dublin",
-  "Brussels",
-  "Zurich",
-  "Geneva",
-  "Lisbon",
-  "Athens",
-  "Budapest",
-  "Bucharest",
-  "Zagreb",
-  "Belgrade",
-  "Kyiv",
-  "Moscow",
-  "St. Petersburg",
-  "Istanbul",
-  "Dubai",
-  "Tel Aviv",
-  "Beirut",
-  "Cairo",
-  "Lagos",
-  "Nairobi",
-  "Cape Town",
-  "Johannesburg",
-  "Tokyo",
-  "Seoul",
-  "Beijing",
-  "Shanghai",
-  "Guangzhou",
-  "Hong Kong",
-  "Taipei",
-  "Singapore",
-  "Bangkok",
-  "Jakarta",
-  "Kuala Lumpur",
-  "Manila",
-  "Osaka",
-  "Sydney",
-  "Melbourne",
-  "Brisbane",
-  "Auckland",
-  "Toronto",
-  "Montreal",
-  "Vancouver",
-  "Mexico City",
-  "São Paulo",
-  "Rio de Janeiro",
-  "Buenos Aires",
-  "Bogotá",
-  "Lima",
-  "Santiago",
-  "Caracas",
-  "Medellín",
-];
 
 export default function OnboardingForm({
   onComplete,
@@ -156,16 +85,17 @@ export default function OnboardingForm({
   setDjProfile,
   onSignOut,
 }) {
-  const [showCityDropdown, setShowCityDropdown] = useState(false);
-  const [citySearch, setCitySearch] = useState(djProfile?.city || "");
   const [currentStep, setCurrentStep] = useState(1);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const [errors, setErrors] = useState({});
-  const [profileImage, setProfileImage] = useState(null);
+  const [profileImage, setProfileImage] = useState(null);       // public URL after successful upload
+  const [localImageUri, setLocalImageUri] = useState(null);     // local URI for immediate preview
+  const [pendingUpload, setPendingUpload] = useState(null);     // { uri, mimeType } waiting to retry
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
 
-  const totalSteps = 5;
+  const totalSteps = 4;
 
   useEffect(() => {
     fadeAnim.setValue(0);
@@ -189,27 +119,28 @@ export default function OnboardingForm({
 
     switch (step) {
       case 1:
+        // DJ name is always required
+        if (!djProfile.dj_name?.trim()) {
+          newErrors.dj_name = "DJ name is required";
+        }
+        // First / last name and city only required when blank (social sign-in users
+        // may not have provided them; email sign-up already collected these)
         if (!djProfile.first_name?.trim()) {
           newErrors.first_name = "First name is required";
         }
         if (!djProfile.last_name?.trim()) {
           newErrors.last_name = "Last name is required";
         }
-        if (!djProfile.dj_name?.trim()) {
-          newErrors.dj_name = "DJ name is required";
+        if (!djProfile.city?.trim()) {
+          newErrors.city = "City is required";
         }
         break;
       case 2:
-        if (!djProfile.city?.trim()) {
-          newErrors.city = "Please enter your city";
-        }
-        break;
-      case 3:
         if (djProfile.genres.length === 0) {
           newErrors.genres = "Please select at least one genre";
         }
         break;
-      case 4: {
+      case 3: {
         const soc = normalizedSocialProfileForValidation(djProfile);
         if (djProfile.instagram?.trim() && !isValidInstagram(soc.instagram)) {
           newErrors.instagram = "Please enter a valid Instagram handle or URL";
@@ -225,8 +156,12 @@ export default function OnboardingForm({
         }
         break;
       }
-      case 5:
-        if (!djProfile.profile_image_url && !profileImage) {
+      case 4:
+        if (uploadingImage) {
+          newErrors.profile_image = "Please wait — your photo is still uploading";
+        } else if (uploadError) {
+          newErrors.profile_image = "Photo upload failed. Please tap Retry before continuing.";
+        } else if (!djProfile.profile_image_url && !profileImage) {
           newErrors.profile_image = "Profile picture is required";
         }
         break;
@@ -269,7 +204,7 @@ export default function OnboardingForm({
     const isValid = validateStep(currentStep);
     if (!isValid) return;
 
-    if (currentStep === 4) {
+    if (currentStep === 3) {
       setDjProfile((prev) => ({
         ...prev,
         instagram: normalizeInstagramOnBlur(prev.instagram),
@@ -301,37 +236,27 @@ export default function OnboardingForm({
     }));
   };
 
-  const selectCity = (city) => {
-    setDjProfile((prev) => ({ ...prev, city }));
-    setCitySearch(city);
-    setShowCityDropdown(false);
-  };
+  // Go directly to photo library — no intermediate action sheet
+  const handleImagePicker = () => openImagePicker("library");
+  const handleCameraPicker = () => openImagePicker("camera");
 
-  const handleCityChange = (text) => {
-    setCitySearch(text);
-    setDjProfile((prev) => ({ ...prev, city: text }));
-    const hasMatches = MAJOR_CITIES.some((c) =>
-      c.toLowerCase().includes(text.toLowerCase())
-    );
-    setShowCityDropdown(text.length > 0 && hasMatches);
-  };
-
-  const handleImagePicker = () => {
-    Alert.alert(
-      "Select Profile Picture",
-      "Choose how you'd like to add your profile picture",
-      [
-        {
-          text: "Camera",
-          onPress: () => openImagePicker("camera"),
-        },
-        {
-          text: "Photo Library",
-          onPress: () => openImagePicker("library"),
-        },
-        { text: "Cancel", style: "cancel" },
-      ]
-    );
+  /** Upload a local image URI + mimeType. Can be called on first pick or retry. */
+  const uploadImage = async (uri, mimeType) => {
+    setUploadingImage(true);
+    setUploadError(null);
+    try {
+      const { publicUrl } = await uploadOnboardingProfileImage(uri, mimeType);
+      setProfileImage(publicUrl);
+      setPendingUpload(null); // upload succeeded, clear retry state
+      setDjProfile((prev) => ({ ...prev, profile_image_url: publicUrl }));
+    } catch (err) {
+      console.error("❌ Failed to upload image:", err);
+      // Keep the local preview visible; let the user retry without re-picking
+      setUploadError(err.message || "Upload failed. Tap retry to try again.");
+      setPendingUpload({ uri, mimeType });
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const openImagePicker = async (source) => {
@@ -341,10 +266,7 @@ export default function OnboardingForm({
       if (source === "camera") {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert(
-            "Permission Required",
-            "Camera permission is needed to take photos"
-          );
+          Alert.alert("Permission Required", "Camera permission is needed to take photos");
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -354,13 +276,9 @@ export default function OnboardingForm({
           quality: 0.8,
         });
       } else {
-        const permission =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert(
-            "Permission Required",
-            "Photo library permission is needed to select images"
-          );
+          Alert.alert("Permission Required", "Photo library permission is needed to select images");
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
@@ -371,34 +289,18 @@ export default function OnboardingForm({
         });
       }
 
-      if (!result.canceled && result.assets[0]) {
-        const localUri = result.assets[0].uri;
-
-        // Show loading state
-        setUploadingImage(true);
-
-        try {
-          // Upload image to Supabase storage
-          const { publicUrl } = await uploadOnboardingProfileImage(localUri);
-
-          setProfileImage(publicUrl);
-          setDjProfile((prev) => ({
-            ...prev,
-            profile_image_url: publicUrl,
-          }));
-        } catch (uploadError) {
-          console.error("❌ Failed to upload image:", uploadError);
-          Alert.alert(
-            "Upload Error",
-            "Failed to upload image. Please try again."
-          );
-        } finally {
-          setUploadingImage(false);
-        }
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        // Show local preview immediately — no waiting for upload
+        setLocalImageUri(asset.uri);
+        setProfileImage(null);           // clear any previous public URL
+        setUploadError(null);
+        // Start upload in background
+        await uploadImage(asset.uri, asset.mimeType);
       }
     } catch (error) {
       console.error("❌ Image picker error:", error);
-      Alert.alert("Error", "Failed to open image picker");
+      Alert.alert("Error", "Failed to open image picker. Please try again.");
       setUploadingImage(false);
     }
   };
@@ -417,136 +319,99 @@ export default function OnboardingForm({
     </View>
   );
 
-  const renderStep1 = () => (
-    <StepAnimatedShell
-      fadeAnim={fadeAnim}
-      slideAnim={slideAnim}
-      style={styles.stepContainer}
-    >
-      <View style={styles.betaNotice}>
-        <Text style={styles.betaNoticeText}>
-          🔒 You&apos;re in the private beta. All content you upload is only
-          visible to other beta testers until public launch.
-        </Text>
-      </View>
+  const renderStep1 = () => {
+    // Only show name / city fields if they weren't captured during sign-up
+    // (e.g. social sign-in users who bypassed the signup form)
+    const needsFirstName = !djProfile.first_name?.trim();
+    const needsLastName = !djProfile.last_name?.trim();
+    const needsCity = !djProfile.city?.trim();
 
-      <Text style={styles.stepTitle}>Basic Information</Text>
-      <Text style={styles.stepSubtitle}>Tell us about yourself</Text>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>First Name *</Text>
-        <TextInput
-          style={[styles.input, errors.first_name && styles.inputError]}
-          placeholder="Enter your first name"
-          value={djProfile.first_name}
-          onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, first_name: text }));
-            if (errors.first_name) {
-              setErrors((prev) => ({ ...prev, first_name: null }));
-            }
-          }}
-        />
-        {errors.first_name && (
-          <Text style={styles.errorText}>{errors.first_name}</Text>
-        )}
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Last Name *</Text>
-        <TextInput
-          style={[styles.input, errors.last_name && styles.inputError]}
-          placeholder="Enter your last name"
-          value={djProfile.last_name}
-          onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, last_name: text }));
-            if (errors.last_name) {
-              setErrors((prev) => ({ ...prev, last_name: null }));
-            }
-          }}
-        />
-        {errors.last_name && (
-          <Text style={styles.errorText}>{errors.last_name}</Text>
-        )}
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>DJ Name *</Text>
-        <TextInput
-          style={[styles.input, errors.dj_name && styles.inputError]}
-          placeholder="Your DJ stage name"
-          value={djProfile.dj_name}
-          onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, dj_name: text }));
-            if (errors.dj_name) {
-              setErrors((prev) => ({ ...prev, dj_name: null }));
-            }
-          }}
-        />
-        {errors.dj_name && (
-          <Text style={styles.errorText}>{errors.dj_name}</Text>
-        )}
-      </View>
-
-      {onSignOut && (
-        <TouchableOpacity style={styles.useAnotherAccountBtn} onPress={onSignOut}>
-          <Text style={styles.useAnotherAccountText}>
-            ← Use a different account
-          </Text>
-        </TouchableOpacity>
-      )}
-    </StepAnimatedShell>
-  );
-
-  const renderStep2 = () => (
-    <StepAnimatedShell
-      fadeAnim={fadeAnim}
-      slideAnim={slideAnim}
-      style={styles.stepContainer}
-    >
-      <Text style={styles.stepTitle}>Location</Text>
-      <Text style={styles.stepSubtitle}>Where are you based?</Text>
-
-      <View
-        style={[
-          styles.inputGroup,
-          showCityDropdown && styles.inputGroupDropdownOpen,
-        ]}
+    return (
+      <StepAnimatedShell
+        fadeAnim={fadeAnim}
+        slideAnim={slideAnim}
+        style={styles.stepContainer}
       >
-        <Text style={styles.label}>City *</Text>
-        <View style={styles.cityDropdownBlock}>
+        <Text style={styles.stepTitle}>Your DJ Profile</Text>
+        <Text style={styles.stepSubtitle}>Confirm your stage name</Text>
+
+        {/* Always shown — DJ name is the primary identity on the platform */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>DJ Name *</Text>
           <TextInput
-            style={[styles.input, errors.city && styles.inputError]}
-            placeholder="Type your city"
-            placeholderTextColor="hsl(0, 0%, 50%)"
-            value={citySearch}
-            onChangeText={handleCityChange}
-            onBlur={() => setShowCityDropdown(false)}
-            autoCapitalize="words"
-            autoCorrect={false}
+            style={[styles.input, errors.dj_name && styles.inputError]}
+            placeholder="Your DJ stage name"
+            value={djProfile.dj_name}
+            onChangeText={(text) => {
+              setDjProfile((prev) => ({ ...prev, dj_name: text }));
+              if (errors.dj_name) setErrors((prev) => ({ ...prev, dj_name: null }));
+            }}
           />
-          {showCityDropdown && (
-            <ScrollView style={styles.dropdown} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-              {MAJOR_CITIES.filter((c) =>
-                c.toLowerCase().includes(citySearch.toLowerCase())
-              ).map((city, index) => (
-                <TouchableOpacity
-                  key={`${city}-${index}`}
-                  style={styles.dropdownItem}
-                  onPress={() => selectCity(city)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.dropdownItemText}>{city}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+          {errors.dj_name && (
+            <Text style={styles.errorText}>{errors.dj_name}</Text>
           )}
         </View>
-        {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
-      </View>
-    </StepAnimatedShell>
-  );
 
-  const renderStep3 = () => (
+        {/* Only shown when missing — social sign-in users */}
+        {needsFirstName && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>First Name *</Text>
+            <TextInput
+              style={[styles.input, errors.first_name && styles.inputError]}
+              placeholder="Enter your first name"
+              value={djProfile.first_name}
+              onChangeText={(text) => {
+                setDjProfile((prev) => ({ ...prev, first_name: text }));
+                if (errors.first_name) setErrors((prev) => ({ ...prev, first_name: null }));
+              }}
+            />
+            {errors.first_name && (
+              <Text style={styles.errorText}>{errors.first_name}</Text>
+            )}
+          </View>
+        )}
+
+        {needsLastName && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Last Name *</Text>
+            <TextInput
+              style={[styles.input, errors.last_name && styles.inputError]}
+              placeholder="Enter your last name"
+              value={djProfile.last_name}
+              onChangeText={(text) => {
+                setDjProfile((prev) => ({ ...prev, last_name: text }));
+                if (errors.last_name) setErrors((prev) => ({ ...prev, last_name: null }));
+              }}
+            />
+            {errors.last_name && (
+              <Text style={styles.errorText}>{errors.last_name}</Text>
+            )}
+          </View>
+        )}
+
+        {needsCity && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>City *</Text>
+            <TextInput
+              style={[styles.input, errors.city && styles.inputError]}
+              placeholder="Your city"
+              value={djProfile.city}
+              onChangeText={(text) => {
+                setDjProfile((prev) => ({ ...prev, city: text }));
+                if (errors.city) setErrors((prev) => ({ ...prev, city: null }));
+              }}
+              autoCapitalize="words"
+            />
+            {errors.city && (
+              <Text style={styles.errorText}>{errors.city}</Text>
+            )}
+          </View>
+        )}
+      </StepAnimatedShell>
+    );
+  };
+
+  const renderStep2 = () => (
     <StepAnimatedShell
       fadeAnim={fadeAnim}
       slideAnim={slideAnim}
@@ -598,7 +463,7 @@ export default function OnboardingForm({
     </StepAnimatedShell>
   );
 
-  const renderStep4 = () => (
+  const renderStep3 = () => (
     <StepAnimatedShell
       fadeAnim={fadeAnim}
       slideAnim={slideAnim}
@@ -774,7 +639,7 @@ export default function OnboardingForm({
     </StepAnimatedShell>
   );
 
-  const renderStep5 = () => (
+  const renderStep4 = () => (
     <StepAnimatedShell
       fadeAnim={fadeAnim}
       slideAnim={slideAnim}
@@ -787,49 +652,76 @@ export default function OnboardingForm({
 
       <View style={styles.profileImageCard}>
         <View style={styles.profileImageContainer}>
-          {profileImage ? (
-            <Image
-              source={{ uri: profileImage }}
-              style={styles.profileImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View
-              style={[
-                styles.profileImagePlaceholder,
-                uploadingImage && styles.profileImageUploading,
-              ]}
-            >
-              {uploadingImage ? (
-                <Ionicons
-                  name="cloud-upload"
-                  size={40}
-                  color="hsl(75, 100%, 60%)"
-                />
-              ) : (
-                <Ionicons name="person" size={40} color="hsl(0, 0%, 50%)" />
+          {/* Show local URI immediately; overlay spinner while uploading */}
+          {localImageUri ? (
+            <View style={styles.profileImageWrapper}>
+              <Image
+                source={{ uri: localImageUri }}
+                style={styles.profileImage}
+                resizeMode="cover"
+              />
+              {uploadingImage && (
+                <View style={styles.profileImageOverlay}>
+                  <Ionicons name="cloud-upload" size={28} color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.profileImageOverlayText}>Uploading…</Text>
+                </View>
               )}
+              {!uploadingImage && profileImage && (
+                <View style={styles.profileImageOverlaySuccess}>
+                  <Ionicons name="checkmark-circle" size={28} color="hsl(75, 100%, 60%)" />
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.profileImagePlaceholder}>
+              <Ionicons name="person" size={40} color="hsl(0, 0%, 50%)" />
             </View>
           )}
 
-          <TouchableOpacity
-            style={styles.changeImageButton}
-            onPress={handleImagePicker}
-            disabled={uploadingImage}
-          >
-            <Ionicons name="camera" size={20} color="hsl(0, 0%, 100%)" />
-            <Text style={styles.changeImageText}>
-              {profileImage ? "Change" : "Add Photo"}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.imageButtonRow}>
+            <TouchableOpacity
+              style={styles.changeImageButton}
+              onPress={handleImagePicker}
+              disabled={uploadingImage}
+            >
+              <Ionicons name="images-outline" size={20} color="hsl(0, 0%, 0%)" />
+              <Text style={styles.changeImageText}>
+                {localImageUri ? "Change Photo" : "Add Photo"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cameraButton}
+              onPress={handleCameraPicker}
+              disabled={uploadingImage}
+            >
+              <Ionicons name="camera-outline" size={22} color="hsl(0, 0%, 100%)" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.profileImageHint}>
-          <Text style={styles.hintText}>
-            {profileImage
-              ? "Great! Your profile picture is ready."
-              : "Please add a profile picture to continue."}
-          </Text>
+          {uploadingImage ? (
+            <Text style={styles.hintText}>Uploading your photo…</Text>
+          ) : uploadError ? (
+            <>
+              <Text style={styles.uploadErrorText}>{uploadError}</Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={() => pendingUpload && uploadImage(pendingUpload.uri, pendingUpload.mimeType)}
+              >
+                <Ionicons name="refresh" size={16} color="hsl(0, 0%, 0%)" />
+                <Text style={styles.retryButtonText}>Retry upload</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={styles.hintText}>
+              {profileImage
+                ? "✓ Photo uploaded successfully."
+                : localImageUri
+                ? "Processing…"
+                : "Please add a profile picture to continue."}
+            </Text>
+          )}
           {errors.profile_image && (
             <Text style={styles.errorText}>{errors.profile_image}</Text>
           )}
@@ -840,18 +732,11 @@ export default function OnboardingForm({
 
   const renderCurrentStep = () => {
     switch (currentStep) {
-      case 1:
-        return renderStep1();
-      case 2:
-        return renderStep2();
-      case 3:
-        return renderStep3();
-      case 4:
-        return renderStep4();
-      case 5:
-        return renderStep5();
-      default:
-        return renderStep1();
+      case 1: return renderStep1();
+      case 2: return renderStep2();
+      case 3: return renderStep3();
+      case 4: return renderStep4();
+      default: return renderStep1();
     }
   };
 
@@ -1005,53 +890,6 @@ const styles = {
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 100%, 60%)", // Error red
     marginTop: 5,
-  },
-  dropdownButton: {
-    backgroundColor: "hsl(0, 0%, 10%)", // Dark background
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)", // Subtle border
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  dropdownText: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 100%)", // Pure white text
-    flex: 1,
-  },
-  placeholderText: {
-    color: "hsl(0, 0%, 50%)", // Muted text for placeholder
-  },
-  dropdownArrow: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 70%)", // Muted foreground
-  },
-  dropdown: {
-    marginTop: 8,
-    backgroundColor: "hsl(0, 0%, 10%)", // Dark background
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)", // Subtle border
-    maxHeight: 200,
-  },
-  dropdownItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)", // Subtle border
-    backgroundColor: "hsl(0, 0%, 10%)", // Ensure consistent background
-    borderTopWidth: 0, // Remove any top border
-    borderLeftWidth: 0, // Remove any left border
-    borderRightWidth: 0, // Remove any right border
-  },
-  dropdownItemText: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 100%)", // Pure white text
-    fontWeight: "500", // Ensure consistent weight
   },
   genreHeader: {
     flexDirection: "row",
@@ -1233,11 +1071,39 @@ const styles = {
     alignItems: "center",
     marginBottom: 20,
   },
+  profileImageWrapper: {
+    position: "relative",
+    marginBottom: 16,
+  },
   profileImage: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    marginBottom: 16,
+  },
+  profileImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 60,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+  },
+  profileImageOverlayText: {
+    color: "hsl(75, 100%, 60%)",
+    fontSize: 12,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+  },
+  profileImageOverlaySuccess: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "hsl(0, 0%, 0%)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   profileImagePlaceholder: {
     width: 120,
@@ -1250,9 +1116,33 @@ const styles = {
     borderWidth: 2,
     borderColor: "hsl(0, 0%, 25%)",
   },
-  profileImageUploading: {
-    borderColor: "hsl(75, 100%, 60%)",
-    backgroundColor: "hsl(0, 0%, 12%)",
+  uploadErrorText: {
+    color: "hsl(0, 100%, 60%)",
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    textAlign: "center",
+    marginBottom: 10,
+    lineHeight: 18,
+  },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "hsl(75, 100%, 60%)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+  },
+  retryButtonText: {
+    color: "hsl(0, 0%, 0%)",
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+  },
+  imageButtonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   changeImageButton: {
     flexDirection: "row",
@@ -1268,6 +1158,16 @@ const styles = {
     fontSize: 16,
     fontFamily: "Helvetica Neue",
     fontWeight: "600",
+  },
+  cameraButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "hsl(0, 0%, 15%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 25%)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   profileImageHint: {
     alignItems: "center",
