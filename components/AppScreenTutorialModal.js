@@ -8,23 +8,32 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 const localStyles = StyleSheet.create({
+  // Non-blocking: the overlay container lets touches pass through to the page
+  // (pointerEvents="box-none" on the View) so the user can keep scrolling and
+  // using the screen while the tip is visible. Only the card itself captures
+  // touches. Anchored near the bottom so it doesn't sit over the content.
   tutorialOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.85)",
-    justifyContent: "center",
+    justifyContent: "flex-end",
     alignItems: "center",
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 96,
     zIndex: 9999,
     elevation: 9999,
   },
   tutorialContent: {
-    backgroundColor: "hsl(0, 0%, 8%)",
+    backgroundColor: "hsl(0, 0%, 10%)",
     borderRadius: 20,
-    padding: 24,
+    padding: 22,
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 440,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
+    borderColor: "hsl(75, 100%, 60%, 0.35)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 12,
   },
   tutorialHeader: {
     flexDirection: "row",
@@ -123,8 +132,8 @@ export default function AppScreenTutorialModal({
   const compactTitle = String(modalTitle || "").trim().length >= 12;
 
   return (
-    <View style={localStyles.tutorialOverlay} pointerEvents="auto">
-      <View style={localStyles.tutorialContent}>
+    <View style={localStyles.tutorialOverlay} pointerEvents="box-none">
+      <View style={localStyles.tutorialContent} pointerEvents="auto">
         <View style={localStyles.tutorialHeader}>
           <Text
             style={[
