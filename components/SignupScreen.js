@@ -110,7 +110,12 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
             }
           }
 
-          onSignupSuccess(user);
+          onSignupSuccess(user, {
+            dj_name: formData.djName,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            city: formData.city,
+          });
         } else {
           // Email confirmation required — show the pending screen
           setPendingEmail(formData.email);
@@ -164,7 +169,12 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
           "📞 Calling onSignupSuccess with user:",
           sessionData.user.id
         );
-        onSignupSuccess(sessionData.user);
+        onSignupSuccess(sessionData.user, {
+          dj_name: sessionData.user.user_metadata?.full_name || "",
+          first_name: sessionData.user.user_metadata?.given_name || "",
+          last_name: sessionData.user.user_metadata?.family_name || "",
+          city: "",
+        });
       } else {
         console.error("❌ No user in sessionData");
       }
@@ -198,7 +208,12 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
         };
 
         await db.createUserProfile(profileData);
-        onSignupSuccess(user);
+        onSignupSuccess(user, {
+          dj_name: profileData.dj_name,
+          first_name: profileData.first_name,
+          last_name: profileData.last_name,
+          city: profileData.city,
+        });
       }
     } catch (error) {
       console.error("Apple sign-in error:", error);

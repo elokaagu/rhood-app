@@ -728,10 +728,22 @@ export default function App() {
     }
   }, [hasShownCompleteProfileModal]);
 
-  const handleSignupSuccess = useCallback(async (user) => {
+  const handleSignupSuccess = useCallback(async (user, profileData = null) => {
     setUser(user);
     setShowAuth(false);
-    // User will go through onboarding after signup
+    // Seed the onboarding profile with whatever was already captured at signup
+    // (DJ name / first / last / city). Onboarding then only asks for what's
+    // still missing — no duplicate questions for email signups.
+    if (profileData) {
+      setDjProfile((prev) => ({
+        ...prev,
+        dj_name: profileData.dj_name || "",
+        first_name: profileData.first_name || "",
+        last_name: profileData.last_name || "",
+        city: profileData.city || "",
+      }));
+    }
+    // User will go through onboarding (genres/social/photo) after signup
   }, []);
 
   const handleLogout = useCallback(async () => {

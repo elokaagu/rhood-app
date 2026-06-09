@@ -113,7 +113,27 @@ export default function OnboardingForm({
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [citySearch, setCitySearch] = useState("");              // city search query
 
-  const totalSteps = 4;
+  // Which profile fields are still missing after signup. Frozen on first mount
+  // so the step list can't shift around while the user is filling it in.
+  // Tolerant of both snake_case (DB rows) and camelCase (initial state) keys.
+  const [profileNeeds] = useState(() => ({
+    firstName: !(djProfile.first_name ?? djProfile.firstName ?? "").trim(),
+    lastName: !(djProfile.last_name ?? djProfile.lastName ?? "").trim(),
+    djName: !(djProfile.dj_name ?? djProfile.djName ?? "").trim(),
+    city: !(djProfile.city ?? "").trim(),
+  }));
+
+  // Only show the "Your Profile" step when something required (name) or the
+  // location is missing — otherwise it's pure duplication of the signup form.
+  const profileStepNeeded =
+    profileNeeds.firstName || profileNeeds.lastName || profileNeeds.city;
+
+  // Dynamic step list — the profile step is dropped entirely when not needed.
+  const steps = profileStepNeeded
+    ? ["profile", "genres", "social", "photo"]
+    : ["genres", "social", "photo"];
+  const totalSteps = steps.length;
+  const currentKey = steps[currentStep - 1] || steps[0];
 
   // Merge preset genres with the shared user-contributed pool and any custom
   // genres the user has already selected — de-duplicated, presets first.
@@ -179,25 +199,25 @@ export default function OnboardingForm({
     ]).start();
   }, [currentStep]);
 
-  const validateStep = (step) => {
+  const validateStep = (key) => {
     const newErrors = {};
 
-    switch (step) {
-      case 1:
-        // Profile: name is required; DJ name & location are optional.
-        if (!djProfile.first_name?.trim()) {
+    switch (key) {
+      case "profile":
+        // Only require fields that are actually shown (i.e. missing from signup).
+        if (profileNeeds.firstName && !djProfile.first_name?.trim()) {
           newErrors.first_name = "First name is required";
         }
-        if (!djProfile.last_name?.trim()) {
+        if (profileNeeds.lastName && !djProfile.last_name?.trim()) {
           newErrors.last_name = "Last name is required";
         }
         break;
-      case 2:
+      case "genres":
         if (djProfile.genres.length === 0) {
           newErrors.genres = "Please select at least one genre";
         }
         break;
-      case 3: {
+      case "social": {
         const soc = normalizedSocialProfileForValidation(djProfile);
         if (djProfile.instagram?.trim() && !isValidInstagram(soc.instagram)) {
           newErrors.instagram = "Please enter a valid Instagram handle or URL";
@@ -213,7 +233,7 @@ export default function OnboardingForm({
         }
         break;
       }
-      case 4:
+      case "photo":
         // Photo is optional — only block if an upload is actively in-flight or
         // failed (forcing the user to resolve the partial state).
         if (uploadingImage) {
@@ -227,7 +247,7 @@ export default function OnboardingForm({
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
-      console.log("⚠️ Validation errors for step", step, ":", newErrors);
+      console.log("⚠️ Validation errors for step", key, ":", newErrors);
     }
 
     return Object.keys(newErrors).length === 0;
@@ -258,10 +278,11 @@ export default function OnboardingForm({
   };
 
   const nextStep = () => {
-    const isValid = validateStep(currentStep);
+    const key = steps[currentStep - 1];
+    const isValid = validateStep(key);
     if (!isValid) return;
 
-    if (currentStep === 3) {
+    if (key === "social") {
       setDjProfile((prev) => ({
         ...prev,
         instagram: normalizeInstagramOnBlur(prev.instagram),
@@ -428,60 +449,71 @@ export default function OnboardingForm({
       style={styles.stepContainer}
     >
       <Text style={styles.stepTitle}>Your Profile</Text>
-      <Text style={styles.stepSubtitle}>Tell us who you are</Text>
+      <Text style={styles.stepSubtitle}>
+        {profileNeeds.city && !profileNeeds.firstName && !profileNeeds.lastName
+          ? "Where are you based?"
+          : "Tell us who you are"}
+      </Text>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>First Name *</Text>
-        <TextInput
-          style={[styles.input, errors.first_name && styles.inputError]}
-          placeholder="Enter your first name"
-          placeholderTextColor="hsl(0, 0%, 40%)"
-          value={djProfile.first_name}
-          onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, first_name: text }));
-            if (errors.first_name) setErrors((prev) => ({ ...prev, first_name: null }));
-          }}
-          autoCapitalize="words"
-        />
-        {errors.first_name && (
-          <Text style={styles.errorText}>{errors.first_name}</Text>
-        )}
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Last Name *</Text>
-        <TextInput
-          style={[styles.input, errors.last_name && styles.inputError]}
-          placeholder="Enter your last name"
-          placeholderTextColor="hsl(0, 0%, 40%)"
-          value={djProfile.last_name}
-          onChangeText={(text) => {
-            setDjProfile((prev) => ({ ...prev, last_name: text }));
-            if (errors.last_name) setErrors((prev) => ({ ...prev, last_name: null }));
-          }}
-          autoCapitalize="words"
-        />
-        {errors.last_name && (
-          <Text style={styles.errorText}>{errors.last_name}</Text>
-        )}
-      </View>
-
-      <View style={styles.inputGroup}>
-        <View style={styles.inputLabelContainer}>
-          <Text style={styles.label}>DJ Name</Text>
-          <Text style={styles.optionalLabel}>Optional</Text>
+      {profileNeeds.firstName && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>First Name *</Text>
+          <TextInput
+            style={[styles.input, errors.first_name && styles.inputError]}
+            placeholder="Enter your first name"
+            placeholderTextColor="hsl(0, 0%, 40%)"
+            value={djProfile.first_name}
+            onChangeText={(text) => {
+              setDjProfile((prev) => ({ ...prev, first_name: text }));
+              if (errors.first_name) setErrors((prev) => ({ ...prev, first_name: null }));
+            }}
+            autoCapitalize="words"
+          />
+          {errors.first_name && (
+            <Text style={styles.errorText}>{errors.first_name}</Text>
+          )}
         </View>
-        <TextInput
-          style={styles.input}
-          placeholder="Your stage name (we'll use your name if blank)"
-          placeholderTextColor="hsl(0, 0%, 40%)"
-          value={djProfile.dj_name}
-          onChangeText={(text) =>
-            setDjProfile((prev) => ({ ...prev, dj_name: text }))
-          }
-        />
-      </View>
+      )}
 
+      {profileNeeds.lastName && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Last Name *</Text>
+          <TextInput
+            style={[styles.input, errors.last_name && styles.inputError]}
+            placeholder="Enter your last name"
+            placeholderTextColor="hsl(0, 0%, 40%)"
+            value={djProfile.last_name}
+            onChangeText={(text) => {
+              setDjProfile((prev) => ({ ...prev, last_name: text }));
+              if (errors.last_name) setErrors((prev) => ({ ...prev, last_name: null }));
+            }}
+            autoCapitalize="words"
+          />
+          {errors.last_name && (
+            <Text style={styles.errorText}>{errors.last_name}</Text>
+          )}
+        </View>
+      )}
+
+      {profileNeeds.djName && (
+        <View style={styles.inputGroup}>
+          <View style={styles.inputLabelContainer}>
+            <Text style={styles.label}>DJ Name</Text>
+            <Text style={styles.optionalLabel}>Optional</Text>
+          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Your stage name (we'll use your name if blank)"
+            placeholderTextColor="hsl(0, 0%, 40%)"
+            value={djProfile.dj_name}
+            onChangeText={(text) =>
+              setDjProfile((prev) => ({ ...prev, dj_name: text }))
+            }
+          />
+        </View>
+      )}
+
+      {profileNeeds.city && (
       <View
         style={[
           styles.inputGroup,
@@ -568,6 +600,7 @@ export default function OnboardingForm({
           )}
         </View>
       </View>
+      )}
     </StepAnimatedShell>
   );
 
@@ -925,12 +958,12 @@ export default function OnboardingForm({
   );
 
   const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 1: return renderStep1(); // Your Profile (name + location)
-      case 2: return renderStep2(); // Music Genres
-      case 3: return renderStep3(); // Social Links
-      case 4: return renderStep4(); // Profile Photo
-      default: return renderStep1();
+    switch (currentKey) {
+      case "profile": return renderStep1(); // Your Profile (name + location)
+      case "genres": return renderStep2();  // Music Genres
+      case "social": return renderStep3();  // Social Links
+      case "photo": return renderStep4();   // Profile Photo
+      default: return renderStep2();
     }
   };
 
