@@ -10,6 +10,7 @@ export const SCREENS = Object.freeze({
   MESSAGES_LIST: "messages-list",
   NOTIFICATIONS: "notifications",
   COMMUNITY: "community",
+  TIPS: "tips",
   PROFILE: "profile",
 
   // Messaging / social (thread vs list)

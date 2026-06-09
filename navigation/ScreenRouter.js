@@ -7,6 +7,7 @@ import ListenScreen from "../components/ListenScreen";
 import MessagesScreen from "../components/MessagesScreen";
 import NotificationsScreen from "../components/NotificationsScreen";
 import CommunityScreen from "../components/CommunityScreen";
+import TipsScreen from "../components/TipsScreen";
 import ProfileScreen from "../components/ProfileScreen";
 import SettingsScreen from "../components/SettingsScreen";
 import EditProfileScreen from "../components/EditProfileScreen";
@@ -307,6 +308,9 @@ export default function ScreenRouter({
 
     case SCREENS.COMMUNITY:
       return <CommunityScreen onNavigate={navigate} />;
+
+    case SCREENS.TIPS:
+      return <TipsScreen onBack={pickScreen(SCREENS.PROFILE)} />;
 
     case SCREENS.PROFILE:
       return (

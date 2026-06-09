@@ -1769,6 +1769,27 @@ export default function App() {
                   <TouchableOpacity
                     style={[
                       styles.menuItem,
+                      currentScreen === "tips" && styles.menuItemActive,
+                    ]}
+                    onPress={() => handleMenuNavigation("tips")}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name="bulb-outline"
+                      size={24}
+                      color="hsl(75, 100%, 60%)"
+                    />
+                    <View style={styles.menuItemContent}>
+                      <Text style={styles.menuItemText}>Tips</Text>
+                      <Text style={styles.menuItemDescription}>
+                        Guides to grow your DJ career
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.menuItem,
                       currentScreen === "profile" && styles.menuItemActive,
                     ]}
                     onPress={() => handleMenuNavigation("profile")}
