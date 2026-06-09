@@ -22,7 +22,7 @@ export default function ListenUploadModal({ visible, onClose, onNavigate }) {
           />
           <Text style={styles.modalTitle}>Upload Your Mix</Text>
           <Text style={styles.modalDescription}>
-            Share your DJ mix (under 10 minutes) with the R/HOOD community!
+            Share your full DJ set with the R/HOOD community!
           </Text>
 
           <View style={styles.modalButtons}>

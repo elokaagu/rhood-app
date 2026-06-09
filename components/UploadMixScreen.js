@@ -318,53 +318,25 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
 
         console.log("✅ File size within limits");
 
-        const maxDurationMillis = 30 * 60 * 1000; // 30 minutes
+        // Detect duration for display purposes only — no hard limit on length
         let detectedDurationMillis = null;
-
-        // Check audio duration before accepting
         try {
-          if (!Audio || !Audio.Sound || !Audio.Sound.createAsync) {
-            Alert.alert(
-              "Length Check Unavailable",
-              "We couldn't verify this mix's length in the current environment. Please ensure it is no longer than 30 minutes before uploading."
-            );
-          } else {
+          if (Audio?.Sound?.createAsync) {
             const { sound } = await Audio.Sound.createAsync(
               { uri: fileUri },
               { shouldPlay: false }
             );
-
             const status = await sound.getStatusAsync();
             await sound.unloadAsync();
-
             if (status.isLoaded && status.durationMillis) {
               detectedDurationMillis = status.durationMillis;
-              const durationMinutes = detectedDurationMillis / 1000 / 60;
-
               console.log(
-                `🎵 Audio duration: ${durationMinutes.toFixed(2)} minutes`
-              );
-
-              if (detectedDurationMillis > maxDurationMillis) {
-                Alert.alert(
-                  "Mix Too Long",
-                  "Please upload a mix that is 30 minutes or shorter."
-                );
-                return;
-              }
-            } else {
-              Alert.alert(
-                "Unable to Verify Length",
-                "We couldn't read the length of this mix. Please double-check that it is 30 minutes or shorter before uploading."
+                `🎵 Audio duration: ${(detectedDurationMillis / 1000 / 60).toFixed(2)} min`
               );
             }
           }
         } catch (durationError) {
-          console.warn("⚠️ Could not check duration:", durationError.message);
-          Alert.alert(
-            "Unable to Verify Length",
-            "We couldn't read the length of this mix. Please double-check that it is 30 minutes or shorter before uploading."
-          );
+          console.warn("⚠️ Could not read duration:", durationError.message);
         }
 
         setSelectedFile(file);
@@ -769,7 +741,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
               ) : (
                 <View style={styles.filePickerGuidelines}>
                   <Text style={styles.filePickerText}>
-                    Tap to choose file · MP3 · max 30 min
+                    Tap to choose file · MP3 · WAV
                   </Text>
                   <Text style={styles.filePickerSubtext}>
                     We will validate length after you pick.
