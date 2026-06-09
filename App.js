@@ -1073,6 +1073,14 @@ export default function App() {
 
       if (normalizedType.includes("connection")) {
         handleMenuNavigation(SCREENS.NOTIFICATIONS);
+        return;
+      }
+
+      if (
+        normalizedType === "opportunity_digest" ||
+        normalizedType.includes("opportunity")
+      ) {
+        handleMenuNavigation(SCREENS.OPPORTUNITIES);
       }
     });
     return () => setPushNotificationTapHandler(null);
