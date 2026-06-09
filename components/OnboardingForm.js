@@ -94,6 +94,7 @@ export default function OnboardingForm({
   const [pendingUpload, setPendingUpload] = useState(null);     // { uri, mimeType } waiting to retry
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [customGenreInput, setCustomGenreInput] = useState("");  // typed custom genre
 
   const totalSteps = 4;
 
@@ -157,12 +158,12 @@ export default function OnboardingForm({
         break;
       }
       case 4:
+        // Photo is optional — only block if an upload is actively in-flight or
+        // failed (forcing the user to resolve the partial state).
         if (uploadingImage) {
           newErrors.profile_image = "Please wait — your photo is still uploading";
         } else if (uploadError) {
-          newErrors.profile_image = "Photo upload failed. Please tap Retry before continuing.";
-        } else if (!djProfile.profile_image_url && !profileImage) {
-          newErrors.profile_image = "Profile picture is required";
+          newErrors.profile_image = "Photo upload failed. Please tap Retry or skip this step.";
         }
         break;
     }
@@ -234,6 +235,27 @@ export default function OnboardingForm({
         ? prev.genres.filter((g) => g !== genre)
         : [...prev.genres, genre],
     }));
+  };
+
+  /** Add a genre typed by the user that isn't in the preset list. */
+  const addCustomGenre = () => {
+    const trimmed = customGenreInput.trim();
+    if (!trimmed) return;
+    const lc = trimmed.toLowerCase();
+    // If it matches a preset genre, just select it instead of duplicating
+    const presetMatch = MUSIC_GENRES.find((g) => g.toLowerCase() === lc);
+    if (presetMatch) {
+      if (!djProfile.genres.includes(presetMatch)) toggleGenre(presetMatch);
+      setCustomGenreInput("");
+      return;
+    }
+    // Don't add duplicates that are already in the list
+    if (djProfile.genres.some((g) => g.toLowerCase() === lc)) {
+      setCustomGenreInput("");
+      return;
+    }
+    setDjProfile((prev) => ({ ...prev, genres: [...prev.genres, trimmed] }));
+    setCustomGenreInput("");
   };
 
   // Go directly to photo library — no intermediate action sheet
@@ -458,6 +480,28 @@ export default function OnboardingForm({
             </TouchableOpacity>
           ))}
         </View>
+        {/* Custom genre row — lets users add genres not in the preset list */}
+        <View style={styles.customGenreRow}>
+          <TextInput
+            style={styles.customGenreInput}
+            placeholder="Add your own genre…"
+            placeholderTextColor="hsl(0, 0%, 40%)"
+            value={customGenreInput}
+            onChangeText={setCustomGenreInput}
+            onSubmitEditing={addCustomGenre}
+            returnKeyType="done"
+            autoCapitalize="words"
+            autoCorrect={false}
+          />
+          <TouchableOpacity
+            style={styles.customGenreAddBtn}
+            onPress={addCustomGenre}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={22} color="hsl(0, 0%, 0%)" />
+          </TouchableOpacity>
+        </View>
+
         {errors.genres && <Text style={styles.errorText}>{errors.genres}</Text>}
       </View>
     </StepAnimatedShell>
@@ -647,7 +691,7 @@ export default function OnboardingForm({
     >
       <Text style={styles.stepTitle}>Profile Picture</Text>
       <Text style={styles.stepSubtitle}>
-        Add a photo to personalize your profile (required)
+        Add a photo to personalize your profile — you can skip this for now
       </Text>
 
       <View style={styles.profileImageCard}>
@@ -719,13 +763,25 @@ export default function OnboardingForm({
                 ? "✓ Photo uploaded successfully."
                 : localImageUri
                 ? "Processing…"
-                : "Please add a profile picture to continue."}
+                : "You can add a photo now or set one later in your profile."}
             </Text>
           )}
           {errors.profile_image && (
             <Text style={styles.errorText}>{errors.profile_image}</Text>
           )}
         </View>
+
+        {/* Skip option — only visible when no photo has been picked yet */}
+        {!localImageUri && !uploadingImage && (
+          <View style={styles.skipContainer}>
+            <Text style={styles.skipText}>
+              You can always add a photo later in your profile settings
+            </Text>
+            <TouchableOpacity style={styles.skipNowBtn} onPress={nextStep}>
+              <Text style={styles.skipNowText}>Skip for now →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </StepAnimatedShell>
   );
@@ -1006,6 +1062,33 @@ const styles = {
     color: "hsl(0, 0%, 70%)", // Muted text
     marginTop: 4,
     marginBottom: 8,
+  },
+  customGenreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 4,
+    gap: 8,
+  },
+  customGenreInput: {
+    flex: 1,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 15,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+  },
+  customGenreAddBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   skipContainer: {
     marginTop: 16,

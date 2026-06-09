@@ -16,6 +16,15 @@ import {
 
 const AppTutorialContext = createContext(null);
 
+/**
+ * Module-level ref so callers that live *above* AppTutorialProvider in the
+ * component tree (e.g. App.js's completeOnboarding callback) can imperatively
+ * call setTutorialEnabled / resetDismissed without going through props.
+ *
+ * Pattern: populate the ref inside the provider, clear it on unmount.
+ */
+export const tutorialContextRef = { current: null };
+
 export function AppTutorialProvider({ children, activeScreenId = null }) {
   const [hydrated, setHydrated] = useState(false);
   const [enabled, setEnabled] = useState(false);
@@ -62,6 +71,14 @@ export function AppTutorialProvider({ children, activeScreenId = null }) {
     setEnabled(e);
     setDismissed(d);
   }, []);
+
+  // Populate the module-level ref so callers above the provider can reach in.
+  useEffect(() => {
+    tutorialContextRef.current = { setTutorialEnabled, resetDismissed };
+    return () => {
+      tutorialContextRef.current = null;
+    };
+  }, [setTutorialEnabled, resetDismissed]);
 
   const value = useMemo(
     () => ({

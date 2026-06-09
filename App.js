@@ -71,7 +71,7 @@ import {
   AnalyticsEvents,
 } from "./lib/analytics";
 import GlobalAudioPlayerUI from "./components/GlobalAudioPlayerUI";
-import { AppTutorialProvider } from "./context/AppTutorialContext";
+import { AppTutorialProvider, tutorialContextRef } from "./context/AppTutorialContext";
 import useAudioPlayback from "./hooks/useAudioPlayback";
 import useOpportunities from "./hooks/useOpportunities";
 
@@ -1471,6 +1471,19 @@ export default function App() {
 
       if (__DEV__) console.log("🎉 Onboarding completed, setting isFirstTime=false");
       setIsFirstTime(false);
+
+      // Auto-enable tutorial mode for first-time users so they get guided
+      // walkthroughs on every main screen immediately after onboarding.
+      try {
+        const ctx = tutorialContextRef.current;
+        if (ctx) {
+          await ctx.resetDismissed();       // ensure all screen tips show fresh
+          await ctx.setTutorialEnabled(true);
+          if (__DEV__) console.log("📖 Tutorial mode enabled for new user");
+        }
+      } catch (tutorialErr) {
+        if (__DEV__) console.warn("⚠️ Could not enable tutorial mode:", tutorialErr);
+      }
 
       // Navigate to opportunities after onboarding completion
       setCurrentScreen("opportunities");
