@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
   StyleSheet,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -342,8 +343,12 @@ export default function OnboardingForm({
     db.submitGenreSuggestion(trimmed).catch(() => {});
   };
 
-  // ── City dropdown handlers ────────────────────────────────────────────────
-  const toggleCityDropdown = () => setShowCityDropdown((v) => !v);
+  // ── City picker handlers ──────────────────────────────────────────────────
+  const openCityPicker = () => setShowCityDropdown(true);
+  const closeCityPicker = () => {
+    setShowCityDropdown(false);
+    setCitySearch("");
+  };
 
   const selectCity = (city) => {
     setDjProfile((prev) => ({ ...prev, city }));
@@ -514,20 +519,14 @@ export default function OnboardingForm({
       )}
 
       {profileNeeds.city && (
-      <View
-        style={[
-          styles.inputGroup,
-          showCityDropdown && styles.inputGroupDropdownOpen,
-        ]}
-      >
-        <View style={styles.inputLabelContainer}>
-          <Text style={styles.label}>Location</Text>
-          <Text style={styles.optionalLabel}>Optional</Text>
-        </View>
-        <View style={styles.cityDropdownBlock}>
+        <View style={styles.inputGroup}>
+          <View style={styles.inputLabelContainer}>
+            <Text style={styles.label}>Location</Text>
+            <Text style={styles.optionalLabel}>Optional</Text>
+          </View>
           <TouchableOpacity
             style={styles.dropdownButton}
-            onPress={toggleCityDropdown}
+            onPress={openCityPicker}
             activeOpacity={0.8}
           >
             <Text
@@ -538,69 +537,89 @@ export default function OnboardingForm({
             >
               {djProfile.city || "Search for your city"}
             </Text>
-            <Ionicons
-              name={showCityDropdown ? "chevron-up" : "chevron-down"}
-              size={18}
-              color="hsl(0, 0%, 60%)"
-            />
+            <Ionicons name="chevron-down" size={18} color="hsl(0, 0%, 60%)" />
           </TouchableOpacity>
-
-          {showCityDropdown && (
-            <View style={styles.dropdown}>
-              <View style={styles.citySearchRow}>
-                <Ionicons name="search" size={16} color="hsl(0, 0%, 50%)" />
-                <TextInput
-                  style={styles.citySearchInput}
-                  placeholder="Type to search…"
-                  placeholderTextColor="hsl(0, 0%, 40%)"
-                  value={citySearch}
-                  onChangeText={setCitySearch}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  autoFocus
-                />
-              </View>
-              <ScrollView
-                style={styles.cityList}
-                nestedScrollEnabled
-                keyboardShouldPersistTaps="handled"
-              >
-                {filteredCities.map((city, index) => (
-                  <TouchableOpacity
-                    key={`${city}-${index}`}
-                    style={styles.dropdownItem}
-                    onPress={() => selectCity(city)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.dropdownItemText}>{city}</Text>
-                    {djProfile.city === city && (
-                      <Ionicons name="checkmark" size={16} color="hsl(75, 100%, 60%)" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-
-                {canAddTypedCity && (
-                  <TouchableOpacity
-                    style={[styles.dropdownItem, styles.addCityItem]}
-                    onPress={addTypedCity}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="add-circle" size={18} color="hsl(75, 100%, 60%)" />
-                    <Text style={styles.addCityText}>
-                      Add "{citySearch.trim()}"
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {filteredCities.length === 0 && !canAddTypedCity && (
-                  <Text style={styles.noResultsText}>No cities found</Text>
-                )}
-              </ScrollView>
-            </View>
-          )}
         </View>
-      </View>
       )}
+
+      {/* City picker presented as a slide-up modal so the keyboard never
+          covers the search field or the results list. */}
+      <Modal
+        visible={showCityDropdown}
+        animationType="slide"
+        transparent
+        onRequestClose={closeCityPicker}
+      >
+        <KeyboardAvoidingView
+          style={styles.cityModalRoot}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={styles.cityModalSheet}>
+            <View style={styles.cityModalHeader}>
+              <Text style={styles.cityModalTitle}>Select your city</Text>
+              <TouchableOpacity onPress={closeCityPicker} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={26} color="hsl(0, 0%, 90%)" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.citySearchRow}>
+              <Ionicons name="search" size={18} color="hsl(0, 0%, 50%)" />
+              <TextInput
+                style={styles.citySearchInput}
+                placeholder="Type to search…"
+                placeholderTextColor="hsl(0, 0%, 40%)"
+                value={citySearch}
+                onChangeText={setCitySearch}
+                autoCapitalize="words"
+                autoCorrect={false}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => canAddTypedCity && addTypedCity()}
+              />
+              {citySearch.length > 0 && (
+                <TouchableOpacity onPress={() => setCitySearch("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close-circle" size={18} color="hsl(0, 0%, 45%)" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView
+              style={styles.cityModalList}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="none"
+            >
+              {canAddTypedCity && (
+                <TouchableOpacity
+                  style={[styles.dropdownItem, styles.addCityItem]}
+                  onPress={addTypedCity}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add-circle" size={18} color="hsl(75, 100%, 60%)" />
+                  <Text style={styles.addCityText}>Add "{citySearch.trim()}"</Text>
+                </TouchableOpacity>
+              )}
+
+              {filteredCities.map((city, index) => (
+                <TouchableOpacity
+                  key={`${city}-${index}`}
+                  style={styles.dropdownItem}
+                  onPress={() => selectCity(city)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.dropdownItemText}>{city}</Text>
+                  {djProfile.city === city && (
+                    <Ionicons name="checkmark" size={16} color="hsl(75, 100%, 60%)" />
+                  )}
+                </TouchableOpacity>
+              ))}
+
+              {filteredCities.length === 0 && !canAddTypedCity && (
+                <Text style={styles.noResultsText}>No cities found</Text>
+              )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </StepAnimatedShell>
   );
 
@@ -972,7 +991,10 @@ export default function OnboardingForm({
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Image
@@ -1493,41 +1515,58 @@ const styles = {
   placeholderText: {
     color: "hsl(0, 0%, 40%)",
   },
-  dropdown: {
-    position: "absolute",
-    top: 56,
-    left: 0,
-    right: 0,
-    backgroundColor: "hsl(0, 0%, 10%)",
+  // Modal-based city picker — search pinned at top, list fills above keyboard.
+  cityModalRoot: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  cityModalSheet: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 22%)",
-    borderRadius: 10,
-    overflow: "hidden",
-    zIndex: 20,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
+    borderColor: "hsl(0, 0%, 18%)",
+    height: "75%",
+    paddingBottom: 8,
+  },
+  cityModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 12,
+  },
+  cityModalTitle: {
+    fontSize: 18,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "700",
+    color: "hsl(0, 0%, 100%)",
   },
   citySearchRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 18%)",
+    marginHorizontal: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "hsl(0, 0%, 12%)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
   },
   citySearchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: "Helvetica Neue",
     color: "hsl(0, 0%, 100%)",
     padding: 0,
   },
-  cityList: {
-    maxHeight: 220,
+  cityModalList: {
+    flex: 1,
+    marginTop: 8,
+    paddingHorizontal: 16,
   },
   dropdownItem: {
     flexDirection: "row",
