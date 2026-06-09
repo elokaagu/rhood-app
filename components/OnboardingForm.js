@@ -96,7 +96,7 @@ export default function OnboardingForm({
   const [uploadError, setUploadError] = useState(null);
   const [customGenreInput, setCustomGenreInput] = useState("");  // typed custom genre
 
-  const totalSteps = 4;
+  const totalSteps = 3;
 
   useEffect(() => {
     fadeAnim.setValue(0);
@@ -120,28 +120,11 @@ export default function OnboardingForm({
 
     switch (step) {
       case 1:
-        // DJ name is always required
-        if (!djProfile.dj_name?.trim()) {
-          newErrors.dj_name = "DJ name is required";
-        }
-        // First / last name and city only required when blank (social sign-in users
-        // may not have provided them; email sign-up already collected these)
-        if (!djProfile.first_name?.trim()) {
-          newErrors.first_name = "First name is required";
-        }
-        if (!djProfile.last_name?.trim()) {
-          newErrors.last_name = "Last name is required";
-        }
-        if (!djProfile.city?.trim()) {
-          newErrors.city = "City is required";
-        }
-        break;
-      case 2:
         if (djProfile.genres.length === 0) {
           newErrors.genres = "Please select at least one genre";
         }
         break;
-      case 3: {
+      case 2: {
         const soc = normalizedSocialProfileForValidation(djProfile);
         if (djProfile.instagram?.trim() && !isValidInstagram(soc.instagram)) {
           newErrors.instagram = "Please enter a valid Instagram handle or URL";
@@ -157,7 +140,7 @@ export default function OnboardingForm({
         }
         break;
       }
-      case 4:
+      case 3:
         // Photo is optional — only block if an upload is actively in-flight or
         // failed (forcing the user to resolve the partial state).
         if (uploadingImage) {
@@ -205,7 +188,7 @@ export default function OnboardingForm({
     const isValid = validateStep(currentStep);
     if (!isValid) return;
 
-    if (currentStep === 3) {
+    if (currentStep === 2) {
       setDjProfile((prev) => ({
         ...prev,
         instagram: normalizeInstagramOnBlur(prev.instagram),
@@ -788,11 +771,10 @@ export default function OnboardingForm({
 
   const renderCurrentStep = () => {
     switch (currentStep) {
-      case 1: return renderStep1();
-      case 2: return renderStep2();
-      case 3: return renderStep3();
-      case 4: return renderStep4();
-      default: return renderStep1();
+      case 1: return renderStep2(); // Music Genres
+      case 2: return renderStep3(); // Social Links
+      case 3: return renderStep4(); // Profile Photo
+      default: return renderStep2();
     }
   };
 

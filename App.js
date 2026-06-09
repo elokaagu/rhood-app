@@ -1340,32 +1340,22 @@ export default function App() {
     if (__DEV__) console.log("👤 djProfile:", djProfile);
 
     // Check both property name formats for compatibility
-    const djName = djProfile.dj_name || djProfile.djName;
-    const firstName = djProfile.first_name || djProfile.firstName;
-    const lastName = djProfile.last_name || djProfile.lastName;
+    const firstName = djProfile.first_name || djProfile.firstName || "";
+    const lastName = djProfile.last_name || djProfile.lastName || "";
+    // Auto-generate a DJ name if not explicitly set: prefer real name, fall back to email prefix
+    const djName =
+      djProfile.dj_name?.trim() ||
+      djProfile.djName?.trim() ||
+      [firstName, lastName].filter(Boolean).join(" ") ||
+      (user?.email?.split("@")[0] ?? "DJ");
 
-    if (
-      !djName ||
-      !firstName ||
-      !lastName ||
-      !djProfile.city ||
-      djProfile.genres.length === 0
-    ) {
-      if (__DEV__) {
-        console.log("❌ Missing required fields:", {
-          djName: !!djName,
-          firstName: !!firstName,
-          lastName: !!lastName,
-          city: !!djProfile.city,
-          genres: djProfile.genres?.length || 0,
-        });
-      }
-
+    // Only genres are collected during onboarding now — everything else can be
+    // filled in from the Edit Profile screen.
+    if (djProfile.genres.length === 0) {
       showCustomModal({
         type: "error",
-        title: "Error",
-        message:
-          "Please fill in all required fields: DJ name, first name, last name, city, and at least one genre",
+        title: "Pick your genres",
+        message: "Please select at least one genre before continuing.",
         primaryButtonText: "OK",
         onPrimaryPress: () => setShowModal(false),
       });
