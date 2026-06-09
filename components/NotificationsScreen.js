@@ -978,6 +978,8 @@ export default function NotificationsScreen({
         return "mail-outline";
       case "message":
         return "chatbubble-outline";
+      case "mix_like":
+        return "heart";
       case "connection":
       case "connection_request":
         return "person-add-outline";

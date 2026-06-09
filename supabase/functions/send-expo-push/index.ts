@@ -96,7 +96,9 @@ serve(async (req) => {
     .maybeSingle();
 
   const pushOn = settings?.push_notifications !== false;
-  const messageOn = settings?.message_notifications === true;
+  // Message pushes are ON by default (like WhatsApp/iMessage): they deliver
+  // whenever push is on, unless the user has explicitly turned messages off.
+  const messageOn = settings?.message_notifications !== false;
   const isMessage =
     String((payload.data as { type?: string } | undefined)?.type ?? "")
       .toLowerCase() === "message";

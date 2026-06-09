@@ -1081,6 +1081,12 @@ export default function App() {
         normalizedType.includes("opportunity")
       ) {
         handleMenuNavigation(SCREENS.OPPORTUNITIES);
+        return;
+      }
+
+      if (normalizedType === "mix_like" || normalizedType.includes("like")) {
+        // Open the owner's profile where their mixes (and like counts) live.
+        handleMenuNavigation(SCREENS.PROFILE);
       }
     });
     return () => setPushNotificationTapHandler(null);
