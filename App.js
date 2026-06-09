@@ -1383,11 +1383,11 @@ export default function App() {
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
           youtube: djProfile.youtube || null,
-          city: djProfile.city,
+          city: djProfile.city?.trim() || null,
           genres: djProfile.genres,
-          bio: `DJ from ${
-            djProfile.city
-          } specializing in ${djProfile.genres.join(", ")}`,
+          bio: djProfile.city?.trim()
+            ? `DJ from ${djProfile.city} specializing in ${djProfile.genres.join(", ")}`
+            : `DJ specializing in ${djProfile.genres.join(", ")}`,
           profile_image_url: djProfile.profile_image_url || null,
         };
         if (__DEV__) console.log("📤 Updating with data:", updateData);
@@ -1419,11 +1419,11 @@ export default function App() {
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
           youtube: djProfile.youtube || null,
-          city: djProfile.city,
+          city: djProfile.city?.trim() || null,
           genres: djProfile.genres,
-          bio: `DJ from ${
-            djProfile.city
-          } specializing in ${djProfile.genres.join(", ")}`,
+          bio: djProfile.city?.trim()
+            ? `DJ from ${djProfile.city} specializing in ${djProfile.genres.join(", ")}`
+            : `DJ specializing in ${djProfile.genres.join(", ")}`,
           email: user.email,
           profile_image_url: djProfile.profile_image_url || null,
         };

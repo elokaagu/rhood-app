@@ -22,6 +22,7 @@ import {
   normalizeYouTubeOnBlur,
   normalizedSocialProfileForValidation,
 } from "../lib/onboardingHelpers";
+import { db } from "../lib/supabase";
 
 /** Shared animated wrapper for each onboarding step (fade + slide). */
 function StepAnimatedShell({ fadeAnim, slideAnim, style, children }) {
@@ -78,6 +79,19 @@ const MUSIC_GENRES = [
   "Industrial",
 ];
 
+// Searchable city list — covers major global dance-music hubs. Users whose city
+// isn't listed can add their own via the "Add" affordance.
+const MAJOR_CITIES = [
+  "London", "Manchester", "Bristol", "Leeds", "Glasgow", "Berlin", "Amsterdam",
+  "Paris", "Barcelona", "Madrid", "Lisbon", "Rome", "Milan", "Vienna", "Prague",
+  "Warsaw", "Copenhagen", "Stockholm", "Oslo", "Dublin", "Brussels", "Zurich",
+  "New York", "Los Angeles", "Chicago", "Miami", "San Francisco", "Detroit",
+  "Las Vegas", "Atlanta", "Austin", "Toronto", "Montreal", "Vancouver",
+  "Mexico City", "São Paulo", "Buenos Aires", "Bogotá", "Lima",
+  "Lagos", "Accra", "Nairobi", "Johannesburg", "Cape Town", "Cairo",
+  "Tokyo", "Seoul", "Shanghai", "Hong Kong", "Singapore", "Bangkok", "Mumbai",
+  "Dubai", "Tel Aviv", "Istanbul", "Sydney", "Melbourne", "Auckland",
+];
 
 export default function OnboardingForm({
   onComplete,
@@ -95,8 +109,58 @@ export default function OnboardingForm({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [customGenreInput, setCustomGenreInput] = useState("");  // typed custom genre
+  const [globalGenres, setGlobalGenres] = useState([]);          // user-contributed genres from the backend pool
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [citySearch, setCitySearch] = useState("");              // city search query
 
-  const totalSteps = 3;
+  const totalSteps = 4;
+
+  // Merge preset genres with the shared user-contributed pool and any custom
+  // genres the user has already selected — de-duplicated, presets first.
+  const genreOptions = React.useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    const push = (g) => {
+      if (!g) return;
+      const lc = g.toLowerCase();
+      if (seen.has(lc)) return;
+      seen.add(lc);
+      out.push(g);
+    };
+    MUSIC_GENRES.forEach(push);
+    globalGenres.forEach(push);
+    (djProfile.genres || []).forEach(push); // ensure selected customs stay visible
+    return out;
+  }, [globalGenres, djProfile.genres]);
+
+  // Cities matching the search query (case-insensitive), capped for performance.
+  const filteredCities = React.useMemo(() => {
+    const q = citySearch.trim().toLowerCase();
+    if (!q) return MAJOR_CITIES;
+    return MAJOR_CITIES.filter((c) => c.toLowerCase().includes(q));
+  }, [citySearch]);
+
+  // Whether the typed query is a brand-new city not already in the list.
+  const canAddTypedCity = React.useMemo(() => {
+    const q = citySearch.trim();
+    if (!q) return false;
+    return !MAJOR_CITIES.some((c) => c.toLowerCase() === q.toLowerCase());
+  }, [citySearch]);
+
+  // Load the shared user-contributed genre pool once on mount (non-blocking).
+  useEffect(() => {
+    let mounted = true;
+    db.getGlobalGenres()
+      .then((genres) => {
+        if (mounted && Array.isArray(genres) && genres.length) {
+          setGlobalGenres(genres);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     fadeAnim.setValue(0);
@@ -120,11 +184,20 @@ export default function OnboardingForm({
 
     switch (step) {
       case 1:
+        // Profile: name is required; DJ name & location are optional.
+        if (!djProfile.first_name?.trim()) {
+          newErrors.first_name = "First name is required";
+        }
+        if (!djProfile.last_name?.trim()) {
+          newErrors.last_name = "Last name is required";
+        }
+        break;
+      case 2:
         if (djProfile.genres.length === 0) {
           newErrors.genres = "Please select at least one genre";
         }
         break;
-      case 2: {
+      case 3: {
         const soc = normalizedSocialProfileForValidation(djProfile);
         if (djProfile.instagram?.trim() && !isValidInstagram(soc.instagram)) {
           newErrors.instagram = "Please enter a valid Instagram handle or URL";
@@ -140,7 +213,7 @@ export default function OnboardingForm({
         }
         break;
       }
-      case 3:
+      case 4:
         // Photo is optional — only block if an upload is actively in-flight or
         // failed (forcing the user to resolve the partial state).
         if (uploadingImage) {
@@ -188,7 +261,7 @@ export default function OnboardingForm({
     const isValid = validateStep(currentStep);
     if (!isValid) return;
 
-    if (currentStep === 2) {
+    if (currentStep === 3) {
       setDjProfile((prev) => ({
         ...prev,
         instagram: normalizeInstagramOnBlur(prev.instagram),
@@ -225,20 +298,44 @@ export default function OnboardingForm({
     const trimmed = customGenreInput.trim();
     if (!trimmed) return;
     const lc = trimmed.toLowerCase();
-    // If it matches a preset genre, just select it instead of duplicating
-    const presetMatch = MUSIC_GENRES.find((g) => g.toLowerCase() === lc);
-    if (presetMatch) {
-      if (!djProfile.genres.includes(presetMatch)) toggleGenre(presetMatch);
+    // If it matches an existing option (preset or contributed), just select it.
+    const existingMatch = genreOptions.find((g) => g.toLowerCase() === lc);
+    if (existingMatch) {
+      if (!djProfile.genres.includes(existingMatch)) toggleGenre(existingMatch);
       setCustomGenreInput("");
       return;
     }
-    // Don't add duplicates that are already in the list
+    // Don't add duplicates that are already selected
     if (djProfile.genres.some((g) => g.toLowerCase() === lc)) {
       setCustomGenreInput("");
       return;
     }
+    // Add locally (selected) and into the visible options pool immediately.
+    setGlobalGenres((prev) =>
+      prev.some((g) => g.toLowerCase() === lc) ? prev : [...prev, trimmed]
+    );
     setDjProfile((prev) => ({ ...prev, genres: [...prev.genres, trimmed] }));
     setCustomGenreInput("");
+
+    // Record it in the shared pool / portal escalation (fire-and-forget, safe).
+    db.submitGenreSuggestion(trimmed).catch(() => {});
+  };
+
+  // ── City dropdown handlers ────────────────────────────────────────────────
+  const toggleCityDropdown = () => setShowCityDropdown((v) => !v);
+
+  const selectCity = (city) => {
+    setDjProfile((prev) => ({ ...prev, city }));
+    setShowCityDropdown(false);
+    setCitySearch("");
+    if (errors.city) setErrors((prev) => ({ ...prev, city: null }));
+  };
+
+  /** Use the typed query as a brand-new city not in the preset list. */
+  const addTypedCity = () => {
+    const trimmed = citySearch.trim();
+    if (!trimmed) return;
+    selectCity(trimmed);
   };
 
   // Go directly to photo library — no intermediate action sheet
@@ -324,97 +421,155 @@ export default function OnboardingForm({
     </View>
   );
 
-  const renderStep1 = () => {
-    // Only show name / city fields if they weren't captured during sign-up
-    // (e.g. social sign-in users who bypassed the signup form)
-    const needsFirstName = !djProfile.first_name?.trim();
-    const needsLastName = !djProfile.last_name?.trim();
-    const needsCity = !djProfile.city?.trim();
+  const renderStep1 = () => (
+    <StepAnimatedShell
+      fadeAnim={fadeAnim}
+      slideAnim={slideAnim}
+      style={styles.stepContainer}
+    >
+      <Text style={styles.stepTitle}>Your Profile</Text>
+      <Text style={styles.stepSubtitle}>Tell us who you are</Text>
 
-    return (
-      <StepAnimatedShell
-        fadeAnim={fadeAnim}
-        slideAnim={slideAnim}
-        style={styles.stepContainer}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>First Name *</Text>
+        <TextInput
+          style={[styles.input, errors.first_name && styles.inputError]}
+          placeholder="Enter your first name"
+          placeholderTextColor="hsl(0, 0%, 40%)"
+          value={djProfile.first_name}
+          onChangeText={(text) => {
+            setDjProfile((prev) => ({ ...prev, first_name: text }));
+            if (errors.first_name) setErrors((prev) => ({ ...prev, first_name: null }));
+          }}
+          autoCapitalize="words"
+        />
+        {errors.first_name && (
+          <Text style={styles.errorText}>{errors.first_name}</Text>
+        )}
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Last Name *</Text>
+        <TextInput
+          style={[styles.input, errors.last_name && styles.inputError]}
+          placeholder="Enter your last name"
+          placeholderTextColor="hsl(0, 0%, 40%)"
+          value={djProfile.last_name}
+          onChangeText={(text) => {
+            setDjProfile((prev) => ({ ...prev, last_name: text }));
+            if (errors.last_name) setErrors((prev) => ({ ...prev, last_name: null }));
+          }}
+          autoCapitalize="words"
+        />
+        {errors.last_name && (
+          <Text style={styles.errorText}>{errors.last_name}</Text>
+        )}
+      </View>
+
+      <View style={styles.inputGroup}>
+        <View style={styles.inputLabelContainer}>
+          <Text style={styles.label}>DJ Name</Text>
+          <Text style={styles.optionalLabel}>Optional</Text>
+        </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Your stage name (we'll use your name if blank)"
+          placeholderTextColor="hsl(0, 0%, 40%)"
+          value={djProfile.dj_name}
+          onChangeText={(text) =>
+            setDjProfile((prev) => ({ ...prev, dj_name: text }))
+          }
+        />
+      </View>
+
+      <View
+        style={[
+          styles.inputGroup,
+          showCityDropdown && styles.inputGroupDropdownOpen,
+        ]}
       >
-        <Text style={styles.stepTitle}>Your DJ Profile</Text>
-        <Text style={styles.stepSubtitle}>Confirm your stage name</Text>
+        <View style={styles.inputLabelContainer}>
+          <Text style={styles.label}>Location</Text>
+          <Text style={styles.optionalLabel}>Optional</Text>
+        </View>
+        <View style={styles.cityDropdownBlock}>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={toggleCityDropdown}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.dropdownText,
+                !djProfile.city && styles.placeholderText,
+              ]}
+            >
+              {djProfile.city || "Search for your city"}
+            </Text>
+            <Ionicons
+              name={showCityDropdown ? "chevron-up" : "chevron-down"}
+              size={18}
+              color="hsl(0, 0%, 60%)"
+            />
+          </TouchableOpacity>
 
-        {/* Always shown — DJ name is the primary identity on the platform */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>DJ Name *</Text>
-          <TextInput
-            style={[styles.input, errors.dj_name && styles.inputError]}
-            placeholder="Your DJ stage name"
-            value={djProfile.dj_name}
-            onChangeText={(text) => {
-              setDjProfile((prev) => ({ ...prev, dj_name: text }));
-              if (errors.dj_name) setErrors((prev) => ({ ...prev, dj_name: null }));
-            }}
-          />
-          {errors.dj_name && (
-            <Text style={styles.errorText}>{errors.dj_name}</Text>
+          {showCityDropdown && (
+            <View style={styles.dropdown}>
+              <View style={styles.citySearchRow}>
+                <Ionicons name="search" size={16} color="hsl(0, 0%, 50%)" />
+                <TextInput
+                  style={styles.citySearchInput}
+                  placeholder="Type to search…"
+                  placeholderTextColor="hsl(0, 0%, 40%)"
+                  value={citySearch}
+                  onChangeText={setCitySearch}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  autoFocus
+                />
+              </View>
+              <ScrollView
+                style={styles.cityList}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+              >
+                {filteredCities.map((city, index) => (
+                  <TouchableOpacity
+                    key={`${city}-${index}`}
+                    style={styles.dropdownItem}
+                    onPress={() => selectCity(city)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.dropdownItemText}>{city}</Text>
+                    {djProfile.city === city && (
+                      <Ionicons name="checkmark" size={16} color="hsl(75, 100%, 60%)" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+
+                {canAddTypedCity && (
+                  <TouchableOpacity
+                    style={[styles.dropdownItem, styles.addCityItem]}
+                    onPress={addTypedCity}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="add-circle" size={18} color="hsl(75, 100%, 60%)" />
+                    <Text style={styles.addCityText}>
+                      Add "{citySearch.trim()}"
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {filteredCities.length === 0 && !canAddTypedCity && (
+                  <Text style={styles.noResultsText}>No cities found</Text>
+                )}
+              </ScrollView>
+            </View>
           )}
         </View>
-
-        {/* Only shown when missing — social sign-in users */}
-        {needsFirstName && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>First Name *</Text>
-            <TextInput
-              style={[styles.input, errors.first_name && styles.inputError]}
-              placeholder="Enter your first name"
-              value={djProfile.first_name}
-              onChangeText={(text) => {
-                setDjProfile((prev) => ({ ...prev, first_name: text }));
-                if (errors.first_name) setErrors((prev) => ({ ...prev, first_name: null }));
-              }}
-            />
-            {errors.first_name && (
-              <Text style={styles.errorText}>{errors.first_name}</Text>
-            )}
-          </View>
-        )}
-
-        {needsLastName && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Last Name *</Text>
-            <TextInput
-              style={[styles.input, errors.last_name && styles.inputError]}
-              placeholder="Enter your last name"
-              value={djProfile.last_name}
-              onChangeText={(text) => {
-                setDjProfile((prev) => ({ ...prev, last_name: text }));
-                if (errors.last_name) setErrors((prev) => ({ ...prev, last_name: null }));
-              }}
-            />
-            {errors.last_name && (
-              <Text style={styles.errorText}>{errors.last_name}</Text>
-            )}
-          </View>
-        )}
-
-        {needsCity && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>City *</Text>
-            <TextInput
-              style={[styles.input, errors.city && styles.inputError]}
-              placeholder="Your city"
-              value={djProfile.city}
-              onChangeText={(text) => {
-                setDjProfile((prev) => ({ ...prev, city: text }));
-                if (errors.city) setErrors((prev) => ({ ...prev, city: null }));
-              }}
-              autoCapitalize="words"
-            />
-            {errors.city && (
-              <Text style={styles.errorText}>{errors.city}</Text>
-            )}
-          </View>
-        )}
-      </StepAnimatedShell>
-    );
-  };
+      </View>
+    </StepAnimatedShell>
+  );
 
   const renderStep2 = () => (
     <StepAnimatedShell
@@ -434,7 +589,7 @@ export default function OnboardingForm({
         </View>
         <Text style={styles.genreHint}>Select at least one genre you play</Text>
         <View style={styles.genreGrid}>
-          {MUSIC_GENRES.map((genre) => (
+          {genreOptions.map((genre) => (
             <TouchableOpacity
               key={genre}
               style={[
@@ -771,10 +926,11 @@ export default function OnboardingForm({
 
   const renderCurrentStep = () => {
     switch (currentStep) {
-      case 1: return renderStep2(); // Music Genres
-      case 2: return renderStep3(); // Social Links
-      case 3: return renderStep4(); // Profile Photo
-      default: return renderStep2();
+      case 1: return renderStep1(); // Your Profile (name + location)
+      case 2: return renderStep2(); // Music Genres
+      case 3: return renderStep3(); // Social Links
+      case 4: return renderStep4(); // Profile Photo
+      default: return renderStep1();
     }
   };
 
@@ -1280,5 +1436,96 @@ const styles = {
   },
   inputGroupDropdownOpen: {
     zIndex: 10,
+  },
+  // ── Searchable city dropdown ──────────────────────────────────────────────
+  cityDropdownBlock: {
+    position: "relative",
+  },
+  dropdownButton: {
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dropdownText: {
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+  },
+  placeholderText: {
+    color: "hsl(0, 0%, 40%)",
+  },
+  dropdown: {
+    position: "absolute",
+    top: 56,
+    left: 0,
+    right: 0,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 22%)",
+    borderRadius: 10,
+    overflow: "hidden",
+    zIndex: 20,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+  },
+  citySearchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 18%)",
+  },
+  citySearchInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    padding: 0,
+  },
+  cityList: {
+    maxHeight: 220,
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 15,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: "hsl(0, 0%, 15%)",
+  },
+  dropdownItemText: {
+    fontSize: 15,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 90%)",
+  },
+  addCityItem: {
+    gap: 8,
+    justifyContent: "flex-start",
+    backgroundColor: "hsl(75, 100%, 60%, 0.06)",
+  },
+  addCityText: {
+    fontSize: 15,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(75, 100%, 60%)",
+    fontWeight: "600",
+  },
+  noResultsText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 50%)",
+    textAlign: "center",
+    paddingVertical: 16,
   },
 };
