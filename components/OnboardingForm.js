@@ -124,10 +124,9 @@ export default function OnboardingForm({
     city: !(djProfile.city ?? "").trim(),
   }));
 
-  // Only show the "Your Profile" step when something required (name) or the
-  // location is missing — otherwise it's pure duplication of the signup form.
-  const profileStepNeeded =
-    profileNeeds.firstName || profileNeeds.lastName || profileNeeds.city;
+  // The profile step only collects DJ Name + Location now (name is captured at
+  // signup). Show it when either is still missing; otherwise skip it.
+  const profileStepNeeded = profileNeeds.djName || profileNeeds.city;
 
   // Dynamic step list — the profile step is dropped entirely when not needed.
   const steps = profileStepNeeded
@@ -205,13 +204,7 @@ export default function OnboardingForm({
 
     switch (key) {
       case "profile":
-        // Only require fields that are actually shown (i.e. missing from signup).
-        if (profileNeeds.firstName && !djProfile.first_name?.trim()) {
-          newErrors.first_name = "First name is required";
-        }
-        if (profileNeeds.lastName && !djProfile.last_name?.trim()) {
-          newErrors.last_name = "Last name is required";
-        }
+        // DJ Name and Location are both optional — nothing to validate here.
         break;
       case "genres":
         if (djProfile.genres.length === 0) {
@@ -454,51 +447,7 @@ export default function OnboardingForm({
       style={styles.stepContainer}
     >
       <Text style={styles.stepTitle}>Your Profile</Text>
-      <Text style={styles.stepSubtitle}>
-        {profileNeeds.city && !profileNeeds.firstName && !profileNeeds.lastName
-          ? "Where are you based?"
-          : "Tell us who you are"}
-      </Text>
-
-      {profileNeeds.firstName && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>First Name *</Text>
-          <TextInput
-            style={[styles.input, errors.first_name && styles.inputError]}
-            placeholder="Enter your first name"
-            placeholderTextColor="hsl(0, 0%, 40%)"
-            value={djProfile.first_name}
-            onChangeText={(text) => {
-              setDjProfile((prev) => ({ ...prev, first_name: text }));
-              if (errors.first_name) setErrors((prev) => ({ ...prev, first_name: null }));
-            }}
-            autoCapitalize="words"
-          />
-          {errors.first_name && (
-            <Text style={styles.errorText}>{errors.first_name}</Text>
-          )}
-        </View>
-      )}
-
-      {profileNeeds.lastName && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Last Name *</Text>
-          <TextInput
-            style={[styles.input, errors.last_name && styles.inputError]}
-            placeholder="Enter your last name"
-            placeholderTextColor="hsl(0, 0%, 40%)"
-            value={djProfile.last_name}
-            onChangeText={(text) => {
-              setDjProfile((prev) => ({ ...prev, last_name: text }));
-              if (errors.last_name) setErrors((prev) => ({ ...prev, last_name: null }));
-            }}
-            autoCapitalize="words"
-          />
-          {errors.last_name && (
-            <Text style={styles.errorText}>{errors.last_name}</Text>
-          )}
-        </View>
-      )}
+      <Text style={styles.stepSubtitle}>Add your DJ name and location</Text>
 
       {profileNeeds.djName && (
         <View style={styles.inputGroup}>

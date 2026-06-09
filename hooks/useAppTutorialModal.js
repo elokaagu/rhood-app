@@ -23,6 +23,7 @@ export function useAppTutorialModal(screenId, options = {}) {
   const enabled = ctx?.enabled ?? false;
   const dismissed = ctx?.dismissed ?? {};
   const dismissFor = ctx?.dismissFor;
+  const setTutorialEnabled = ctx?.setTutorialEnabled;
   const activeScreenId = resolveTutorialScreenId(ctx?.activeScreenId);
   const targetScreenId = resolveTutorialScreenId(screenId);
 
@@ -42,6 +43,11 @@ export function useAppTutorialModal(screenId, options = {}) {
     dismissFor?.(targetScreenId || screenId);
   }, [dismissFor, targetScreenId, screenId]);
 
+  // "Turn off tips" disables Tutorial mode entirely from the tip card itself.
+  const onTurnOff = useCallback(() => {
+    setTutorialEnabled?.(false);
+  }, [setTutorialEnabled]);
+
   const tutorialModalProps = useMemo(() => {
     if (!content) return null;
     if (!visible) return null;
@@ -49,10 +55,11 @@ export function useAppTutorialModal(screenId, options = {}) {
     return {
       visible,
       onDismiss,
+      onTurnOff: setTutorialEnabled ? onTurnOff : undefined,
       modalTitle: content.title,
       rows: content.rows,
     };
-  }, [content, visible, onDismiss]);
+  }, [content, visible, onDismiss, onTurnOff, setTutorialEnabled]);
 
   return {
     showTutorialModal: visible,

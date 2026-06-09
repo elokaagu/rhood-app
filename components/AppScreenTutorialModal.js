@@ -93,6 +93,17 @@ const localStyles = StyleSheet.create({
     fontWeight: "bold",
     color: "hsl(0, 0%, 0%)",
   },
+  tutorialTurnOffButton: {
+    marginTop: 14,
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  tutorialTurnOffText: {
+    fontSize: 14,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 60%)",
+    textDecorationLine: "underline",
+  },
 });
 
 /**
@@ -102,6 +113,7 @@ const localStyles = StyleSheet.create({
 export default function AppScreenTutorialModal({
   visible,
   onDismiss,
+  onTurnOff,
   modalTitle,
   rows = [],
 }) {
@@ -167,6 +179,20 @@ export default function AppScreenTutorialModal({
         >
           <Text style={localStyles.tutorialGotItButtonText}>Got it</Text>
         </TouchableOpacity>
+
+        {onTurnOff && (
+          <TouchableOpacity
+            style={localStyles.tutorialTurnOffButton}
+            onPress={onTurnOff}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Turn off all tutorial tips"
+          >
+            <Text style={localStyles.tutorialTurnOffText}>
+              Turn off tips
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
