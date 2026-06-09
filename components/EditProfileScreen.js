@@ -15,8 +15,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { uploadFileStreaming, withRetry, guardFileSizeBytes } from "../lib/uploadUtils";
 import { db, supabase } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 
@@ -641,45 +641,31 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
 
   const uploadProfileImage = async (imageUri) => {
-    try {
-      console.log("📤 Uploading profile image...");
+    console.log("📤 Uploading profile image…");
 
-      // Lock to JPEG — expo-image-picker with quality < 1 outputs JPEG
-      const fileName = `profile_${user.id}_${Date.now()}.jpg`;
+    // Verify the file still exists and is within the 20 MB cap.
+    // expo-image-picker with quality:0.8 typically outputs < 4 MB,
+    // but very high-res edits on newer iPhones can still be large.
+    await guardFileSizeBytes(imageUri, 20 * 1024 * 1024, "Profile photo");
 
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const binaryStr = atob(base64);
-      const fileData = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        fileData[i] = binaryStr.charCodeAt(i);
-      }
+    // Lock to JPEG — expo-image-picker with quality < 1 outputs JPEG data
+    // regardless of the original format (HEIC → JPEG happens in the editor).
+    const storagePath = `profile_images/profile_${user.id}_${Date.now()}.jpg`;
 
-      // Upload to Supabase storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(`profile_images/${fileName}`, fileData, {
-          contentType: "image/jpeg",
-          cacheControl: "3600",
-          upsert: true,
-        });
+    // Stream from disk — never allocates the full image in RAM.
+    // upsert: true so retries don't hit 409 conflict.
+    const publicUrl = await withRetry(() =>
+      uploadFileStreaming({
+        bucket: "avatars",
+        path: storagePath,
+        fileUri: imageUri,
+        contentType: "image/jpeg",
+        upsert: true,
+      })
+    );
 
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(`profile_images/${fileName}`);
-
-      console.log("✅ Profile image uploaded:", urlData.publicUrl);
-      return urlData.publicUrl;
-    } catch (error) {
-      console.error("❌ Error uploading profile image:", error);
-      throw error;
-    }
+    console.log("✅ Profile image uploaded:", publicUrl);
+    return publicUrl;
   };
 
   const openImagePicker = async (source) => {
@@ -713,33 +699,27 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         });
       }
 
-      if (!result.canceled && result.assets[0]) {
-        const localUri = result.assets[0].uri;
-
-        // Show loading state
+      const asset = result.assets?.[0];
+      if (!result.canceled && asset?.uri) {
         setLoading(true);
-
         try {
-          // Upload image to Supabase storage
-          const publicUrl = await uploadProfileImage(localUri);
-
-          // Update profile with public URL
-          setProfile((prev) => ({
-            ...prev,
-            profile_image_url: publicUrl,
-          }));
-
-          console.log("✅ Profile image updated with URL:", publicUrl);
+          const publicUrl = await uploadProfileImage(asset.uri);
+          setProfile((prev) => ({ ...prev, profile_image_url: publicUrl }));
+          console.log("✅ Profile image updated:", publicUrl);
         } catch (uploadError) {
           console.error("❌ Failed to upload image:", uploadError);
-          setErrorModal({ visible: true, title: "Upload Error", message: "Failed to upload image. Please try again." });
+          setErrorModal({
+            visible: true,
+            title: "Upload Error",
+            message: uploadError.message || "Failed to upload photo. Please try again.",
+          });
         } finally {
           setLoading(false);
         }
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      setErrorModal({ visible: true, title: "Error", message: "Failed to select image" });
+      setErrorModal({ visible: true, title: "Error", message: "Failed to open the photo picker. Please try again." });
       setLoading(false);
     }
   };
