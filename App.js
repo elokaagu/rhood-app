@@ -1087,6 +1087,11 @@ export default function App() {
       if (normalizedType === "mix_like" || normalizedType.includes("like")) {
         // Open the owner's profile where their mixes (and like counts) live.
         handleMenuNavigation(SCREENS.PROFILE);
+        return;
+      }
+
+      if (normalizedType === "daily_nudge") {
+        handleMenuNavigation(SCREENS.LISTEN);
       }
     });
     return () => setPushNotificationTapHandler(null);
