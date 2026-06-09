@@ -21,10 +21,8 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
     email: "",
     password: "",
     confirmPassword: "",
-    djName: "",
     firstName: "",
     lastName: "",
-    city: "",
     inviteCode: "",
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -43,20 +41,16 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       email,
       password,
       confirmPassword,
-      djName,
       firstName,
       lastName,
-      city,
     } = formData;
 
     if (
       !email ||
       !password ||
       !confirmPassword ||
-      !djName ||
       !firstName ||
-      !lastName ||
-      !city
+      !lastName
     ) {
       setErrorModal({ visible: true, title: "Error", message: "Please fill in all fields" });
       return false;
@@ -88,15 +82,18 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       if (user) {
         if (!needsEmailConfirmation) {
           // Auto-confirmed (email confirmation disabled in Supabase) — proceed immediately
+          // DJ name & city are collected during onboarding now — leave them
+          // blank here so onboarding asks for them (DJ name auto-generates from
+          // the real name if still blank at completion).
           const profileData = {
             id: user.id,
             email: formData.email,
-            dj_name: formData.djName,
+            dj_name: "",
             first_name: formData.firstName,
             last_name: formData.lastName,
-            city: formData.city,
+            city: "",
             genres: [],
-            bio: `DJ from ${formData.city}`,
+            bio: "",
             profile_image_url: null,
           };
 
@@ -111,10 +108,10 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
           }
 
           onSignupSuccess(user, {
-            dj_name: formData.djName,
+            dj_name: "",
             first_name: formData.firstName,
             last_name: formData.lastName,
-            city: formData.city,
+            city: "",
           });
         } else {
           // Email confirmation required — show the pending screen
@@ -318,19 +315,6 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
             />
           </View>
 
-          {/* DJ Name Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>DJ Name *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Your stage name"
-              placeholderTextColor="hsl(0, 0%, 50%)"
-              value={formData.djName}
-              onChangeText={(value) => updateFormData("djName", value)}
-              autoCapitalize="words"
-            />
-          </View>
-
           {/* First Name Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>First Name *</Text>
@@ -353,19 +337,6 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
               placeholderTextColor="hsl(0, 0%, 50%)"
               value={formData.lastName}
               onChangeText={(value) => updateFormData("lastName", value)}
-              autoCapitalize="words"
-            />
-          </View>
-
-          {/* City Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>City *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Your city"
-              placeholderTextColor="hsl(0, 0%, 50%)"
-              value={formData.city}
-              onChangeText={(value) => updateFormData("city", value)}
               autoCapitalize="words"
             />
           </View>
