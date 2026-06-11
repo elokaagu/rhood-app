@@ -4,10 +4,10 @@ import {
   Text,
   TouchableOpacity,
   Modal,
-  Image,
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import styles from "./ListenScreen.styles";
@@ -63,7 +63,8 @@ export default function ManageMixesModal({
                           : require("../assets/rhood_logo.webp")
                       }
                       style={styles.manageMixItemImage}
-                      resizeMode="cover"
+                      contentFit="cover"
+                      cachePolicy="disk"
                     />
                     <View style={styles.manageMixItemDetails}>
                       <Text style={styles.manageMixItemTitle} numberOfLines={1}>

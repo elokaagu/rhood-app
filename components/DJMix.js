@@ -3,12 +3,12 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image,
   StyleSheet,
   Animated,
   Alert,
   PanResponder,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { HapticPatterns } from "../lib/haptics";
 
@@ -255,7 +255,8 @@ const DJMix = ({
                   <Image
                     source={imageSource}
                     style={styles.albumArt}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    cachePolicy="disk"
                     onError={(error) => {
                       setImageError(true);
                       if (__DEV__) {

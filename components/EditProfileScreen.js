@@ -9,10 +9,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Image,
   Modal,
   Alert,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -828,6 +828,8 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
                 <Image
                   source={{ uri: profile.profile_image_url }}
                   style={styles.profileImage}
+                  contentFit="cover"
+                  cachePolicy="disk"
                 />
               ) : (
                 <View

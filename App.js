@@ -199,8 +199,11 @@ export default function App() {
 
     const initializeNotifications = async () => {
       try {
-        await requestNotificationPermissions();
-        await setupAudioNotificationCategories();
+        // Permissions and category registration are independent — run together
+        await Promise.all([
+          requestNotificationPermissions(),
+          setupAudioNotificationCategories(),
+        ]);
         audioNotifSubscription = setupAudioNotificationListeners();
         await lockScreenControls.initialize();
 
@@ -215,8 +218,10 @@ export default function App() {
     // Initialize analytics
     (async () => {
       await initAnalytics();
-      await track(AnalyticsEvents.APP_OPEN);
-      await startAnalyticsSession({ source: "app_open" });
+      await Promise.all([
+        track(AnalyticsEvents.APP_OPEN),
+        startAnalyticsSession({ source: "app_open" }),
+      ]);
     })();
 
     return () => {
@@ -642,12 +647,26 @@ export default function App() {
     setShowAuth(false);
     setAuthLoading(true); // Keep loading state while checking profile
 
-    // Add a small delay to ensure OAuth profile creation is complete
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
     try {
       if (__DEV__) console.log("🔍 Fetching user profile for user ID:", user.id);
-      const profile = await db.getUserProfile(user.id);
+      // OAuth profile creation can lag slightly behind the session; retry on
+      // "no rows" instead of always sleeping so normal logins stay fast.
+      // getUserProfile throws PGRST116 when the row doesn't exist yet.
+      let profile = null;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+        try {
+          profile = await db.getUserProfile(user.id);
+          break;
+        } catch (err) {
+          const profileMissing =
+            err.code === "PGRST116" ||
+            err.message?.includes("No rows returned");
+          if (!profileMissing || attempt === 3) throw err;
+        }
+      }
       if (__DEV__) console.log("📋 Profile result:", profile ? "Found" : "Not found");
 
       if (profile) {

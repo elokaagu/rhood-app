@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
@@ -236,9 +236,15 @@ export default function CommunityMembersScreen({
           </Text>
         </View>
       ) : (
-        <ScrollView
+        <FlatList
           style={styles.membersList}
           contentContainerStyle={styles.membersContent}
+          data={members}
+          keyExtractor={(member) => String(member.id)}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={11}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -246,14 +252,12 @@ export default function CommunityMembersScreen({
               tintColor={COLORS.primary}
             />
           }
-        >
-          {members.map((member) => {
+          renderItem={({ item: member }) => {
             const user = member.user;
             if (!user) return null;
 
             return (
               <TouchableOpacity
-                key={member.id}
                 style={styles.memberCard}
                 onPress={() => handleMemberPress(member)}
                 activeOpacity={0.7}
@@ -283,8 +287,8 @@ export default function CommunityMembersScreen({
                 />
               </TouchableOpacity>
             );
-          })}
-        </ScrollView>
+          }}
+        />
       )}
     </View>
   );

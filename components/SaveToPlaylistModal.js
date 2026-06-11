@@ -4,13 +4,13 @@ import {
   Text,
   TouchableOpacity,
   Modal,
-  Image,
   TextInput,
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import styles from "./ListenScreen.styles";
 
@@ -66,7 +66,8 @@ export default function SaveToPlaylistModal({
                       : require("../assets/rhood_logo.webp")
                   }
                   style={styles.playlistMixPreviewImage}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="disk"
                 />
                 <View style={styles.playlistMixPreviewInfo}>
                   <Text style={styles.playlistMixPreviewTitle} numberOfLines={1}>
@@ -150,7 +151,8 @@ export default function SaveToPlaylistModal({
                           <Image
                             source={{ uri: playlist.image_url }}
                             style={styles.existingPlaylistImage}
-                            resizeMode="cover"
+                            contentFit="cover"
+                            cachePolicy="disk"
                           />
                         ) : (
                           <Ionicons

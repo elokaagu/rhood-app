@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   StyleSheet,
   TextInput,
   RefreshControl,
@@ -159,16 +159,8 @@ export default function CommunityScreen({ onNavigate }) {
   const showInitialError = Boolean(loadError && communities.length === 0 && !loading);
   const showRefreshBanner = Boolean(loadError && communities.length > 0 && !loading);
 
-  return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        <View style={styles.header}>
+  const listHeader = (
+    <View style={styles.header}>
           <View style={styles.headerTop}>
             <Text style={styles.screenHeading}>COMMUNITY</Text>
             <View style={styles.statsContainer}>
@@ -292,81 +284,78 @@ export default function CommunityScreen({ onNavigate }) {
             </TouchableOpacity>
           </View>
         </View>
+  );
 
-        <View style={styles.communitiesList}>
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <Ionicons
-                name="musical-notes"
-                size={48}
-                color="hsl(75, 100%, 60%)"
+  const listEmpty = loading ? (
+    <View style={styles.loadingContainer}>
+      <Ionicons name="musical-notes" size={48} color="hsl(75, 100%, 60%)" />
+      <Text style={styles.loadingTitle}>Loading Communities...</Text>
+      <Text style={styles.loadingSubtitle}>
+        Fetching the latest communities from the database
+      </Text>
+    </View>
+  ) : showInitialError ? (
+    <View style={styles.errorContainer}>
+      <Ionicons name="alert-circle-outline" size={48} color="hsl(0, 0%, 50%)" />
+      <Text style={styles.errorTitle}>Something went wrong</Text>
+      <Text style={styles.errorSubtitle}>{loadError}</Text>
+      <TouchableOpacity style={styles.retryButton} onPress={handleRetryLoad}>
+        <Text style={styles.retryButtonText}>Try again</Text>
+      </TouchableOpacity>
+    </View>
+  ) : communities.length === 0 ? (
+    <View style={styles.noResultsContainer}>
+      <Ionicons name="people-outline" size={48} color="hsl(0, 0%, 30%)" />
+      <Text style={styles.noResultsTitle}>No communities yet</Text>
+      <Text style={styles.noResultsSubtitle}>
+        Check back soon or pull down to refresh.
+      </Text>
+    </View>
+  ) : (
+    <View style={styles.noResultsContainer}>
+      <Ionicons name="people-outline" size={48} color="hsl(0, 0%, 30%)" />
+      <Text style={styles.noResultsTitle}>No communities found</Text>
+      <Text style={styles.noResultsSubtitle}>
+        {searchQuery.trim()
+          ? `No results for "${searchQuery}"`
+          : "Try adjusting your filters"}
+      </Text>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
+        data={loading || showInitialError ? [] : filteredCommunities}
+        keyExtractor={(community) => String(community.id)}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={11}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+        renderItem={({ item: community, index }) => (
+          <View style={styles.communityItem}>
+            <AnimatedListItem
+              index={index}
+              delay={70}
+              maxStaggerIndex={6}
+              animate={index < 24}
+            >
+              <CommunityDiscoveryCard
+                community={community}
+                onPress={handleCommunityPress}
+                onJoinPress={handleJoinCommunity}
               />
-              <Text style={styles.loadingTitle}>Loading Communities...</Text>
-              <Text style={styles.loadingSubtitle}>
-                Fetching the latest communities from the database
-              </Text>
-            </View>
-          ) : showInitialError ? (
-            <View style={styles.errorContainer}>
-              <Ionicons
-                name="alert-circle-outline"
-                size={48}
-                color="hsl(0, 0%, 50%)"
-              />
-              <Text style={styles.errorTitle}>Something went wrong</Text>
-              <Text style={styles.errorSubtitle}>{loadError}</Text>
-              <TouchableOpacity
-                style={styles.retryButton}
-                onPress={handleRetryLoad}
-              >
-                <Text style={styles.retryButtonText}>Try again</Text>
-              </TouchableOpacity>
-            </View>
-          ) : communities.length === 0 ? (
-            <View style={styles.noResultsContainer}>
-              <Ionicons
-                name="people-outline"
-                size={48}
-                color="hsl(0, 0%, 30%)"
-              />
-              <Text style={styles.noResultsTitle}>No communities yet</Text>
-              <Text style={styles.noResultsSubtitle}>
-                Check back soon or pull down to refresh.
-              </Text>
-            </View>
-          ) : filteredCommunities.length === 0 ? (
-            <View style={styles.noResultsContainer}>
-              <Ionicons
-                name="people-outline"
-                size={48}
-                color="hsl(0, 0%, 30%)"
-              />
-              <Text style={styles.noResultsTitle}>No communities found</Text>
-              <Text style={styles.noResultsSubtitle}>
-                {searchQuery.trim()
-                  ? `No results for "${searchQuery}"`
-                  : "Try adjusting your filters"}
-              </Text>
-            </View>
-          ) : (
-            filteredCommunities.map((community, index) => (
-              <AnimatedListItem
-                key={community.id}
-                index={index}
-                delay={70}
-                maxStaggerIndex={6}
-                animate={index < 24}
-              >
-                <CommunityDiscoveryCard
-                  community={community}
-                  onPress={handleCommunityPress}
-                  onJoinPress={handleJoinCommunity}
-                />
-              </AnimatedListItem>
-            ))
-          )}
-        </View>
-      </ScrollView>
+            </AnimatedListItem>
+          </View>
+        )}
+      />
 
       <LinearGradient
         colors={["transparent", "rgba(0, 0, 0, 0.3)", "rgba(0, 0, 0, 0.8)"]}
@@ -596,5 +585,9 @@ const styles = StyleSheet.create({
   },
   communitiesList: {
     padding: 20,
+  },
+  /* Per-row wrapper for the virtualized list — cards carry their own marginBottom */
+  communityItem: {
+    paddingHorizontal: 20,
   },
 });

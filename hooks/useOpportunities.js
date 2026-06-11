@@ -122,7 +122,11 @@ export default function useOpportunities({
       const { data: opportunitiesData, error: opportunitiesError } =
         await supabase
           .from("opportunities")
-          .select("*")
+          // Only the columns transformOpportunityRow consumes — avoids
+          // shipping unused fields for every row in the swipe feed.
+          .select(
+            "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, genre, skill_level, organizer_name, image_url, created_at"
+          )
           .eq("is_active", true)
           .order("created_at", { ascending: false });
 

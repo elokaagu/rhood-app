@@ -1,29 +1,14 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
-  Image,
   Animated,
   View,
   StyleSheet,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 
-const AnimatedImage = Animated.createAnimatedComponent(Image);
-
-/** Map expo-image-style contentFit names to RN Image resizeMode. */
-function contentFitToResizeMode(contentFit) {
-  const key =
-    typeof contentFit === "string" ? contentFit.toLowerCase() : contentFit;
-  const map = {
-    cover: "cover",
-    contain: "contain",
-    fill: "stretch",
-    stretch: "stretch",
-    scaledown: "contain",
-    none: "center",
-    center: "center",
-    repeat: "repeat",
-  };
-  return map[key] ?? "cover";
-}
+// expo-image gives us native disk caching for remote URIs (RN core Image
+// only memory-caches on iOS), while keeping the same fade-in behavior.
+const AnimatedImage = Animated.createAnimatedComponent(ExpoImage);
 
 function getSourceSignature(source) {
   if (source == null) return null;
@@ -72,8 +57,6 @@ const ProgressiveImage = ({
     setRevealDone(false);
     fadeAnim.setValue(0);
   }, [sourceSignature, fadeAnim]);
-
-  const resizeMode = contentFitToResizeMode(contentFit);
 
   const handleLoad = () => {
     setIsLoaded(true);
@@ -127,7 +110,9 @@ const ProgressiveImage = ({
           {...imageProps}
           source={source}
           style={[styles.image, imageStyle, { opacity: fadeAnim }]}
-          resizeMode={resizeMode}
+          contentFit={contentFit}
+          cachePolicy="disk"
+          transition={0}
           onLoad={handleLoad}
           onError={handleError}
         />
