@@ -74,7 +74,7 @@ export default function useOpportunities({
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
   const [dailyApplicationStats, setDailyApplicationStats] = useState({
     daily_count: 0,
-    remaining_applications: 5,
+    remaining_applications: APPLICATION_LIMITS.DAILY_LIMIT,
     can_apply: true,
   });
   const [networkErrorCount, setNetworkErrorCount] = useState(0);
@@ -113,7 +113,7 @@ export default function useOpportunities({
               if (__DEV__) console.error("Error loading daily stats:", statsError);
               return {
                 daily_count: 0,
-                remaining_applications: 5,
+                remaining_applications: APPLICATION_LIMITS.DAILY_LIMIT,
                 can_apply: true,
               };
             })
