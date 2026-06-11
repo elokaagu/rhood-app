@@ -19,13 +19,18 @@ function getSourceSignature(source) {
 
 /**
  * Remote/local image with a placeholder and opacity fade-in when loaded.
- * (Not multi-resolution progressive decode — single source, fade when ready.)
  *
- * @param {object|number} source — RN Image source
- * @param {object} [style] — outer container (size, borderRadius, margin, overflow)
- * @param {object} [imageStyle] — optional overrides on the image layer only
- * @param {React.ReactNode} [placeholder] — custom placeholder; should fill space if needed
- * @param {string} [contentFit='cover'] — maps to resizeMode (cover, contain, fill, …)
+ * Cache-hit fast path: if expo-image fires onLoad within 50ms of mount the
+ * image was already on disk — we skip the animation entirely and reveal
+ * instantly, preserving the smooth feel for images the user has seen before.
+ * Only genuinely new images (network fetch) get the fade-in.
+ *
+ * @param {object|number} source    — RN Image source
+ * @param {object}        [style]   — outer container (size, borderRadius, overflow…)
+ * @param {object}        [imageStyle] — overrides on the image layer only
+ * @param {ReactNode}     [placeholder] — shown until load completes
+ * @param {string}        [contentFit='cover']
+ * @param {number}        [transition=300] — fade duration in ms for network-fetched images
  */
 const ProgressiveImage = ({
   source,
@@ -41,6 +46,7 @@ const ProgressiveImage = ({
   const [hasError, setHasError] = useState(false);
   const [revealDone, setRevealDone] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const mountTimeRef = useRef(Date.now());
 
   const sourceSignature = useMemo(
     () => getSourceSignature(source),
@@ -48,6 +54,7 @@ const ProgressiveImage = ({
   );
 
   useEffect(() => {
+    mountTimeRef.current = Date.now();
     setIsLoaded(false);
     setHasError(false);
     setRevealDone(false);
@@ -56,13 +63,21 @@ const ProgressiveImage = ({
 
   const handleLoad = () => {
     setIsLoaded(true);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: transition,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) setRevealDone(true);
-    });
+    const elapsed = Date.now() - mountTimeRef.current;
+    // Cache hit: image was already on disk — skip the fade and reveal instantly.
+    // Only animate images that had to be fetched over the network.
+    if (elapsed < 50) {
+      fadeAnim.setValue(1);
+      setRevealDone(true);
+    } else {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: transition,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setRevealDone(true);
+      });
+    }
   };
 
   const handleError = (error) => {
@@ -72,19 +87,14 @@ const ProgressiveImage = ({
     onError?.(error);
   };
 
-  /** Keep placeholder under the image until load + fade completes (avoids empty flash at opacity 0). */
   const showPlaceholder = !isLoaded || hasError || !revealDone;
-
-  const defaultPlaceholder = (
-    <View style={styles.neutralPlaceholder} />
-  );
 
   const placeholderContent = (
     <View style={styles.placeholderLayer} pointerEvents="none">
       {placeholder != null ? (
         <View style={styles.placeholderInner}>{placeholder}</View>
       ) : (
-        defaultPlaceholder
+        <View style={styles.neutralPlaceholder} />
       )}
     </View>
   );
@@ -133,7 +143,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  /** Flat neutral surface (not a gradient). */
   neutralPlaceholder: {
     flex: 1,
     width: "100%",
