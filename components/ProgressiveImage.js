@@ -6,10 +6,6 @@ import {
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 
-// expo-image gives us native disk caching for remote URIs (RN core Image
-// only memory-caches on iOS), while keeping the same fade-in behavior.
-const AnimatedImage = Animated.createAnimatedComponent(ExpoImage);
-
 function getSourceSignature(source) {
   if (source == null) return null;
   if (typeof source === "number") return source;
@@ -106,16 +102,18 @@ const ProgressiveImage = ({
       {showPlaceholder && placeholderContent}
 
       {!hasError && (
-        <AnimatedImage
-          {...imageProps}
-          source={source}
-          style={[styles.image, imageStyle, { opacity: fadeAnim }]}
-          contentFit={contentFit}
-          cachePolicy="disk"
-          transition={0}
-          onLoad={handleLoad}
-          onError={handleError}
-        />
+        <Animated.View style={[styles.image, imageStyle, { opacity: fadeAnim }]}>
+          <ExpoImage
+            {...imageProps}
+            source={source}
+            style={StyleSheet.absoluteFill}
+            contentFit={contentFit}
+            cachePolicy="disk"
+            transition={0}
+            onLoad={handleLoad}
+            onError={handleError}
+          />
+        </Animated.View>
       )}
     </View>
   );
