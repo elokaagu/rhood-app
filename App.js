@@ -640,6 +640,24 @@ export default function App() {
     });
   }, [fadeOverlayAnim]);
 
+  // Pre-populate djProfile from Supabase user_metadata (OAuth users only).
+  // Called when login/signup finds no existing profile and routes to onboarding,
+  // so fields are already filled when the user lands on the first onboarding step.
+  const _seedDjProfileFromMeta = useCallback((user) => {
+    const meta = user?.user_metadata || {};
+    const firstName = meta.given_name || meta.first_name || "";
+    const lastName = meta.family_name || meta.last_name || "";
+    const djName = meta.full_name || meta.name || [firstName, lastName].filter(Boolean).join(" ");
+    if (djName || firstName || lastName) {
+      setDjProfile((prev) => ({
+        ...prev,
+        dj_name: djName,
+        first_name: firstName,
+        last_name: lastName,
+      }));
+    }
+  }, []);
+
   // Authentication handlers
   const handleLoginSuccess = useCallback(async (user) => {
     if (__DEV__) console.log("🔐 handleLoginSuccess called for user:", user.id);
@@ -711,6 +729,7 @@ export default function App() {
         if (__DEV__) console.log("⚠️ No profile found after OAuth - user needs onboarding");
         if (__DEV__) console.log("🔍 Profile query returned:", profile);
         setIsFirstTime(true);
+        _seedDjProfileFromMeta(user);
       }
     } catch (error) {
       if (__DEV__) console.error("❌ Error fetching profile:", error);
@@ -728,6 +747,7 @@ export default function App() {
       if (error.code === "PGRST116" || error.message?.includes("No rows returned")) {
         if (__DEV__) console.log("⚠️ No profile found - user needs onboarding");
         setIsFirstTime(true);
+        _seedDjProfileFromMeta(user);
       } else {
         // For other errors (like database schema issues), try to continue with existing user
         // Don't force onboarding - this might be a temporary database issue
@@ -754,9 +774,15 @@ export default function App() {
     // (DJ name / first / last / city). Onboarding then only asks for what's
     // still missing — no duplicate questions for email signups.
     if (profileData) {
+      // Auto-fill dj_name from real name when it wasn't explicitly set (email
+      // signups). This prevents the onboarding "DJ Name" field from appearing
+      // blank immediately after the user just typed their name at signup.
+      const autoName = [profileData.first_name, profileData.last_name]
+        .filter(Boolean)
+        .join(" ");
       setDjProfile((prev) => ({
         ...prev,
-        dj_name: profileData.dj_name || "",
+        dj_name: profileData.dj_name || autoName,
         first_name: profileData.first_name || "",
         last_name: profileData.last_name || "",
         city: profileData.city || "",
