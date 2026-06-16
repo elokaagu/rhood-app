@@ -1,0 +1,2 @@
+# Called from pg_cron via Postgres; no JWT available on that path.
+verify_jwt = false
