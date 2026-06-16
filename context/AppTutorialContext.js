@@ -63,6 +63,15 @@ export function AppTutorialProvider({ children, activeScreenId = null }) {
     await persistResetDismissed();
   }, []);
 
+  // Activates tutorial mode fresh: clears dismissed screens AND enables in one
+  // batched render instead of two sequential ones. Use this after onboarding so
+  // all screen tips appear, without causing multiple cascading re-renders.
+  const enableFresh = useCallback(async () => {
+    setDismissed({});
+    setEnabled(true);
+    await Promise.all([persistResetDismissed(), persistTutorialMode(true)]);
+  }, []);
+
   const refreshFromStorage = useCallback(async () => {
     const [e, d] = await Promise.all([
       getTutorialModeEnabled(),
@@ -74,11 +83,11 @@ export function AppTutorialProvider({ children, activeScreenId = null }) {
 
   // Populate the module-level ref so callers above the provider can reach in.
   useEffect(() => {
-    tutorialContextRef.current = { setTutorialEnabled, resetDismissed };
+    tutorialContextRef.current = { setTutorialEnabled, resetDismissed, enableFresh };
     return () => {
       tutorialContextRef.current = null;
     };
-  }, [setTutorialEnabled, resetDismissed]);
+  }, [setTutorialEnabled, resetDismissed, enableFresh]);
 
   const value = useMemo(
     () => ({
@@ -89,6 +98,7 @@ export function AppTutorialProvider({ children, activeScreenId = null }) {
       setTutorialEnabled,
       dismissFor,
       resetDismissed,
+      enableFresh,
       refreshFromStorage,
     }),
     [
@@ -99,6 +109,7 @@ export function AppTutorialProvider({ children, activeScreenId = null }) {
       setTutorialEnabled,
       dismissFor,
       resetDismissed,
+      enableFresh,
       refreshFromStorage,
     ]
   );

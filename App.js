@@ -19,6 +19,7 @@ import {
   Dimensions,
   PanResponder,
   Easing,
+  InteractionManager,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -1538,21 +1539,19 @@ export default function App() {
       if (__DEV__) console.log("🎉 Onboarding completed, setting isFirstTime=false");
       setIsFirstTime(false);
 
-      // Auto-enable tutorial mode for first-time users so they get guided
-      // walkthroughs on every main screen immediately after onboarding.
-      try {
-        const ctx = tutorialContextRef.current;
-        if (ctx) {
-          await ctx.resetDismissed();       // ensure all screen tips show fresh
-          await ctx.setTutorialEnabled(true);
-          if (__DEV__) console.log("📖 Tutorial mode enabled for new user");
-        }
-      } catch (tutorialErr) {
-        if (__DEV__) console.warn("⚠️ Could not enable tutorial mode:", tutorialErr);
-      }
-
-      // Navigate to opportunities after onboarding completion
+      // Navigate first — let the screen mount and transition complete before
+      // touching tutorial state. Enabling tutorial mid-mount caused cascading
+      // re-renders across every subscribed screen simultaneously (freeze).
       setCurrentScreen("opportunities");
+
+      // Activate tutorial mode after the transition is done: one batched state
+      // update (enabled + dismissed reset together) instead of two sequential ones.
+      InteractionManager.runAfterInteractions(() => {
+        const ctx = tutorialContextRef.current;
+        if (!ctx) return;
+        if (__DEV__) console.log("📖 Tutorial mode enabled for new user");
+        ctx.enableFresh?.()?.catch?.(() => {});
+      });
 
       // Check if profile picture is missing and show complete profile modal
       if (!savedProfile?.profile_image_url) {
