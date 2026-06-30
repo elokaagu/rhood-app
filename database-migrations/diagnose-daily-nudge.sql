@@ -42,20 +42,25 @@ WHERE id = 1;
 -- secret_status MISSING means trigger_daily_nudge() returns early and never
 -- calls net.http_post at all.
 
--- 4) Did the most recent net.http_post calls to the edge function succeed?
+-- 4) Did the most recent net.http_post calls succeed? (pg_net doesn't retain
+--    the request URL on the response row, so this isn't filterable by url —
+--    just look at the most recent ones; trigger_daily_nudge() only fires
+--    once a day so it should be easy to spot by timestamp.)
 SELECT
   id,
   status_code,
   created,
   (content::jsonb) AS response_body
 FROM net._http_response
-WHERE url LIKE '%send-daily-nudge%'
 ORDER BY created DESC
 LIMIT 10;
 -- status_code 401 = secret mismatch between this table and the Edge Function's
 -- INTERNAL_PUSH_SECRET. 404 = function not deployed. 200 with
 -- {"skipped":"opportunity_digest_sent_today"} or {"skipped":"nudge_recently_sent"}
--- means it ran but suppressed itself on purpose.
+-- means it ran but suppressed itself on purpose. To force a fresh, isolated
+-- test instead of waiting for the next cron tick, run:
+--   SELECT public.trigger_daily_nudge();
+-- then re-run this SELECT immediately after — the newest row is your answer.
 
 -- 5) When did the nudge last actually go out, per its own bookkeeping?
 SELECT last_sent_at, now() - last_sent_at AS time_since
