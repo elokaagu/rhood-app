@@ -16,8 +16,9 @@ const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const EXPO_BATCH_SIZE = 100;
 // If the opportunity digest fired within this window, skip the nudge today.
 const SUPPRESS_IF_DIGEST_WITHIN_HOURS = 18;
-// Don't send more than one nudge within this window (double-invoke guard).
-const MIN_HOURS_BETWEEN_NUDGES = 18;
+// Send at most once every 84 hours (~every 3-4 days). Cron still fires daily
+// but skips if not enough time has passed since the last nudge.
+const MIN_HOURS_BETWEEN_NUDGES = 84;
 
 // Rotating copy — one is chosen per day so consecutive days differ.
 const NUDGE_MESSAGES: { title: string; body: string }[] = [
