@@ -20,6 +20,10 @@ export const SCREENS = Object.freeze({
   USER_PROFILE: "user-profile",
   COMMUNITY_MEMBERS: "community-members",
 
+  // Create hub (Create tab) + its two flows
+  CREATE_HUB: "create-hub",
+  CREATE_OPPORTUNITY: "create-opportunity",
+
   // Mixes / audio
   UPLOAD_MIX: "upload-mix",
   TRENDING_MIXES: "trending-mixes",

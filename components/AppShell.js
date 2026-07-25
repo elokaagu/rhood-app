@@ -22,9 +22,11 @@ const MAIN_TABS = [
     icon: "musical-notes-outline",
   },
   {
-    key: SCREENS.UPLOAD_MIX,
+    key: SCREENS.CREATE_HUB,
     label: "Create",
     icon: "add-outline",
+    // Keep the tab lit while the user is inside either create flow.
+    alsoActiveOn: [SCREENS.UPLOAD_MIX, SCREENS.CREATE_OPPORTUNITY],
   },
 ];
 
@@ -107,8 +109,9 @@ export default function AppShell({
           end={{ x: 1, y: 1 }}
           style={[styles.tabBar, tabBarLayoutStyle]}
         >
-          {MAIN_TABS.map(({ key, label, icon }) => {
-            const active = currentScreen === key;
+          {MAIN_TABS.map(({ key, label, icon, alsoActiveOn }) => {
+            const active =
+              currentScreen === key || !!alsoActiveOn?.includes(currentScreen);
             return (
               <TouchableOpacity
                 key={key}

@@ -13,6 +13,8 @@ import SettingsScreen from "../components/SettingsScreen";
 import EditProfileScreen from "../components/EditProfileScreen";
 import UserProfileView from "../components/UserProfileView";
 import UploadMixScreen from "../components/UploadMixScreen";
+import CreateHubScreen from "../components/CreateHubScreen";
+import CreateOpportunityScreen from "../components/CreateOpportunityScreen";
 import AboutScreen from "../components/AboutScreen";
 import CommunityMembersScreen from "../components/CommunityMembersScreen";
 import TermsOfServiceScreen from "../components/TermsOfServiceScreen";
@@ -334,6 +336,23 @@ export default function ScreenRouter({
           onNotificationPreferencesChange={loadNotificationCounts}
         />
       );
+
+    case SCREENS.CREATE_HUB:
+      return <CreateHubScreen onNavigate={navigate} />;
+
+    case SCREENS.CREATE_OPPORTUNITY: {
+      const backFromCreateOpportunity = pickScreen(
+        screenParams.returnScreen ?? SCREENS.CREATE_HUB
+      );
+      return withSwipeBack(
+        backFromCreateOpportunity,
+        <CreateOpportunityScreen
+          user={user}
+          onBack={backFromCreateOpportunity}
+          onSubmitted={backFromCreateOpportunity}
+        />
+      );
+    }
 
     case SCREENS.UPLOAD_MIX: {
       const uploadReturnScreen =
