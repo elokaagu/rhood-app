@@ -13,6 +13,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from "../lib/sharedStyles";
 import { HapticPatterns } from "../lib/haptics";
 import { SCREENS } from "../navigation/routes";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 const androidSubtitleTextProps =
   Platform.OS === "android" ? { includeFontPadding: false } : {};
@@ -42,6 +45,9 @@ const CREATE_OPTIONS = [
  */
 export default function CreateHubScreen({ onNavigate }) {
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
+  const { tutorialModalProps } = useAppTutorialModal(
+    APP_TUTORIAL_SCREEN_IDS.CREATE_HUB
+  );
 
   useEffect(() => {
     Animated.timing(contentFadeAnim, {
@@ -108,6 +114,10 @@ export default function CreateHubScreen({ onNavigate }) {
           </TouchableOpacity>
         ))}
       </Animated.View>
+
+      {tutorialModalProps ? (
+        <AppScreenTutorialModal {...tutorialModalProps} />
+      ) : null}
     </ScrollView>
   );
 }

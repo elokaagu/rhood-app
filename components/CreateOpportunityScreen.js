@@ -25,6 +25,7 @@ import {
   validateOpportunityForm,
 } from "../lib/opportunitySubmission";
 import { track, AnalyticsEvents } from "../lib/analytics";
+import { db } from "../lib/supabase";
 
 const androidSubtitleTextProps =
   Platform.OS === "android" ? { includeFontPadding: false } : {};
@@ -87,6 +88,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
   const [form, setForm] = useState(EMPTY_OPPORTUNITY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [organizerFallback, setOrganizerFallback] = useState("");
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -96,6 +98,28 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
       useNativeDriver: true,
     }).start();
   }, [contentFadeAnim]);
+
+  // The session user only carries dj_name if Edit Profile was saved this
+  // session, so read the profile for the organiser fallback we promise below.
+  useEffect(() => {
+    let cancelled = false;
+    const fromSession = user?.user_metadata?.dj_name;
+    if (fromSession) {
+      setOrganizerFallback(fromSession);
+      return undefined;
+    }
+    if (!user?.id) return undefined;
+    db.getUserProfile(user.id)
+      .then((profile) => {
+        if (!cancelled) setOrganizerFallback(profile?.dj_name || "");
+      })
+      .catch(() => {
+        /* fallback stays blank — organizer_name just posts as null */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.user_metadata?.dj_name]);
 
   const setField = useCallback((key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -132,27 +156,25 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
       const record = await submitOpportunity(
         snapshot,
         user?.id,
-        user?.user_metadata?.dj_name
+        organizerFallback
       );
       HapticPatterns.success();
-      await track(AnalyticsEvents.OPPORTUNITY_SUBMITTED, {
+      // Not awaited: analytics must not delay the confirmation.
+      void track(AnalyticsEvents.OPPORTUNITY_SUBMITTED, {
         genre: snapshot.genre,
         city: snapshot.city,
         skill_level: snapshot.skillLevel,
         has_fee: Boolean(snapshot.payment),
       });
+      // Clear before the alert: Alert.alert is non-blocking, so the form must
+      // not sit re-enabled holding the values we just submitted.
+      setForm(EMPTY_OPPORTUNITY_FORM);
+      setFieldErrors({});
       Alert.alert(
         "Submitted for review",
         "Thanks! Our team will review your opportunity and publish it to the deck shortly. You'll be notified once it's live.",
         [
-          {
-            text: "OK",
-            onPress: () => {
-              setForm(EMPTY_OPPORTUNITY_FORM);
-              setFieldErrors({});
-              onSubmitted?.(record);
-            },
-          },
+          { text: "OK", onPress: () => onSubmitted?.(record) },
         ]
       );
     } catch (error) {
@@ -166,7 +188,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
     } finally {
       setSubmitting(false);
     }
-  }, [form, submitting, user?.id, onSubmitted]);
+  }, [form, submitting, user?.id, organizerFallback, onSubmitted]);
 
   return (
     <KeyboardAvoidingView
@@ -254,8 +276,8 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
               <Field
                 label="Organiser / promoter name"
                 hint={
-                  user?.user_metadata?.dj_name
-                    ? `Shown on the opportunity. Leave blank to post as ${user.user_metadata.dj_name}.`
+                  organizerFallback
+                    ? `Shown on the opportunity. Leave blank to post as ${organizerFallback}.`
                     : "Shown on the opportunity. Optional."
                 }
               >
