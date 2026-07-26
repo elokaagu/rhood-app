@@ -36,8 +36,6 @@ export default function AuthGate({
 
   const isAuthBusy = authLoading || isLoading;
   const needsOnboarding = Boolean(user) && isFirstTime;
-  const isProfileLoading =
-    Boolean(user) && !djProfile && !isFirstTime;
 
   let content = null;
 
@@ -68,17 +66,6 @@ export default function AuthGate({
         setDjProfile={setDjProfile}
         onSignOut={onSignOut}
       />
-    );
-  } else if (isProfileLoading) {
-    content = (
-      <View
-        style={[
-          styles.container,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
     );
   } else {
     return null;

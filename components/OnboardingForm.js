@@ -299,6 +299,32 @@ export default function OnboardingForm({
     }
   };
 
+  /**
+   * "Skip for now" bypasses this step's validation entirely — that's the
+   * whole point of the button. Wiring it to nextStep (which always
+   * validates first) meant a partially-typed invalid social handle, or a
+   * photo upload that had already failed, could block the button from
+   * doing what its label promises.
+   */
+  const skipStep = () => {
+    const key = steps[currentStep - 1];
+    if (key === "social") {
+      setDjProfile((prev) => ({
+        ...prev,
+        instagram: normalizeInstagramOnBlur(prev.instagram),
+        soundcloud: normalizeSoundCloudOnBlur(prev.soundcloud),
+        tiktok: normalizeTikTokOnBlur(prev.tiktok),
+        youtube: normalizeYouTubeOnBlur(prev.youtube),
+      }));
+    }
+    setErrors({});
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      onComplete();
+    }
+  };
+
   const toggleGenre = (genre) => {
     setDjProfile((prev) => ({
       ...prev,
@@ -814,7 +840,7 @@ export default function OnboardingForm({
           <Text style={styles.skipText}>
             You can always add these later in your profile settings
           </Text>
-          <TouchableOpacity style={styles.skipNowBtn} onPress={nextStep}>
+          <TouchableOpacity style={styles.skipNowBtn} onPress={skipStep}>
             <Text style={styles.skipNowText}>Skip for now →</Text>
           </TouchableOpacity>
         </View>
@@ -910,13 +936,16 @@ export default function OnboardingForm({
           )}
         </View>
 
-        {/* Skip option — only visible when no photo has been picked yet */}
-        {!localImageUri && !uploadingImage && (
+        {/* Skip option — hidden while a photo is actively uploading (so the
+            in-flight upload isn't abandoned), but shown once it fails so the
+            promise made by the error text above ("tap Retry or skip this
+            step") is actually true. */}
+        {!uploadingImage && (!localImageUri || uploadError) && (
           <View style={styles.skipContainer}>
             <Text style={styles.skipText}>
               You can always add a photo later in your profile settings
             </Text>
-            <TouchableOpacity style={styles.skipNowBtn} onPress={nextStep}>
+            <TouchableOpacity style={styles.skipNowBtn} onPress={skipStep}>
               <Text style={styles.skipNowText}>Skip for now →</Text>
             </TouchableOpacity>
           </View>

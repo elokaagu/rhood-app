@@ -10,11 +10,13 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { auth, db } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 import { getSignupErrorMessage } from "../lib/errorMessages";
+import { track, AnalyticsEvents } from "../lib/analytics";
 
 export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [formData, setFormData] = useState({
@@ -103,7 +105,15 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
             try {
               await db.processReferral(formData.inviteCode.trim(), user.id);
             } catch (referralError) {
+              // Non-blocking by design — a bad/stale invite code shouldn't
+              // stop signup. console.warn alone is invisible in a
+              // production/TestFlight build, so also track it: the user
+              // typed a code expecting it to do something, and otherwise
+              // there'd be no way to know this is happening in the field.
               console.warn("⚠️ Referral processing failed:", referralError);
+              track(AnalyticsEvents.REFERRAL_PROCESSING_FAILED, {
+                reason: referralError?.message || "unknown",
+              }).catch(() => {});
             }
           }
 

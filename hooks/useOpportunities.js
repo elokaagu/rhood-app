@@ -65,6 +65,7 @@ export default function useOpportunities({
   hideCustomModal,
   setCurrentScreen,
   setScreenParams,
+  isFirstTime,
 }) {
   const [opportunities, setOpportunities] = useState([]);
   const [currentOpportunityIndex, setCurrentOpportunityIndex] = useState(0);
@@ -180,8 +181,14 @@ export default function useOpportunities({
 
   /** Full reload when location / user changes would skew distances — call from screen if needed. */
   useEffect(() => {
+    // Skip while onboarding is still in progress — fetching + prefetching
+    // card images for a screen the user hasn't reached yet is pure waste,
+    // and on first launch it competes for bandwidth/CPU with the onboarding
+    // form itself. Fires as soon as isFirstTime flips false (onboarding
+    // completes, or a returning user's profile check resolves).
+    if (isFirstTime) return;
     fetchOpportunities();
-  }, [fetchOpportunities]);
+  }, [fetchOpportunities, isFirstTime]);
 
   /** Deep link from notifications: jump swipe deck to a specific opportunity once rows are loaded. */
   useEffect(() => {

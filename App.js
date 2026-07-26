@@ -92,6 +92,20 @@ const MENU_TIMINGS = {
   swipeDismissMs: 280,
 };
 
+/**
+ * A `user_profiles` row existing is not the same as onboarding being done.
+ * Google-OAuth signup and email/password auto-confirm signup both create a
+ * near-empty row (id, email, dj_name from OAuth metadata if any) *before*
+ * OnboardingForm ever runs — if the app is killed mid-onboarding, that row
+ * is all a relaunch has to go on. Genres are a required, validated step
+ * (completeOnboarding refuses to save without at least one), so a non-empty
+ * genres array is a reliable signal the row was actually written by
+ * completeOnboarding rather than just seeded at signup.
+ */
+function isOnboardingProfileComplete(profile) {
+  return Array.isArray(profile?.genres) && profile.genres.length > 0;
+}
+
 // Notification Badge Component (defined outside App to maintain stable identity)
 const NotificationBadge = ({ count, style }) => {
   if (count === 0) return null;
@@ -309,6 +323,7 @@ export default function App() {
     hideCustomModal,
     setCurrentScreen,
     setScreenParams,
+    isFirstTime,
   });
 
   const [djProfile, setDjProfile] = useState({
@@ -317,6 +332,8 @@ export default function App() {
     lastName: "",
     instagram: "",
     soundcloud: "",
+    tiktok: "",
+    youtube: "",
     city: "",
     genres: [],
   });
@@ -610,6 +627,8 @@ export default function App() {
             lastName: "",
             instagram: "",
             soundcloud: "",
+            tiktok: "",
+            youtube: "",
             city: "",
             genres: [],
           });
@@ -689,7 +708,7 @@ export default function App() {
       }
       if (__DEV__) console.log("📋 Profile result:", profile ? "Found" : "Not found");
 
-      if (profile) {
+      if (profile && isOnboardingProfileComplete(profile)) {
         if (__DEV__) console.log("✅ Profile found, setting up user session");
         if (__DEV__) {
           console.log("👤 Profile data:", {
@@ -728,10 +747,19 @@ export default function App() {
         // Fetch user location and check for mismatch
         fetchUserLocationRef.current?.(profile);
       } else {
-        if (__DEV__) console.log("⚠️ No profile found after OAuth - user needs onboarding");
-        if (__DEV__) console.log("🔍 Profile query returned:", profile);
+        if (__DEV__) {
+          console.log(
+            profile
+              ? "⚠️ Profile row exists but onboarding never finished (no genres) — resuming onboarding"
+              : "⚠️ No profile found after OAuth - user needs onboarding"
+          );
+        }
         setIsFirstTime(true);
-        _seedDjProfileFromMeta(user);
+        // Prefer whatever the incomplete row already has (e.g. dj_name
+        // saved partway through a prior attempt) over re-seeding from
+        // OAuth metadata alone.
+        if (profile) setDjProfile(profile);
+        else _seedDjProfileFromMeta(user);
       }
     } catch (error) {
       if (__DEV__) console.error("❌ Error fetching profile:", error);
@@ -1002,7 +1030,7 @@ export default function App() {
             );
           }
 
-          if (profile) {
+          if (profile && isOnboardingProfileComplete(profile)) {
             if (__DEV__) console.log("✅ Profile exists, going to home screen");
             if (__DEV__) {
               console.log("👤 Profile data:", {
@@ -1014,8 +1042,17 @@ export default function App() {
             setDjProfile(profile);
             setIsFirstTime(false); // User has profile, go to home
           } else {
-            if (__DEV__) console.log("⚠️ No profile found, showing onboarding");
-            setIsFirstTime(true); // User signed in but no profile, needs onboarding
+            if (__DEV__) {
+              console.log(
+                profile
+                  ? "⚠️ Profile row exists but onboarding never finished (no genres) — resuming onboarding"
+                  : "⚠️ No profile found, showing onboarding"
+              );
+            }
+            // Seed whatever the skeleton row already has (e.g. dj_name from
+            // OAuth) so a resumed OnboardingForm isn't blank.
+            if (profile) setDjProfile(profile);
+            setIsFirstTime(true); // User signed in but onboarding incomplete
           }
         } catch (error) {
           if (__DEV__) {
@@ -1480,6 +1517,7 @@ export default function App() {
           last_name: lastName,
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
+          tiktok: djProfile.tiktok || null,
           youtube: djProfile.youtube || null,
           city: djProfile.city?.trim() || null,
           genres: djProfile.genres,
@@ -1516,6 +1554,7 @@ export default function App() {
           last_name: lastName,
           instagram: djProfile.instagram || null,
           soundcloud: djProfile.soundcloud || null,
+          tiktok: djProfile.tiktok || null,
           youtube: djProfile.youtube || null,
           city: djProfile.city?.trim() || null,
           genres: djProfile.genres,

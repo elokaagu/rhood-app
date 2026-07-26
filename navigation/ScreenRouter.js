@@ -167,6 +167,8 @@ export default function ScreenRouter({
       lastName: "",
       instagram: "",
       soundcloud: "",
+      tiktok: "",
+      youtube: "",
       city: "",
       genres: [],
     });
