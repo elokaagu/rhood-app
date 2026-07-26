@@ -663,7 +663,12 @@ export default function useOpportunities({
   }, [currentScreen, user?.id, isLoadingOpportunities, opportunities.length]);
 
   useEffect(() => {
-    if (currentScreen === "opportunities" && user?.id) {
+    // Same reasoning as the fetchOpportunities effect above: don't poll a
+    // per-user stat for a screen the user hasn't reached yet. currentScreen
+    // defaults to "opportunities" and user is set before isFirstTime
+    // resolves, so without this a first-time user got 90s-interval polling
+    // for the whole time they're still on OnboardingForm.
+    if (currentScreen === "opportunities" && user?.id && !isFirstTime) {
       const refreshStats = async () => {
         try {
           const stats = await db.getUserDailyApplicationStats(user.id);
@@ -740,7 +745,7 @@ export default function useOpportunities({
     }
     setNetworkErrorCount(0);
     return undefined;
-  }, [currentScreen, user?.id]);
+  }, [currentScreen, user?.id, isFirstTime]);
 
   useEffect(() => {
     const opportunitiesChannel = supabase

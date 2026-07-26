@@ -882,6 +882,8 @@ export default function App() {
         lastName: updatedProfile.last_name || "",
         instagram: updatedProfile.instagram || "",
         soundcloud: updatedProfile.soundcloud || "",
+        tiktok: updatedProfile.tiktok || "",
+        youtube: updatedProfile.youtube || "",
         city: updatedProfile.city,
         genres: updatedProfile.genres,
       });
@@ -900,6 +902,8 @@ export default function App() {
         lastName: updatedProfile.last_name || "",
         instagram: updatedProfile.instagram || "",
         soundcloud: updatedProfile.soundcloud || "",
+        tiktok: updatedProfile.tiktok || "",
+        youtube: updatedProfile.youtube || "",
         city: updatedProfile.city,
         genres: updatedProfile.genres,
       })
