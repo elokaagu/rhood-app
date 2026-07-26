@@ -60,6 +60,12 @@ export default function AppShell({
   onTabPress,
   unreadNotificationCount,
   styles,
+  // Blocks the menu button + tab bar while a screen shows a first-run
+  // tutorial meant to be fully modal (e.g. the opportunities swipe
+  // tutorial). That overlay renders inside `children`, below the header
+  // and tab bar in the tree, so it can't cover them on its own — this is
+  // the other half of making it actually blocking.
+  chromeDisabled = false,
 }) {
   const insets = useSafeAreaInsets();
   const showTabBar = !TAB_BAR_HIDDEN_SCREEN_IDS.includes(currentScreen);
@@ -89,7 +95,11 @@ export default function AppShell({
           </View>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.menuButton} onPress={onOpenMenu}>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={onOpenMenu}
+            disabled={chromeDisabled}
+          >
             <Ionicons name="menu" size={24} color="hsl(0, 0%, 100%)" />
             <ShellNotificationBadge
               count={unreadNotificationCount}
@@ -117,6 +127,7 @@ export default function AppShell({
                 key={key}
                 style={[styles.tab, active && styles.activeTab]}
                 onPress={() => onTabPress(key)}
+                disabled={chromeDisabled}
                 accessibilityRole="button"
                 accessibilityLabel={label}
               >

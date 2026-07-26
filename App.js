@@ -1690,6 +1690,7 @@ export default function App() {
       onTabPress={handleMenuNavigation}
       unreadNotificationCount={unreadNotificationCount}
       styles={styles}
+      chromeDisabled={!!opp.showSwipeTutorial}
     >
       {renderScreen()}
 
@@ -4319,84 +4320,6 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     // marginLeft: 16,
     fontWeight: "bold",
-  },
-  // Swipe Tutorial Styles
-  tutorialOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.85)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  tutorialContent: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 20,
-    padding: 24,
-    width: "100%",
-    maxWidth: 400,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  tutorialHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  tutorialTitle: {
-    fontSize: 24,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    fontWeight: "bold",
-  },
-  tutorialCloseButton: {
-    padding: 4,
-  },
-  tutorialInstructions: {
-    marginBottom: 24,
-  },
-  tutorialInstructionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  tutorialIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "hsl(0, 0%, 12%)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  tutorialTextContainer: {
-    flex: 1,
-  },
-  tutorialInstructionTitle: {
-    fontSize: 18,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 4,
-  },
-  tutorialInstructionText: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    lineHeight: 20,
-  },
-  tutorialGotItButton: {
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    alignItems: "center",
-  },
-  tutorialGotItButtonText: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "bold",
-    color: "hsl(0, 0%, 0%)",
   },
   // In-App Notification Toast Styles
   inAppNotificationContainer: {
