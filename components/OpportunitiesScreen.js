@@ -165,7 +165,6 @@ export default function OpportunitiesScreen({
         <OpportunitiesSwipeTutorialModal
           visible={!!showSwipeTutorial}
           onDismiss={handleDismissSwipeTutorial}
-          styles={styles}
         />
         {tutorialModalProps ? (
           <AppScreenTutorialModal {...tutorialModalProps} />

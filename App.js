@@ -73,6 +73,7 @@ import {
 } from "./lib/analytics";
 import GlobalAudioPlayerUI from "./components/GlobalAudioPlayerUI";
 import { AppTutorialProvider, tutorialContextRef } from "./context/AppTutorialContext";
+import { APP_TUTORIAL_SCREEN_IDS } from "./lib/appTutorialContent";
 import useAudioPlayback from "./hooks/useAudioPlayback";
 import useOpportunities from "./hooks/useOpportunities";
 
@@ -1412,6 +1413,26 @@ export default function App() {
     };
   }, [user]);
 
+  /**
+   * Shows the Complete Profile modal, backing off while the Opportunities
+   * tutorial tip is still on screen. Both are first-run UI that can otherwise
+   * land in the same ~1.5s window after onboarding; a full-screen modal
+   * popping up mid-tap on the tutorial's "Got it" button eats that tap,
+   * which reads as the app freezing. Capped so a user who never dismisses
+   * the tip still sees this eventually.
+   */
+  const scheduleCompleteProfileModal = useCallback((attempt = 0) => {
+    const MAX_ATTEMPTS = 6; // ~6s of backoff before showing regardless
+    const ctx = tutorialContextRef.current;
+    const tipShowing =
+      ctx?.enabled && !ctx?.dismissed?.[APP_TUTORIAL_SCREEN_IDS.OPPORTUNITIES];
+    if (tipShowing && attempt < MAX_ATTEMPTS) {
+      setTimeout(() => scheduleCompleteProfileModal(attempt + 1), 1000);
+      return;
+    }
+    setShowCompleteProfileModal(true);
+  }, []);
+
   const completeOnboarding = useCallback(async () => {
     if (__DEV__) console.log("🎉 completeOnboarding called");
     if (__DEV__) console.log("👤 djProfile:", djProfile);
@@ -1553,11 +1574,12 @@ export default function App() {
         ctx.enableFresh?.()?.catch?.(() => {});
       });
 
-      // Check if profile picture is missing and show complete profile modal
+      // Check if profile picture is missing and show complete profile modal.
+      // Waits for the transition to settle, then backs off further if the
+      // Opportunities tutorial tip is still showing (see
+      // scheduleCompleteProfileModal).
       if (!savedProfile?.profile_image_url) {
-        setTimeout(() => {
-          setShowCompleteProfileModal(true);
-        }, 1500); // Show after success modal closes
+        setTimeout(() => scheduleCompleteProfileModal(), 1500);
       } else {
         showCustomModal({
           type: "success",
@@ -1579,7 +1601,7 @@ export default function App() {
         onPrimaryPress: () => setShowModal(false),
       });
     }
-  }, [djProfile, user?.id, user?.email, showCustomModal]);
+  }, [djProfile, user?.id, user?.email, showCustomModal, scheduleCompleteProfileModal]);
 
   // Fonts will load asynchronously - app continues with system fonts until ready
   // No need to block or log repeatedly

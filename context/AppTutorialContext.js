@@ -82,12 +82,20 @@ export function AppTutorialProvider({ children, activeScreenId = null }) {
   }, []);
 
   // Populate the module-level ref so callers above the provider can reach in.
+  // `enabled`/`dismissed` are included so callers can read live tutorial
+  // state (e.g. "is a tip currently showing on screen X?"), not just act on it.
   useEffect(() => {
-    tutorialContextRef.current = { setTutorialEnabled, resetDismissed, enableFresh };
+    tutorialContextRef.current = {
+      setTutorialEnabled,
+      resetDismissed,
+      enableFresh,
+      enabled,
+      dismissed,
+    };
     return () => {
       tutorialContextRef.current = null;
     };
-  }, [setTutorialEnabled, resetDismissed, enableFresh]);
+  }, [setTutorialEnabled, resetDismissed, enableFresh, enabled, dismissed]);
 
   const value = useMemo(
     () => ({

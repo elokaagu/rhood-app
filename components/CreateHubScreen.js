@@ -66,59 +66,64 @@ export default function CreateHubScreen({ onNavigate }) {
   );
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      <Animated.View style={{ opacity: contentFadeAnim }}>
-        <View style={styles.headerShell}>
-          <Text style={styles.headerTitle}>Create</Text>
-        </View>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View style={{ opacity: contentFadeAnim }}>
+          <View style={styles.headerShell}>
+            <Text style={styles.headerTitle}>Create</Text>
+          </View>
 
-        <Text style={styles.intro} {...androidSubtitleTextProps}>
-          What do you want to put out into the world?
-        </Text>
+          <Text style={styles.intro} {...androidSubtitleTextProps}>
+            What do you want to put out into the world?
+          </Text>
 
-        {CREATE_OPTIONS.map(({ key, icon, title, subtitle, cta }) => (
-          <TouchableOpacity
-            key={key}
-            style={styles.optionCard}
-            onPress={() => handlePress(key)}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={title}
-          >
-            <View style={styles.optionIconWrap}>
-              <Ionicons name={icon} size={26} color={COLORS.primary} />
-            </View>
-            <View style={styles.optionBody}>
-              <Text style={styles.optionTitle}>{title}</Text>
-              <Text style={styles.optionSubtitle} {...androidSubtitleTextProps}>
-                {subtitle}
-              </Text>
-              <LinearGradient
-                colors={[COLORS.primary, COLORS.primaryDark]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.optionCta}
-              >
-                <Text style={styles.optionCtaText}>{cta}</Text>
-                <Ionicons
-                  name="arrow-forward"
-                  size={16}
-                  color={COLORS.background}
-                />
-              </LinearGradient>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </Animated.View>
+          {CREATE_OPTIONS.map(({ key, icon, title, subtitle, cta }) => (
+            <TouchableOpacity
+              key={key}
+              style={styles.optionCard}
+              onPress={() => handlePress(key)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={title}
+            >
+              <View style={styles.optionIconWrap}>
+                <Ionicons name={icon} size={26} color={COLORS.primary} />
+              </View>
+              <View style={styles.optionBody}>
+                <Text style={styles.optionTitle}>{title}</Text>
+                <Text
+                  style={styles.optionSubtitle}
+                  {...androidSubtitleTextProps}
+                >
+                  {subtitle}
+                </Text>
+                <LinearGradient
+                  colors={[COLORS.primary, COLORS.primaryDark]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.optionCta}
+                >
+                  <Text style={styles.optionCtaText}>{cta}</Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={16}
+                    color={COLORS.background}
+                  />
+                </LinearGradient>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </Animated.View>
+      </ScrollView>
 
       {tutorialModalProps ? (
         <AppScreenTutorialModal {...tutorialModalProps} />
       ) : null}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -126,6 +131,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
     paddingHorizontal: SPACING.lg,

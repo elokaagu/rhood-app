@@ -259,14 +259,14 @@ export default function useOpportunities({
     [showCustomModal]
   );
 
-  const handleDismissSwipeTutorial = useCallback(async () => {
-    try {
-      await AsyncStorage.setItem("hasSeenSwipeTutorial", "true");
-      setShowSwipeTutorial(false);
-    } catch (error) {
+  const handleDismissSwipeTutorial = useCallback(() => {
+    // Dismiss immediately — don't make the tap-to-close wait on disk I/O.
+    // The write is fire-and-forget; worst case a slow/failed write just
+    // means the tutorial reappears next launch, which is harmless.
+    setShowSwipeTutorial(false);
+    AsyncStorage.setItem("hasSeenSwipeTutorial", "true").catch((error) => {
       if (__DEV__) console.error("Error saving swipe tutorial state:", error);
-      setShowSwipeTutorial(false);
-    }
+    });
   }, []);
 
   const handleSwipeLeft = useCallback(() => {
