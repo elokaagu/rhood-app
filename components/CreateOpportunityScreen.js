@@ -25,6 +25,7 @@ import {
   SKILL_LEVELS,
   submitOpportunity,
   uploadOpportunityImage,
+  deleteOpportunityImage,
   validateOpportunityForm,
 } from "../lib/opportunitySubmission";
 import { track, AnalyticsEvents } from "../lib/analytics";
@@ -99,10 +100,19 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
   const [pendingImageAsset, setPendingImageAsset] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageUploadError, setImageUploadError] = useState(null);
+  // Storage path of the currently-uploaded image, so replacing/removing it
+  // can clean up the superseded object instead of leaving it orphaned.
+  const [uploadedImagePath, setUploadedImagePath] = useState(null);
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
   const { tutorialModalProps } = useAppTutorialModal(
     APP_TUTORIAL_SCREEN_IDS.CREATE_OPPORTUNITY
   );
+  // Ref mirror so uploadImage/removeImage always see the latest uploaded
+  // path without needing it in their dependency arrays.
+  const uploadedImagePathRef = useRef(null);
+  useEffect(() => {
+    uploadedImagePathRef.current = uploadedImagePath;
+  }, [uploadedImagePath]);
 
   useEffect(() => {
     Animated.timing(contentFadeAnim, {
@@ -156,8 +166,15 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
       setUploadingImage(true);
       setImageUploadError(null);
       try {
-        const { publicUrl } = await uploadOpportunityImage(asset);
+        const { path, publicUrl } = await uploadOpportunityImage(asset);
+        const previousPath = uploadedImagePathRef.current;
         setField("imageUrl", publicUrl);
+        setUploadedImagePath(path);
+        // Clean up the object this one replaced, once the new one is
+        // confirmed live — never delete before the replacement succeeds.
+        if (previousPath && previousPath !== path) {
+          deleteOpportunityImage(previousPath);
+        }
       } catch (err) {
         console.error("Opportunity image upload failed:", err);
         setImageUploadError(err.message || "Upload failed. Tap retry to try again.");
@@ -216,6 +233,12 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
           HapticPatterns.success();
           setLocalImageUri(asset.uri);
           setPendingImageAsset(null);
+          setImageUploadError(null);
+          // Clear the previous image's URL immediately, not just on success —
+          // otherwise a failed replacement upload leaves the old photo's URL
+          // (and its "success" badge) showing next to a preview of the new,
+          // broken one, and that stale URL is what would actually get saved.
+          setField("imageUrl", "");
           uploadImage(asset);
         }
       } catch (err) {
@@ -223,14 +246,17 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
         Alert.alert("Couldn't open picker", "Please try again.");
       }
     },
-    [uploadImage]
+    [uploadImage, setField]
   );
 
   const removeImage = useCallback(() => {
+    const pathToDelete = uploadedImagePathRef.current;
     setLocalImageUri(null);
     setPendingImageAsset(null);
     setImageUploadError(null);
+    setUploadedImagePath(null);
     setField("imageUrl", "");
+    if (pathToDelete) deleteOpportunityImage(pathToDelete);
   }, [setField]);
 
   const handleSubmit = useCallback(async () => {
@@ -277,6 +303,10 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
       setLocalImageUri(null);
       setPendingImageAsset(null);
       setImageUploadError(null);
+      // Not deleted — it's now attached to the submitted row. Just stop
+      // tracking it locally so a later "replace" in a fresh form session
+      // doesn't try to clean up an image that belongs to this submission.
+      setUploadedImagePath(null);
       Alert.alert(
         "Submitted for review",
         "Thanks! Our team will review your opportunity and publish it to the deck shortly. You'll be notified once it's live.",
@@ -621,32 +651,56 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
                   )}
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity
-                  style={styles.imagePickerButton}
-                  onPress={() => openImagePicker("library")}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Add a cover image"
-                >
-                  <Ionicons
-                    name="image-outline"
-                    size={28}
-                    color={COLORS.textTertiary}
-                  />
-                  <Text style={styles.imagePickerText}>
-                    Tap to add a photo
-                  </Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    style={styles.imagePickerButton}
+                    onPress={() => openImagePicker("library")}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add a cover image"
+                  >
+                    <Ionicons
+                      name="image-outline"
+                      size={28}
+                      color={COLORS.textTertiary}
+                    />
+                    <Text style={styles.imagePickerText}>
+                      Tap to add a photo
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.imageCameraLink}
+                    onPress={() => openImagePicker("camera")}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Take a photo"
+                  >
+                    <Ionicons
+                      name="camera-outline"
+                      size={16}
+                      color={COLORS.textTertiary}
+                    />
+                    <Text style={styles.imageCameraLinkText}>
+                      Or take a photo
+                    </Text>
+                  </TouchableOpacity>
+                </>
               )}
 
               {imageUploadError ? (
                 <>
                   <Text style={styles.errorText}>{imageUploadError}</Text>
                   <TouchableOpacity
-                    style={styles.retryButton}
+                    style={[
+                      styles.retryButton,
+                      uploadingImage && styles.submitButtonDisabled,
+                    ]}
                     onPress={() =>
                       pendingImageAsset && uploadImage(pendingImageAsset)
                     }
+                    disabled={uploadingImage}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retry image upload"
                   >
                     <Ionicons
                       name="refresh"
@@ -871,6 +925,20 @@ const styles = StyleSheet.create({
     color: COLORS.textTertiary,
     fontSize: TYPOGRAPHY.sm,
     fontFamily: TYPOGRAPHY.primary,
+  },
+  imageCameraLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.xs,
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  imageCameraLinkText: {
+    color: COLORS.textTertiary,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    textDecorationLine: "underline",
   },
   imagePreviewWrap: {
     borderRadius: RADIUS.md,
