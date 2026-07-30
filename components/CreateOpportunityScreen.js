@@ -10,10 +10,12 @@ import {
   KeyboardAvoidingView,
   Animated,
   Alert,
+  Image,
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from "../lib/sharedStyles";
 import { HapticPatterns } from "../lib/haptics";
 import { MIX_GENRES } from "./upload/UploadMixPerfParts";
@@ -22,6 +24,7 @@ import {
   OPPORTUNITY_CURRENCIES,
   SKILL_LEVELS,
   submitOpportunity,
+  uploadOpportunityImage,
   validateOpportunityForm,
 } from "../lib/opportunitySubmission";
 import { track, AnalyticsEvents } from "../lib/analytics";
@@ -92,6 +95,10 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [organizerFallback, setOrganizerFallback] = useState("");
+  const [localImageUri, setLocalImageUri] = useState(null);
+  const [pendingImageAsset, setPendingImageAsset] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState(null);
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
   const { tutorialModalProps } = useAppTutorialModal(
     APP_TUTORIAL_SCREEN_IDS.CREATE_OPPORTUNITY
@@ -142,8 +149,99 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
     [form]
   );
 
+  /** Upload a local image URI. Called on first pick or retry — optional field,
+   * so a failed upload never blocks submission, just leaves image_url blank. */
+  const uploadImage = useCallback(
+    async (asset) => {
+      setUploadingImage(true);
+      setImageUploadError(null);
+      try {
+        const { publicUrl } = await uploadOpportunityImage(asset);
+        setField("imageUrl", publicUrl);
+      } catch (err) {
+        console.error("Opportunity image upload failed:", err);
+        setImageUploadError(err.message || "Upload failed. Tap retry to try again.");
+        setPendingImageAsset(asset);
+      } finally {
+        setUploadingImage(false);
+      }
+    },
+    [setField]
+  );
+
+  const openImagePicker = useCallback(
+    async (source) => {
+      try {
+        let result;
+        if (source === "camera") {
+          const permission = await ImagePicker.requestCameraPermissionsAsync();
+          if (!permission.granted) {
+            Alert.alert(
+              "Permission required",
+              "Camera permission is needed to take a photo."
+            );
+            return;
+          }
+          result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 5],
+            quality: 0.8,
+          });
+        } else {
+          const permission =
+            await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!permission.granted) {
+            Alert.alert(
+              "Permission required",
+              "Photo library permission is needed to select an image."
+            );
+            return;
+          }
+          result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 5],
+            quality: 0.8,
+          });
+        }
+
+        if (!result.canceled && result.assets?.[0]) {
+          const picked = result.assets[0];
+          const asset = {
+            uri: picked.uri,
+            mimeType: picked.mimeType,
+            fileName: picked.fileName,
+          };
+          HapticPatterns.success();
+          setLocalImageUri(asset.uri);
+          setPendingImageAsset(null);
+          uploadImage(asset);
+        }
+      } catch (err) {
+        console.error("Image picker error:", err);
+        Alert.alert("Couldn't open picker", "Please try again.");
+      }
+    },
+    [uploadImage]
+  );
+
+  const removeImage = useCallback(() => {
+    setLocalImageUri(null);
+    setPendingImageAsset(null);
+    setImageUploadError(null);
+    setField("imageUrl", "");
+  }, [setField]);
+
   const handleSubmit = useCallback(async () => {
     if (submitting) return;
+    if (uploadingImage) {
+      Alert.alert(
+        "Image still uploading",
+        "Give it a moment to finish, or tap the image and remove it to submit without one."
+      );
+      return;
+    }
 
     const { valid, errors } = validateOpportunityForm(form);
     if (!valid) {
@@ -176,6 +274,9 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
       // not sit re-enabled holding the values we just submitted.
       setForm(EMPTY_OPPORTUNITY_FORM);
       setFieldErrors({});
+      setLocalImageUri(null);
+      setPendingImageAsset(null);
+      setImageUploadError(null);
       Alert.alert(
         "Submitted for review",
         "Thanks! Our team will review your opportunity and publish it to the deck shortly. You'll be notified once it's live.",
@@ -194,7 +295,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
     } finally {
       setSubmitting(false);
     }
-  }, [form, submitting, user?.id, organizerFallback, onSubmitted]);
+  }, [form, submitting, uploadingImage, user?.id, organizerFallback, onSubmitted]);
 
   return (
     <KeyboardAvoidingView
@@ -466,20 +567,114 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
             </View>
           </View>
 
+          {/* ── Step 5: cover image (optional) ───────────────────────────── */}
+          <View style={styles.section}>
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionKicker}>Step 5</Text>
+              <Text style={styles.sectionTitle}>Cover Image</Text>
+              <Text style={styles.sectionSubtitle} {...androidSubtitleTextProps}>
+                Optional — a real photo helps your opportunity stand out in the
+                deck. Without one, a genre-themed placeholder is used instead.
+              </Text>
+
+              {localImageUri ? (
+                <TouchableOpacity
+                  style={styles.imagePreviewWrap}
+                  onPress={() => openImagePicker("library")}
+                  disabled={uploadingImage}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change cover image"
+                >
+                  <Image
+                    source={{ uri: localImageUri }}
+                    style={styles.imagePreview}
+                    resizeMode="cover"
+                  />
+                  {uploadingImage ? (
+                    <View style={styles.imageOverlay}>
+                      <ActivityIndicator size="small" color={COLORS.primary} />
+                      <Text style={styles.imageOverlayText}>Uploading…</Text>
+                    </View>
+                  ) : form.imageUrl ? (
+                    <View style={styles.imageSuccessBadge}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={24}
+                        color={COLORS.primary}
+                      />
+                    </View>
+                  ) : null}
+                  {!uploadingImage && (
+                    <TouchableOpacity
+                      style={styles.imageRemoveButton}
+                      onPress={removeImage}
+                      accessibilityRole="button"
+                      accessibilityLabel="Remove image"
+                    >
+                      <Ionicons
+                        name="close-circle"
+                        size={26}
+                        color={COLORS.textPrimary}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.imagePickerButton}
+                  onPress={() => openImagePicker("library")}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add a cover image"
+                >
+                  <Ionicons
+                    name="image-outline"
+                    size={28}
+                    color={COLORS.textTertiary}
+                  />
+                  <Text style={styles.imagePickerText}>
+                    Tap to add a photo
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {imageUploadError ? (
+                <>
+                  <Text style={styles.errorText}>{imageUploadError}</Text>
+                  <TouchableOpacity
+                    style={styles.retryButton}
+                    onPress={() =>
+                      pendingImageAsset && uploadImage(pendingImageAsset)
+                    }
+                  >
+                    <Ionicons
+                      name="refresh"
+                      size={16}
+                      color={COLORS.background}
+                    />
+                    <Text style={styles.retryButtonText}>Retry upload</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+            </View>
+          </View>
+
           <TouchableOpacity
             style={[
               styles.submitButton,
-              (submitting || !canSubmit) && styles.submitButtonDisabled,
+              (submitting || uploadingImage || !canSubmit) &&
+                styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
-            disabled={submitting || !canSubmit}
+            disabled={submitting || uploadingImage || !canSubmit}
             activeOpacity={0.9}
             accessibilityRole="button"
             accessibilityLabel="Submit opportunity for review"
           >
             <LinearGradient
               colors={
-                submitting || !canSubmit
+                submitting || uploadingImage || !canSubmit
                   ? [COLORS.borderLight, COLORS.borderDark]
                   : [COLORS.primary, COLORS.primaryDark]
               }
@@ -659,6 +854,78 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.weightBold,
+  },
+  imagePickerButton: {
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: COLORS.borderLight,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.xl,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    backgroundColor: COLORS.backgroundTertiary,
+  },
+  imagePickerText: {
+    color: COLORS.textTertiary,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+  },
+  imagePreviewWrap: {
+    borderRadius: RADIUS.md,
+    overflow: "hidden",
+    aspectRatio: 4 / 5,
+    backgroundColor: COLORS.backgroundTertiary,
+  },
+  imagePreview: {
+    width: "100%",
+    height: "100%",
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.xs,
+  },
+  imageOverlayText: {
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+  },
+  imageSuccessBadge: {
+    position: "absolute",
+    top: SPACING.sm,
+    left: SPACING.sm,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    borderRadius: RADIUS.full,
+    padding: SPACING.xs,
+  },
+  imageRemoveButton: {
+    position: "absolute",
+    top: SPACING.sm,
+    right: SPACING.sm,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    borderRadius: RADIUS.full,
+    padding: SPACING.xs,
+  },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.xs,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.base,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    marginTop: SPACING.sm,
+    alignSelf: "flex-start",
+  },
+  retryButtonText: {
+    color: COLORS.background,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
     fontWeight: TYPOGRAPHY.weightBold,
   },
   submitButton: {
