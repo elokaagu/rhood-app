@@ -26,6 +26,9 @@ import {
 } from "../lib/opportunitySubmission";
 import { track, AnalyticsEvents } from "../lib/analytics";
 import { db } from "../lib/supabase";
+import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
+import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
 const androidSubtitleTextProps =
   Platform.OS === "android" ? { includeFontPadding: false } : {};
@@ -90,6 +93,9 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
   const [submitting, setSubmitting] = useState(false);
   const [organizerFallback, setOrganizerFallback] = useState("");
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
+  const { tutorialModalProps } = useAppTutorialModal(
+    APP_TUTORIAL_SCREEN_IDS.CREATE_OPPORTUNITY
+  );
 
   useEffect(() => {
     Animated.timing(contentFadeAnim, {
@@ -218,18 +224,6 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
         keyboardDismissMode="interactive"
       >
         <Animated.View style={{ opacity: contentFadeAnim }}>
-          <View style={styles.reviewNotice}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={18}
-              color={COLORS.primary}
-            />
-            <Text style={styles.reviewNoticeText} {...androidSubtitleTextProps}>
-              Every submission is reviewed by the R/HOOD team before it reaches
-              the deck. This keeps the opportunity feed trustworthy for DJs.
-            </Text>
-          </View>
-
           {/* ── Step 1: basics ───────────────────────────────────────────── */}
           <View style={styles.section}>
             <View style={styles.sectionCard}>
@@ -507,6 +501,10 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
+
+      {tutorialModalProps ? (
+        <AppScreenTutorialModal {...tutorialModalProps} />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -550,24 +548,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
     paddingBottom: 120,
-  },
-  reviewNotice: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: SPACING.sm,
-    backgroundColor: "rgba(204, 255, 0, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(204, 255, 0, 0.35)",
-    borderRadius: RADIUS.md,
-    padding: SPACING.base,
-    marginBottom: SPACING.lg,
-  },
-  reviewNoticeText: {
-    flex: 1,
-    color: COLORS.textSecondary,
-    fontSize: TYPOGRAPHY.sm,
-    fontFamily: TYPOGRAPHY.primary,
-    lineHeight: 20,
   },
   section: {
     marginBottom: SPACING.lg,
