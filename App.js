@@ -2752,8 +2752,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "hsl(0, 0%, 0%)", // Black background to prevent white flash
   },
-  /** Tighter chrome when the swipe deck is empty so the card reads shorter */
+  /** Tighter chrome when the swipe deck is empty so the card reads shorter,
+   *  and centered vertically instead of pinned under the header. */
   opportunitiesCardContainerEmpty: {
+    justifyContent: "center",
     paddingTop: 12,
     paddingBottom: 12,
   },
