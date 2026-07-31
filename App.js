@@ -56,6 +56,7 @@ import {
   setupNotificationListeners,
   setPushNotificationTapHandler,
   clearSessionExpoPushTokenCache,
+  unregisterPushNotifications,
 } from "./lib/pushNotifications";
 import {
   getCurrentLocation,
@@ -265,6 +266,12 @@ export default function App() {
 
   const [inAppNotification, setInAppNotification] = useState(null);
   const inAppNotificationAnim = useRef(new Animated.Value(0)).current;
+  // Guards the auto-dismiss timer: without these, a second toast arriving
+  // while the first's 5s timer is still pending got force-dismissed early by
+  // that stale timer, since neither an id check nor a cleared prior timeout
+  // existed.
+  const inAppNotificationTimeoutRef = useRef(null);
+  const inAppNotificationIdRef = useRef(null);
 
   // Audio player animation moved to GlobalAudioPlayerUI so only that subtree re-renders on audio change
 
@@ -358,7 +365,14 @@ export default function App() {
       );
     }
 
-    initializeAuth();
+    // initializeAuth is async and resolves its onAuthStateChange unsubscribe
+    // function — without capturing it here, that cleanup was discarded, so
+    // any remount (Fast Refresh, an error-boundary reset) leaked a duplicate
+    // auth-state listener stacking on top of the previous one.
+    let authCleanup;
+    initializeAuth().then((cleanup) => {
+      authCleanup = cleanup;
+    });
 
     // Handle deep links for password reset
     const handleDeepLink = async (url) => {
@@ -458,6 +472,7 @@ export default function App() {
     // Cleanup on unmount
     return () => {
       linkingSubscription?.remove();
+      authCleanup?.();
     };
   }, []);
 
@@ -466,7 +481,10 @@ export default function App() {
     if (user) {
       loadNotificationCounts();
     }
-  }, [user]);
+    // user?.id, not user: Supabase reconstructs a new user object on every
+    // TOKEN_REFRESHED event (roughly hourly), which was refetching counts
+    // on every background token refresh, not just actual sign-in/out.
+  }, [user?.id]);
 
 
   // Refresh notification counts when app becomes active
@@ -497,7 +515,10 @@ export default function App() {
       handleAppStateChange
     );
     return () => subscription?.remove();
-  }, [user]);
+    // user?.id: avoids tearing down and re-subscribing this listener on
+    // every background token refresh (Supabase issues a new user object on
+    // TOKEN_REFRESHED, not just sign-in/out).
+  }, [user?.id]);
 
   // Setup push notifications
   const setupPushNotifications = async () => {
@@ -826,6 +847,11 @@ export default function App() {
       await endAnalyticsSession("logout");
       await track(AnalyticsEvents.USER_LOGGED_OUT);
       await resetAnalyticsUser();
+      // Must run before signOut() — it needs the still-live session to know
+      // whose token to remove. Without this, a shared/handed-down device
+      // keeps this user's token registered and would keep receiving their
+      // pushes after they've signed out.
+      await unregisterPushNotifications();
       await auth.signOut();
       clearScreenCachesForUser(user?.id);
       clearMessageThreadSnapshotsForUser(user?.id);
@@ -1118,6 +1144,15 @@ export default function App() {
           nextParams.returnScreen = currentScreen;
         }
       }
+      // Tips/About are opened from the hamburger menu, reachable from every
+      // screen — hardcoding their back target meant "back" always landed on
+      // Profile/Opportunities regardless of where the menu was opened from.
+      if (
+        (screen === SCREENS.TIPS || screen === SCREENS.ABOUT) &&
+        nextParams.returnScreen === undefined
+      ) {
+        nextParams.returnScreen = currentScreen;
+      }
       setCurrentScreen(screen);
       setScreenParams(nextParams);
       if (showMenu) {
@@ -1375,7 +1410,15 @@ export default function App() {
         (payload) => {
           if (__DEV__) console.log("🔔 New notification received:", payload.new);
           const newNotification = payload.new;
-          
+
+          // Cancel any pending dismiss from a still-showing toast — without
+          // this, a second notification arriving within 5s of the first got
+          // force-dismissed early by the first toast's original timer.
+          if (inAppNotificationTimeoutRef.current) {
+            clearTimeout(inAppNotificationTimeoutRef.current);
+          }
+          inAppNotificationIdRef.current = newNotification.id;
+
           // Show in-app notification toast
           setInAppNotification({
             id: newNotification.id,
@@ -1383,7 +1426,7 @@ export default function App() {
             message: newNotification.message || newNotification.content || "",
             type: newNotification.type || "info",
           });
-          
+
           // Animate in
           Animated.spring(inAppNotificationAnim, {
             toValue: 1,
@@ -1391,9 +1434,12 @@ export default function App() {
             tension: 50,
             friction: 7,
           }).start();
-          
+
           // Auto-dismiss after 5 seconds
-          setTimeout(() => {
+          inAppNotificationTimeoutRef.current = setTimeout(() => {
+            // Only dismiss if this is still the toast that's showing — a
+            // newer notification's own timer owns the dismissal otherwise.
+            if (inAppNotificationIdRef.current !== newNotification.id) return;
             Animated.timing(inAppNotificationAnim, {
               toValue: 0,
               duration: 300,
@@ -1452,7 +1498,11 @@ export default function App() {
       supabase.removeChannel(notificationChannel);
       supabase.removeChannel(messageChannel);
     };
-  }, [user]);
+    // user?.id: both channels were being torn down and recreated on every
+    // background token refresh (Supabase issues a new user object on
+    // TOKEN_REFRESHED, not just sign-in/out) even though the subscription
+    // itself never needed to change.
+  }, [user?.id]);
 
   /**
    * Shows the Complete Profile modal, backing off while the Opportunities
@@ -1998,6 +2048,10 @@ export default function App() {
               style={styles.inAppNotification}
               activeOpacity={0.9}
               onPress={() => {
+                if (inAppNotificationTimeoutRef.current) {
+                  clearTimeout(inAppNotificationTimeoutRef.current);
+                  inAppNotificationTimeoutRef.current = null;
+                }
                 Animated.timing(inAppNotificationAnim, {
                   toValue: 0,
                   duration: 300,

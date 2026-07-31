@@ -33,11 +33,14 @@ import YourLikesScreen from "../components/YourLikesScreen";
 import PlaylistDetailScreen from "../components/PlaylistDetailScreen";
 import ResetPasswordScreen from "../components/ResetPasswordScreen";
 import SwipeBackScreenShell from "../components/SwipeBackScreenShell";
-import { db } from "../lib/supabase";
+import { auth, db } from "../lib/supabase";
 import { CONNECTIONS_SCREEN_TABS } from "../lib/connectionsScreenTabIds";
 import { clearScreenCachesForUser } from "../lib/screenCache";
 import { clearMessageThreadSnapshotsForUser } from "../lib/messageThreadSnapshotCache";
-import { clearSessionExpoPushTokenCache } from "../lib/pushNotifications";
+import {
+  clearSessionExpoPushTokenCache,
+  unregisterPushNotifications,
+} from "../lib/pushNotifications";
 
 /** Same navigation as the header back arrow, plus edge swipe (see SwipeBackScreenShell). */
 function withSwipeBack(onBack, screen) {
@@ -97,6 +100,13 @@ export default function ScreenRouter({
               ? SCREENS.LISTEN
               : screen;
       }
+      // USER_PROFILE is opened from many places (a message thread, Community
+      // Members, a Connections search result, the mini player) that don't
+      // restore that context on their own — hardcoding "back" to Connections
+      // stranded the user away from wherever they actually came from.
+      if (nextScreen === SCREENS.USER_PROFILE && next.returnScreen === undefined) {
+        next.returnScreen = screen;
+      }
       setCurrentScreen(nextScreen);
       setScreenParams(next);
     },
@@ -155,7 +165,18 @@ export default function ScreenRouter({
     ]
   );
 
-  const handleSignOut = useCallback(() => {
+  const handleSignOut = useCallback(async () => {
+    // Previously only reset local UI state — the Supabase session (and this
+    // device's push token registration) stayed live, so the app just LOOKED
+    // signed out while auth.getUser() still resolved to the old account.
+    // Must unregister the push token before signOut() clears the session,
+    // same ordering as App.js's handleLogout.
+    try {
+      await unregisterPushNotifications();
+      await auth.signOut();
+    } catch (error) {
+      if (__DEV__) console.error("Sign out error:", error);
+    }
     clearScreenCachesForUser(user?.id);
     clearMessageThreadSnapshotsForUser(user?.id);
     clearSessionExpoPushTokenCache();
@@ -314,7 +335,11 @@ export default function ScreenRouter({
       return <CommunityScreen onNavigate={navigate} />;
 
     case SCREENS.TIPS:
-      return <TipsScreen onBack={pickScreen(SCREENS.PROFILE)} />;
+      return (
+        <TipsScreen
+          onBack={pickScreen(screenParams.returnScreen ?? SCREENS.PROFILE)}
+        />
+      );
 
     case SCREENS.PROFILE:
       return (
@@ -392,9 +417,12 @@ export default function ScreenRouter({
         />
       );
 
-    case SCREENS.USER_PROFILE:
+    case SCREENS.USER_PROFILE: {
+      const backFromUserProfile = pickScreen(
+        screenParams.returnScreen ?? SCREENS.CONNECTIONS
+      );
       return withSwipeBack(
-        pickScreen(SCREENS.CONNECTIONS),
+        backFromUserProfile,
         <UserProfileView
           userId={screenParams.userId}
           globalAudioState={globalAudioState}
@@ -402,10 +430,11 @@ export default function ScreenRouter({
           onPauseAudio={pauseGlobalAudio}
           onResumeAudio={resumeGlobalAudio}
           onStopAudio={stopGlobalAudio}
-          onBack={pickScreen(SCREENS.CONNECTIONS)}
+          onBack={backFromUserProfile}
           onNavigate={navigate}
         />
       );
+    }
 
     case SCREENS.COMMUNITY_MEMBERS:
       return (
@@ -485,11 +514,15 @@ export default function ScreenRouter({
         />
       );
 
-    case SCREENS.ABOUT:
-      return withSwipeBack(
-        pickScreen(SCREENS.OPPORTUNITIES),
-        <AboutScreen onBack={pickScreen(SCREENS.OPPORTUNITIES)} />
+    case SCREENS.ABOUT: {
+      const backFromAbout = pickScreen(
+        screenParams.returnScreen ?? SCREENS.OPPORTUNITIES
       );
+      return withSwipeBack(
+        backFromAbout,
+        <AboutScreen onBack={backFromAbout} />
+      );
+    }
 
     case SCREENS.TERMS:
       return withSwipeBack(
