@@ -403,6 +403,10 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         updated_at: new Date().toISOString(),
       };
 
+      // first_name/last_name are validated as required above (validateForm
+      // blocks save while blank), so no else-null branch is needed here —
+      // unlike the fields below, this one truly can never legitimately reach
+      // the save payload empty.
       if (profile.first_name && profile.first_name.trim()) {
         updatedProfile.first_name = profile.first_name.trim();
       }
@@ -410,24 +414,39 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         updatedProfile.last_name = profile.last_name.trim();
       }
 
+      // Explicit else-null below: omitting the key entirely (rather than
+      // writing null) means clearing an optional field to blank never
+      // actually persists — the old value silently reappears on next load.
+      // portfolio_url/status_message already did this correctly; this
+      // mirrors that pattern for the genuinely optional fields.
       if (profile.username && profile.username.trim()) {
         updatedProfile.username = profile.username.trim().replace(/^@/, "");
+      } else {
+        updatedProfile.username = null;
       }
 
       if (profile.phone && profile.phone.trim()) {
         updatedProfile.phone = profile.phone.trim();
+      } else {
+        updatedProfile.phone = null;
       }
 
       if (profile.instagram && profile.instagram.trim()) {
         updatedProfile.instagram = normalizeInstagramUrl(profile.instagram);
+      } else {
+        updatedProfile.instagram = null;
       }
 
       if (profile.soundcloud && profile.soundcloud.trim()) {
         updatedProfile.soundcloud = normalizeSoundcloudUrl(profile.soundcloud);
+      } else {
+        updatedProfile.soundcloud = null;
       }
 
       if (profile.tiktok && profile.tiktok.trim()) {
         updatedProfile.tiktok = normalizeTiktokUrl(profile.tiktok);
+      } else {
+        updatedProfile.tiktok = null;
       }
 
       if (profile.portfolio_url && profile.portfolio_url.trim()) {

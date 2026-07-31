@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TextInput,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -83,11 +84,12 @@ export default function CommunityScreen({ onNavigate }) {
   };
 
   const handleJoinCommunity = async (communityId) => {
-    try {
-      const community = communities.find((c) => c.id === communityId);
-      if (!community) return;
+    const community = communities.find((c) => c.id === communityId);
+    if (!community) return;
+    const wasJoined = community.isJoined;
 
-      if (community.isJoined) {
+    try {
+      if (wasJoined) {
         await connectionsService.leaveCommunity(communityId);
       } else {
         await connectionsService.joinCommunity(communityId);
@@ -102,6 +104,14 @@ export default function CommunityScreen({ onNavigate }) {
       if (__DEV__) {
         console.error("Error joining/leaving community:", error);
       }
+      // Previously silent — the button appeared to do nothing on failure,
+      // with no indication the join/leave didn't actually happen.
+      Alert.alert(
+        "Something went wrong",
+        wasJoined
+          ? "Couldn't leave this community. Please try again."
+          : "Couldn't join this community. Please try again."
+      );
     }
   };
 

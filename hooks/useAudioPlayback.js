@@ -799,6 +799,20 @@ export default function useAudioPlayback({ user }) {
       }
     } catch (error) {
       if (__DEV__) console.log("❌ Error pausing audio:", error);
+      // Previously left isPlaying stale on failure — the button could look
+      // like it did nothing (still showing "pause" after a failed pause
+      // attempt). Resync to the player's real state instead of guessing.
+      try {
+        const status = await globalAudioRef.current?.getStatusAsync();
+        if (status?.isLoaded) {
+          setGlobalAudioState((prev) => ({
+            ...prev,
+            isPlaying: !!status.isPlaying,
+          }));
+        }
+      } catch (_) {
+        /* player is in an unknown state; leave isPlaying as-is rather than guess */
+      }
     }
   }, [setGlobalAudioState, stateRef, syncGlobalAudioRefFromState]);
 
@@ -834,6 +848,19 @@ export default function useAudioPlayback({ user }) {
       }
     } catch (error) {
       if (__DEV__) console.log("❌ Error resuming audio:", error);
+      // Same resync as pauseGlobalAudio — don't leave isPlaying stale on a
+      // failed resume attempt.
+      try {
+        const status = await globalAudioRef.current?.getStatusAsync();
+        if (status?.isLoaded) {
+          setGlobalAudioState((prev) => ({
+            ...prev,
+            isPlaying: !!status.isPlaying,
+          }));
+        }
+      } catch (_) {
+        /* player is in an unknown state; leave isPlaying as-is rather than guess */
+      }
     }
   }, [setGlobalAudioState, stateRef, syncGlobalAudioRefFromState, playGlobalAudio]);
 
