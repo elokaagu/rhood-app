@@ -11,6 +11,8 @@ import {
   Animated,
   Alert,
   Image,
+  Modal,
+  FlatList,
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -86,6 +88,154 @@ function ChipRow({ options, selected, onSelect, disabled }) {
   );
 }
 
+const MONTH_OPTIONS = [
+  { value: "01", label: "January" },
+  { value: "02", label: "February" },
+  { value: "03", label: "March" },
+  { value: "04", label: "April" },
+  { value: "05", label: "May" },
+  { value: "06", label: "June" },
+  { value: "07", label: "July" },
+  { value: "08", label: "August" },
+  { value: "09", label: "September" },
+  { value: "10", label: "October" },
+  { value: "11", label: "November" },
+  { value: "12", label: "December" },
+];
+
+function daysInMonth(month, year) {
+  if (!month || !year) return 31;
+  return new Date(Number(year), Number(month), 0).getDate();
+}
+
+function dayOptions(month, year) {
+  const count = daysInMonth(month, year);
+  return Array.from({ length: count }, (_, i) => {
+    const day = String(i + 1).padStart(2, "0");
+    return { value: day, label: day };
+  });
+}
+
+/** This year plus next year — opportunities can't be dated in the past. */
+function yearOptions() {
+  const current = new Date().getFullYear();
+  return [current, current + 1].map((y) => ({
+    value: String(y),
+    label: String(y),
+  }));
+}
+
+/** 24h time-of-day in 30-minute steps, e.g. "22:00", "22:30". */
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  const value = `${h}:${m}`;
+  return { value, label: value };
+});
+
+/** Start/end time are optional — "" maps to unset rather than a forced pick. */
+const TIME_OPTIONS_WITH_UNSET = [{ value: "", label: "Not set" }, ...TIME_OPTIONS];
+
+/**
+ * Tap-to-open picker: shows the selected option's label (or placeholder),
+ * opens a modal list on tap. Keeps values in the same "YYYY-MM-DD"/"HH:MM"
+ * string shapes lib/opportunitySubmission.js already expects — this only
+ * changes how the user enters them, not what's stored.
+ */
+function Dropdown({ value, options, placeholder, onSelect, disabled, error }) {
+  const [open, setOpen] = useState(false);
+  const selectedOption = options.find((o) => o.value === value);
+
+  return (
+    <>
+      <TouchableOpacity
+        style={[styles.input, styles.dropdownInput, error && styles.inputError]}
+        onPress={() => {
+          HapticPatterns.buttonPress();
+          setOpen(true);
+        }}
+        disabled={disabled}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+      >
+        <Text
+          style={
+            selectedOption ? styles.dropdownValueText : styles.dropdownPlaceholderText
+          }
+          numberOfLines={1}
+        >
+          {selectedOption ? selectedOption.label : placeholder}
+        </Text>
+        <Ionicons name="chevron-down" size={18} color={COLORS.textTertiary} />
+      </TouchableOpacity>
+
+      {open ? (
+      <Modal
+        visible
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setOpen(false)}
+        >
+          <View style={styles.dropdownSheet}>
+            <FlatList
+              data={options}
+              keyExtractor={(item) => item.value}
+              initialScrollIndex={
+                selectedOption
+                  ? Math.max(0, options.findIndex((o) => o.value === value) - 3)
+                  : 0
+              }
+              getItemLayout={(_, index) => ({
+                length: 48,
+                offset: 48 * index,
+                index,
+              })}
+              renderItem={({ item }) => {
+                const active = item.value === value;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.dropdownOption,
+                      active && styles.dropdownOptionActive,
+                    ]}
+                    onPress={() => {
+                      HapticPatterns.buttonPress();
+                      onSelect(item.value);
+                      setOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownOptionText,
+                        active && styles.dropdownOptionTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                    {active ? (
+                      <Ionicons
+                        name="checkmark"
+                        size={18}
+                        color={COLORS.primary}
+                      />
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * Submits a gig into the opportunity deck. Submissions are held for review
  * (see lib/opportunitySubmission.js) — they don't appear to other DJs until
@@ -103,6 +253,10 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
   // Storage path of the currently-uploaded image, so replacing/removing it
   // can clean up the superseded object instead of leaving it orphaned.
   const [uploadedImagePath, setUploadedImagePath] = useState(null);
+  // Day/month/year are the UI state; form.eventDate ("YYYY-MM-DD") is
+  // derived from them and written on every change, so validation and
+  // submission never need to know dropdowns are involved at all.
+  const [dateParts, setDateParts] = useState({ day: "", month: "", year: "" });
   const contentFadeAnim = useRef(new Animated.Value(0)).current;
   const { tutorialModalProps } = useAppTutorialModal(
     APP_TUTORIAL_SCREEN_IDS.CREATE_OPPORTUNITY
@@ -153,6 +307,27 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
       return next;
     });
   }, []);
+
+  const setDatePart = useCallback(
+    (part, value) => {
+      setDateParts((prev) => {
+        const next = { ...prev, [part]: value };
+        // Clamp the day if it doesn't exist in the newly picked month/year
+        // (e.g. 31st selected, then switching to February).
+        const maxDay = daysInMonth(next.month, next.year);
+        if (next.day && Number(next.day) > maxDay) {
+          next.day = String(maxDay).padStart(2, "0");
+        }
+        const complete = next.day && next.month && next.year;
+        setField(
+          "eventDate",
+          complete ? `${next.year}-${next.month}-${next.day}` : ""
+        );
+        return next;
+      });
+    },
+    [setField]
+  );
 
   const canSubmit = useMemo(
     () => validateOpportunityForm(form).valid,
@@ -427,58 +602,63 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
                 Set times are optional, but they help DJs check availability.
               </Text>
 
-              <Field
-                label="Event date *"
-                error={fieldErrors.eventDate}
-                hint="Format: YYYY-MM-DD"
-              >
-                <TextInput
-                  style={[
-                    styles.input,
-                    fieldErrors.eventDate && styles.inputError,
-                  ]}
-                  placeholder="2026-08-14"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={form.eventDate}
-                  onChangeText={(text) => setField("eventDate", text)}
-                  editable={!submitting}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={10}
-                />
+              <Field label="Event date *" error={fieldErrors.eventDate}>
+                <View style={styles.row}>
+                  <View style={styles.dateColDay}>
+                    <Dropdown
+                      value={dateParts.day}
+                      options={dayOptions(dateParts.month, dateParts.year)}
+                      placeholder="Day"
+                      onSelect={(v) => setDatePart("day", v)}
+                      disabled={submitting}
+                      error={fieldErrors.eventDate}
+                    />
+                  </View>
+                  <View style={styles.dateColMonth}>
+                    <Dropdown
+                      value={dateParts.month}
+                      options={MONTH_OPTIONS}
+                      placeholder="Month"
+                      onSelect={(v) => setDatePart("month", v)}
+                      disabled={submitting}
+                      error={fieldErrors.eventDate}
+                    />
+                  </View>
+                  <View style={styles.dateColYear}>
+                    <Dropdown
+                      value={dateParts.year}
+                      options={yearOptions()}
+                      placeholder="Year"
+                      onSelect={(v) => setDatePart("year", v)}
+                      disabled={submitting}
+                      error={fieldErrors.eventDate}
+                    />
+                  </View>
+                </View>
               </Field>
 
               <View style={styles.row}>
                 <View style={styles.rowItem}>
                   <Field label="Start time" error={fieldErrors.startTime}>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        fieldErrors.startTime && styles.inputError,
-                      ]}
-                      placeholder="22:00"
-                      placeholderTextColor={COLORS.textMuted}
+                    <Dropdown
                       value={form.startTime}
-                      onChangeText={(text) => setField("startTime", text)}
-                      editable={!submitting}
-                      keyboardType="numbers-and-punctuation"
-                      maxLength={5}
+                      options={TIME_OPTIONS_WITH_UNSET}
+                      placeholder="Not set"
+                      onSelect={(v) => setField("startTime", v)}
+                      disabled={submitting}
+                      error={fieldErrors.startTime}
                     />
                   </Field>
                 </View>
                 <View style={styles.rowItem}>
                   <Field label="End time" error={fieldErrors.endTime}>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        fieldErrors.endTime && styles.inputError,
-                      ]}
-                      placeholder="03:00"
-                      placeholderTextColor={COLORS.textMuted}
+                    <Dropdown
                       value={form.endTime}
-                      onChangeText={(text) => setField("endTime", text)}
-                      editable={!submitting}
-                      keyboardType="numbers-and-punctuation"
-                      maxLength={5}
+                      options={TIME_OPTIONS_WITH_UNSET}
+                      placeholder="Not set"
+                      onSelect={(v) => setField("endTime", v)}
+                      disabled={submitting}
+                      error={fieldErrors.endTime}
                     />
                   </Field>
                 </View>
@@ -857,6 +1037,65 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: COLORS.error,
+  },
+  dropdownInput: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dropdownValueText: {
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.lg,
+    fontFamily: TYPOGRAPHY.primary,
+  },
+  dropdownPlaceholderText: {
+    color: COLORS.textMuted,
+    fontSize: TYPOGRAPHY.lg,
+    fontFamily: TYPOGRAPHY.primary,
+  },
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "flex-end",
+  },
+  dropdownSheet: {
+    backgroundColor: COLORS.backgroundSecondary,
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    maxHeight: 340,
+    paddingBottom: SPACING.lg,
+  },
+  dropdownOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: 48,
+    paddingHorizontal: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  dropdownOptionActive: {
+    backgroundColor: "rgba(204, 255, 0, 0.08)",
+  },
+  dropdownOptionText: {
+    color: COLORS.textPrimary,
+    fontSize: TYPOGRAPHY.lg,
+    fontFamily: TYPOGRAPHY.primary,
+  },
+  dropdownOptionTextActive: {
+    color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.weightBold,
+  },
+  dateColDay: {
+    flex: 1,
+  },
+  dateColMonth: {
+    flex: 1.6,
+  },
+  dateColYear: {
+    flex: 1.2,
   },
   textArea: {
     minHeight: 110,
