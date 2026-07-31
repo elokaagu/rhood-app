@@ -721,7 +721,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
                 styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
-            disabled={submitting || uploadingImage || !canSubmit}
+            disabled={submitting || uploadingImage}
             activeOpacity={0.9}
             accessibilityRole="button"
             accessibilityLabel="Submit opportunity for review"
