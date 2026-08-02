@@ -554,7 +554,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
               <Field
                 label="Description *"
                 error={fieldErrors.description}
-                hint="Set, crowd, equipment provided, what you're looking for."
+                hint="Set, crowd, equipment provided, what you're looking for. At least 20 characters."
               >
                 <TextInput
                   style={[
