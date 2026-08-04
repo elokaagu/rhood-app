@@ -23,6 +23,8 @@ import { HapticPatterns } from "../lib/haptics";
 import { MIX_GENRES } from "./upload/UploadMixPerfParts";
 import {
   EMPTY_OPPORTUNITY_FORM,
+  GENRE_OTHER,
+  MAX_OPPORTUNITY_GENRES,
   OPPORTUNITY_CURRENCIES,
   SKILL_LEVELS,
   submitOpportunity,
@@ -60,11 +62,14 @@ function Field({
   );
 }
 
+/** selected may be a single value (replace on tap) or an array (toggle on tap, caller decides). */
 function ChipRow({ options, selected, onSelect, disabled }) {
   return (
     <View style={styles.chipWrap}>
       {options.map(({ value, label }) => {
-        const active = selected === value;
+        const active = Array.isArray(selected)
+          ? selected.includes(value)
+          : selected === value;
         return (
           <TouchableOpacity
             key={value}
@@ -308,6 +313,26 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
     });
   }, []);
 
+  const toggleGenre = useCallback((value) => {
+    setForm((prev) => {
+      const current = prev.genres || [];
+      if (current.includes(value)) {
+        return { ...prev, genres: current.filter((g) => g !== value) };
+      }
+      if (current.length >= MAX_OPPORTUNITY_GENRES) {
+        HapticPatterns.error();
+        return prev;
+      }
+      return { ...prev, genres: [...current, value] };
+    });
+    setFieldErrors((prev) => {
+      if (!prev.genres) return prev;
+      const next = { ...prev };
+      delete next.genres;
+      return next;
+    });
+  }, []);
+
   const setDatePart = useCallback(
     (part, value) => {
       setDateParts((prev) => {
@@ -466,7 +491,8 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
       HapticPatterns.success();
       // Not awaited: analytics must not delay the confirmation.
       void track(AnalyticsEvents.OPPORTUNITY_SUBMITTED, {
-        genre: snapshot.genre,
+        genres: snapshot.genres,
+        genre_count: snapshot.genres?.length || 0,
         city: snapshot.city,
         skill_level: snapshot.skillLevel,
         has_fee: Boolean(snapshot.payment),
@@ -719,18 +745,40 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
               <Text style={styles.sectionKicker}>Step 4</Text>
               <Text style={styles.sectionTitle}>The Details</Text>
               <Text style={styles.sectionSubtitle} {...androidSubtitleTextProps}>
-                Genre and fee drive how well this matches DJs on the platform.
+                Genres and fee drive how well this matches DJs on the platform.
               </Text>
 
-              <Text style={styles.label}>Genre *</Text>
+              <Text style={styles.label}>
+                Genres * ({form.genres.length}/{MAX_OPPORTUNITY_GENRES})
+              </Text>
               <ChipRow
                 options={MIX_GENRES.map((g) => ({ value: g, label: g }))}
-                selected={form.genre}
-                onSelect={(value) => setField("genre", value)}
+                selected={form.genres}
+                onSelect={toggleGenre}
                 disabled={submitting}
               />
-              {fieldErrors.genre ? (
-                <Text style={styles.errorText}>{fieldErrors.genre}</Text>
+              {fieldErrors.genres ? (
+                <Text style={styles.errorText}>{fieldErrors.genres}</Text>
+              ) : null}
+
+              {form.genres.includes(GENRE_OTHER) ? (
+                <Field
+                  label="Specify the genre"
+                  error={fieldErrors.customGenre}
+                >
+                  <TextInput
+                    style={[
+                      styles.input,
+                      fieldErrors.customGenre && styles.inputError,
+                    ]}
+                    placeholder="e.g. Amapiano"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={form.customGenre}
+                    onChangeText={(text) => setField("customGenre", text)}
+                    editable={!submitting}
+                    maxLength={40}
+                  />
+                </Field>
               ) : null}
 
               <Text style={[styles.label, styles.labelSpaced]}>
