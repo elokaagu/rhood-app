@@ -253,13 +253,36 @@ export default function App() {
     if (currentScreen && user) {
       setAnalyticsScreen(currentScreen, screenParams);
     }
-  }, [currentScreen, user]);
+    // user?.id, not user — Supabase hands out a new `user` object reference
+    // on every TOKEN_REFRESHED event (~hourly) even when the id hasn't
+    // changed. Depending on the full object re-fired this effect on every
+    // background refresh, double-logging a "Screen Viewed" event and
+    // resetting the active-screen-time timer for whatever screen was
+    // already open. Other effects in this file were already fixed for the
+    // same reason — this one was missed.
+  }, [currentScreen, user?.id]);
 
   // Complete profile modal state
   const [showCompleteProfileModal, setShowCompleteProfileModal] =
     useState(false);
   const [hasShownCompleteProfileModal, setHasShownCompleteProfileModal] =
     useState(false);
+
+  // Both sign-out paths (this file's handleLogout, ScreenRouter's
+  // handleSignOut) null out `user` but never reset these — a modal
+  // scheduled (up to ~7.5s of backoff) but not yet shown/dismissed before
+  // sign-out left `true` sitting in state, so the very next person to reach
+  // the authenticated screen (this user signing back in, or a different
+  // user on a shared/handed-down device) would see "Complete Your Profile"
+  // pop up immediately, bypassing the actual gate that's supposed to
+  // control it (profile_image_url + hasShownCompleteProfileModal, only
+  // checked inside handleLoginSuccess/completeOnboarding, not here).
+  useEffect(() => {
+    if (!user) {
+      setShowCompleteProfileModal(false);
+      setHasShownCompleteProfileModal(false);
+    }
+  }, [user]);
 
   // Location state
   const [userLocation, setUserLocation] = useState(null);
@@ -336,7 +359,15 @@ export default function App() {
 
   // Nudges users with zero uploaded mixes to upload one (own modal —
   // see hooks/useMixUploadReminder.js for why it's not on showCustomModal).
-  const mixReminder = useMixUploadReminder({ user, isFirstTime });
+  // Passes showCompleteProfileModal so it can back off the same way it
+  // already backs off the Opportunities tutorial tip — both are first-run
+  // popups that can otherwise land in the same window after onboarding and
+  // stack two native Modals at once.
+  const mixReminder = useMixUploadReminder({
+    user,
+    isFirstTime,
+    otherModalActive: showCompleteProfileModal,
+  });
 
   const [djProfile, setDjProfile] = useState({
     djName: "",
@@ -1704,11 +1735,18 @@ export default function App() {
   // Fonts will load asynchronously - app continues with system fonts until ready
   // No need to block or log repeatedly
 
-  // Navigate to a user's profile from the audio player
-  const handleNavigateToProfile = useCallback((userId) => {
-    setCurrentScreen("user-profile");
-    setScreenParams({ userId });
-  }, []);
+  // Navigate to a user's profile from the audio player. Sets returnScreen
+  // explicitly — ScreenRouter's USER_PROFILE case falls back to Connections
+  // when it's missing, which is wrong here: the mini player is reachable
+  // from anywhere (Opportunities, Listen, Settings, ...), so "Back" should
+  // return there, not always land on Connections.
+  const handleNavigateToProfile = useCallback(
+    (userId) => {
+      setCurrentScreen("user-profile");
+      setScreenParams({ userId, returnScreen: currentScreen });
+    },
+    [currentScreen]
+  );
 
   // Auth gate: splash, auth loading, login/signup, onboarding, profile loading
   const authGateRender = AuthGate({

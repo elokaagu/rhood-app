@@ -27,7 +27,11 @@ const MAX_RETRIES = 6;
  * shared showCustomModal, so it can't clobber or be clobbered by whatever
  * else happens to be using that shared modal at the same moment.
  */
-export default function useMixUploadReminder({ user, isFirstTime }) {
+export default function useMixUploadReminder({
+  user,
+  isFirstTime,
+  otherModalActive = false,
+}) {
   const [visible, setVisible] = useState(false);
   const checkedRef = useRef(false);
   const cancelledRef = useRef(false);
@@ -35,10 +39,18 @@ export default function useMixUploadReminder({ user, isFirstTime }) {
   // button press) always write against whoever is actually signed in at
   // that moment, not whoever was signed in when the modal was scheduled.
   const userIdRef = useRef(null);
+  // Mirrors otherModalActive (e.g. App.js's Complete Profile modal) so the
+  // retry loop below always reads its current value — it's a prop that can
+  // change after the effect starts, not something the effect re-runs on.
+  const otherModalActiveRef = useRef(false);
 
   useEffect(() => {
     userIdRef.current = user?.id || null;
   }, [user?.id]);
+
+  useEffect(() => {
+    otherModalActiveRef.current = otherModalActive;
+  }, [otherModalActive]);
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -74,7 +86,8 @@ export default function useMixUploadReminder({ user, isFirstTime }) {
       const ctx = tutorialContextRef.current;
       const tipShowing =
         ctx?.enabled && !ctx?.dismissed?.[APP_TUTORIAL_SCREEN_IDS.OPPORTUNITIES];
-      if (tipShowing && tries < MAX_RETRIES) {
+      const shouldBackOff = tipShowing || otherModalActiveRef.current;
+      if (shouldBackOff && tries < MAX_RETRIES) {
         timerId = setTimeout(() => attempt(tries + 1), RETRY_DELAY_MS);
         return;
       }
