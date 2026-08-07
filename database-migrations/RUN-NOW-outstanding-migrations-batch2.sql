@@ -763,6 +763,15 @@ DECLARE
 BEGIN
   FOREACH t IN ARRAY ARRAY['dj_preferences', 'dj_availability', 'dj_performance_history', 'match_feedback', 'matches']
   LOOP
+    -- These 5 were reverse-engineered from query shapes in the app code, not
+    -- confirmed against a live schema — skip gracefully if one turns out not
+    -- to actually exist, instead of hard-failing (and rolling back) the
+    -- whole script.
+    IF to_regclass('public.' || t) IS NULL THEN
+      RAISE NOTICE 'Skipping %: table does not exist', t;
+      CONTINUE;
+    END IF;
+
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
 
     EXECUTE format('DROP POLICY IF EXISTS "%s_select_own" ON public.%I', t, t);
@@ -801,6 +810,11 @@ DECLARE
 BEGIN
   FOREACH t IN ARRAY ARRAY['venue_profiles', 'brief_templates']
   LOOP
+    IF to_regclass('public.' || t) IS NULL THEN
+      RAISE NOTICE 'Skipping %: table does not exist', t;
+      CONTINUE;
+    END IF;
+
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('DROP POLICY IF EXISTS "%s_select_authenticated" ON public.%I', t, t);
     EXECUTE format(
