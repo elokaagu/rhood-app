@@ -384,6 +384,16 @@ COMMENT ON FUNCTION get_brand_gigs(UUID) IS
 -- Run in Supabase SQL Editor. Safe to run multiple times (idempotent).
 -- ============================================================================
 
+-- CREATE OR REPLACE can't change a function's return type — if a prior
+-- version of any of these four returned different column/scalar types
+-- (e.g. INTEGER instead of BIGINT), REPLACE fails with "cannot change
+-- return type of existing function". DROP first so this always succeeds
+-- regardless of what shape happens to already be live.
+DROP FUNCTION IF EXISTS get_mutual_connections(UUID, UUID);
+DROP FUNCTION IF EXISTS get_user_daily_application_stats(UUID);
+DROP FUNCTION IF EXISTS get_daily_application_count(UUID);
+DROP FUNCTION IF EXISTS get_remaining_daily_applications(UUID);
+
 CREATE OR REPLACE FUNCTION get_mutual_connections(user1_id UUID, user2_id UUID)
 RETURNS TABLE (
   mutual_user_id UUID,
@@ -620,9 +630,14 @@ BEGIN
     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'connections' AND table_schema = 'public' AND column_name = 'connected_user_id')
     INTO has_v3;
 
-  IF has_v1 THEN clauses := clauses || 'user_id_1 = auth.uid() OR user_id_2 = auth.uid()'; END IF;
-  IF has_v2 THEN clauses := clauses || 'follower_id = auth.uid() OR following_id = auth.uid()'; END IF;
-  IF has_v3 THEN clauses := clauses || 'requester_id = auth.uid() OR connected_user_id = auth.uid()'; END IF;
+  -- array_append, not `clauses || 'text'` — Postgres's operator resolution
+  -- for TEXT[] || <untyped string literal> can resolve to the array||array
+  -- overload instead of array||element, then fails trying to parse the
+  -- literal AS an array ("malformed array literal ... must start with '{'").
+  -- array_append has no such ambiguity.
+  IF has_v1 THEN clauses := array_append(clauses, 'user_id_1 = auth.uid() OR user_id_2 = auth.uid()'); END IF;
+  IF has_v2 THEN clauses := array_append(clauses, 'follower_id = auth.uid() OR following_id = auth.uid()'); END IF;
+  IF has_v3 THEN clauses := array_append(clauses, 'requester_id = auth.uid() OR connected_user_id = auth.uid()'); END IF;
 
   IF array_length(clauses, 1) IS NULL THEN
     RAISE EXCEPTION 'connections table has none of the expected ownership column pairs — check the live schema before applying RLS.';

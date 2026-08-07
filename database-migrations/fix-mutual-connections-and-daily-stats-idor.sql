@@ -28,6 +28,16 @@
 -- Run in Supabase SQL Editor. Safe to run multiple times (idempotent).
 -- ============================================================================
 
+-- CREATE OR REPLACE can't change a function's return type — if a prior
+-- version of any of these four returned different column/scalar types
+-- (e.g. INTEGER instead of BIGINT), REPLACE fails with "cannot change
+-- return type of existing function". DROP first so this always succeeds
+-- regardless of what shape happens to already be live.
+DROP FUNCTION IF EXISTS get_mutual_connections(UUID, UUID);
+DROP FUNCTION IF EXISTS get_user_daily_application_stats(UUID);
+DROP FUNCTION IF EXISTS get_daily_application_count(UUID);
+DROP FUNCTION IF EXISTS get_remaining_daily_applications(UUID);
+
 CREATE OR REPLACE FUNCTION get_mutual_connections(user1_id UUID, user2_id UUID)
 RETURNS TABLE (
   mutual_user_id UUID,
