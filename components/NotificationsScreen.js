@@ -508,7 +508,10 @@ export default function NotificationsScreen({
     const type = notification.type?.toLowerCase() || "";
     const title = (notification.title || "").toLowerCase();
     const message = (notification.message || "").toLowerCase();
-    const isRead = notification.is_read || false;
+    // Called with the already-transformed notification (line ~472), which
+    // only carries camelCase `isRead` (set at line ~436) — `is_read` here
+    // was always undefined, so every notification scored as unread forever.
+    const isRead = notification.isRead || false;
     
     // Priority levels (higher number = higher priority):
     // 100+ = Urgent (connection requests, payment deadlines, opportunity acceptance deadlines)

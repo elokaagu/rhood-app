@@ -19,7 +19,8 @@ const MAX_RETRIES = 6;
 /**
  * One-shot-per-app-open popup nudging users who haven't uploaded any mixes
  * yet. Read-only against `mixes` (via db.hasUserUploadedMixes) and purely
- * local (AsyncStorage) for snooze/dismiss — no schema or server changes.
+ * local (AsyncStorage, namespaced per userId) for snooze/dismiss — no schema
+ * or server changes.
  *
  * Deliberately its own `visible` + RhoodModal wiring (like the Complete
  * Profile / Audio Error modals in App.js) rather than piggybacking on the
@@ -30,6 +31,14 @@ export default function useMixUploadReminder({ user, isFirstTime }) {
   const [visible, setVisible] = useState(false);
   const checkedRef = useRef(false);
   const cancelledRef = useRef(false);
+  // Mirrors user?.id so dismissForever/snoozeAndClose (fired later from a
+  // button press) always write against whoever is actually signed in at
+  // that moment, not whoever was signed in when the modal was scheduled.
+  const userIdRef = useRef(null);
+
+  useEffect(() => {
+    userIdRef.current = user?.id || null;
+  }, [user?.id]);
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -48,41 +57,55 @@ export default function useMixUploadReminder({ user, isFirstTime }) {
     if (checkedRef.current) return;
     checkedRef.current = true;
 
+    const userId = user.id;
+    // Own per-run staleness flag (in addition to cancelledRef, which only
+    // covers full unmount) — this effect re-runs on every user.id change
+    // (sign-out/sign-in on the same device), but App.js keeps this hook
+    // mounted for the app's lifetime, so the *previous* run's retry chain
+    // would otherwise keep firing via its own nested setTimeouts (only the
+    // outermost timer was ever tracked/cleared) and could pop this modal
+    // for the new user based on the old user's mix-upload status.
+    let stale = false;
+    let timerId = null;
+
     const attempt = async (tries = 0) => {
-      if (cancelledRef.current) return;
+      if (cancelledRef.current || stale) return;
 
       const ctx = tutorialContextRef.current;
       const tipShowing =
         ctx?.enabled && !ctx?.dismissed?.[APP_TUTORIAL_SCREEN_IDS.OPPORTUNITIES];
       if (tipShowing && tries < MAX_RETRIES) {
-        setTimeout(() => attempt(tries + 1), RETRY_DELAY_MS);
+        timerId = setTimeout(() => attempt(tries + 1), RETRY_DELAY_MS);
         return;
       }
 
       const [dismissed, snoozed] = await Promise.all([
-        getMixReminderDismissed(),
-        isMixReminderSnoozed(),
+        getMixReminderDismissed(userId),
+        isMixReminderSnoozed(userId),
       ]);
-      if (cancelledRef.current || dismissed || snoozed) return;
+      if (cancelledRef.current || stale || dismissed || snoozed) return;
 
-      const hasMixes = await db.hasUserUploadedMixes(user.id);
-      if (cancelledRef.current || hasMixes) return;
+      const hasMixes = await db.hasUserUploadedMixes(userId);
+      if (cancelledRef.current || stale || hasMixes) return;
 
       setVisible(true);
     };
 
-    const timer = setTimeout(() => attempt(), INITIAL_DELAY_MS);
-    return () => clearTimeout(timer);
+    timerId = setTimeout(() => attempt(), INITIAL_DELAY_MS);
+    return () => {
+      stale = true;
+      if (timerId) clearTimeout(timerId);
+    };
   }, [user?.id, isFirstTime]);
 
   const dismissForever = useCallback(() => {
     setVisible(false);
-    dismissMixReminderForever();
+    dismissMixReminderForever(userIdRef.current);
   }, []);
 
   const snoozeAndClose = useCallback(() => {
     setVisible(false);
-    snoozeMixReminder();
+    snoozeMixReminder(userIdRef.current);
   }, []);
 
   return { visible, dismissForever, snoozeAndClose };
