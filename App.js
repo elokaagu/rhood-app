@@ -207,6 +207,14 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login"); // 'login' or 'signup'
+  // True while a password-reset deep link's recovery session is active.
+  // AuthGate otherwise decides OnboardingForm vs. the main app purely from
+  // `user` + `isFirstTime` — a recovery session sets `user`, so an account
+  // that never finished onboarding (isFirstTime still true, e.g. a fresh
+  // install/second device — exactly when someone is likely to be resetting
+  // a password) got dropped into onboarding instead of ResetPasswordScreen,
+  // with no way to actually reach it. See AuthGate.js's needsOnboarding.
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   // Audio playback (all audio logic extracted into dedicated hook)
   const audio = useAudioPlayback({ user });
@@ -452,6 +460,7 @@ export default function App() {
               
               if (__DEV__) console.log("✅ Reset session established, showing reset password screen");
               setShowAuth(false);
+              setIsPasswordRecovery(true);
               setCurrentScreen("reset-password");
             }
           } else {
@@ -461,6 +470,7 @@ export default function App() {
             if (session) {
               if (__DEV__) console.log("✅ Active session found, showing reset password screen");
               setShowAuth(false);
+              setIsPasswordRecovery(true);
               setCurrentScreen("reset-password");
             }
           }
@@ -472,6 +482,7 @@ export default function App() {
           const { data: { session } } = await supabase.auth.getSession();
           if (session && url.includes("reset-password")) {
             setShowAuth(false);
+            setIsPasswordRecovery(true);
             setCurrentScreen("reset-password");
           }
         } catch (sessionError) {
@@ -1756,6 +1767,7 @@ export default function App() {
     isLoading,
     user,
     isFirstTime,
+    isPasswordRecovery,
     authMode,
     djProfile,
     setDjProfile,
@@ -1784,6 +1796,7 @@ export default function App() {
         setScreenParams={setScreenParams}
         setUser={setUser}
         setIsFirstTime={setIsFirstTime}
+        setIsPasswordRecovery={setIsPasswordRecovery}
         setDjProfile={setDjProfile}
         setShowAuth={setShowAuth}
         setAuthMode={setAuthMode}

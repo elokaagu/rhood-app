@@ -62,6 +62,7 @@ export default function ScreenRouter({
   setScreenParams,
   setUser,
   setIsFirstTime,
+  setIsPasswordRecovery,
   setDjProfile,
   setShowAuth,
   setAuthMode,
@@ -261,7 +262,11 @@ export default function ScreenRouter({
     setCurrentScreen(SCREENS.LOGIN);
     setShowAuth?.(true);
     setAuthMode?.("login");
-  }, [setCurrentScreen, setShowAuth, setAuthMode]);
+    // Clears the recovery-session flag set by App.js's handleDeepLink —
+    // otherwise it'd stay stuck true and could block onboarding from ever
+    // showing again for this account, even in a later, unrelated session.
+    setIsPasswordRecovery?.(false);
+  }, [setCurrentScreen, setShowAuth, setAuthMode, setIsPasswordRecovery]);
 
   switch (screen) {
     case SCREENS.OPPORTUNITIES:

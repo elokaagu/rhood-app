@@ -19,6 +19,7 @@ export default function AuthGate({
   isLoading,
   user,
   isFirstTime,
+  isPasswordRecovery,
   authMode,
   djProfile,
   setDjProfile,
@@ -35,7 +36,11 @@ export default function AuthGate({
   }
 
   const isAuthBusy = authLoading || isLoading;
-  const needsOnboarding = Boolean(user) && isFirstTime;
+  // A password-reset recovery session sets `user` — without this check, an
+  // account that never finished onboarding got dropped into OnboardingForm
+  // instead of ResetPasswordScreen, with no way to actually reach it (see
+  // App.js's handleDeepLink / isPasswordRecovery for where this is set).
+  const needsOnboarding = Boolean(user) && isFirstTime && !isPasswordRecovery;
 
   let content = null;
 
