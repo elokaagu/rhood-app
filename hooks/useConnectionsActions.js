@@ -58,7 +58,10 @@ export function useConnectionsActions(
   const loadUserAndConnections = connectionsData?.loadUserAndConnections;
   const loadUserCommunities = connectionsData?.loadUserCommunities;
   const loadDiscoverDJs = discoverData?.loadDiscoverDJs;
-  const loadNearbyDJs = connectionsData?.loadNearbyDJs;
+  // useConnectionsData only *accepts* loadNearbyDJs as a param (for its own
+  // realtime handler) — it never returns it. The actual source is
+  // discoverData, same as useConnectionsLocationActions already does it.
+  const loadNearbyDJs = discoverData?.loadNearbyDJs;
   const prevConnectionStatusesRef = connectionsData?.prevConnectionStatusesRef;
   const userCommunities = connectionsData?.userCommunities;
 

@@ -80,9 +80,10 @@ export function useConnectionsScreen(propUser, onNavigate, route, initialTab) {
   const renderDiscoverItem = useDiscoverRenderItem(discoverData, actions);
 
   const handleTabChange = useConnectionsTabChange({
+    activeTab,
     setActiveTab,
     discoverFadeAnim: discoverData.discoverFadeAnim,
-    discoverUsers: discoverData.discoverUsers,
+    discoverUsersLength: discoverData.discoverUsers?.length ?? 0,
     loadDiscoverDJs: discoverData.loadDiscoverDJs,
     connectionsFadeAnim: connectionsData.connectionsFadeAnim,
   });
