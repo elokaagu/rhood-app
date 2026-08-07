@@ -764,7 +764,8 @@ export default function useOpportunities({
             mergeOpportunityFromRealtime(
               prev,
               payload.new,
-              userLocationRef.current
+              userLocationRef.current,
+              currentOpportunityIndexRef.current
             )
           );
         }
@@ -782,7 +783,8 @@ export default function useOpportunities({
             mergeOpportunityFromRealtime(
               prev,
               payload.new,
-              userLocationRef.current
+              userLocationRef.current,
+              currentOpportunityIndexRef.current
             )
           );
         }
