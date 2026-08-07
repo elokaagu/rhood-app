@@ -512,31 +512,51 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }
   }, []);
 
-  const handleDeleteForYou = useCallback(async (message) => {
-    try {
-      // Mark message as deleted for this user only
-      // This would require a deleted_for_users column or similar
-      Alert.alert(
-        "Delete for you",
-        "This message will be hidden from you but remain visible to others.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: async () => {
-              // TODO: Implement delete for you in database
-              setMessages((prev) => prev.filter((m) => m.id !== message.id));
-              setShowMessageOptionsModal(false);
+  const handleDeleteForYou = useCallback(
+    async (message) => {
+      if (!message?.id) return;
+      try {
+        Alert.alert(
+          "Delete for you",
+          "This message will be hidden from you but remain visible to others.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Delete",
+              style: "destructive",
+              onPress: async () => {
+                // Optimistic — same as handleDeleteMessage's pattern.
+                setMessages((prev) => prev.filter((m) => m.id !== message.id));
+                setShowMessageOptionsModal(false);
+
+                const targetTable =
+                  message.recordType === "group" ? "community_posts" : "messages";
+                const { error } = await supabase.rpc("delete_message_for_me", {
+                  p_message_id: message.id,
+                  p_table: targetTable,
+                });
+                if (error) {
+                  // Persisting failed — surface it (and the message stays
+                  // hidden for this session; a reload will bring it back,
+                  // same as before this fix, rather than silently claiming
+                  // success server-side never actually happened).
+                  console.error("Error persisting delete-for-you:", error);
+                  Alert.alert(
+                    "Couldn't hide message",
+                    "This will reappear next time you reload. Please try again."
+                  );
+                }
+              },
             },
-          },
-        ]
-      );
-    } catch (error) {
-      console.error("Error deleting message for you:", error);
-      Alert.alert("Error", "Failed to delete message");
-    }
-  }, []);
+          ]
+        );
+      } catch (error) {
+        console.error("Error deleting message for you:", error);
+        Alert.alert("Error", "Failed to delete message");
+      }
+    },
+    [supabase]
+  );
 
   const handleUnsendMessage = useCallback(async (message) => {
     if (!message.isOwn) {
