@@ -85,6 +85,12 @@ export default function useOpportunities({
   const userLocationRef = useRef(userLocation);
   const currentOpportunityIndexRef = useRef(0);
   const isMountedRef = useRef(true);
+  // The confirmation modal's primary button has no disabled/loading state
+  // tied to submission progress and stays visible through the whole async
+  // round trip — a double-tap fires handleConfirmApply twice concurrently
+  // for the same opportunity, which can insert two applications and
+  // advance the deck by 2 (skipping the next card).
+  const applyInFlightRef = useRef(false);
 
   useEffect(() => {
     userLocationRef.current = userLocation;
@@ -400,6 +406,11 @@ export default function useOpportunities({
         if (__DEV__) console.warn("handleConfirmApply: no authenticated user");
         return;
       }
+      if (applyInFlightRef.current) {
+        if (__DEV__) console.warn("handleConfirmApply: already in flight, ignoring");
+        return;
+      }
+      applyInFlightRef.current = true;
       try {
         if (__DEV__) {
           console.log("Starting application for:", opportunity.title);
@@ -435,6 +446,7 @@ export default function useOpportunities({
       } catch (error) {
         handleApplicationFlowError(error);
       } finally {
+        applyInFlightRef.current = false;
         setSelectedOpportunity(null);
       }
     },
