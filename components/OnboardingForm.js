@@ -101,6 +101,12 @@ export default function OnboardingForm({
   onSignOut,
 }) {
   const [currentStep, setCurrentStep] = useState(1);
+  // Guards the final step's onComplete() call — unlike EditProfileScreen's
+  // Save button, this had no disabled/in-flight state at all, so a
+  // network-delayed completeOnboarding() left the button tappable and a
+  // second tap fired a concurrent completeOnboarding() call (duplicate
+  // "Welcome" / Complete-Profile modal, tutorial mode re-enabled twice).
+  const [completingOnboarding, setCompletingOnboarding] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const [errors, setErrors] = useState({});
@@ -271,7 +277,9 @@ export default function OnboardingForm({
     return youtubeRegex.test(url);
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
+    if (completingOnboarding) return;
+
     const key = steps[currentStep - 1];
     const isValid = validateStep(key);
     if (!isValid) return;
@@ -289,7 +297,12 @@ export default function OnboardingForm({
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     } else {
-      onComplete();
+      setCompletingOnboarding(true);
+      try {
+        await onComplete();
+      } finally {
+        setCompletingOnboarding(false);
+      }
     }
   };
 
@@ -306,7 +319,9 @@ export default function OnboardingForm({
    * photo upload that had already failed, could block the button from
    * doing what its label promises.
    */
-  const skipStep = () => {
+  const skipStep = async () => {
+    if (completingOnboarding) return;
+
     const key = steps[currentStep - 1];
     if (key === "social") {
       setDjProfile((prev) => ({
@@ -321,7 +336,12 @@ export default function OnboardingForm({
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     } else {
-      onComplete();
+      setCompletingOnboarding(true);
+      try {
+        await onComplete();
+      } finally {
+        setCompletingOnboarding(false);
+      }
     }
   };
 
@@ -1000,9 +1020,17 @@ export default function OnboardingForm({
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={styles.primaryButton} onPress={nextStep}>
+        <TouchableOpacity
+          style={[styles.primaryButton, completingOnboarding && styles.primaryButtonDisabled]}
+          onPress={nextStep}
+          disabled={completingOnboarding}
+        >
           <Text style={styles.primaryButtonText}>
-            {currentStep === totalSteps ? "Complete Setup" : "Next"}
+            {completingOnboarding
+              ? "Setting up..."
+              : currentStep === totalSteps
+              ? "Complete Setup"
+              : "Next"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -1290,6 +1318,9 @@ const styles = {
     paddingVertical: 15,
     flex: 1,
     marginLeft: 10,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.6,
   },
   primaryButtonText: {
     color: "hsl(0, 0%, 0%)", // Black text on primary

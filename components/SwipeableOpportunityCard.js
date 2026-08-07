@@ -124,11 +124,19 @@ export default function SwipeableOpportunityCard({
             const { dx, dy, vx } = gestureState;
             const shouldSwipeLeft = dx < -SWIPE_THRESHOLD || vx < -0.5;
             const shouldSwipeRight = dx > SWIPE_THRESHOLD || vx > 0.5;
+            // At the daily limit, a right-swipe is going to be rejected by
+            // handleSwipeRight anyway (it early-returns after the Alert) —
+            // letting the fly-off-screen animation play first left the card
+            // stuck fully transparent/off-position with nothing to bring it
+            // back (no pull-to-refresh in this view), since
+            // currentOpportunityIndex never advances in that case. Spring
+            // back to center instead, same as a below-threshold release.
+            const limitReached = dailyApplicationStats?.can_apply === false;
 
             if (shouldSwipeLeft) {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               animateSwipeOut("left", dx * 0.5 * VERTICAL_DRAG_SCALE);
-            } else if (shouldSwipeRight) {
+            } else if (shouldSwipeRight && !limitReached) {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               animateSwipeOut("right", dx * 0.5 * VERTICAL_DRAG_SCALE);
             } else {
@@ -141,6 +149,11 @@ export default function SwipeableOpportunityCard({
 
               if (isTap && onPress) {
                 onPress();
+              } else if (shouldSwipeRight && limitReached) {
+                // Still surface the "Daily Limit Reached" alert — just
+                // without animating the card away first.
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                onSwipeRight?.();
               }
 
               Animated.parallel([
@@ -167,7 +180,13 @@ export default function SwipeableOpportunityCard({
           }
         },
       }),
-    [isTopCard, animateSwipeOut, onPress]
+    [
+      isTopCard,
+      animateSwipeOut,
+      onPress,
+      onSwipeRight,
+      dailyApplicationStats?.can_apply,
+    ]
   );
 
   useEffect(() => {
