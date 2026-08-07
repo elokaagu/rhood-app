@@ -134,6 +134,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
   );
   const conversationKeyRef = useRef(conversationKey);
   conversationKeyRef.current = conversationKey;
+  // loadMessages is called on mount, after every send (300ms delay), and
+  // whenever a realtime event arrives — stillHere() below only guarded
+  // against the CONVERSATION changing mid-flight, not against a newer
+  // loadMessages() call for the SAME conversation superseding an older
+  // still-in-flight one. If the older call's network response happened to
+  // resolve after the newer one, its stale full setMessages(...) replace
+  // would silently revert to older data.
+  const loadRequestIdRef = useRef(0);
 
   const showThemedError = useCallback((title, message) => {
     setErrorModal({
@@ -571,7 +579,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
     }
 
     const loadId = conversationKey;
-    const stillHere = () => conversationKeyRef.current === loadId;
+    const myRequestId = ++loadRequestIdRef.current;
+    const stillHere = () =>
+      conversationKeyRef.current === loadId &&
+      loadRequestIdRef.current === myRequestId;
 
     try {
       console.log("📥 Loading messages...", { chatType, djId, communityId });
@@ -1155,11 +1166,21 @@ const MessagesScreen = ({ user, navigation, route }) => {
             });
             showThemedError(
               "Error",
-              `Failed to send message: ${err.message || "Unknown error"}`
+              result.textAlreadySent
+                ? `Your message sent, but the attachment failed: ${
+                    err.message || "Unknown error"
+                  }. Tap send again to retry just the attachment.`
+                : `Failed to send message: ${err.message || "Unknown error"}`
             );
           }
           setNewMessage(result.rollback.messageContent);
           setSelectedMedia(result.rollback.mediaArray);
+          // The text half of a partial failure already committed — reload
+          // so it actually shows up instead of only appearing after some
+          // unrelated later refresh.
+          if (result.textAlreadySent) {
+            setTimeout(() => loadMessages(), 300);
+          }
           return;
         }
 
@@ -1196,10 +1217,17 @@ const MessagesScreen = ({ user, navigation, route }) => {
           });
           showThemedError(
             "Error",
-            `Failed to send message: ${err?.message || "Unknown error"}`
+            result.textAlreadySent
+              ? `Your message sent, but the attachment failed: ${
+                  err?.message || "Unknown error"
+                }. Tap send again to retry just the attachment.`
+              : `Failed to send message: ${err?.message || "Unknown error"}`
           );
           setNewMessage(result.rollback.messageContent);
           setSelectedMedia(result.rollback.mediaArray);
+          if (result.textAlreadySent) {
+            setTimeout(() => loadMessages(), 300);
+          }
           return;
         }
 
