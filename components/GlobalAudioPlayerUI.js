@@ -113,7 +113,7 @@ function GlobalAudioPlayerUI({
   const toggleLike = () => actionsRef?.current?.toggleLike?.();
   const clearQueue = () => actionsRef?.current?.clearQueue?.();
   const moveUp = (i) => actionsRef?.current?.moveQueueItemUp?.(i);
-  const moveDown = (i) => actionsRef?.current?.moveQueueItemDown?.();
+  const moveDown = (i) => actionsRef?.current?.moveQueueItemDown?.(i);
   const addToQueue = (t) => actionsRef?.current?.addToQueue?.(t);
 
   const onPlayPause = useCallback(() => {

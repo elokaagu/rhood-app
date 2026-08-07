@@ -1331,7 +1331,27 @@ export default function useAudioPlayback({ user }) {
     }
   }, [stateRef]);
 
-  const playNextTrack = useCallback(async () => {
+  const playNextTrack = useCallback(async (explicitTrack) => {
+    // "Play Next" from a long-press context menu (ListenScreen,
+    // PlaylistDetailScreen, TrendingMixesScreen, YourLikesScreen all wire
+    // onPlayNext straight to this function) passes the tapped track here —
+    // queue it right after whatever's currently playing without
+    // interrupting playback. No-arg calls (auto-advance on track finish,
+    // the mini player's skip-forward) keep the existing behavior below.
+    if (explicitTrack) {
+      setGlobalAudioState((prev) => {
+        const insertAt =
+          prev.currentQueueIndex >= 0 ? prev.currentQueueIndex + 1 : prev.queue.length;
+        const newQueue = [...prev.queue];
+        newQueue.splice(insertAt, 0, explicitTrack);
+        if (__DEV__) {
+          console.log(`🎵 Queued "${explicitTrack.title}" to play next`);
+        }
+        return { ...prev, queue: newQueue };
+      });
+      return;
+    }
+
     const currentState = stateRef.current;
     const nextTrack = getNextTrack();
 

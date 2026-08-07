@@ -83,6 +83,7 @@ function ListenScreen({
   globalAudioState,
   onPlayAudio,
   onPauseAudio,
+  onResumeAudio,
   onAddToQueue,
   onPlayNext,
 }) {
@@ -316,6 +317,14 @@ function ListenScreen({
       HapticPatterns.playPause();
       if (playingMixId === mix.id) {
         onPauseAudio?.();
+      } else if (
+        globalAudioState?.currentTrack?.id === mix.id &&
+        !globalAudioState?.isPlaying
+      ) {
+        // Same track, just paused — resume in place instead of falling
+        // through to onPlayAudio, which reloads/re-streams from scratch and
+        // restarts at 0:00.
+        onResumeAudio?.();
       } else {
         const sec = extractDurationSeconds(mix);
         onPlayAudio({
@@ -331,7 +340,14 @@ function ListenScreen({
         });
       }
     },
-    [onPlayAudio, onPauseAudio, playingMixId]
+    [
+      onPlayAudio,
+      onPauseAudio,
+      onResumeAudio,
+      playingMixId,
+      globalAudioState?.currentTrack?.id,
+      globalAudioState?.isPlaying,
+    ]
   );
 
   const normalizeMixForQueue = useCallback((mix) => {
