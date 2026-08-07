@@ -457,10 +457,16 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
       if (profile.bio && profile.bio.trim()) {
         updatedProfile.bio = profile.bio.trim();
-      } else if (profile.city && profile.genres.length > 0) {
-        updatedProfile.bio = `DJ from ${
-          profile.city
-        } specializing in ${profile.genres.join(", ")}`;
+      } else {
+        // city + genres are both required fields, so the old `else if
+        // (city && genres.length)` branch here was unconditionally true
+        // whenever bio was empty — there was no way to actually save a
+        // cleared bio; it silently got replaced with an auto-generated one
+        // every time. Auto-generating a default bio belongs to onboarding
+        // (App.js's completeOnboarding), not to editing an existing
+        // profile — same "clear means clear" fix already applied to
+        // soundcloud/tiktok/portfolio_url/status_message above.
+        updatedProfile.bio = null;
       }
 
       if (profile.status_message && profile.status_message.trim()) {
@@ -478,6 +484,7 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
       setProfile((prev) => ({
         ...prev,
+        bio: profile.bio ? profile.bio.trim() : "",
         status_message: profile.status_message
           ? profile.status_message.trim()
           : "",
