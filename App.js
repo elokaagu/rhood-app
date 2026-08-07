@@ -77,6 +77,7 @@ import { AppTutorialProvider, tutorialContextRef } from "./context/AppTutorialCo
 import { APP_TUTORIAL_SCREEN_IDS } from "./lib/appTutorialContent";
 import useAudioPlayback from "./hooks/useAudioPlayback";
 import useOpportunities from "./hooks/useOpportunities";
+import useMixUploadReminder from "./hooks/useMixUploadReminder";
 
 /** Menu sheet motion — cubic easing reads smoother than linear defaults */
 const MENU_EASE = {
@@ -332,6 +333,10 @@ export default function App() {
     setScreenParams,
     isFirstTime,
   });
+
+  // Nudges users with zero uploaded mixes to upload one (own modal —
+  // see hooks/useMixUploadReminder.js for why it's not on showCustomModal).
+  const mixReminder = useMixUploadReminder({ user, isFirstTime });
 
   const [djProfile, setDjProfile] = useState({
     djName: "",
@@ -2024,6 +2029,22 @@ export default function App() {
             setShowEditProfile(true);
           }}
           onSecondaryPress={() => setShowCompleteProfileModal(false)}
+        />
+
+        {/* Upload Your First Mix Reminder */}
+        <RhoodModal
+          visible={mixReminder.visible}
+          onClose={mixReminder.snoozeAndClose}
+          title="Upload Your First Mix"
+          message="DJs with a mix uploaded get noticed faster — add yours so brands and promoters can hear what you can do."
+          type="info"
+          primaryButtonText="Upload a Mix"
+          secondaryButtonText="Maybe Later"
+          onPrimaryPress={() => {
+            mixReminder.dismissForever();
+            setCurrentScreen(SCREENS.UPLOAD_MIX);
+          }}
+          onSecondaryPress={mixReminder.snoozeAndClose}
         />
 
         {/* In-App Notification Toast */}
