@@ -465,6 +465,10 @@ export default function AIMatchmakingScreen({ userId, onNavigate }) {
     const busyApply =
       cardAction?.id === match.id && cardAction.type === "apply";
     const busyPass = cardAction?.id === match.id && cardAction.type === "pass";
+    // Disables both buttons on this card while either of its own actions is
+    // in flight — was referencing an undeclared `cardBusy` (ReferenceError,
+    // crashed the screen the instant any match rendered).
+    const cardBusy = busyApply || busyPass;
 
     const isBoosted =
       match.is_boosted &&

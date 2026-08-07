@@ -228,44 +228,6 @@ export default function useOpportunities({
     );
   }, [opportunities, currentOpportunityIndex]);
 
-  const handleOpportunityPress = useCallback(
-    (opportunity) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      track(AnalyticsEvents.OPPORTUNITY_VIEWED, {
-        opportunity_id: opportunity.id,
-        opportunity_title: opportunity.title,
-        opportunity_location: opportunity.location,
-      });
-
-      showCustomModal({
-        type: "info",
-        title: opportunity.title,
-        message: opportunity.description || "",
-        eventDetails: {
-          date: opportunity.date,
-          time: opportunity.time,
-          compensation: opportunity.compensation,
-          location: opportunity.location,
-          description: opportunity.description,
-          distanceFormatted: opportunity.distanceFormatted,
-        },
-        primaryButtonText: "Apply",
-        secondaryButtonText: "Close",
-        showShareButton: true,
-        onPrimaryPress: () => {
-          showCustomModal({
-            type: "success",
-            title: "Application Sent!",
-            message: `Your application for ${opportunity.title} has been sent successfully. You'll hear back within 48 hours.`,
-            primaryButtonText: "OK",
-          });
-        },
-      });
-    },
-    [showCustomModal]
-  );
-
   const handleDismissSwipeTutorial = useCallback(() => {
     // Dismiss immediately — don't make the tap-to-close wait on disk I/O.
     // The write is fire-and-forget; worst case a slow/failed write just
@@ -482,6 +444,46 @@ export default function useOpportunities({
       showPostApplySuccessModal,
       handleApplicationFlowError,
     ]
+  );
+
+  /** Tapping a card (as opposed to swiping right) opens the same detail
+   * modal; "Apply" here used to just show a hard-coded "Application Sent!"
+   * success modal without ever calling db.applyToOpportunity — a fake
+   * confirmation that submitted nothing. Now routes through the same
+   * handleConfirmApply the swipe-right flow uses, so it actually applies,
+   * respects the daily limit / already-applied / missing-mix error paths,
+   * and advances the deck consistently either way. */
+  const handleOpportunityPress = useCallback(
+    (opportunity) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      track(AnalyticsEvents.OPPORTUNITY_VIEWED, {
+        opportunity_id: opportunity.id,
+        opportunity_title: opportunity.title,
+        opportunity_location: opportunity.location,
+      });
+
+      setSelectedOpportunity(opportunity);
+
+      showCustomModal({
+        type: "info",
+        title: opportunity.title,
+        message: opportunity.description || "",
+        eventDetails: {
+          date: opportunity.date,
+          time: opportunity.time,
+          compensation: opportunity.compensation,
+          location: opportunity.location,
+          description: opportunity.description,
+          distanceFormatted: opportunity.distanceFormatted,
+        },
+        primaryButtonText: "Apply",
+        secondaryButtonText: "Close",
+        showShareButton: true,
+        onPrimaryPress: () => handleConfirmApply(opportunity),
+      });
+    },
+    [showCustomModal, handleConfirmApply]
   );
 
   const sendOpportunityShareMessage = useCallback(
