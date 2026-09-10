@@ -66,6 +66,11 @@ import {
   getMessageThreadSnapshot,
   setMessageThreadSnapshot,
 } from "../lib/messageThreadSnapshotCache";
+import {
+  buildChatListRows,
+  formatDaySeparator as formatDaySeparatorLabel,
+  formatMessageTime,
+} from "../lib/messagesScreen/messageList";
 
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
@@ -1303,79 +1308,15 @@ const MessagesScreen = ({ user, navigation, route }) => {
     showThemedError,
   ]);
 
-  // Format timestamp
-  const formatTime = useCallback((timestamp) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now - date;
-
-    if (diff < 60000) return "now";
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
-    return date.toLocaleDateString();
-  }, []);
-
-  const formatDaySeparator = useCallback((timestamp) => {
-    const date = new Date(timestamp);
-    if (Number.isNaN(date.getTime())) return "";
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfThatDay = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate()
-    );
-    const diffDays = Math.round(
-      (startOfToday.getTime() - startOfThatDay.getTime()) / (24 * 60 * 60 * 1000)
-    );
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: now.getFullYear() === date.getFullYear() ? undefined : "numeric",
-    });
-  }, []);
-
-  const chatListRows = useMemo(() => {
-    const rows = [];
-    for (let i = 0; i < messages.length; i++) {
-      const msg = messages[i];
-      const prev = messages[i - 1];
-      const next = messages[i + 1];
-      const msgTime = new Date(msg.timestamp).getTime();
-      const prevTime = prev ? new Date(prev.timestamp).getTime() : null;
-      const nextTime = next ? new Date(next.timestamp).getTime() : null;
-
-      const isNewDay =
-        !prev ||
-        new Date(prev.timestamp).toDateString() !== new Date(msg.timestamp).toDateString();
-      if (isNewDay) {
-        rows.push({
-          id: `sep-${msg.id}`,
-          rowType: "separator",
-          label: formatDaySeparator(msg.timestamp),
-        });
-      }
-
-      const groupedWithPrev =
-        !!prev &&
-        prev.senderId === msg.senderId &&
-        Math.abs(msgTime - (prevTime || 0)) < 5 * 60 * 1000;
-      const groupedWithNext =
-        !!next &&
-        next.senderId === msg.senderId &&
-        Math.abs((nextTime || 0) - msgTime) < 5 * 60 * 1000;
-
-      rows.push({
-        ...msg,
-        showSenderHeader: !groupedWithPrev,
-        showTimestamp: !groupedWithNext,
-        isGrouped: groupedWithPrev,
-      });
-    }
-    return rows;
-  }, [messages, formatDaySeparator]);
+  const formatTime = useCallback((timestamp) => formatMessageTime(timestamp), []);
+  const formatDaySeparator = useCallback(
+    (timestamp) => formatDaySeparatorLabel(timestamp),
+    []
+  );
+  const chatListRows = useMemo(
+    () => buildChatListRows(messages, formatDaySeparator),
+    [messages, formatDaySeparator]
+  );
 
   const handleOpportunityPress = useCallback((opp) => {
     setSelectedOpportunity(opp);

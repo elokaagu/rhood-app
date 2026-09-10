@@ -1,5 +1,11 @@
-const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
+
+let getDefaultConfig;
+try {
+  getDefaultConfig = require("@sentry/react-native/metro").getSentryExpoConfig;
+} catch (_error) {
+  getDefaultConfig = require("expo/metro-config").getDefaultConfig;
+}
 
 const config = getDefaultConfig(__dirname);
 const projectRoot = __dirname;

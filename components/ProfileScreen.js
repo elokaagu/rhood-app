@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { useAudioPlayback } from "../context/AudioContext";
 import {
   View,
@@ -16,46 +16,19 @@ import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
 import AnimatedListItem from "./AnimatedListItem";
 import { SkeletonProfile } from "./Skeleton";
-import { generateGenreWaveform } from "../lib/audioWaveform";
 import { HapticPatterns } from "../lib/haptics";
-import { createScreenCache } from "../lib/screenCache";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import ProfileBookingRequests from "./ProfileBookingRequests";
+import { useProfileScreenData } from "../hooks/useProfileScreenData";
+import {
+  computeAudioIdProgress,
+  getReferralLink,
+  getReferralShareMessage,
+  parseDurationSeconds,
+} from "../lib/profileScreen/model";
 import styles from "./ProfileScreen.styles";
-
-const profileCache = createScreenCache("profile", { userScoped: true });
-
-/** DB / cache may expose genres as a string or non-array; socialLinks may be missing on old cache. */
-function normalizeGenres(g) {
-  if (Array.isArray(g)) return g.filter((x) => x != null && String(x).trim() !== "");
-  if (typeof g === "string" && g.trim()) return [g.trim()];
-  return [];
-}
-
-function normalizeSocialLinks(raw) {
-  const base = {
-    instagram: null,
-    soundcloud: null,
-    tiktok: null,
-    youtube: null,
-    portfolio_url: null,
-  };
-  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-    return { ...base, ...raw };
-  }
-  return base;
-}
-
-function normalizeProfileForUI(p) {
-  if (!p || typeof p !== "object") return p;
-  return {
-    ...p,
-    genres: normalizeGenres(p.genres),
-    socialLinks: normalizeSocialLinks(p.socialLinks),
-  };
-}
 
 export default function ProfileScreen({
   onNavigate,
@@ -65,21 +38,16 @@ export default function ProfileScreen({
   onPauseAudio,
   onResumeAudio,
 }) {
-  const [profile, setProfile] = useState(null); // Start with null, load from database
-  const [loading, setLoading] = useState(true);
-  const [connectionsCount, setConnectionsCount] = useState(0);
-  const [inviteCode, setInviteCode] = useState(null);
-  const [referralStats, setReferralStats] = useState({
-    totalReferrals: 0,
-    totalCreditsEarned: 0,
-  });
-  const [bookingRequests, setBookingRequests] = useState([]);
+  const {
+    profile,
+    loading,
+    connectionsCount,
+    inviteCode,
+    referralStats,
+    bookingRequests,
+  } = useProfileScreenData(user);
 
   const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.PROFILE);
-
-  // High-frequency position data comes from the fast playback context directly —
-  // not from the globalAudioState prop — so this component doesn't re-render
-  // on every scrubber tick when the profile screen isn't even visible.
   const audioPlayback = useAudioPlayback();
 
   const audioIdTrackId =
@@ -89,647 +57,38 @@ export default function ProfileScreen({
     globalAudioState.currentTrack?.id === audioIdTrackId &&
     globalAudioState.isPlaying;
 
-  const parseDurationSeconds = (value) => {
-    if (typeof value === "number") {
-      return Number.isFinite(value) && value >= 0 ? value : 0;
-    }
-    if (typeof value === "string") {
-      if (value.includes(":")) {
-        const [minutes, seconds] = value.split(":");
-        const mins = Number(minutes);
-        const secs = Number(seconds);
-        if (
-          Number.isFinite(mins) &&
-          Number.isFinite(secs) &&
-          mins >= 0 &&
-          secs >= 0
-        ) {
-          return mins * 60 + secs;
-        }
-      }
-      const numeric = Number(value);
-      if (Number.isFinite(numeric) && numeric >= 0) {
-        return numeric;
-      }
-    }
-    return 0;
-  };
-
-  const parseDurationString = (str) => {
-    if (typeof str !== "string") return null;
-    const parts = str.split(":").map((p) => Number(p));
-    if (parts.some((n) => !Number.isFinite(n) || n < 0)) return null;
-    if (parts.length === 3) {
-      const [h, m, s] = parts;
-      return h * 3600 + m * 60 + s;
-    }
-    if (parts.length === 2) {
-      const [m, s] = parts;
-      return m * 60 + s;
-    }
-    if (parts.length === 1) {
-      return parts[0];
-    }
-    return null;
-  };
-
-  const extractDurationSeconds = (mix) => {
-    if (!mix) return null;
-    const durationSecondsCandidates = [
-      mix.durationSeconds,
-      mix.duration_seconds,
-      mix.duration,
-      mix.metadata?.duration,
-      mix.metadata?.duration_seconds,
-      mix.audio_metadata?.duration,
-      mix.audio_metadata?.duration_seconds,
-      mix.audioMetadata?.duration,
-      mix.audioMetadata?.duration_seconds,
-    ];
-
-    for (const cand of durationSecondsCandidates) {
-      const secs = parseDurationSeconds(cand);
-      if (secs && Number.isFinite(secs) && secs > 0) return secs;
-    }
-
-    const durationMillisCandidates = [
-      mix.durationMillis,
-      mix.duration_millis,
-      mix.metadata?.durationMillis,
-      mix.metadata?.duration_millis,
-      mix.audio_metadata?.durationMillis,
-      mix.audio_metadata?.duration_millis,
-      mix.audioMetadata?.durationMillis,
-      mix.audioMetadata?.duration_millis,
-    ];
-    for (const cand of durationMillisCandidates) {
-      if (Number.isFinite(cand) && cand > 0) return Math.round(cand / 1000);
-    }
-
-    const formattedCandidates = [
-      mix.duration_formatted,
-      mix.durationFormatted,
-      mix.durationLabel,
-    ];
-    for (const cand of formattedCandidates) {
-      const secs = parseDurationString(cand);
-      if (secs && Number.isFinite(secs) && secs > 0) return secs;
-    }
-
-    return null;
-  };
-
-  const formatSecondsToLabel = (seconds) => {
-    const safeSeconds = Math.max(0, Math.floor(seconds));
-    const minutes = Math.floor(safeSeconds / 60);
-    const secs = safeSeconds % 60;
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  /** Audio ID scrubber: follows global player when this profile’s Audio ID is the current track. */
-  const audioIdProgress = useMemo(() => {
-    if (!profile?.audioId) {
-      return { positionMs: 0, durationMs: 0, progressPct: 0 };
-    }
-    const tid =
-      profile.audioId.id ||
-      (profile.id ? `audio-id-${profile.id}` : null);
-    const match = !!tid && globalAudioState.currentTrack?.id === tid;
-
-    let metaMs =
-      profile.audioId.durationMillis ??
-      (Number.isFinite(profile.audioId.durationSeconds)
-        ? profile.audioId.durationSeconds * 1000
-        : null);
-    if (!metaMs || metaMs <= 0) {
-      const sec = parseDurationSeconds(
-        profile.audioId.duration ?? profile.audioId.durationSeconds ?? 0
-      );
-      metaMs = sec > 0 ? sec * 1000 : 0;
-    }
-
-    const durationMs =
-      match && Number(audioPlayback.durationMillis) > 0
-        ? audioPlayback.durationMillis
-        : metaMs;
-
-    const positionMs =
-      match && Number.isFinite(audioPlayback.positionMillis)
-        ? Math.max(0, audioPlayback.positionMillis)
-        : 0;
-
-    const progressPct =
-      durationMs > 0
-        ? Math.min(100, Math.max(0, (positionMs / durationMs) * 100))
-        : 0;
-
-    return { positionMs, durationMs, progressPct };
-  }, [
-    profile,
-    globalAudioState.currentTrack?.id,
-    audioPlayback.positionMillis,
-    audioPlayback.durationMillis,
-  ]);
-
-  // Load user profile from database and set up real-time subscription
-  useEffect(() => {
-    const userId = user?.id;
-    if (userId) {
-      const cached = profileCache.getIfFresh(userId);
-      if (cached?.profile) {
-        setProfile(normalizeProfileForUI(cached.profile));
-        setConnectionsCount(cached.connectionsCount ?? 0);
-        setInviteCode(cached.inviteCode ?? null);
-        setReferralStats(
-          cached.referralStats ?? {
-            totalReferrals: 0,
-            totalCreditsEarned: 0,
-          }
-        );
-        setBookingRequests(cached.bookingRequests ?? []);
-        setLoading(false);
-      } else {
-        loadProfile();
-      }
-    } else {
-      loadProfile();
-    }
-
-    // Set up real-time subscription for profile updates
-    if (!user?.id) return;
-
-    let subscription = null;
-    let isMounted = true;
-
-    const setupRealtimeSubscription = async () => {
-      const { supabase } = await import("../lib/supabase");
-
-      subscription = supabase
-        .channel(`profile_${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*", // Listen to all events (INSERT, UPDATE, DELETE)
-            schema: "public",
-            table: "user_profiles",
-            filter: `id=eq.${user.id}`,
-          },
-          (payload) => {
-            console.log("🔄 Profile updated in real-time:", payload);
-            // Reload profile when changes detected (including credits updates)
-            if (isMounted) {
-              loadProfile();
-            }
-          }
-        )
-        .subscribe();
-    };
-
-    setupRealtimeSubscription();
-
-    // Cleanup subscription on unmount or user change
-    return () => {
-      isMounted = false;
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
-  }, [user]);
-
-  const loadProfile = async () => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const { db } = await import("../lib/supabase");
-      const userProfile = await db.getUserProfile(user.id);
-
-      // Load user's gigs
-      let recentGigs = [];
-      try {
-        const gigsData = await db.getUserGigs(user.id);
-        if (gigsData && gigsData.length > 0) {
-          const formatDateWithOrdinal = (dateString) => {
-            if (!dateString) return "TBD";
-            try {
-              const date = new Date(dateString);
-              if (Number.isNaN(date.getTime())) return "TBD";
-              
-              const day = date.getDate();
-              const month = date.toLocaleDateString("en-GB", { month: "long" });
-              const year = date.getFullYear();
-              
-              // Add ordinal suffix
-              const getOrdinalSuffix = (n) => {
-                const s = ["th", "st", "nd", "rd"];
-                const v = n % 100;
-                return s[(v - 20) % 10] || s[v] || s[0];
-              };
-              
-              return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
-            } catch (error) {
-              return "TBD";
-            }
-          };
-          
-          recentGigs = gigsData.slice(0, 5).map((gig) => ({
-            id: gig.id,
-            name: gig.name,
-            venue: gig.venue,
-            date: formatDateWithOrdinal(gig.event_date),
-            price: gig.payment ? `£${gig.payment.toFixed(0)}` : "£0",
-            rating: gig.dj_rating || 0,
-          }));
-        }
-      } catch (gigsError) {
-        console.error("❌ Error loading gigs:", gigsError);
-      }
-
-      // Load user's achievements, credits, connections count, invite code, and referral stats
-      let achievements = [];
-      let achievementsStats = { earnedCount: 0, totalCount: 0 };
-      let creditsValue = Number(userProfile.credits ?? 0);
-      let connections = 0;
-      let userInviteCode = null;
-      let userReferralStats = { totalReferrals: 0, totalCreditsEarned: 0 };
-      let incomingBookings = [];
-      try {
-        const [
-          allAchievements,
-          userAchievements,
-          fetchedCredits,
-          connectionsData,
-          fetchedInviteCode,
-          fetchedReferralStats,
-          fetchedBookingRequests,
-        ] = await Promise.all([
-          db.getAchievements(),
-          db.getUserAchievements(user.id),
-          db.getUserCredits(user.id),
-          db.getUserConnections(user.id, "accepted"), // Only count accepted connections
-          db.getUserInviteCode(user.id),
-          db.getReferralStats(user.id),
-          db.getIncomingBookingRequests(user.id),
-        ]);
-        
-        connections = connectionsData?.length || 0;
-        userInviteCode = fetchedInviteCode;
-        userReferralStats = fetchedReferralStats || {
-          totalReferrals: 0,
-          totalCreditsEarned: 0,
-        };
-        incomingBookings = Array.isArray(fetchedBookingRequests)
-          ? fetchedBookingRequests
-          : [];
-
-        if (allAchievements && allAchievements.length > 0) {
-          const earnedIds = new Set(
-            userAchievements.map((ua) => ua.achievement_id)
-          );
-
-          // Calculate total stats from ALL achievements
-          achievementsStats.totalCount = allAchievements.length;
-          achievementsStats.earnedCount = allAchievements.filter((achievement) =>
-            earnedIds.has(achievement.id)
-          ).length;
-
-          // Show first 4 achievements on profile, but keep all for the list page
-          achievements = allAchievements.slice(0, 4).map((achievement) => ({
-            id: achievement.id,
-            name: achievement.name,
-            icon: achievement.icon || "trophy",
-            earned: earnedIds.has(achievement.id),
-          }));
-        }
-
-        if (Number.isFinite(fetchedCredits)) {
-          creditsValue = fetchedCredits;
-        }
-        setConnectionsCount(connections);
-        setInviteCode(userInviteCode);
-        setReferralStats(userReferralStats);
-        setBookingRequests(incomingBookings);
-      } catch (achievementsError) {
-        console.error("❌ Error loading achievements:", achievementsError);
-      }
-
-      if (userProfile) {
-        // Fetch primary mix if exists
-        let primaryMix = null;
-        if (userProfile.primary_mix_id) {
-          try {
-            console.log("🔍 Loading primary mix with ID:", userProfile.primary_mix_id);
-            const { supabase } = await import("../lib/supabase");
-            const { data: mixData, error: mixError } = await supabase
-                  .from("mixes")
-                  .select("*")
-                  .eq("id", userProfile.primary_mix_id)
-              .single();
-            
-            if (mixError) {
-              console.error("❌ Error fetching primary mix:", mixError);
-              console.error("❌ Error details:", {
-                code: mixError.code,
-                message: mixError.message,
-                hint: mixError.hint,
-                primary_mix_id: userProfile.primary_mix_id,
-              });
-              
-              // If mix doesn't exist (PGRST116), clear the invalid primary_mix_id
-              if (mixError.code === "PGRST116" || mixError.message?.includes("No rows")) {
-                console.warn("⚠️ Primary mix not found, clearing invalid primary_mix_id");
-                try {
-                  const { db } = await import("../lib/supabase");
-                  await db.setPrimaryMix(userProfile.id, null);
-                  console.log("✅ Cleared invalid primary_mix_id");
-                } catch (clearError) {
-                  console.error("❌ Failed to clear invalid primary_mix_id:", clearError);
-                }
-              }
-            } else if (!mixData) {
-              console.warn("⚠️ Primary mix ID exists but no mix data returned");
-            } else {
-              console.log("✅ Successfully loaded primary mix:", mixData.title);
-              const durationSeconds = extractDurationSeconds(mixData);
-              // Generate waveform based on safe duration
-              const waveform = generateGenreWaveform(
-                durationSeconds || 300,
-                mixData.genre || "electronic",
-                16
-              );
-
-              const artistName =
-                userProfile.dj_name ||
-                userProfile.full_name ||
-                `${userProfile.first_name || ""} ${
-                  userProfile.last_name || ""
-                }`.trim() ||
-                (typeof mixData.artist === "string" &&
-                mixData.artist.trim().length > 0
-                  ? mixData.artist.trim()
-                  : null) ||
-                "Unknown Artist";
-
-              primaryMix = {
-                id: mixData.id,
-                user_id: mixData.user_id,
-                title: mixData.title || "Audio ID",
-                artist: artistName,
-                genre: mixData.genre || "Electronic",
-                duration: durationSeconds,
-                durationSeconds,
-                durationMillis: durationSeconds
-                  ? durationSeconds * 1000
-                  : null,
-                audioUrl: mixData.file_url,
-                file_url: mixData.file_url,
-                artwork_url: mixData.artwork_url || null,
-                image:
-                  mixData.artwork_url ||
-                  userProfile.profile_image_url ||
-                  null,
-                description: mixData.description || "",
-                waveform,
-                created_at: mixData.created_at || null,
-                user: {
-                  id: userProfile.id,
-                  dj_name: userProfile.dj_name,
-                  full_name: userProfile.full_name,
-                  first_name: userProfile.first_name,
-                  last_name: userProfile.last_name,
-                  bio: userProfile.bio,
-                  profile_image_url: userProfile.profile_image_url,
-                  username: userProfile.username,
-                  status_message: userProfile.status_message,
-                },
-              };
-            }
-          } catch (mixError) {
-            console.error("❌ Exception loading primary mix:", mixError);
-            console.error("❌ Stack:", mixError.stack);
-          }
-        } else {
-          console.log("ℹ️ No primary_mix_id set in user profile");
-          
-          // Auto-set Audio ID if user has mixes but no primary_mix_id
-          try {
-            const { supabase } = await import("../lib/supabase");
-            // Get all mixes (including private ones) for setting Audio ID
-            const { data: userMixes, error: mixesError } = await supabase
-              .from("mixes")
-              .select("*")
-              .eq("user_id", userProfile.id)
-              .order("created_at", { ascending: false })
-              .limit(1);
-            
-            if (mixesError) {
-              console.error("❌ Error fetching user mixes:", mixesError);
-            } else if (userMixes && userMixes.length > 0) {
-              // Set the most recent mix as Audio ID
-              const mostRecentMix = userMixes[0]; // Already ordered by created_at DESC
-              console.log("🔄 Auto-setting Audio ID to most recent mix:", mostRecentMix.id);
-              
-              try {
-                const { db } = await import("../lib/supabase");
-                await db.setPrimaryMix(userProfile.id, mostRecentMix.id);
-                console.log("✅ Auto-set Audio ID to:", mostRecentMix.title);
-                
-                // Reload the mix data now that we've set it
-                const { data: mixData } = await supabase
-                  .from("mixes")
-                  .select("*")
-                  .eq("id", mostRecentMix.id)
-                  .single();
-                
-                if (mixData) {
-                  const durationSeconds = extractDurationSeconds(mixData);
-                  const waveform = generateGenreWaveform(
-                    durationSeconds || 300,
-                    mixData.genre || "electronic",
-                    16
-                  );
-
-                  const artistName =
-                    userProfile.dj_name ||
-                    userProfile.full_name ||
-                    `${userProfile.first_name || ""} ${
-                      userProfile.last_name || ""
-                    }`.trim() ||
-                    (typeof mixData.artist === "string" &&
-                    mixData.artist.trim().length > 0
-                      ? mixData.artist.trim()
-                      : null) ||
-                    "Unknown Artist";
-
-                  primaryMix = {
-                    id: mixData.id,
-                    user_id: mixData.user_id,
-                    title: mixData.title || "Audio ID",
-                    artist: artistName,
-                    genre: mixData.genre || "Electronic",
-                    duration: durationSeconds,
-                    durationSeconds,
-                    durationMillis: durationSeconds
-                      ? durationSeconds * 1000
-                      : null,
-                    audioUrl: mixData.file_url,
-                    file_url: mixData.file_url,
-                    artwork_url: mixData.artwork_url || null,
-                    image:
-                      mixData.artwork_url ||
-                      userProfile.profile_image_url ||
-                      null,
-                    description: mixData.description || "",
-                    waveform,
-                    created_at: mixData.created_at || null,
-                    user: {
-                      id: userProfile.id,
-                      dj_name: userProfile.dj_name,
-                      full_name: userProfile.full_name,
-                      first_name: userProfile.first_name,
-                      last_name: userProfile.last_name,
-                      bio: userProfile.bio,
-                      profile_image_url: userProfile.profile_image_url,
-                      username: userProfile.username,
-                      status_message: userProfile.status_message,
-                    },
-                  };
-                }
-              } catch (autoSetError) {
-                console.error("❌ Error auto-setting Audio ID:", autoSetError);
-              }
-            }
-          } catch (mixesError) {
-            console.error("❌ Error checking user mixes:", mixesError);
-          }
-        }
-
-        // Build display name with better fallbacks
-        const getDisplayName = () => {
-          if (userProfile.dj_name) return userProfile.dj_name;
-          if (userProfile.full_name) return userProfile.full_name;
-          if (userProfile.username) {
-            return userProfile.username.charAt(0).toUpperCase() + userProfile.username.slice(1);
-          }
-          return "DJ";
-        };
-
-        const profileData = {
-          id: userProfile.id,
-          name: getDisplayName(),
-          username: userProfile.username
-            ? `@${userProfile.username}`
-            : `@${(userProfile.dj_name || userProfile.full_name || "dj")
-                .toLowerCase()
-                .replace(/\s+/g, "")}`,
-          gigsCompleted: userProfile.gigs_completed || 0,
-          credits: Number.isFinite(creditsValue) ? creditsValue : 0,
-          bio: userProfile.bio || "",
-          statusMessage: userProfile.status_message || "",
-          location: userProfile.city || "Location not set",
-          genres: normalizeGenres(userProfile.genres),
-          profileImage: userProfile.profile_image_url
-            ? { uri: userProfile.profile_image_url }
-            : null,
-          socialLinks: {
-            instagram: userProfile.instagram || null,
-            soundcloud: userProfile.soundcloud || null,
-            tiktok: userProfile.tiktok || null,
-            youtube: userProfile.youtube || null,
-            portfolio_url: userProfile.portfolio_url || null,
-          },
-          audioId: primaryMix || null,
-          isVerified: userProfile.is_verified || false,
-          joinDate:
-            userProfile.join_date || userProfile.created_at || "Unknown",
-          recentGigs: recentGigs,
-          achievements: achievements,
-          achievementsStats: achievementsStats,
-          ratingDisplay: (() => {
-            const raw =
-              userProfile.average_rating ??
-              userProfile.rating ??
-              userProfile.dj_rating;
-            if (raw == null || raw === "") return null;
-            const n = Number(raw);
-            return Number.isFinite(n) ? n.toFixed(1) : null;
-          })(),
-        };
-        const normalized = normalizeProfileForUI(profileData);
-        setProfile(normalized);
-        profileCache.set(user.id, {
-          profile: normalized,
-          connectionsCount: connections,
-          inviteCode: userInviteCode,
-          referralStats: userReferralStats,
-          bookingRequests: incomingBookings,
-        });
-        console.log("✅ Profile loaded from database");
-        console.log(
-          `📊 Loaded ${recentGigs.length} gigs and ${achievements.length} achievements`
-        );
-        console.log(
-          `🎵 Audio ID: ${primaryMix ? `Set (${primaryMix.title})` : "Not set"}`
-        );
-      } else {
-        console.log("📝 No profile found, using mock data");
-      }
-    } catch (error) {
-      console.error("❌ Error loading profile:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const audioIdProgress = useMemo(
+    () =>
+      computeAudioIdProgress({
+        profile,
+        currentTrackId: globalAudioState.currentTrack?.id,
+        positionMillis: audioPlayback.positionMillis,
+        durationMillis: audioPlayback.durationMillis,
+      }),
+    [
+      profile,
+      globalAudioState.currentTrack?.id,
+      audioPlayback.positionMillis,
+      audioPlayback.durationMillis,
+    ]
+  );
 
   const handleEditProfile = () => {
     onNavigate && onNavigate("edit-profile");
   };
 
   const handleSocialLinkPress = (platform, link) => {
-    // Check if link exists and is not empty
     if (!link || link.trim() === "") {
       Alert.alert("No Link", `No ${platform} link available`);
       return;
     }
-
-    let url;
-    switch (platform) {
-      case "instagram":
-      case "soundcloud":
-      case "tiktok":
-      case "youtube":
-      case "portfolio_url":
-        // Link is already a full URL, use it directly
-        url = link;
-        break;
-      default:
-        return;
-    }
-
-    Linking.openURL(url).catch(() => {
+    Linking.openURL(link).catch(() => {
       Alert.alert("Error", "Could not open link");
     });
   };
 
-  // Generate referral link
-  const getReferralLink = () => {
-    if (!inviteCode) return null;
-    // Keep the invite-code URL format; server should redirect to app page
-    return `https://rhood.io/invite/${inviteCode}`;
-  };
-
-  // Generate referral share message
-  const getReferralShareMessage = () => {
-    if (!inviteCode) return "";
-    return `🎧 Join R/HOOD - The DJ Community!\n\n🎁 Use my invite code when you sign up: ${inviteCode}\n\nYou'll help me earn credits and I'll help you get started! 🎵\n\n📱 Download R/HOOD app: https://rhood.io/download`;
-  };
-
-  // Copy referral link
   const handleCopyLink = async () => {
-    const link = getReferralLink();
+    const link = getReferralLink(inviteCode);
     if (!link) {
       Alert.alert("Error", "Invite code not available");
       return;
@@ -744,58 +103,38 @@ export default function ProfileScreen({
     }
   };
 
-  // Share via WhatsApp
   const handleShareWhatsApp = async () => {
-    const message = getReferralShareMessage();
+    const message = getReferralShareMessage(inviteCode);
     if (!message) {
       Alert.alert("Error", "Invite code not available");
       return;
     }
-
     try {
-      // Try WhatsApp app URL scheme first
       const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
       const canOpenWhatsApp = await Linking.canOpenURL(whatsappUrl);
-      
       if (canOpenWhatsApp) {
         try {
           await Linking.openURL(whatsappUrl);
-          return; // Success, exit early
+          return;
         } catch (openError) {
           console.log("WhatsApp app URL failed, trying web fallback:", openError);
-          // Continue to web fallback
         }
       }
-
-      // Fallback to web WhatsApp (works in browser)
-        const webUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      const webUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
       try {
-        const canOpenWeb = await Linking.canOpenURL(webUrl);
-        if (canOpenWeb) {
-        await Linking.openURL(webUrl);
-          return; // Success
+        if (await Linking.canOpenURL(webUrl)) {
+          await Linking.openURL(webUrl);
+          return;
         }
       } catch (webError) {
         console.log("Web WhatsApp URL failed:", webError);
       }
-
-      // Final fallback: Use native share sheet
-      // This will show WhatsApp if installed, or other sharing options
-      const shareResult = await Share.share({
-        message: message,
+      await Share.share({
+        message,
         title: "Invite a DJ to R/HOOD",
       });
-
-      if (shareResult.action === Share.sharedAction) {
-        // User successfully shared
-        return;
-      } else if (shareResult.action === Share.dismissedAction) {
-        // User dismissed the share sheet
-        return;
-      }
     } catch (error) {
       console.error("Error sharing via WhatsApp:", error);
-      // If all methods fail, show a helpful error message
       Alert.alert(
         "Share Error",
         "Could not open WhatsApp. Please make sure WhatsApp is installed, or use the 'More' option to share via other apps."
@@ -803,18 +142,15 @@ export default function ProfileScreen({
     }
   };
 
-  // Share via Instagram DM
   const handleShareInstagram = async () => {
-    const message = getReferralShareMessage();
+    const message = getReferralShareMessage(inviteCode);
     if (!message) {
       Alert.alert("Error", "Invite code not available");
       return;
     }
-    // Instagram doesn't support direct message sharing via URL scheme
-    // Use native share sheet instead
     try {
       await Share.share({
-        message: message,
+        message,
         title: "Invite a DJ to R/HOOD",
       });
     } catch (error) {
@@ -823,26 +159,23 @@ export default function ProfileScreen({
     }
   };
 
-  // Share via SMS
   const handleShareSMS = async () => {
-    const message = getReferralShareMessage();
+    const message = getReferralShareMessage(inviteCode);
     if (!message) {
       Alert.alert("Error", "Invite code not available");
       return;
     }
-    const url = `sms:?body=${encodeURIComponent(message)}`;
     try {
-      await Linking.openURL(url);
+      await Linking.openURL(`sms:?body=${encodeURIComponent(message)}`);
     } catch (error) {
       console.error("Error sharing via SMS:", error);
       Alert.alert("Error", "Could not open SMS");
     }
   };
 
-  // Share via native share sheet
   const handleShareNative = async () => {
-    const message = getReferralShareMessage();
-    const link = getReferralLink();
+    const message = getReferralShareMessage(inviteCode);
+    const link = getReferralLink(inviteCode);
     if (!message || !link) {
       Alert.alert("Error", "Invite code not available");
       return;

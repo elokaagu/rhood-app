@@ -13,6 +13,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import App from "./App";
 import { AudioProvider } from "./context/AudioContext";
+import { initCrashReporter } from "./lib/crashReporter";
+
+initCrashReporter();
 
 function Root() {
   return (
