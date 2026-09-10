@@ -1,0 +1,2 @@
+# Called from Postgres via pg_net after a DJ membership is approved.
+verify_jwt = false

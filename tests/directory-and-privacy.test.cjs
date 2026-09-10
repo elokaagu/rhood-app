@@ -62,6 +62,14 @@ describe("isDirectoryReadyDj", () => {
       isDirectoryReadyDj({ dj_name: "DJ Test", profile_image_url: "" }),
       false
     );
+    assert.equal(
+      isDirectoryReadyDj({
+        dj_name: "DJ Test",
+        profile_image_url: "https://example.com/p.jpg",
+        membership_status: "pending",
+      }),
+      false
+    );
   });
 });
 
@@ -154,5 +162,23 @@ describe("invite codes", () => {
   it("normalizes codes the same way Studio and the app share them", () => {
     assert.equal(normalizeInviteCode(" 8f758aca "), "8F758ACA");
     assert.equal(normalizeInviteCode("8F-758-ACA"), "8F758ACA");
+  });
+});
+
+const {
+  normalizeMembershipStatus,
+  isMembershipApproved,
+  isMembershipPending,
+} = loadExportedFunctions("lib/membership.js");
+
+describe("invite-only membership", () => {
+  it("treats a missing status as approved so existing DJs stay in", () => {
+    assert.equal(normalizeMembershipStatus(null), "approved");
+    assert.equal(isMembershipApproved({}), true);
+  });
+
+  it("holds organic applicants until Studio approves", () => {
+    assert.equal(isMembershipPending({ membership_status: "pending" }), true);
+    assert.equal(isMembershipApproved({ membership_status: "pending" }), false);
   });
 });

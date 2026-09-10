@@ -431,9 +431,9 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
 
           {/* Invite Code Input (Optional) */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Invite Code (Optional)</Text>
+            <Text style={styles.label}>Invite Code</Text>
             <Text style={styles.helperText}>
-              Enter a friend's invite code to earn them credits
+              If you have an invite from R/HOOD or another DJ, enter it here to skip the waitlist.
             </Text>
             <TextInput
               style={styles.input}

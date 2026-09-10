@@ -5,6 +5,7 @@ import SplashScreen from "./SplashScreen";
 import LoginScreen from "./LoginScreen";
 import SignupScreen from "./SignupScreen";
 import OnboardingForm from "./OnboardingForm";
+import ApplicationPendingScreen from "./ApplicationPendingScreen";
 
 /**
  * Handles splash, auth loading, login/signup, onboarding, and profile loading.
@@ -29,6 +30,7 @@ export default function AuthGate({
   onSwitchToLogin,
   onOnboardingComplete,
   onSignOut,
+  membershipStatus,
   styles,
 }) {
   if (showSplash) {
@@ -69,6 +71,13 @@ export default function AuthGate({
         onComplete={onOnboardingComplete}
         djProfile={djProfile}
         setDjProfile={setDjProfile}
+        onSignOut={onSignOut}
+      />
+    );
+  } else if (membershipStatus === "pending" || membershipStatus === "rejected") {
+    content = (
+      <ApplicationPendingScreen
+        status={membershipStatus}
         onSignOut={onSignOut}
       />
     );

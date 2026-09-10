@@ -37,7 +37,8 @@ import styles from "./App.styles";
 import EditProfileScreen from "./components/EditProfileScreen";
 import AuthGate from "./components/AuthGate";
 import { db, auth, supabase } from "./lib/supabase";
-import { consumePendingInviteCode } from "./lib/pendingInvite";
+import { consumePendingInviteCode, readPendingInviteCode } from "./lib/pendingInvite";
+import { normalizeMembershipStatus } from "./lib/membership";
 import { getUserFriendlyError } from "./lib/errorMessages";
 import { clearScreenCachesForUser } from "./lib/screenCache";
 import { clearMessageThreadSnapshotsForUser } from "./lib/messageThreadSnapshotCache";
@@ -115,6 +116,10 @@ function isOnboardingProfileComplete(profile) {
   return Array.isArray(profile?.genres) && profile.genres.length > 0;
 }
 
+function membershipStatusFromProfile(profile) {
+  return normalizeMembershipStatus(profile?.membership_status);
+}
+
 function isMissingProfileError(error) {
   return (
     error?.code === "PGRST116" ||
@@ -185,6 +190,7 @@ export default function App() {
 
   const [showSplash, setShowSplash] = useState(true);
   const [isFirstTime, setIsFirstTime] = useState(true);
+  const [membershipStatus, setMembershipStatus] = useState("approved");
   const [isLoading, setIsLoading] = useState(true);
 
   const [currentScreen, setCurrentScreen] = useState("opportunities");
@@ -573,6 +579,35 @@ export default function App() {
     // on every background token refresh, not just actual sign-in/out.
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let channel;
+    let cancelled = false;
+    (async () => {
+      channel = supabase
+        .channel(`membership_${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "user_profiles",
+            filter: `id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (cancelled) return;
+            const next = membershipStatusFromProfile(payload.new);
+            setMembershipStatus(next);
+          }
+        )
+        .subscribe();
+    })();
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
 
   // Refresh notification counts when app becomes active
   useEffect(() => {
@@ -828,8 +863,7 @@ export default function App() {
         }
         setDjProfile(mergeOnboardingProfile(profile));
         setIsFirstTime(false);
-
-        // Set analytics user
+        setMembershipStatus(membershipStatusFromProfile(profile));
         await setAnalyticsUser(user.id, {
           dj_name: profile.dj_name || profile.djName,
           name: profile.dj_name || profile.djName,
@@ -838,6 +872,10 @@ export default function App() {
         await track(AnalyticsEvents.USER_LOGGED_IN, {
           method: "oauth",
         });
+
+        if (membershipStatusFromProfile(profile) !== "approved") {
+          return;
+        }
 
         // For login flow, always go to opportunities page
         if (__DEV__) console.log("🎯 Login successful - navigating to opportunities");
@@ -946,6 +984,8 @@ export default function App() {
       setUser(null);
       setShowAuth(true);
       setAuthMode("login");
+      setIsFirstTime(true);
+      setMembershipStatus("approved");
     } catch (error) {
       if (__DEV__) console.error("Logout error:", error);
       Alert.alert("Error", "Failed to sign out");
@@ -1158,6 +1198,7 @@ export default function App() {
             }
             setDjProfile(mergeOnboardingProfile(profile));
             setIsFirstTime(false); // User has profile, go to home
+            setMembershipStatus(membershipStatusFromProfile(profile));
           } else {
             if (__DEV__) {
               console.log(
@@ -1694,21 +1735,55 @@ export default function App() {
         if (__DEV__) console.warn("⚠️ Failed to ensure invite code:", codeError);
       }
 
+      let nextMembership = "pending";
       try {
+        const pendingCode = await readPendingInviteCode();
         await consumePendingInviteCode((code) =>
           db.processReferral(code, user.id)
         );
+        try {
+          nextMembership = normalizeMembershipStatus(
+            await db.finalizeDjMembership(pendingCode)
+          );
+        } catch (membershipError) {
+          if (__DEV__) {
+            console.warn("Membership finalize failed:", membershipError);
+          }
+          const missing =
+            membershipError?.code === "PGRST202" ||
+            String(membershipError?.message || "").includes(
+              "finalize_dj_membership"
+            );
+          nextMembership = missing ? "approved" : "pending";
+        }
       } catch (referralError) {
         if (__DEV__) {
           console.warn("Pending invite processing failed:", referralError);
         }
+        try {
+          nextMembership = normalizeMembershipStatus(
+            await db.finalizeDjMembership(null)
+          );
+        } catch (_membershipError) {
+          const missing =
+            _membershipError?.code === "PGRST202" ||
+            String(_membershipError?.message || "").includes(
+              "finalize_dj_membership"
+            );
+          nextMembership = missing ? "approved" : "pending";
+        }
       }
+      setMembershipStatus(nextMembership);
 
       await AsyncStorage.setItem("hasOnboarded", "true");
       await AsyncStorage.setItem("djProfile", JSON.stringify(djProfile));
       await AsyncStorage.setItem("userId", user.id);
 
       setIsFirstTime(false);
+      if (nextMembership !== "approved") {
+        return;
+      }
+
       setCurrentScreen("opportunities");
 
       InteractionManager.runAfterInteractions(() => {
@@ -1778,6 +1853,7 @@ export default function App() {
     onSwitchToLogin: showLogin,
     onOnboardingComplete: completeOnboarding,
     onSignOut: handleLogout,
+    membershipStatus,
     styles,
   });
   if (authGateRender !== null) {
