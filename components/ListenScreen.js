@@ -23,6 +23,7 @@ import { SkeletonMix } from "./Skeleton";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
+import { promptReport } from "../lib/moderation";
 
 const ICON_COLOR = "hsl(75, 100%, 60%)";
 const TRENDING_LIMIT = 15;
@@ -368,7 +369,6 @@ function ListenScreen({
 
   const handleMixLongPress = useCallback(
     (mix) => {
-      if (!onAddToQueue && !onPlayNext && !handleSaveToPlaylist) return;
       HapticPatterns.itemLongPress();
       const normalized = normalizeMixForQueue(mix);
       const options = [];
@@ -380,7 +380,15 @@ function ListenScreen({
           onPress: () => handleSaveToPlaylist(normalized),
         });
       }
-      if (options.length === 0) return;
+      options.push({
+        text: "Report",
+        onPress: () =>
+          promptReport({
+            targetType: "mix",
+            targetId: mix?.id,
+            targetUserId: mix?.user_id,
+          }),
+      });
       Alert.alert(
         mix.title || "Mix",
         "What would you like to do?",

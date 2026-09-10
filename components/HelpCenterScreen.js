@@ -400,11 +400,8 @@ const helpSections = [
       {
         id: "delete-account",
         question: "How do I delete my account?",
-        answer: [
-          "To delete your account, please ",
-          LINK,
-          ". We'll help you through the process and answer any questions.",
-        ],
+        answer:
+          "Go to Settings → Account → Delete Account. This permanently deletes your profile and sign-in from R/HOOD. You do not need to email support.",
       },
       {
         id: "privacy",

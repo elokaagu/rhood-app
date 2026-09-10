@@ -61,6 +61,7 @@ import ApprovedPromoterStamp from "./ApprovedPromoterStamp";
 import { profileIsApprovedPromoter } from "../lib/approvedPromoterUtils";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
+import { promptReport } from "../lib/moderation";
 import {
   getMessageThreadSnapshot,
   setMessageThreadSnapshot,
@@ -1672,6 +1673,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
         onPin={handlePinMessage}
         onUnsend={handleUnsendMessage}
         onDeleteForYou={handleDeleteForYou}
+        onReport={(m) => {
+          setShowMessageOptionsModal(false);
+          promptReport({
+            targetType: "message",
+            targetId: m?.id,
+            targetUserId: otherUser?.id || m?.sender_id,
+          });
+        }}
       />
 
       {/* Opportunity Details Modal */}

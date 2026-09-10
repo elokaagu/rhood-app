@@ -30,6 +30,7 @@ import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import { SCREENS } from "../navigation/routes";
+import { deleteOwnAccount } from "../lib/moderation";
 
 export default function SettingsScreen({
   user,
@@ -39,6 +40,8 @@ export default function SettingsScreen({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.SETTINGS);
 
   const [settings, setSettings] = useState({
@@ -157,6 +160,28 @@ export default function SettingsScreen({
     setShowSignOutModal(false);
     onSignOut?.();
   }, [onSignOut]);
+
+  const handleDeleteAccount = useCallback(() => {
+    setShowDeleteAccountModal(true);
+  }, []);
+
+  const confirmDeleteAccount = useCallback(async () => {
+    if (deletingAccount) return;
+    setDeletingAccount(true);
+    try {
+      await deleteOwnAccount();
+      setShowDeleteAccountModal(false);
+      onSignOut?.();
+    } catch (error) {
+      Alert.alert(
+        "Couldn't delete account",
+        error?.message ||
+          "Please try again. If this keeps happening, email hello@rhood.io."
+      );
+    } finally {
+      setDeletingAccount(false);
+    }
+  }, [deletingAccount, onSignOut]);
 
   const handleOpenLink = useCallback((url) => {
     Linking.openURL(url).catch(() => {
@@ -288,6 +313,15 @@ export default function SettingsScreen({
             type: "action",
             action: handleSignOut,
           },
+          {
+            id: "deleteAccount",
+            title: "Delete Account",
+            subtitle: "Permanently delete your profile and data",
+            icon: "trash-outline",
+            type: "action",
+            destructive: true,
+            action: handleDeleteAccount,
+          },
         ],
       },
     ],
@@ -298,6 +332,7 @@ export default function SettingsScreen({
       settings.messageNotifications,
       onNavigate,
       handleSignOut,
+      handleDeleteAccount,
     ]
   );
 
@@ -357,7 +392,14 @@ export default function SettingsScreen({
               />
             </View>
             <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>{item.title}</Text>
+              <Text
+                style={[
+                  styles.settingTitle,
+                  item.destructive && styles.settingTitleDestructive,
+                ]}
+              >
+                {item.title}
+              </Text>
               <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
             </View>
           </View>
@@ -485,6 +527,21 @@ export default function SettingsScreen({
         onPrimaryPress={confirmSignOut}
         onSecondaryPress={() => setShowSignOutModal(false)}
       />
+      <RhoodModal
+        visible={showDeleteAccountModal}
+        onClose={() => {
+          if (!deletingAccount) setShowDeleteAccountModal(false);
+        }}
+        type="warning"
+        title="Delete Account"
+        message="This permanently deletes your R/HOOD profile, messages, and sign-in. This cannot be undone."
+        primaryButtonText={deletingAccount ? "Deleting…" : "Delete Account"}
+        secondaryButtonText="Cancel"
+        onPrimaryPress={confirmDeleteAccount}
+        onSecondaryPress={() => {
+          if (!deletingAccount) setShowDeleteAccountModal(false);
+        }}
+      />
       {tutorialModalProps ? (
         <AppScreenTutorialModal {...tutorialModalProps} />
       ) : null}
@@ -610,6 +667,9 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica Neue",
     fontWeight: "500",
     marginBottom: 2,
+  },
+  settingTitleDestructive: {
+    color: "hsl(0, 100%, 60%)",
   },
   settingSubtitle: {
     fontSize: 14,

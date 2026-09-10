@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { filterDirectoryDjs } from "../lib/accountUtils";
+import { filterDirectoryDjs, excludeUserIds } from "../lib/accountUtils";
+import { listBlockedUserIds } from "../lib/moderation";
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LEN = 2;
@@ -57,14 +58,18 @@ export function useConnectionsScreenSearch() {
 
     try {
       const pattern = `%${safeFragment}%`;
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("id, email, dj_name, full_name, username, city, profile_image_url, bio")
-        .or(
-          `dj_name.ilike.${pattern},full_name.ilike.${pattern},username.ilike.${pattern},city.ilike.${pattern}`
-        )
-        .not("dj_name", "is", null)
-        .limit(8);
+      const [result, blockedIds] = await Promise.all([
+        supabase
+          .from("user_profiles")
+          .select("id, email, dj_name, full_name, username, city, profile_image_url, bio")
+          .or(
+            `dj_name.ilike.${pattern},full_name.ilike.${pattern},username.ilike.${pattern},city.ilike.${pattern}`
+          )
+          .not("dj_name", "is", null)
+          .limit(8),
+        listBlockedUserIds(),
+      ]);
+      const { data, error } = result;
 
       if (requestId !== latestRequestRef.current) return;
 
@@ -76,7 +81,7 @@ export function useConnectionsScreenSearch() {
         return;
       }
 
-      const mapped = filterDirectoryDjs(data).map((u) => ({
+      const mapped = excludeUserIds(filterDirectoryDjs(data), blockedIds).map((u) => ({
         id: u.id,
         name: u.dj_name || u.full_name || u.username || "DJ",
         city: u.city || null,

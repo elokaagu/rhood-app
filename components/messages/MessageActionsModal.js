@@ -13,6 +13,7 @@ export default function MessageActionsModal({
   onPin,
   onUnsend,
   onDeleteForYou,
+  onReport,
 }) {
   return (
     <Modal
@@ -80,7 +81,25 @@ export default function MessageActionsModal({
                       </Text>
                     </TouchableOpacity>
                   </>
-                ) : null}
+                ) : (
+                  <>
+                    <View style={styles.messageOptionDivider} />
+                    <TouchableOpacity
+                      style={[styles.messageOption, styles.messageOptionDestructive]}
+                      onPress={() => onReport?.(message)}
+                    >
+                      <Ionicons name="flag-outline" size={24} color="hsl(0, 100%, 60%)" />
+                      <Text
+                        style={[
+                          styles.messageOptionText,
+                          styles.messageOptionTextDestructive,
+                        ]}
+                      >
+                        Report
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
 
                 <View style={styles.messageOptionDivider} />
                 <TouchableOpacity

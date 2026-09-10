@@ -10,6 +10,8 @@ import {
   Animated,
   Alert,
   ActivityIndicator,
+  Platform,
+  ActionSheetIOS,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -24,6 +26,7 @@ import { fetchPlaylistsForUser } from "../lib/fetchPlaylistsForUser";
 import { SCREENS } from "../navigation/routes";
 import ApprovedPromoterStamp from "./ApprovedPromoterStamp";
 import { profileIsApprovedPromoter } from "../lib/approvedPromoterUtils";
+import { promptBlockUser, promptReport } from "../lib/moderation";
 
 export default function UserProfileView({
   userId,
@@ -564,6 +567,58 @@ export default function UserProfileView({
     setShowShareModal(true);
   };
 
+  const handleMorePress = async () => {
+    const { supabase } = await import("../lib/supabase");
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+    const isSelf =
+      !!currentUser?.id && String(currentUser.id) === String(userId);
+    const displayName = profile?.dj_name || profile?.full_name || "this user";
+
+    const share = () => handleShareProfile();
+    const report = () =>
+      promptReport({
+        targetType: "profile",
+        targetId: userId,
+        targetUserId: userId,
+      });
+    const block = () =>
+      promptBlockUser({
+        userId,
+        name: displayName,
+        onBlocked: onBack,
+      });
+
+    if (isSelf) {
+      share();
+      return;
+    }
+
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Share", "Report", "Block", "Cancel"],
+          destructiveButtonIndex: 2,
+          cancelButtonIndex: 3,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) share();
+          else if (buttonIndex === 1) report();
+          else if (buttonIndex === 2) block();
+        }
+      );
+      return;
+    }
+
+    Alert.alert(displayName, "Choose an action", [
+      { text: "Share", onPress: share },
+      { text: "Report", onPress: report },
+      { text: "Block", style: "destructive", onPress: block },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
   const handleCopyLink = () => {
     const profileUrl = `https://rhood.io/profile/${userId}`;
     // In a real app, you'd copy to clipboard using Clipboard API
@@ -712,9 +767,9 @@ export default function UserProfileView({
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity
           style={styles.moreButton}
-          onPress={handleShareProfile}
-          accessibilityLabel="Share Profile"
-          accessibilityHint="Tap to share this user's profile"
+          onPress={handleMorePress}
+          accessibilityLabel="Profile actions"
+          accessibilityHint="Share, report, or block this profile"
         >
           <Ionicons
             name="ellipsis-horizontal"

@@ -1,0 +1,25 @@
+R/HOOD App Review notes (paste into App Store Connect)
+
+WHAT THE APP IS
+R/HOOD is a DJ community: profiles, gig applications, mixes, connections, and messaging.
+
+SIGN IN
+Email/password, Google, and Sign in with Apple (iOS) are available on both Login and Signup.
+
+ACCOUNT DELETION (Guideline 5.1.1)
+Settings → Account → Delete Account. This permanently deletes the user’s profile and auth account from the app. No email to support is required.
+
+USER CONTENT (Guideline 1.2)
+Users can Report and Block from another DJ’s profile (⋯ menu). Incoming messages can be reported from the message actions sheet. Reports are stored for our team to review.
+
+CREDITS / BOOSTS (Guideline 3.1.1)
+In-app credits are earned through activity (referrals, achievements, completed gigs). They cannot be purchased with real money. Boosting an application spends earned credits only. There is no Stripe, PayPal, or In-App Purchase for digital goods.
+
+TRACKING
+On iOS we show App Tracking Transparency before Mixpanel/Firebase analytics. If the user denies tracking, we disable IDFA/automatic events and session replay.
+
+LOCATION
+We only use When In Use location to match DJs and opportunities in the same city. We do not use Always/background location.
+
+SUPPORT
+hello@rhood.io

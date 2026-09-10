@@ -17,6 +17,9 @@ import { auth, db } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 import { getSignupErrorMessage } from "../lib/errorMessages";
 import { track, AnalyticsEvents } from "../lib/analytics";
+import AuthLegalLinks from "./AuthLegalLinks";
+import PrivacyPolicyScreen from "./PrivacyPolicyScreen";
+import TermsOfServiceScreen from "./TermsOfServiceScreen";
 
 export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [formData, setFormData] = useState({
@@ -33,6 +36,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [errorModal, setErrorModal] = useState({ visible: false, title: "", message: "" });
   const [pendingEmail, setPendingEmail] = useState(null); // set when email confirmation is required
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [legalScreen, setLegalScreen] = useState(null);
 
   const updateFormData = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -232,6 +236,13 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       setLoading(false);
     }
   };
+
+  if (legalScreen === "privacy") {
+    return <PrivacyPolicyScreen onBack={() => setLegalScreen(null)} />;
+  }
+  if (legalScreen === "terms") {
+    return <TermsOfServiceScreen onBack={() => setLegalScreen(null)} />;
+  }
 
   // Email confirmation pending screen
   if (pendingEmail) {
@@ -461,8 +472,8 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
               <Text style={styles.socialButtonText}>Continue with Google</Text>
             </TouchableOpacity>
 
-            {/* Apple Sign-In - Temporarily Hidden */}
-            {false && Platform.OS === "ios" && (
+            {/* Apple Sign-In */}
+            {Platform.OS === "ios" && (
               <TouchableOpacity
                 style={[
                   styles.socialButton,
@@ -486,6 +497,11 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
               <Text style={styles.switchLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
+
+          <AuthLegalLinks
+            onPrivacy={() => setLegalScreen("privacy")}
+            onTerms={() => setLegalScreen("terms")}
+          />
         </View>
       </ScrollView>
 

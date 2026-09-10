@@ -32,6 +32,7 @@ import {
   requestNotificationPermissions,
 } from "./lib/notificationSetup";
 import RhoodModal from "./components/RhoodModal";
+import ErrorBoundary from "./components/ErrorBoundary";
 import EditProfileScreen from "./components/EditProfileScreen";
 import AuthGate from "./components/AuthGate";
 import { db, auth, supabase } from "./lib/supabase";
@@ -73,6 +74,7 @@ import {
   endAnalyticsSession,
   AnalyticsEvents,
 } from "./lib/analytics";
+import { requestAppTrackingIfNeeded } from "./lib/trackingPermission";
 import GlobalAudioPlayerUI from "./components/GlobalAudioPlayerUI";
 import { AppTutorialProvider, tutorialContextRef } from "./context/AppTutorialContext";
 import { APP_TUTORIAL_SCREEN_IDS } from "./lib/appTutorialContent";
@@ -266,9 +268,10 @@ export default function App() {
 
     initializeNotifications();
 
-    // Initialize analytics
+    // ATT first, then analytics (no IDFA / replay if the user declines).
     (async () => {
-      await initAnalytics();
+      const trackingAllowed = await requestAppTrackingIfNeeded();
+      await initAnalytics({ trackingAllowed });
       await Promise.all([
         track(AnalyticsEvents.APP_OPEN),
         startAnalyticsSession({ source: "app_open" }),
@@ -1758,6 +1761,7 @@ export default function App() {
   if (authGateRender !== null) {
     return (
       <SafeAreaProvider>
+        <ErrorBoundary>
         {authGateRender}
         <RhoodModal
           visible={showModal}
@@ -1772,6 +1776,7 @@ export default function App() {
           onSecondaryPress={modalConfig.onSecondaryPress}
           showCloseButton={modalConfig.showCloseButton}
         />
+        </ErrorBoundary>
       </SafeAreaProvider>
     );
   }
@@ -1824,6 +1829,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+    <ErrorBoundary>
     <AppTutorialProvider activeScreenId={currentScreen}>
     <View style={styles.appRoot}>
     <AppShell
@@ -2227,6 +2233,7 @@ export default function App() {
     ) : null}
     </View>
     </AppTutorialProvider>
+    </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

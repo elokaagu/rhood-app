@@ -21,7 +21,7 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.0</string>
+	<string>1.2.0</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleURLTypes</key>
@@ -52,26 +52,22 @@
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<true/>
+		<false/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to camera to take photos for messages</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>This app needs access to your location to show nearby opportunities and calculate distances.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your location</string>
+	<string>R/HOOD uses the camera so you can take a profile photo, add photos to messages, and attach images to gig applications.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs access to your location to show nearby opportunities and calculate distances.</string>
+	<string>R/HOOD uses your location while the app is open to match you with DJs and opportunities in the same city.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs access to microphone to record audio for messages</string>
+	<string>R/HOOD uses the microphone if you record audio for messages or mixes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to photo library to select images and videos for messages</string>
+	<string>R/HOOD accesses your photos so you can set a profile picture, share images in messages, and attach photos to playlists and applications.</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>This app needs notification permissions to show music controls on the lock screen</string>
+	<string>R/HOOD sends notifications for messages, gig applications, connections, and lock-screen playback controls.</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>We use your data to improve your experience and show you relevant opportunities.</string>
+	<string>We use analytics to understand how R/HOOD is used and improve the app. You can decline tracking.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIBackgroundModes</key>

@@ -15,6 +15,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { auth, supabase } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
+import AuthLegalLinks from "./AuthLegalLinks";
+import PrivacyPolicyScreen from "./PrivacyPolicyScreen";
+import TermsOfServiceScreen from "./TermsOfServiceScreen";
 import { getLoginErrorMessage } from "../lib/errorMessages";
 import {
   COLORS,
@@ -40,6 +43,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     visible: false,
     message: "",
   });
+  const [legalScreen, setLegalScreen] = useState(null);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -232,6 +236,13 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     }
   };
 
+  if (legalScreen === "privacy") {
+    return <PrivacyPolicyScreen onBack={() => setLegalScreen(null)} />;
+  }
+  if (legalScreen === "terms") {
+    return <TermsOfServiceScreen onBack={() => setLegalScreen(null)} />;
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -366,6 +377,11 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
               <Text style={styles.switchLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
+
+          <AuthLegalLinks
+            onPrivacy={() => setLegalScreen("privacy")}
+            onTerms={() => setLegalScreen("terms")}
+          />
         </View>
       </ScrollView>
 
