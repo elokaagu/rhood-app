@@ -367,6 +367,7 @@ export default function ScreenRouter({
           onPauseAudio={pauseGlobalAudio}
           onResumeAudio={resumeGlobalAudio}
           onNavigate={navigate}
+          openBookingRequestId={screenParams.openBookingRequestId || null}
         />
       );
 

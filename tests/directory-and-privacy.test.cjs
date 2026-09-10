@@ -72,6 +72,14 @@ describe("isDirectoryReadyDj", () => {
       }),
       false
     );
+    assert.equal(
+      isDirectoryReadyDj({
+        dj_name: "DJ Test",
+        profile_image_url: "https://example.com/p.jpg",
+        membership_status: "rejected",
+      }),
+      false
+    );
   });
 });
 
@@ -179,6 +187,7 @@ const {
   isMembershipPending,
   membershipFromRedeemResult,
   isMissingRpcError,
+  isMissingColumnError,
 } = loadExportedFunctions("lib/membership.js");
 
 describe("invite-only membership", () => {
@@ -207,5 +216,25 @@ describe("invite-only membership", () => {
       isMissingRpcError({ code: "42501", message: "permission denied" }, "redeem_dj_invite_code"),
       false
     );
+  });
+
+  it("treats a missing column as fail-open, not a waitlist lock", () => {
+    assert.equal(isMissingColumnError({ code: "42703", message: "column does not exist" }), true);
+  });
+});
+
+const { parseBookingRequestDeepLink } = loadExportedFunctions("lib/appDeepLinks.js");
+
+describe("booking request deep links", () => {
+  it("parses rhood://bookings/{id} and rhoodapp://bookings/{id}", () => {
+    assert.equal(
+      parseBookingRequestDeepLink("rhood://bookings/abc-123"),
+      "abc-123"
+    );
+    assert.equal(
+      parseBookingRequestDeepLink("rhoodapp://bookings/abc-123?x=1"),
+      "abc-123"
+    );
+    assert.equal(parseBookingRequestDeepLink("rhoodapp://reset-password"), null);
   });
 });

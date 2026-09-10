@@ -32,6 +32,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>rhoodapp</string>
+				<string>rhood</string>
 			</array>
 		</dict>
 		<dict>

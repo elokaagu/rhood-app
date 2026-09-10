@@ -41,7 +41,8 @@
           {
             "CFBundleURLName": "rhoodapp",
             "CFBundleURLSchemes": [
-              "rhoodapp"
+              "rhoodapp",
+              "rhood"
             ]
           }
         ],

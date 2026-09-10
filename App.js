@@ -43,6 +43,7 @@ import {
   readPendingInviteCode,
 } from "./lib/pendingInvite";
 import { normalizeMembershipStatus } from "./lib/membership";
+import { parseBookingRequestDeepLink } from "./lib/appDeepLinks";
 import { getUserFriendlyError } from "./lib/errorMessages";
 import { clearScreenCachesForUser } from "./lib/screenCache";
 import { clearMessageThreadSnapshotsForUser } from "./lib/messageThreadSnapshotCache";
@@ -475,6 +476,16 @@ export default function App() {
       if (__DEV__) console.log("🔗 Deep link received:", url);
       
       try {
+        const bookingRequestId = parseBookingRequestDeepLink(url);
+        if (bookingRequestId) {
+          setCurrentScreen(SCREENS.PROFILE);
+          setScreenParams((prev) => ({
+            ...prev,
+            openBookingRequestId: bookingRequestId,
+          }));
+          return;
+        }
+
         // Handle both rhoodapp://reset-password and rhoodapp://reset-password#... formats
         if (url.includes("reset-password")) {
           // Supabase includes tokens in the URL hash/fragment
@@ -633,6 +644,13 @@ export default function App() {
 
       if (nextAppState === "active" && user) {
         loadNotificationCounts();
+        db.getUserProfile(user.id)
+          .then((profile) => {
+            if (profile) {
+              setMembershipStatus(membershipStatusFromProfile(profile));
+            }
+          })
+          .catch(() => {});
       }
     };
 
@@ -1304,6 +1322,19 @@ export default function App() {
       ) {
         handleMenuNavigation(SCREENS.OPPORTUNITIES, {
           applicationId: data?.application_id ?? undefined,
+        });
+        return;
+      }
+
+      const bookingRequestId =
+        data?.booking_request_id ||
+        data?.bookingRequestId ||
+        (normalizedType.includes("booking")
+          ? data?.application_id || data?.id
+          : null);
+      if (bookingRequestId) {
+        handleMenuNavigation(SCREENS.PROFILE, {
+          openBookingRequestId: String(bookingRequestId),
         });
         return;
       }

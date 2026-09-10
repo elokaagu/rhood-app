@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import { useAudioPlayback } from "../context/AudioContext";
 import {
   View,
@@ -37,6 +37,7 @@ export default function ProfileScreen({
   onPlayAudio,
   onPauseAudio,
   onResumeAudio,
+  openBookingRequestId = null,
 }) {
   const {
     profile,
@@ -76,6 +77,10 @@ export default function ProfileScreen({
   const handleEditProfile = () => {
     onNavigate && onNavigate("edit-profile");
   };
+
+  const handleBookingDeepLinkConsumed = useCallback(() => {
+    onNavigate?.("profile", { openBookingRequestId: null });
+  }, [onNavigate]);
 
   const handleSocialLinkPress = (platform, link) => {
     if (!link || link.trim() === "") {
@@ -889,6 +894,8 @@ export default function ProfileScreen({
 
         <ProfileBookingRequests
           requests={bookingRequests}
+          initialRequestId={openBookingRequestId}
+          onInitialRequestHandled={handleBookingDeepLinkConsumed}
           onSeeAll={() => onNavigate?.("admin-applications")}
         />
 

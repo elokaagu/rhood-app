@@ -58,18 +58,27 @@ export function useConnectionsScreenSearch() {
 
     try {
       const pattern = `%${safeFragment}%`;
-      const [result, blockedIds] = await Promise.all([
+      const columnsWithMembership =
+        "id, email, dj_name, full_name, username, city, profile_image_url, bio, membership_status";
+      const columnsBase =
+        "id, email, dj_name, full_name, username, city, profile_image_url, bio";
+      const runSearch = (columns) =>
         supabase
           .from("user_profiles")
-          .select("id, email, dj_name, full_name, username, city, profile_image_url, bio")
+          .select(columns)
           .or(
             `dj_name.ilike.${pattern},full_name.ilike.${pattern},username.ilike.${pattern},city.ilike.${pattern}`
           )
           .not("dj_name", "is", null)
-          .limit(8),
+          .limit(8);
+      const [result, blockedIds] = await Promise.all([
+        runSearch(columnsWithMembership),
         listBlockedUserIds(),
       ]);
-      const { data, error } = result;
+      let { data, error } = result;
+      if (error && (error.code === "42703" || String(error.message || "").includes("does not exist"))) {
+        ({ data, error } = await runSearch(columnsBase));
+      }
 
       if (requestId !== latestRequestRef.current) return;
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -38,9 +38,23 @@ function statusColor(status) {
 export default function ProfileBookingRequests({
   requests = [],
   onSeeAll,
+  initialRequestId = null,
+  onInitialRequestHandled,
 }) {
   const [selected, setSelected] = useState(null);
   const list = Array.isArray(requests) ? requests.slice(0, 5) : [];
+
+  useEffect(() => {
+    if (!initialRequestId || !Array.isArray(requests) || requests.length === 0) {
+      return;
+    }
+    const match = requests.find(
+      (item) => String(item?.id) === String(initialRequestId)
+    );
+    if (!match) return;
+    setSelected(match);
+    onInitialRequestHandled?.();
+  }, [initialRequestId, requests, onInitialRequestHandled]);
 
   const openRequest = (item) => {
     HapticPatterns.itemPress();
