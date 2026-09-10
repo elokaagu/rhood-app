@@ -35,7 +35,6 @@ export default function ApplicationPendingScreen({ status = "pending", onSignOut
         >
           <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
-      </View>
     </View>
   );
 }
