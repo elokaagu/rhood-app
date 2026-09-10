@@ -36,6 +36,9 @@ export default function ConnectionsLocationModal({
   updatingLocation,
   onUpdateLocation,
   onUseCurrentLocation,
+  title = "Update Location",
+  description = "This city is used for DJs and opportunities near you.",
+  saveLabel = "Update",
 }) {
   const placesKey = getGooglePlacesApiKey();
   const sessionTokenRef = useRef(randomSessionToken());
@@ -207,7 +210,7 @@ export default function ConnectionsLocationModal({
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Update Location</Text>
+              <Text style={styles.modalTitle}>{title}</Text>
               <TouchableOpacity
                 onPress={handleClose}
                 disabled={updatingLocation}
@@ -226,7 +229,7 @@ export default function ConnectionsLocationModal({
             </View>
             <View style={styles.locationModalBody}>
               <Text style={styles.locationModalDescription}>
-                Update your location to see opportunities and DJs near you
+                {description}
               </Text>
               <View style={styles.locationInputContainer}>
                 <View style={localStyles.inputWrap}>
@@ -238,8 +241,8 @@ export default function ConnectionsLocationModal({
                     ]}
                     placeholder={
                       placesKey
-                        ? "Search for area, city, or country…"
-                        : "Enter place, city, or country"
+                        ? "Search for your city…"
+                        : "Enter your city"
                     }
                     placeholderTextColor="hsl(0, 0%, 50%)"
                     value={newLocationCity}
@@ -367,7 +370,7 @@ export default function ConnectionsLocationModal({
                   {updatingLocation ? (
                     <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
                   ) : (
-                    <Text style={styles.locationModalSaveText}>Update</Text>
+                    <Text style={styles.locationModalSaveText}>{saveLabel}</Text>
                   )}
                 </TouchableOpacity>
               </View>

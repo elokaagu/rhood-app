@@ -9,11 +9,12 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 /**
- * Bottom input: either “connect to message” (1:1 not connected) or composer row.
+ * Bottom input: either “connect to message” (1:1 not allowed to compose) or composer row.
  */
 export default function MessagesInputFooter({
   chatType,
   isConnected,
+  canCompose = isConnected,
   connectionStatus,
   messagesLoading = false,
   bottomInputPadding,
@@ -57,7 +58,7 @@ export default function MessagesInputFooter({
     );
   }
 
-  const showConnectionGate = chatType === "individual" && !isConnected;
+  const showConnectionGate = chatType === "individual" && !canCompose;
 
   if (showConnectionGate) {
     return (

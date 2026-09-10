@@ -282,20 +282,19 @@ export default function useOpportunities({
       const ctx = await loadPostApplySuccessContext(user.id, applicationId);
       if (!isMountedRef.current) return;
 
-      const boostMessage = ctx.canBoost
-        ? `\n\n💡 Boost your application to the top for 24 hours (10 credits)`
-        : applicationId
-        ? `\n\n💡 Boost your application to the top for 24 hours (requires 10 credits)`
+      const canOfferBoost = Boolean(applicationId);
+      const boostMessage = canOfferBoost
+        ? `\n\n💡 Boost your application to the top for 24 hours (10 credits). You have ${ctx.userCredits} credits.`
         : "";
 
       showCustomModal({
         type: "success",
         title: "Application Sent!",
         message: `Your application for ${opportunity.title} has been sent successfully. You have ${ctx.updatedRemaining} applications remaining today.${boostMessage}`,
-        primaryButtonText: ctx.canBoost ? "Boost" : "OK",
-        secondaryButtonText: ctx.canBoost ? "Skip" : undefined,
+        primaryButtonText: canOfferBoost ? "Boost" : "OK",
+        secondaryButtonText: canOfferBoost ? "Not now" : undefined,
         onPrimaryPress:
-          ctx.canBoost && applicationId
+          canOfferBoost
             ? async () => {
                 try {
                   hideCustomModal();

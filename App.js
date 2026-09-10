@@ -35,6 +35,7 @@ import RhoodModal from "./components/RhoodModal";
 import EditProfileScreen from "./components/EditProfileScreen";
 import AuthGate from "./components/AuthGate";
 import { db, auth, supabase } from "./lib/supabase";
+import { getUserFriendlyError } from "./lib/errorMessages";
 import { clearScreenCachesForUser } from "./lib/screenCache";
 import { clearMessageThreadSnapshotsForUser } from "./lib/messageThreadSnapshotCache";
 import {
@@ -106,6 +107,30 @@ const MENU_TIMINGS = {
  */
 function isOnboardingProfileComplete(profile) {
   return Array.isArray(profile?.genres) && profile.genres.length > 0;
+}
+
+function isMissingProfileError(error) {
+  return (
+    error?.code === "PGRST116" ||
+    error?.message?.includes("No rows returned") ||
+    error?.message?.includes("JSON object requested, multiple (or no) rows returned")
+  );
+}
+
+function mergeOnboardingProfile(profile) {
+  return {
+    djName: "",
+    firstName: "",
+    lastName: "",
+    instagram: "",
+    soundcloud: "",
+    tiktok: "",
+    youtube: "",
+    city: "",
+    genres: [],
+    ...profile,
+    genres: Array.isArray(profile?.genres) ? profile.genres : [],
+  };
 }
 
 // Notification Badge Component (defined outside App to maintain stable identity)
@@ -786,7 +811,7 @@ export default function App() {
             hasRequiredFields: !!(profile.dj_name || profile.djName),
           });
         }
-        setDjProfile(profile);
+        setDjProfile(mergeOnboardingProfile(profile));
         setIsFirstTime(false);
 
         // Set analytics user
@@ -826,7 +851,7 @@ export default function App() {
         // Prefer whatever the incomplete row already has (e.g. dj_name
         // saved partway through a prior attempt) over re-seeding from
         // OAuth metadata alone.
-        if (profile) setDjProfile(profile);
+        if (profile) setDjProfile(mergeOnboardingProfile(profile));
         else _seedDjProfileFromMeta(user);
       }
     } catch (error) {
@@ -1116,7 +1141,7 @@ export default function App() {
                 hasRequiredFields: !!(profile.dj_name || profile.djName),
               });
             }
-            setDjProfile(profile);
+            setDjProfile(mergeOnboardingProfile(profile));
             setIsFirstTime(false); // User has profile, go to home
           } else {
             if (__DEV__) {
@@ -1128,7 +1153,7 @@ export default function App() {
             }
             // Seed whatever the skeleton row already has (e.g. dj_name from
             // OAuth) so a resumed OnboardingForm isn't blank.
-            if (profile) setDjProfile(profile);
+            if (profile) setDjProfile(mergeOnboardingProfile(profile));
             setIsFirstTime(true); // User signed in but onboarding incomplete
           }
         } catch (error) {
@@ -1575,19 +1600,16 @@ export default function App() {
     if (__DEV__) console.log("🎉 completeOnboarding called");
     if (__DEV__) console.log("👤 djProfile:", djProfile);
 
-    // Check both property name formats for compatibility
     const firstName = djProfile.first_name || djProfile.firstName || "";
     const lastName = djProfile.last_name || djProfile.lastName || "";
-    // Auto-generate a DJ name if not explicitly set: prefer real name, fall back to email prefix
     const djName =
       djProfile.dj_name?.trim() ||
       djProfile.djName?.trim() ||
       [firstName, lastName].filter(Boolean).join(" ") ||
       (user?.email?.split("@")[0] ?? "DJ");
+    const genres = Array.isArray(djProfile.genres) ? djProfile.genres : [];
 
-    // Only genres are collected during onboarding now — everything else can be
-    // filled in from the Edit Profile screen.
-    if (djProfile.genres.length === 0) {
+    if (genres.length === 0) {
       showCustomModal({
         type: "error",
         title: "Pick your genres",
@@ -1598,126 +1620,78 @@ export default function App() {
       return;
     }
 
+    const profilePayload = {
+      dj_name: djName,
+      first_name: firstName,
+      last_name: lastName,
+      instagram: djProfile.instagram || null,
+      soundcloud: djProfile.soundcloud || null,
+      tiktok: djProfile.tiktok || null,
+      youtube: djProfile.youtube || null,
+      city: djProfile.city?.trim() || null,
+      genres,
+      bio: djProfile.city?.trim()
+        ? `DJ from ${djProfile.city} specializing in ${genres.join(", ")}`
+        : `DJ specializing in ${genres.join(", ")}`,
+      profile_image_url: djProfile.profile_image_url || null,
+    };
+
     try {
-      if (__DEV__) console.log("💾 Saving profile to database...");
-      if (__DEV__) console.log("🔑 User ID:", user.id);
-      if (__DEV__) console.log("📧 User email:", user.email);
+      if (!user?.id) {
+        throw new Error("You need to be signed in to finish setup.");
+      }
 
-      // Check if profile already exists
-      let savedProfile;
+      let existingById = null;
       try {
-        if (__DEV__) console.log("🔍 Checking if profile exists...");
-        savedProfile = await db.getUserProfile(user.id);
-        if (__DEV__) console.log("✅ Profile exists, updating...");
-        if (__DEV__) console.log("📝 Existing profile:", savedProfile);
-
-        // If profile exists, update it instead of creating new one
-        const updateData = {
-          dj_name: djName,
-          first_name: firstName,
-          last_name: lastName,
-          instagram: djProfile.instagram || null,
-          soundcloud: djProfile.soundcloud || null,
-          tiktok: djProfile.tiktok || null,
-          youtube: djProfile.youtube || null,
-          city: djProfile.city?.trim() || null,
-          genres: djProfile.genres,
-          bio: djProfile.city?.trim()
-            ? `DJ from ${djProfile.city} specializing in ${djProfile.genres.join(", ")}`
-            : `DJ specializing in ${djProfile.genres.join(", ")}`,
-          profile_image_url: djProfile.profile_image_url || null,
-        };
-        if (__DEV__) console.log("📤 Updating with data:", updateData);
-
-        savedProfile = await db.updateUserProfile(user.id, updateData);
-        if (__DEV__) console.log("✅ Update complete:", savedProfile);
-
-        // Ensure existing profile has invite code
-        try {
-          await db.getUserInviteCode(user.id);
-        } catch (codeError) {
-          if (__DEV__) console.warn("⚠️ Failed to ensure invite code:", codeError);
-        }
-      } catch (error) {
-        if (__DEV__) {
-          console.log(
-            "🆕 Profile doesn't exist (or error checking):",
-            error.message
-          );
-        }
-        if (__DEV__) console.log("🆕 Creating new profile...");
-
-        // Profile doesn't exist, create new one
-        const profileData = {
-          id: user.id, // Use authenticated user's ID
-          dj_name: djName,
-          first_name: firstName,
-          last_name: lastName,
-          instagram: djProfile.instagram || null,
-          soundcloud: djProfile.soundcloud || null,
-          tiktok: djProfile.tiktok || null,
-          youtube: djProfile.youtube || null,
-          city: djProfile.city?.trim() || null,
-          genres: djProfile.genres,
-          bio: djProfile.city?.trim()
-            ? `DJ from ${djProfile.city} specializing in ${djProfile.genres.join(", ")}`
-            : `DJ specializing in ${djProfile.genres.join(", ")}`,
-          email: user.email,
-          profile_image_url: djProfile.profile_image_url || null,
-        };
-
-        if (__DEV__) console.log("📤 Creating profile with data:", profileData);
-
-        try {
-          savedProfile = await db.createUserProfile(profileData);
-          if (__DEV__) console.log("✅ Profile created successfully:", savedProfile);
-
-          // Ensure invite code is generated
-          try {
-            await db.getUserInviteCode(user.id);
-          } catch (codeError) {
-            if (__DEV__) console.warn("⚠️ Failed to ensure invite code:", codeError);
-          }
-        } catch (createError) {
-          if (__DEV__) console.error("❌ Error creating profile:", createError);
-          if (__DEV__) {
-            console.error(
-              "❌ Error details:",
-              JSON.stringify(createError, null, 2)
-            );
-          }
-          throw createError; // Re-throw to be caught by outer try-catch
+        existingById = await db.getUserProfile(user.id);
+      } catch (lookupError) {
+        if (!isMissingProfileError(lookupError)) {
+          throw lookupError;
         }
       }
 
-      if (__DEV__) console.log("✅ Profile saved successfully:", savedProfile);
+      let savedProfile;
+      if (existingById) {
+        savedProfile = await db.updateUserProfile(user.id, profilePayload);
+        if (!savedProfile) {
+          throw new Error("Couldn't save your profile. Please try again.");
+        }
+      } else {
+        try {
+          savedProfile = await db.createUserProfile({
+            ...profilePayload,
+            id: user.id,
+            email: user.email,
+          });
+        } catch (createError) {
+          const claimed = await db.claimImportedProfile().catch(() => null);
+          if (claimed?.id === user.id) {
+            savedProfile = await db.updateUserProfile(user.id, profilePayload);
+          } else {
+            throw createError;
+          }
+        }
+      }
 
-      // Also save to AsyncStorage for offline access
+      try {
+        await db.getUserInviteCode(user.id);
+      } catch (codeError) {
+        if (__DEV__) console.warn("⚠️ Failed to ensure invite code:", codeError);
+      }
+
       await AsyncStorage.setItem("hasOnboarded", "true");
       await AsyncStorage.setItem("djProfile", JSON.stringify(djProfile));
       await AsyncStorage.setItem("userId", user.id);
 
-      if (__DEV__) console.log("🎉 Onboarding completed, setting isFirstTime=false");
       setIsFirstTime(false);
-
-      // Navigate first — let the screen mount and transition complete before
-      // touching tutorial state. Enabling tutorial mid-mount caused cascading
-      // re-renders across every subscribed screen simultaneously (freeze).
       setCurrentScreen("opportunities");
 
-      // Activate tutorial mode after the transition is done: one batched state
-      // update (enabled + dismissed reset together) instead of two sequential ones.
       InteractionManager.runAfterInteractions(() => {
         const ctx = tutorialContextRef.current;
         if (!ctx) return;
-        if (__DEV__) console.log("📖 Tutorial mode enabled for new user");
         ctx.enableFresh?.()?.catch?.(() => {});
       });
 
-      // Check if profile picture is missing and show complete profile modal.
-      // Waits for the transition to settle, then backs off further if the
-      // Opportunities tutorial tip is still showing (see
-      // scheduleCompleteProfileModal).
       if (!savedProfile?.profile_image_url) {
         setTimeout(() => scheduleCompleteProfileModal(), 1500);
       } else {
@@ -1734,9 +1708,11 @@ export default function App() {
       if (__DEV__) console.error("❌ Error saving profile:", error);
       showCustomModal({
         type: "error",
-        title: "Error",
-        message:
-          "Failed to save profile. Please check your internet connection and try again.",
+        title: "Couldn't finish setup",
+        message: getUserFriendlyError(
+          error,
+          "Failed to save profile. Please check your internet connection and try again."
+        ),
         primaryButtonText: "OK",
         onPrimaryPress: () => setShowModal(false),
       });
@@ -1780,7 +1756,24 @@ export default function App() {
     styles,
   });
   if (authGateRender !== null) {
-    return <SafeAreaProvider>{authGateRender}</SafeAreaProvider>;
+    return (
+      <SafeAreaProvider>
+        {authGateRender}
+        <RhoodModal
+          visible={showModal}
+          onClose={() => setShowModal(false)}
+          type={modalConfig.type}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          eventDetails={modalConfig.eventDetails}
+          primaryButtonText={modalConfig.primaryButtonText}
+          secondaryButtonText={modalConfig.secondaryButtonText}
+          onPrimaryPress={modalConfig.onPrimaryPress}
+          onSecondaryPress={modalConfig.onSecondaryPress}
+          showCloseButton={modalConfig.showCloseButton}
+        />
+      </SafeAreaProvider>
+    );
   }
 
   const renderScreen = () => (

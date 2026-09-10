@@ -277,6 +277,23 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
           </View>
         ) : null}
 
+        {application.applicant_user_id ? (
+          <TouchableOpacity
+            style={styles.messageDjButton}
+            onPress={() => {
+              HapticPatterns.buttonPress();
+              onNavigate?.("messages", {
+                djId: application.applicant_user_id,
+                chatType: "individual",
+                messagesBackScreen: "admin-applications",
+              });
+            }}
+          >
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color="hsl(0, 0%, 0%)" />
+            <Text style={styles.messageDjButtonText}>Message DJ</Text>
+          </TouchableOpacity>
+        ) : null}
+
         {application.application_status === "pending" ? (
           <View style={styles.actionButtons}>
             <TouchableOpacity
@@ -544,6 +561,21 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: "row",
     gap: SPACING.sm + 4,
+  },
+  messageDjButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.sm + 4,
+    borderRadius: 8,
+    marginBottom: SPACING.sm + 4,
+  },
+  messageDjButtonText: {
+    fontSize: TYPOGRAPHY.base,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: "hsl(0, 0%, 0%)",
   },
   actionButton: {
     flex: 1,

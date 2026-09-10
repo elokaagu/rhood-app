@@ -106,6 +106,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [communityData, setCommunityData] = useState(null);
   const [memberCount, setMemberCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
+  const [canCompose, setCanCompose] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
   const [threadId, setThreadId] = useState(null);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
@@ -127,6 +128,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
   // Refs
   const scrollViewRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const stickToBottomRef = useRef(true);
 
   const conversationKey = useMemo(
     () => `${djId ?? ""}|${communityId ?? ""}|${chatType}`,
@@ -165,6 +167,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       setCommunityData(snap.communityData ?? null);
       setMemberCount(snap.memberCount ?? 0);
       setIsConnected(!!snap.isConnected);
+      setCanCompose(snap.canCompose ?? !!snap.isConnected);
       setConnectionStatus(snap.connectionStatus ?? null);
       setLoading(false);
       requestAnimationFrame(() => {
@@ -177,6 +180,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       setCommunityData(null);
       setMemberCount(0);
       setIsConnected(false);
+      setCanCompose(false);
       setConnectionStatus(null);
       setLoading(true);
     }
@@ -647,6 +651,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
           setOtherUser(p.otherUser);
         }
         setIsConnected(p.isConnected);
+        setCanCompose(!!p.canCompose);
         setConnectionStatus(p.connectionStatus);
         setMemberCount(p.memberCount);
       } else if (chatType === "group" && communityId) {
@@ -708,6 +713,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       communityData,
       memberCount,
       isConnected,
+      canCompose,
       connectionStatus,
     });
   }, [
@@ -722,6 +728,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     communityData,
     memberCount,
     isConnected,
+    canCompose,
     connectionStatus,
   ]);
 
@@ -1578,14 +1585,24 @@ const MessagesScreen = ({ user, navigation, route }) => {
             (loading || messages.length === 0) && styles.messagesContentFlexGrow,
           ]}
           style={styles.messagesContainer}
+          onScroll={(event) => {
+            const { contentOffset, contentSize, layoutMeasurement } =
+              event.nativeEvent;
+            const threshold = 96;
+            stickToBottomRef.current =
+              contentOffset.y + layoutMeasurement.height >=
+              contentSize.height - threshold;
+          }}
+          scrollEventThrottle={16}
           onContentSizeChange={() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
+            if (!stickToBottomRef.current) return;
+            scrollViewRef.current?.scrollToEnd({ animated: false });
           }}
           showsVerticalScrollIndicator={false}
           initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
           maxToRenderPerBatch={LIST_PERFORMANCE.MAX_TO_RENDER_PER_BATCH}
-          windowSize={LIST_PERFORMANCE.WINDOW_SIZE}
-          removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
+          windowSize={21}
+          removeClippedSubviews={false}
         />
 
         <MessagesSelectedMediaTray
@@ -1620,6 +1637,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         <MessagesInputFooter
           chatType={chatType}
           isConnected={isConnected}
+          canCompose={chatType === "group" ? true : canCompose}
           connectionStatus={connectionStatus}
           messagesLoading={loading}
           bottomInputPadding={bottomInputPadding}

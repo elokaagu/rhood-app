@@ -68,9 +68,9 @@ function DJRecommendationCarousel({ djs, loading, skeletonCardStyle, onDjPress }
     return (
       <View style={styles.nearbyEmptyCard}>
         <Ionicons name="location-outline" size={20} color="hsl(75, 100%, 60%)" />
-        <Text style={styles.nearbyEmptyTitle}>No DJs near you yet</Text>
+        <Text style={styles.nearbyEmptyTitle}>No DJs in your city yet</Text>
         <Text style={styles.nearbyEmptySubtitle}>
-          Update your location or check back later.
+          Set your city in Edit Profile to see DJs in the same city.
         </Text>
       </View>
     );
@@ -206,7 +206,6 @@ function DiscoverListHeader({
   nearbyOpportunitiesLoading = false,
   searchQuery,
   onNavigate,
-  onOpenLocationModal,
   incomingConnectionRequests,
   acceptingUserId,
   decliningUserId,
@@ -247,13 +246,6 @@ function DiscoverListHeader({
         <View style={styles.recommendationsSection}>
           <View style={styles.recommendationsHeader}>
             <Text style={styles.recommendationsTitle}>DJs Near You</Text>
-            <TouchableOpacity
-              onPress={onOpenLocationModal}
-              activeOpacity={0.7}
-              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-            >
-              <Text style={styles.sectionHeaderLink}>Location</Text>
-            </TouchableOpacity>
           </View>
           <DJRecommendationCarousel
             djs={nearbyDJs}
@@ -272,13 +264,6 @@ function DiscoverListHeader({
         <View style={styles.recommendationsSection}>
           <View style={styles.recommendationsHeader}>
             <Text style={styles.recommendationsTitle}>Opportunities Near You</Text>
-            <TouchableOpacity
-              onPress={onOpenLocationModal}
-              activeOpacity={0.7}
-              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-            >
-              <Text style={styles.sectionHeaderLink}>Location</Text>
-            </TouchableOpacity>
           </View>
           <OpportunityRecommendationCarousel
             opportunities={nearbyOpportunities}

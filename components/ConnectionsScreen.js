@@ -4,7 +4,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import RhoodModal from "./RhoodModal";
 import ConnectionsTabContent from "./ConnectionsTabContent";
 import DiscoverTabContent from "./DiscoverTabContent";
-import ConnectionsLocationModal from "./ConnectionsLocationModal";
 import ConnectionsScreenHeader from "./ConnectionsScreenHeader";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useConnectionsScreen } from "../hooks/useConnectionsScreen";
@@ -38,8 +37,6 @@ function ConnectionsScreenContent({
     connectionsTabProps,
     discoverTabProps,
     connectionModalProps,
-    locationModalProps,
-    locationSuccessModalProps,
   } = useConnectionsScreen(user, onNavigate, route, initialTab);
 
   const { tutorialModalProps } = useAppTutorialModal(
@@ -63,8 +60,6 @@ function ConnectionsScreenContent({
       />
 
       <RhoodModal {...connectionModalProps} />
-      <ConnectionsLocationModal {...locationModalProps} />
-      <RhoodModal {...locationSuccessModalProps} />
       {tutorialModalProps ? (
         <AppScreenTutorialModal {...tutorialModalProps} />
       ) : null}

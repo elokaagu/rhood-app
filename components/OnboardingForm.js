@@ -11,7 +11,6 @@ import {
   Platform,
   Image,
   StyleSheet,
-  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -24,6 +23,8 @@ import {
   normalizedSocialProfileForValidation,
 } from "../lib/onboardingHelpers";
 import { db } from "../lib/supabase";
+import ConnectionsLocationModal from "./ConnectionsLocationModal";
+import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
 
 /** Shared animated wrapper for each onboarding step (fade + slide). */
 function StepAnimatedShell({ fadeAnim, slideAnim, style, children }) {
@@ -80,20 +81,6 @@ const MUSIC_GENRES = [
   "Industrial",
 ];
 
-// Searchable city list — covers major global dance-music hubs. Users whose city
-// isn't listed can add their own via the "Add" affordance.
-const MAJOR_CITIES = [
-  "London", "Manchester", "Bristol", "Leeds", "Glasgow", "Berlin", "Amsterdam",
-  "Paris", "Barcelona", "Madrid", "Lisbon", "Rome", "Milan", "Vienna", "Prague",
-  "Warsaw", "Copenhagen", "Stockholm", "Oslo", "Dublin", "Brussels", "Zurich",
-  "New York", "Los Angeles", "Chicago", "Miami", "San Francisco", "Detroit",
-  "Las Vegas", "Atlanta", "Austin", "Toronto", "Montreal", "Vancouver",
-  "Mexico City", "São Paulo", "Buenos Aires", "Bogotá", "Lima",
-  "Lagos", "Accra", "Nairobi", "Johannesburg", "Cape Town", "Cairo",
-  "Tokyo", "Seoul", "Shanghai", "Hong Kong", "Singapore", "Bangkok", "Mumbai",
-  "Dubai", "Tel Aviv", "Istanbul", "Sydney", "Melbourne", "Auckland",
-];
-
 export default function OnboardingForm({
   onComplete,
   djProfile,
@@ -117,8 +104,6 @@ export default function OnboardingForm({
   const [uploadError, setUploadError] = useState(null);
   const [customGenreInput, setCustomGenreInput] = useState("");  // typed custom genre
   const [globalGenres, setGlobalGenres] = useState([]);          // user-contributed genres from the backend pool
-  const [showCityDropdown, setShowCityDropdown] = useState(false);
-  const [citySearch, setCitySearch] = useState("");              // city search query
 
   // Which profile fields are still missing after signup. Frozen on first mount
   // so the step list can't shift around while the user is filling it in.
@@ -141,6 +126,13 @@ export default function OnboardingForm({
   const totalSteps = steps.length;
   const currentKey = steps[currentStep - 1] || steps[0];
 
+  const selectedGenres = Array.isArray(djProfile.genres) ? djProfile.genres : [];
+
+  const cityPicker = useCityLocationPicker(djProfile.city, (city) => {
+    setDjProfile((prev) => ({ ...prev, city }));
+    setErrors((prev) => ({ ...prev, city: null }));
+  });
+
   // Merge preset genres with the shared user-contributed pool and any custom
   // genres the user has already selected — de-duplicated, presets first.
   const genreOptions = React.useMemo(() => {
@@ -155,23 +147,9 @@ export default function OnboardingForm({
     };
     MUSIC_GENRES.forEach(push);
     globalGenres.forEach(push);
-    (djProfile.genres || []).forEach(push); // ensure selected customs stay visible
+    (selectedGenres || []).forEach(push); // ensure selected customs stay visible
     return out;
-  }, [globalGenres, djProfile.genres]);
-
-  // Cities matching the search query (case-insensitive), capped for performance.
-  const filteredCities = React.useMemo(() => {
-    const q = citySearch.trim().toLowerCase();
-    if (!q) return MAJOR_CITIES;
-    return MAJOR_CITIES.filter((c) => c.toLowerCase().includes(q));
-  }, [citySearch]);
-
-  // Whether the typed query is a brand-new city not already in the list.
-  const canAddTypedCity = React.useMemo(() => {
-    const q = citySearch.trim();
-    if (!q) return false;
-    return !MAJOR_CITIES.some((c) => c.toLowerCase() === q.toLowerCase());
-  }, [citySearch]);
+  }, [globalGenres, selectedGenres]);
 
   // Load the shared user-contributed genre pool once on mount (non-blocking).
   useEffect(() => {
@@ -213,7 +191,7 @@ export default function OnboardingForm({
         // DJ Name and Location are both optional — nothing to validate here.
         break;
       case "genres":
-        if (djProfile.genres.length === 0) {
+        if (selectedGenres.length === 0) {
           newErrors.genres = "Please select at least one genre";
         }
         break;
@@ -234,12 +212,11 @@ export default function OnboardingForm({
         break;
       }
       case "photo":
-        // Photo is optional — only block if an upload is actively in-flight or
-        // failed (forcing the user to resolve the partial state).
+        // Photo is optional. Only block Complete Setup while an upload is
+        // still in-flight — a failed optional upload must not trap the user
+        // on this screen (Skip for now is easy to miss).
         if (uploadingImage) {
           newErrors.profile_image = "Please wait — your photo is still uploading";
-        } else if (uploadError) {
-          newErrors.profile_image = "Photo upload failed. Please tap Retry or skip this step.";
         }
         break;
     }
@@ -312,6 +289,14 @@ export default function OnboardingForm({
     }
   };
 
+  const handleHeaderBack = () => {
+    if (currentStep > 1) {
+      prevStep();
+      return;
+    }
+    onSignOut?.();
+  };
+
   /**
    * "Skip for now" bypasses this step's validation entirely — that's the
    * whole point of the button. Wiring it to nextStep (which always
@@ -346,12 +331,15 @@ export default function OnboardingForm({
   };
 
   const toggleGenre = (genre) => {
-    setDjProfile((prev) => ({
-      ...prev,
-      genres: prev.genres.includes(genre)
-        ? prev.genres.filter((g) => g !== genre)
-        : [...prev.genres, genre],
-    }));
+    setDjProfile((prev) => {
+      const current = Array.isArray(prev.genres) ? prev.genres : [];
+      return {
+        ...prev,
+        genres: current.includes(genre)
+          ? current.filter((g) => g !== genre)
+          : [...current, genre],
+      };
+    });
   };
 
   /** Add a genre typed by the user that isn't in the preset list. */
@@ -362,12 +350,12 @@ export default function OnboardingForm({
     // If it matches an existing option (preset or contributed), just select it.
     const existingMatch = genreOptions.find((g) => g.toLowerCase() === lc);
     if (existingMatch) {
-      if (!djProfile.genres.includes(existingMatch)) toggleGenre(existingMatch);
+      if (!selectedGenres.includes(existingMatch)) toggleGenre(existingMatch);
       setCustomGenreInput("");
       return;
     }
     // Don't add duplicates that are already selected
-    if (djProfile.genres.some((g) => g.toLowerCase() === lc)) {
+    if (selectedGenres.some((g) => g.toLowerCase() === lc)) {
       setCustomGenreInput("");
       return;
     }
@@ -375,32 +363,14 @@ export default function OnboardingForm({
     setGlobalGenres((prev) =>
       prev.some((g) => g.toLowerCase() === lc) ? prev : [...prev, trimmed]
     );
-    setDjProfile((prev) => ({ ...prev, genres: [...prev.genres, trimmed] }));
+    setDjProfile((prev) => {
+      const current = Array.isArray(prev.genres) ? prev.genres : [];
+      return { ...prev, genres: [...current, trimmed] };
+    });
     setCustomGenreInput("");
 
     // Record it in the shared pool / portal escalation (fire-and-forget, safe).
     db.submitGenreSuggestion(trimmed).catch(() => {});
-  };
-
-  // ── City picker handlers ──────────────────────────────────────────────────
-  const openCityPicker = () => setShowCityDropdown(true);
-  const closeCityPicker = () => {
-    setShowCityDropdown(false);
-    setCitySearch("");
-  };
-
-  const selectCity = (city) => {
-    setDjProfile((prev) => ({ ...prev, city }));
-    setShowCityDropdown(false);
-    setCitySearch("");
-    if (errors.city) setErrors((prev) => ({ ...prev, city: null }));
-  };
-
-  /** Use the typed query as a brand-new city not in the preset list. */
-  const addTypedCity = () => {
-    const trimmed = citySearch.trim();
-    if (!trimmed) return;
-    selectCity(trimmed);
   };
 
   // Go directly to photo library — no intermediate action sheet
@@ -521,7 +491,7 @@ export default function OnboardingForm({
           </View>
           <TouchableOpacity
             style={styles.dropdownButton}
-            onPress={openCityPicker}
+            onPress={cityPicker.open}
             activeOpacity={0.8}
           >
             <Text
@@ -537,84 +507,18 @@ export default function OnboardingForm({
         </View>
       )}
 
-      {/* City picker presented as a slide-up modal so the keyboard never
-          covers the search field or the results list. */}
-      <Modal
-        visible={showCityDropdown}
-        animationType="slide"
-        transparent
-        onRequestClose={closeCityPicker}
-      >
-        <KeyboardAvoidingView
-          style={styles.cityModalRoot}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <View style={styles.cityModalSheet}>
-            <View style={styles.cityModalHeader}>
-              <Text style={styles.cityModalTitle}>Select your city</Text>
-              <TouchableOpacity onPress={closeCityPicker} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close" size={26} color="hsl(0, 0%, 90%)" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.citySearchRow}>
-              <Ionicons name="search" size={18} color="hsl(0, 0%, 50%)" />
-              <TextInput
-                style={styles.citySearchInput}
-                placeholder="Type to search…"
-                placeholderTextColor="hsl(0, 0%, 40%)"
-                value={citySearch}
-                onChangeText={setCitySearch}
-                autoCapitalize="words"
-                autoCorrect={false}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={() => canAddTypedCity && addTypedCity()}
-              />
-              {citySearch.length > 0 && (
-                <TouchableOpacity onPress={() => setCitySearch("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="close-circle" size={18} color="hsl(0, 0%, 45%)" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <ScrollView
-              style={styles.cityModalList}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="none"
-            >
-              {canAddTypedCity && (
-                <TouchableOpacity
-                  style={[styles.dropdownItem, styles.addCityItem]}
-                  onPress={addTypedCity}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add-circle" size={18} color="hsl(75, 100%, 60%)" />
-                  <Text style={styles.addCityText}>Add "{citySearch.trim()}"</Text>
-                </TouchableOpacity>
-              )}
-
-              {filteredCities.map((city, index) => (
-                <TouchableOpacity
-                  key={`${city}-${index}`}
-                  style={styles.dropdownItem}
-                  onPress={() => selectCity(city)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.dropdownItemText}>{city}</Text>
-                  {djProfile.city === city && (
-                    <Ionicons name="checkmark" size={16} color="hsl(75, 100%, 60%)" />
-                  )}
-                </TouchableOpacity>
-              ))}
-
-              {filteredCities.length === 0 && !canAddTypedCity && (
-                <Text style={styles.noResultsText}>No cities found</Text>
-              )}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <ConnectionsLocationModal
+        visible={cityPicker.visible}
+        onClose={cityPicker.close}
+        newLocationCity={cityPicker.draft}
+        setNewLocationCity={cityPicker.setDraft}
+        updatingLocation={cityPicker.updating}
+        onUpdateLocation={cityPicker.save}
+        onUseCurrentLocation={cityPicker.useCurrent}
+        title="Set your city"
+        description="DJs Near You uses this city from your profile."
+        saveLabel="Save city"
+      />
     </StepAnimatedShell>
   );
 
@@ -631,7 +535,7 @@ export default function OnboardingForm({
         <View style={styles.genreHeader}>
           <Text style={styles.label}>Select Genres *</Text>
           <Text style={styles.genreCount}>
-            {djProfile.genres.length} selected
+            {selectedGenres.length} selected
           </Text>
         </View>
         <Text style={styles.genreHint}>Select at least one genre you play</Text>
@@ -641,7 +545,7 @@ export default function OnboardingForm({
               key={genre}
               style={[
                 styles.genreCard,
-                djProfile.genres.includes(genre) && styles.genreCardSelected,
+                selectedGenres.includes(genre) && styles.genreCardSelected,
               ]}
               onPress={() => toggleGenre(genre)}
               activeOpacity={0.8}
@@ -650,13 +554,13 @@ export default function OnboardingForm({
                 <Text
                   style={[
                     styles.genreCardText,
-                    djProfile.genres.includes(genre) &&
+                    selectedGenres.includes(genre) &&
                       styles.genreCardTextSelected,
                   ]}
                 >
                   {genre}
                 </Text>
-                {djProfile.genres.includes(genre) && (
+                {selectedGenres.includes(genre) && (
                   <View style={styles.genreCheckmark}>
                     <Text style={styles.genreCheckmarkText}>✓</Text>
                   </View>
@@ -994,6 +898,15 @@ export default function OnboardingForm({
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.headerBackButton}
+            onPress={handleHeaderBack}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={currentStep > 1 ? "Go back" : "Back to login"}
+          >
+            <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
+          </TouchableOpacity>
           <View style={styles.logoContainer}>
             <Image
               source={require("../assets/rhood_logo.png")}
@@ -1014,11 +927,11 @@ export default function OnboardingForm({
       </ScrollView>
 
       <View style={styles.buttonContainer}>
-        {currentStep > 1 && (
-          <TouchableOpacity style={styles.secondaryButton} onPress={prevStep}>
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={styles.secondaryButton} onPress={handleHeaderBack}>
+          <Text style={styles.secondaryButtonText}>
+            {currentStep > 1 ? "Back" : "Back to login"}
+          </Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.primaryButton, completingOnboarding && styles.primaryButtonDisabled]}
@@ -1051,6 +964,14 @@ const styles = {
   header: {
     alignItems: "center",
     marginBottom: 30,
+    position: "relative",
+  },
+  headerBackButton: {
+    position: "absolute",
+    left: 0,
+    top: 8,
+    zIndex: 2,
+    padding: 4,
   },
   title: {
     fontSize: 32,

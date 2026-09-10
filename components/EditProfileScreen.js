@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { uploadFileStreaming, withRetry, guardFileSizeBytes } from "../lib/uploadUtils";
 import { db, supabase } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
+import ConnectionsLocationModal from "./ConnectionsLocationModal";
+import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
 
 // Duration extraction utilities (same as ListenScreen)
 const parseDurationString = (value) => {
@@ -186,6 +188,11 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
   const [showMixSelection, setShowMixSelection] = useState(false);
   const [selectingMix, setSelectingMix] = useState(false);
   const [currentPrimaryMix, setCurrentPrimaryMix] = useState(null);
+
+  const cityPicker = useCityLocationPicker(profile.city, (city) => {
+    setProfile((prev) => ({ ...prev, city }));
+    setErrors((prev) => ({ ...prev, city: null }));
+  });
 
   // Available genres for selection
   const availableGenres = [
@@ -960,16 +967,22 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>City *</Text>
-              <TextInput
-                style={[styles.input, errors.city && styles.inputError]}
-                value={profile.city}
-                onChangeText={(text) =>
-                  setProfile((prev) => ({ ...prev, city: text }))
-                }
-                placeholder="Your city"
-                placeholderTextColor="hsl(0, 0%, 50%)"
-                maxLength={50}
-              />
+              <TouchableOpacity
+                style={[styles.input, styles.cityPickerButton, errors.city && styles.inputError]}
+                onPress={cityPicker.open}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.cityPickerText,
+                    !profile.city.trim() && styles.cityPickerPlaceholder,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {profile.city.trim() || "Search for your city"}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color="hsl(0, 0%, 60%)" />
+              </TouchableOpacity>
               {errors.city && (
                 <Text style={styles.errorText}>{errors.city}</Text>
               )}
@@ -1301,6 +1314,19 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
         primaryButtonText="OK"
         onPrimaryPress={() => setErrorModal({ visible: false, title: "", message: "" })}
       />
+
+      <ConnectionsLocationModal
+        visible={cityPicker.visible}
+        onClose={cityPicker.close}
+        newLocationCity={cityPicker.draft}
+        setNewLocationCity={cityPicker.setDraft}
+        updatingLocation={cityPicker.updating}
+        onUpdateLocation={cityPicker.save}
+        onUseCurrentLocation={cityPicker.useCurrent}
+        title="Set your city"
+        description="DJs Near You uses this city from your profile."
+        saveLabel="Save city"
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -1432,6 +1458,21 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: "hsl(0, 100%, 50%)",
+  },
+  cityPickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cityPickerText: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 100%)",
+    marginRight: 8,
+  },
+  cityPickerPlaceholder: {
+    color: "hsl(0, 0%, 50%)",
   },
   textArea: {
     height: 100,

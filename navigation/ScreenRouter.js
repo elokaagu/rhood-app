@@ -251,6 +251,10 @@ export default function ScreenRouter({
       setCurrentScreen(SCREENS.NOTIFICATIONS);
       return;
     }
+    if (screenParams?.messagesBackScreen === SCREENS.ADMIN_APPLICATIONS) {
+      setCurrentScreen(SCREENS.ADMIN_APPLICATIONS);
+      return;
+    }
     exitMessagesToConnections();
   }, [
     screenParams?.messagesBackScreen,

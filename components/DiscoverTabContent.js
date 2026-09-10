@@ -26,7 +26,6 @@ function DiscoverTabContent({
   nearbyOpportunitiesLoading,
   searchQuery,
   onNavigate,
-  onOpenLocationModal,
   incomingConnectionRequests,
   acceptingUserId,
   decliningUserId,
@@ -48,7 +47,6 @@ function DiscoverTabContent({
         nearbyOpportunitiesLoading={nearbyOpportunitiesLoading}
         searchQuery={searchQuery}
         onNavigate={onNavigate}
-        onOpenLocationModal={onOpenLocationModal}
         incomingConnectionRequests={incomingConnectionRequests}
         acceptingUserId={acceptingUserId}
         decliningUserId={decliningUserId}
@@ -65,7 +63,6 @@ function DiscoverTabContent({
       nearbyOpportunitiesLoading,
       searchQuery,
       onNavigate,
-      onOpenLocationModal,
       incomingConnectionRequests,
       acceptingUserId,
       decliningUserId,

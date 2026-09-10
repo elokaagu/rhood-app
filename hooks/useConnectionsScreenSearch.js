@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../lib/supabase";
+import { filterDirectoryDjs } from "../lib/accountUtils";
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LEN = 2;
@@ -58,7 +59,7 @@ export function useConnectionsScreenSearch() {
       const pattern = `%${safeFragment}%`;
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("id, dj_name, full_name, username, city, profile_image_url")
+        .select("id, email, dj_name, full_name, username, city, profile_image_url, bio")
         .or(
           `dj_name.ilike.${pattern},full_name.ilike.${pattern},username.ilike.${pattern},city.ilike.${pattern}`
         )
@@ -75,7 +76,7 @@ export function useConnectionsScreenSearch() {
         return;
       }
 
-      const mapped = (data || []).map((u) => ({
+      const mapped = filterDirectoryDjs(data).map((u) => ({
         id: u.id,
         name: u.dj_name || u.full_name || u.username || "DJ",
         city: u.city || null,
