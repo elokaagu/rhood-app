@@ -1127,7 +1127,57 @@ export default function App() {
                         secondaryButtonText: "Dismiss",
                         onPrimaryPress: () => {
                           setShowModal(false);
-                          setShowEditProfile(true);
+                          const userId = profile.id;
+                          const nextCity = matchResult.currentCity;
+                          if (!userId || !nextCity) {
+                            setShowEditProfile(true);
+                            return;
+                          }
+                          (async () => {
+                            try {
+                              const updated = await db.updateUserProfile(
+                                userId,
+                                { city: nextCity }
+                              );
+                              const savedCity = updated?.city || nextCity;
+                              setDjProfile((prev) => ({
+                                ...prev,
+                                ...(updated || {}),
+                                city: savedCity,
+                              }));
+                              setLocationMismatchWarning(false);
+                              await setAnalyticsUser(userId, {
+                                dj_name:
+                                  updated?.dj_name ||
+                                  profile.dj_name ||
+                                  profile.djName,
+                                name:
+                                  updated?.dj_name ||
+                                  profile.dj_name ||
+                                  profile.djName,
+                                city: savedCity,
+                              });
+                              await track(AnalyticsEvents.PROFILE_UPDATED, {
+                                has_city: true,
+                                city_source: "location_mismatch",
+                              });
+                              showCustomModal({
+                                type: "success",
+                                title: "City updated",
+                                message: `Your profile city is now ${savedCity}. Nearby DJs and opportunities will use this location.`,
+                                primaryButtonText: "OK",
+                                onPrimaryPress: () => setShowModal(false),
+                              });
+                            } catch (updateError) {
+                              if (__DEV__) {
+                                console.error(
+                                  "Error updating city from location mismatch:",
+                                  updateError
+                                );
+                              }
+                              setShowEditProfile(true);
+                            }
+                          })();
                         },
                         onSecondaryPress: () => {
                           setShowModal(false);

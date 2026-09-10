@@ -194,6 +194,8 @@ export default function ConnectionsLocationModal({
       visible={visible}
       transparent
       animationType="slide"
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
       onRequestClose={handleClose}
     >
       <View style={styles.modalOverlay}>

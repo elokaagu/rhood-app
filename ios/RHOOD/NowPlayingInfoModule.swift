@@ -12,6 +12,9 @@ import UIKit
 class NowPlayingInfoModule: RCTEventEmitter {
 
   private var remoteCommandsInstalled = false
+  /// Ignore stale JS time updates for a moment after the user scrubs the lock screen.
+  private var ignoreStaleElapsedUntil: TimeInterval = 0
+  private var expectedElapsedAfterSeek: Double = 0
 
   override static func requiresMainQueueSetup() -> Bool {
     true
@@ -76,8 +79,17 @@ class NowPlayingInfoModule: RCTEventEmitter {
     rejecter: @escaping RCTPromiseRejectBlock
   ) {
     DispatchQueue.main.async {
+      let incoming = positionSec.doubleValue
+      let now = Date().timeIntervalSince1970
+      if now < self.ignoreStaleElapsedUntil {
+        if abs(incoming - self.expectedElapsedAfterSeek) > 1.25 {
+          resolver(true)
+          return
+        }
+        self.ignoreStaleElapsedUntil = 0
+      }
       var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-      info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = positionSec.doubleValue
+      info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = incoming
       info[MPMediaItemPropertyPlaybackDuration] = durationSec.doubleValue
       info[MPNowPlayingInfoPropertyPlaybackRate] = playbackRate.doubleValue
       MPNowPlayingInfoCenter.default().nowPlayingInfo = info
@@ -155,8 +167,12 @@ class NowPlayingInfoModule: RCTEventEmitter {
         return .commandFailed
       }
       var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+      let rate = (info[MPNowPlayingInfoPropertyPlaybackRate] as? NSNumber)?.doubleValue ?? 1.0
       info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = seekEvent.positionTime
+      info[MPNowPlayingInfoPropertyPlaybackRate] = rate
       MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+      self?.expectedElapsedAfterSeek = seekEvent.positionTime
+      self?.ignoreStaleElapsedUntil = Date().timeIntervalSince1970 + 1.6
       self?.sendEvent(
         withName: "NowPlayingRemoteSeek",
         body: ["position": seekEvent.positionTime]

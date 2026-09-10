@@ -411,12 +411,16 @@ export default {
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 0%)",
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.82)",
   },
   locationModalBackdrop: {
-    flex: 1,
-    minHeight: 48,
-    backgroundColor: "hsl(0, 0%, 0%)",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "transparent",
   },
   locationModalKeyboardAvoid: {
     width: "100%",

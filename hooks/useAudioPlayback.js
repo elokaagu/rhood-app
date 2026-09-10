@@ -155,6 +155,9 @@ export default function useAudioPlayback({ user }) {
   const playGlobalAudioLatestRef = useRef(async (_track) => {});
   const trackFinishedRef = useRef(false);
   const isScrubbingRef = useRef(false);
+  /** Target ms from lock-screen / in-app seek; ignore stale expo-av ticks until we land. */
+  const pendingSeekMsRef = useRef(null);
+  const pendingSeekClearTimerRef = useRef(null);
   const playNextTrackRef = useRef(null);
   const playPreviousTrackRef = useRef(null);
 
@@ -394,6 +397,18 @@ export default function useAudioPlayback({ user }) {
                 return;
               }
               if (status.isLoaded) {
+                const pendingSeek = pendingSeekMsRef.current;
+                if (pendingSeek != null) {
+                  const pos = status.positionMillis ?? 0;
+                  if (Math.abs(pos - pendingSeek) <= 900) {
+                    pendingSeekMsRef.current = null;
+                    isScrubbingRef.current = false;
+                  } else {
+                    // expo-av still reporting the pre-seek position — don't
+                    // push it to the lock screen or it snaps the scrobble back.
+                    return;
+                  }
+                }
                 const nativeDur =
                   status.durationMillis > 0 ? status.durationMillis : 0;
                 const metaMs = trackMetaDurationMs(track);
@@ -436,7 +451,7 @@ export default function useAudioPlayback({ user }) {
                     status.positionMillis || 0,
                     status.durationMillis || 0
                   );
-                } else if (Platform.OS === "ios") {
+                } else if (Platform.OS === "ios" && !isScrubbingRef.current) {
                   const nativeDur =
                     status.durationMillis > 0 ? status.durationMillis : 0;
                   const metaMs = trackMetaDurationMs(track);
@@ -955,29 +970,35 @@ export default function useAudioPlayback({ user }) {
 
       const status = await globalAudioRef.current.getStatusAsync();
 
-      if (!status.isLoaded) {
-        return;
-      }
-
       // expo-av often reports durationMillis === 0 for a while; UI still has metadata duration.
       const st = stateRef.current;
       const metaDur = trackMetaDurationMs(st.currentTrack);
-      const nativeDur = status.durationMillis > 0 ? status.durationMillis : 0;
+      const nativeDur =
+        status?.isLoaded && status.durationMillis > 0 ? status.durationMillis : 0;
       const stateDur = st.durationMillis > 0 ? st.durationMillis : 0;
       const effectiveDuration = Math.max(nativeDur, stateDur, metaDur);
 
       if (effectiveDuration <= 0) {
         if (__DEV__) console.warn("⚠️ seekToPosition: no duration yet (native/state/metadata)");
+        isScrubbingRef.current = false;
+        pendingSeekMsRef.current = null;
         return;
       }
 
       const maxSeekPosition = Math.max(0, effectiveDuration - 100);
       const clampedPosition = Math.min(Math.max(0, positionMillis), maxSeekPosition);
 
-      const currentPosition = status.positionMillis || 0;
+      const currentPosition = status?.isLoaded ? status.positionMillis || 0 : 0;
       const positionDiff = Math.abs(clampedPosition - currentPosition);
       if (positionDiff < 16) {
+        isScrubbingRef.current = false;
+        pendingSeekMsRef.current = null;
         return;
+      }
+
+      pendingSeekMsRef.current = clampedPosition;
+      if (pendingSeekClearTimerRef.current) {
+        clearTimeout(pendingSeekClearTimerRef.current);
       }
 
       await globalAudioRef.current.setPositionAsync(clampedPosition);
@@ -997,14 +1018,22 @@ export default function useAudioPlayback({ user }) {
           true
         );
       }
+
+      pendingSeekClearTimerRef.current = setTimeout(() => {
+        if (pendingSeekMsRef.current === clampedPosition) {
+          pendingSeekMsRef.current = null;
+          isScrubbingRef.current = false;
+        }
+        pendingSeekClearTimerRef.current = null;
+      }, 1500);
     } catch (error) {
+      pendingSeekMsRef.current = null;
+      isScrubbingRef.current = false;
       if (error.message && error.message.includes("interrupted")) {
         if (__DEV__) console.warn("⚠️ Seek was interrupted - this is normal during rapid scrubbing");
       } else {
         if (__DEV__) console.error("❌ Error seeking:", error);
       }
-    } finally {
-      isScrubbingRef.current = false;
     }
   }, [setPlaybackState, stateRef, syncGlobalAudioRefFromState]);
 
@@ -1725,7 +1754,11 @@ export default function useAudioPlayback({ user }) {
     const subSeek = emitter.addListener("NowPlayingRemoteSeek", (payload) => {
       const seconds = Number(payload?.position);
       if (!Number.isFinite(seconds) || seconds < 0) return;
-      actionsRef.current?.seekToPosition?.(seconds * 1000);
+      const seek =
+        actionsRef.current?.seekToPosition ||
+        audioPlaybackBridge.actionsRef?.current?.seekToPosition;
+      if (!seek) return;
+      void seek(seconds * 1000);
     });
 
     return () => {
@@ -1772,6 +1805,12 @@ export default function useAudioPlayback({ user }) {
       deferredPlayTrackRef.current = null;
       audioPlaybackBridge.actionsRef = null;
       audioPlaybackBridge.stateRef = null;
+      if (pendingSeekClearTimerRef.current) {
+        clearTimeout(pendingSeekClearTimerRef.current);
+        pendingSeekClearTimerRef.current = null;
+      }
+      pendingSeekMsRef.current = null;
+      isScrubbingRef.current = false;
       if (globalAudioRef.current) {
         try {
           globalAudioRef.current.setOnPlaybackStatusUpdate(null);
