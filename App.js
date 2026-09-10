@@ -37,7 +37,11 @@ import styles from "./App.styles";
 import EditProfileScreen from "./components/EditProfileScreen";
 import AuthGate from "./components/AuthGate";
 import { db, auth, supabase } from "./lib/supabase";
-import { consumePendingInviteCode, readPendingInviteCode } from "./lib/pendingInvite";
+import {
+  consumePendingInviteCode,
+  profileWithInviteCodeUsed,
+  readPendingInviteCode,
+} from "./lib/pendingInvite";
 import { normalizeMembershipStatus } from "./lib/membership";
 import { getUserFriendlyError } from "./lib/errorMessages";
 import { clearScreenCachesForUser } from "./lib/screenCache";
@@ -1706,6 +1710,7 @@ export default function App() {
         }
       }
 
+      const pendingCode = await readPendingInviteCode();
       let savedProfile;
       if (existingById) {
         savedProfile = await db.updateUserProfile(user.id, profilePayload);
@@ -1714,11 +1719,16 @@ export default function App() {
         }
       } else {
         try {
-          savedProfile = await db.createUserProfile({
-            ...profilePayload,
-            id: user.id,
-            email: user.email,
-          });
+          savedProfile = await db.createUserProfile(
+            profileWithInviteCodeUsed(
+              {
+                ...profilePayload,
+                id: user.id,
+                email: user.email,
+              },
+              pendingCode
+            )
+          );
         } catch (createError) {
           const claimed = await db.claimImportedProfile().catch(() => null);
           if (claimed?.id === user.id) {
@@ -1735,44 +1745,19 @@ export default function App() {
         if (__DEV__) console.warn("⚠️ Failed to ensure invite code:", codeError);
       }
 
-      let nextMembership = "pending";
       try {
-        const pendingCode = await readPendingInviteCode();
         await consumePendingInviteCode((code) =>
           db.processReferral(code, user.id)
         );
-        try {
-          nextMembership = normalizeMembershipStatus(
-            await db.finalizeDjMembership(pendingCode)
-          );
-        } catch (membershipError) {
-          if (__DEV__) {
-            console.warn("Membership finalize failed:", membershipError);
-          }
-          const missing =
-            membershipError?.code === "PGRST202" ||
-            String(membershipError?.message || "").includes(
-              "finalize_dj_membership"
-            );
-          nextMembership = missing ? "approved" : "pending";
-        }
       } catch (referralError) {
         if (__DEV__) {
           console.warn("Pending invite processing failed:", referralError);
         }
-        try {
-          nextMembership = normalizeMembershipStatus(
-            await db.finalizeDjMembership(null)
-          );
-        } catch (_membershipError) {
-          const missing =
-            _membershipError?.code === "PGRST202" ||
-            String(_membershipError?.message || "").includes(
-              "finalize_dj_membership"
-            );
-          nextMembership = missing ? "approved" : "pending";
-        }
       }
+      const nextMembership = await db.applyDjInviteAccess(
+        pendingCode,
+        user.id
+      );
       setMembershipStatus(nextMembership);
 
       await AsyncStorage.setItem("hasOnboarded", "true");

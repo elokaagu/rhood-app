@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -25,6 +26,7 @@ import {
 import { db } from "../lib/supabase";
 import ConnectionsLocationModal from "./ConnectionsLocationModal";
 import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
+import { resolveCurrentCityLabel } from "../lib/locationService";
 
 /** Shared animated wrapper for each onboarding step (fade + slide). */
 function StepAnimatedShell({ fadeAnim, slideAnim, style, children }) {
@@ -128,10 +130,50 @@ export default function OnboardingForm({
 
   const selectedGenres = Array.isArray(djProfile.genres) ? djProfile.genres : [];
 
+  const [detectingCity, setDetectingCity] = useState(
+    () => profileNeeds.city && !(djProfile.city ?? "").trim()
+  );
+  const [cityFromDevice, setCityFromDevice] = useState(false);
+  const cityPrefillStarted = useRef(false);
+
   const cityPicker = useCityLocationPicker(djProfile.city, (city) => {
     setDjProfile((prev) => ({ ...prev, city }));
+    setCityFromDevice(false);
     setErrors((prev) => ({ ...prev, city: null }));
   });
+
+  // Ask for location on the city step and pre-fill so they only confirm.
+  // Deny / timeout / missing GPS leaves the field empty for search.
+  useEffect(() => {
+    if (!profileNeeds.city) return;
+    if ((djProfile.city ?? "").trim()) return;
+    if (cityPrefillStarted.current) return;
+    cityPrefillStarted.current = true;
+
+    let cancelled = false;
+    setDetectingCity(true);
+    resolveCurrentCityLabel()
+      .then((city) => {
+        if (cancelled || !city) return;
+        let filled = false;
+        setDjProfile((prev) => {
+          if ((prev.city ?? "").trim()) return prev;
+          filled = true;
+          return { ...prev, city };
+        });
+        if (filled) setCityFromDevice(true);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setDetectingCity(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally once on mount — don't re-prompt if they clear the city.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Merge preset genres with the shared user-contributed pool and any custom
   // genres the user has already selected — de-duplicated, presets first.
@@ -497,13 +539,24 @@ export default function OnboardingForm({
             <Text
               style={[
                 styles.dropdownText,
-                !djProfile.city && styles.placeholderText,
+                !djProfile.city && !detectingCity && styles.placeholderText,
               ]}
             >
-              {djProfile.city || "Search for your city"}
+              {detectingCity && !djProfile.city
+                ? "Finding your city…"
+                : djProfile.city || "Search for your city"}
             </Text>
-            <Ionicons name="chevron-down" size={18} color="hsl(0, 0%, 60%)" />
+            {detectingCity && !djProfile.city ? (
+              <ActivityIndicator size="small" color="hsl(75, 100%, 60%)" />
+            ) : (
+              <Ionicons name="chevron-down" size={18} color="hsl(0, 0%, 60%)" />
+            )}
           </TouchableOpacity>
+          {cityFromDevice && !!djProfile.city ? (
+            <Text style={styles.cityHint}>
+              Detected from your location. Tap to change.
+            </Text>
+          ) : null}
         </View>
       )}
 
@@ -1444,6 +1497,12 @@ const styles = {
   },
   placeholderText: {
     color: "hsl(0, 0%, 40%)",
+  },
+  cityHint: {
+    marginTop: 8,
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 55%)",
   },
   // Modal-based city picker — search pinned at top, list fills above keyboard.
   cityModalRoot: {

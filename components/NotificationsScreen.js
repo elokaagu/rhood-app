@@ -982,6 +982,7 @@ export default function NotificationsScreen({
         return "briefcase-outline";
       case "application":
       case "application_approved":
+      case "membership_approved":
         return "checkmark-circle-outline";
       case "application_rejected":
       case "application_status":

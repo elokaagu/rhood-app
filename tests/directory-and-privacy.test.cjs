@@ -35,7 +35,9 @@ const {
   mapMediaToDirectRow,
   mapMediaToGroupRow,
 } = loadExportedFunctions("lib/messagesScreen/sendMessagesOperations.js");
-const { normalizeInviteCode } = loadExportedFunctions("lib/pendingInvite.js");
+const { normalizeInviteCode, profileWithInviteCodeUsed } = loadExportedFunctions(
+  "lib/pendingInvite.js"
+);
 
 describe("excludeUserIds", () => {
   it("drops blocked profiles", () => {
@@ -163,12 +165,20 @@ describe("invite codes", () => {
     assert.equal(normalizeInviteCode(" 8f758aca "), "8F758ACA");
     assert.equal(normalizeInviteCode("8F-758-ACA"), "8F758ACA");
   });
+
+  it("attaches invite_code_used so Studio's existing insert trigger can auto-approve", () => {
+    const row = profileWithInviteCodeUsed({ id: "u1", email: "a@b.c" }, " 8f-758-aca ");
+    assert.equal(row.invite_code_used, "8F758ACA");
+    assert.equal(profileWithInviteCodeUsed({ id: "u1" }, "").invite_code_used, undefined);
+  });
 });
 
 const {
   normalizeMembershipStatus,
   isMembershipApproved,
   isMembershipPending,
+  membershipFromRedeemResult,
+  isMissingRpcError,
 } = loadExportedFunctions("lib/membership.js");
 
 describe("invite-only membership", () => {
@@ -180,5 +190,22 @@ describe("invite-only membership", () => {
   it("holds organic applicants until Studio approves", () => {
     assert.equal(isMembershipPending({ membership_status: "pending" }), true);
     assert.equal(isMembershipApproved({ membership_status: "pending" }), false);
+  });
+
+  it("maps Studio redeem_dj_invite_code success onto approved", () => {
+    assert.equal(membershipFromRedeemResult({ ok: true, status: "approved" }), "approved");
+    assert.equal(membershipFromRedeemResult({ ok: false, message: "used" }), null);
+    assert.equal(membershipFromRedeemResult(null), null);
+  });
+
+  it("treats a missing RPC as not-yet-migrated instead of a hard failure", () => {
+    assert.equal(
+      isMissingRpcError({ code: "PGRST202", message: "Could not find the function" }, "redeem_dj_invite_code"),
+      true
+    );
+    assert.equal(
+      isMissingRpcError({ code: "42501", message: "permission denied" }, "redeem_dj_invite_code"),
+      false
+    );
   });
 });

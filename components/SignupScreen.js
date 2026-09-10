@@ -16,10 +16,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { auth, db } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 import { getSignupErrorMessage } from "../lib/errorMessages";
-import { track, AnalyticsEvents } from "../lib/analytics";
 import {
   savePendingInviteCode,
-  consumePendingInviteCode,
+  profileWithInviteCodeUsed,
+  readPendingInviteCode,
 } from "../lib/pendingInvite";
 import AuthLegalLinks from "./AuthLegalLinks";
 import PrivacyPolicyScreen from "./PrivacyPolicyScreen";
@@ -95,38 +95,23 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
           // DJ name & city are collected during onboarding now — leave them
           // blank here so onboarding asks for them (DJ name auto-generates from
           // the real name if still blank at completion).
-          const profileData = {
-            id: user.id,
-            email: formData.email,
-            dj_name: "",
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            city: "",
-            genres: [],
-            bio: "",
-            profile_image_url: null,
-          };
+          const inviteCode = await savePendingInviteCode(formData.inviteCode);
+          const profileData = profileWithInviteCodeUsed(
+            {
+              id: user.id,
+              email: formData.email,
+              dj_name: "",
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              city: "",
+              genres: [],
+              bio: "",
+              profile_image_url: null,
+            },
+            inviteCode
+          );
 
           await db.createUserProfile(profileData);
-
-          if (formData.inviteCode && formData.inviteCode.trim()) {
-            try {
-              await savePendingInviteCode(formData.inviteCode);
-              await consumePendingInviteCode((code) =>
-                db.processReferral(code, user.id)
-              );
-            } catch (referralError) {
-              // Non-blocking by design — a bad/stale invite code shouldn't
-              // stop signup. console.warn alone is invisible in a
-              // production/TestFlight build, so also track it: the user
-              // typed a code expecting it to do something, and otherwise
-              // there'd be no way to know this is happening in the field.
-              console.warn("⚠️ Referral processing failed:", referralError);
-              track(AnalyticsEvents.REFERRAL_PROCESSING_FAILED, {
-                reason: referralError?.message || "unknown",
-              }).catch(() => {});
-            }
-          }
 
           onSignupSuccess(user, {
             dj_name: "",
@@ -179,6 +164,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
+      await savePendingInviteCode(formData.inviteCode);
       const sessionData = await auth.signInWithGoogle(true); // Pass true for signup flow
       console.log("✅ Google Sign-Up returned sessionData:", !!sessionData);
       console.log("✅ User from sessionData:", sessionData?.user?.email);
@@ -213,23 +199,25 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       setLoading(true);
       const { user } = await auth.signInWithApple();
       if (user) {
+        await savePendingInviteCode(formData.inviteCode);
+        const inviteCode = await readPendingInviteCode();
         // For social sign-in, we'll need to create a basic profile
         // The user can complete their profile during onboarding
-        const profileData = {
-          id: user.id,
-          email: user.email || "",
-          dj_name: user.user_metadata?.full_name || "",
-          first_name: user.user_metadata?.given_name || "",
-          last_name: user.user_metadata?.family_name || "",
-          city: "", // Will be set during onboarding
-          genres: [],
-          bio: "DJ from the underground",
-        };
+        const profileData = profileWithInviteCodeUsed(
+          {
+            id: user.id,
+            email: user.email || "",
+            dj_name: user.user_metadata?.full_name || "",
+            first_name: user.user_metadata?.given_name || "",
+            last_name: user.user_metadata?.family_name || "",
+            city: "", // Will be set during onboarding
+            genres: [],
+            bio: "DJ from the underground",
+          },
+          inviteCode
+        );
 
         await db.createUserProfile(profileData);
-        await consumePendingInviteCode((code) =>
-          db.processReferral(code, user.id)
-        ).catch(() => {});
         onSignupSuccess(user, {
           dj_name: profileData.dj_name,
           first_name: profileData.first_name,
