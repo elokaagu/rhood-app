@@ -11,6 +11,7 @@
     "ios:codegen": "node node_modules/react-native/scripts/generate-codegen-artifacts.js -p . -o ios -t ios",
     "ios:sim": "bash scripts/start-ios-simulator.sh",
     "web": "expo start --web",
+    "test": "node --test tests/*.test.cjs",
     "backend:dev": "nodemon backend/index.js",
     "backend:start": "node backend/index.js",
     "build:kb": "node scripts/build-kb.js",

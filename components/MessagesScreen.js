@@ -61,7 +61,7 @@ import ApprovedPromoterStamp from "./ApprovedPromoterStamp";
 import { profileIsApprovedPromoter } from "../lib/approvedPromoterUtils";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
-import { promptReport } from "../lib/moderation";
+import { promptReport, isMessagingBlockedWith } from "../lib/moderation";
 import {
   getMessageThreadSnapshot,
   setMessageThreadSnapshot,
@@ -652,7 +652,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
           setOtherUser(p.otherUser);
         }
         setIsConnected(p.isConnected);
-        setCanCompose(!!p.canCompose);
+        const blocked = djId ? await isMessagingBlockedWith(djId) : false;
+        if (!stillHere()) return;
+        setCanCompose(!!p.canCompose && !blocked);
         setConnectionStatus(p.connectionStatus);
         setMemberCount(p.memberCount);
       } else if (chatType === "group" && communityId) {
@@ -1167,10 +1169,14 @@ const MessagesScreen = ({ user, navigation, route }) => {
     setSending(true);
 
     try {
-      if (chatType === "individual" && djId) {
-        if (!threadId) {
-          console.log("🔍 Thread ID not set, will resolve on send...");
-        }
+    if (chatType === "individual" && djId) {
+      if (await isMessagingBlockedWith(djId)) {
+        showThemedError("Blocked", "You can't message this person.");
+        return;
+      }
+      if (!threadId) {
+        console.log("🔍 Thread ID not set, will resolve on send...");
+      }
 
         const result = await sendIndividualChatMessages({
           supabase,

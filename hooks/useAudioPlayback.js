@@ -1161,7 +1161,11 @@ export default function useAudioPlayback({ user }) {
         // Roll back credits from mix creator
         if (stateRef.current.currentTrack.user_id && stateRef.current.currentTrack.user_id !== user.id) {
           try {
-            await db.incrementUserCredits(stateRef.current.currentTrack.user_id, -10);
+            await db.incrementUserCredits(
+              stateRef.current.currentTrack.user_id,
+              -10,
+              mixId
+            );
           } catch (creditError) {
             if (__DEV__) console.error("❌ Error rolling back credits:", creditError);
           }
@@ -1192,7 +1196,11 @@ export default function useAudioPlayback({ user }) {
           // Award credits to mix creator
           if (stateRef.current.currentTrack.user_id && stateRef.current.currentTrack.user_id !== user.id) {
             try {
-              await db.incrementUserCredits(stateRef.current.currentTrack.user_id, 10);
+              await db.incrementUserCredits(
+                stateRef.current.currentTrack.user_id,
+                10,
+                mixId
+              );
             } catch (creditError) {
               if (__DEV__) console.error("❌ Error awarding credits:", creditError);
             }

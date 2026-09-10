@@ -775,7 +775,7 @@ export function useListenMixes({
 
           if (mix.user_id && mix.user_id !== user.id) {
             try {
-              await db.incrementUserCredits(mix.user_id, 10);
+              await db.incrementUserCredits(mix.user_id, 10, mix.id);
             } catch (creditError) {
               console.error("❌ Error awarding credits:", creditError);
             }
@@ -835,7 +835,7 @@ export function useListenMixes({
 
         if (mix.user_id && mix.user_id !== user.id) {
           try {
-            await db.incrementUserCredits(mix.user_id, -10);
+            await db.incrementUserCredits(mix.user_id, -10, mix.id);
           } catch (creditError) {
             console.error("❌ Error rolling back credits:", creditError);
           }

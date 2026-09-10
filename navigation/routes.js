@@ -53,6 +53,24 @@ export const SCREENS = Object.freeze({
 });
 
 /**
+ * Bottom tab roots. Everything else is a native-stack push.
+ */
+export const TAB_SCREEN_IDS = Object.freeze([
+  SCREENS.OPPORTUNITIES,
+  SCREENS.CONNECTIONS,
+  SCREENS.LISTEN,
+  SCREENS.CREATE_HUB,
+]);
+
+export const OVERLAY_SCREEN_IDS = Object.freeze(
+  Object.values(SCREENS).filter((id) => !TAB_SCREEN_IDS.includes(id))
+);
+
+export function isTabScreen(screenId) {
+  return TAB_SCREEN_IDS.includes(screenId);
+}
+
+/**
  * AppShell hides the floating tab bar on these full-bleed flows.
  * Frozen tuple — use `.includes(screenId)` (do not mutate).
  */

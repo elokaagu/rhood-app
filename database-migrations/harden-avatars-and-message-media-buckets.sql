@@ -29,6 +29,7 @@
 -- EditProfileScreen.js writes profile_images/profile_<user.id>_<ts>.jpg, so
 -- this can check the path actually contains the caller's own id.
 DROP POLICY IF EXISTS "Anyone can upload avatars" ON storage.objects;
+DROP POLICY IF EXISTS "avatars_insert_anon_or_own" ON storage.objects;
 CREATE POLICY "avatars_insert_anon_or_own" ON storage.objects
   FOR INSERT
   TO anon, authenticated
@@ -41,6 +42,7 @@ CREATE POLICY "avatars_insert_anon_or_own" ON storage.objects
   );
 
 DROP POLICY IF EXISTS "Anyone can update avatars" ON storage.objects;
+DROP POLICY IF EXISTS "avatars_update_anon_or_own" ON storage.objects;
 CREATE POLICY "avatars_update_anon_or_own" ON storage.objects
   FOR UPDATE
   TO anon, authenticated
@@ -66,6 +68,7 @@ CREATE POLICY "avatars_update_anon_or_own" ON storage.objects
 
 -- ── message-media: only the uploader can modify/delete their own object ────
 DROP POLICY IF EXISTS "Allow users to delete own files from message-media" ON storage.objects;
+DROP POLICY IF EXISTS "message_media_delete_own" ON storage.objects;
 CREATE POLICY "message_media_delete_own" ON storage.objects
   FOR DELETE
   TO authenticated
@@ -92,6 +95,7 @@ CREATE POLICY "message_media_update_own" ON storage.objects
 -- (private bucket + signed URLs, and a path scheme that embeds thread_id) —
 -- flagging rather than attempting a fragile partial fix blind.
 DROP POLICY IF EXISTS "Allow authenticated downloads from message-media" ON storage.objects;
+DROP POLICY IF EXISTS "message_media_select_authenticated" ON storage.objects;
 CREATE POLICY "message_media_select_authenticated" ON storage.objects
   FOR SELECT
   TO authenticated
