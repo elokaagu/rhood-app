@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
   Image,
   Linking,
   Alert,
@@ -23,6 +22,8 @@ import { createScreenCache } from "../lib/screenCache";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
+import ProfileBookingRequests from "./ProfileBookingRequests";
+import styles from "./ProfileScreen.styles";
 
 const profileCache = createScreenCache("profile", { userScoped: true });
 
@@ -72,6 +73,7 @@ export default function ProfileScreen({
     totalReferrals: 0,
     totalCreditsEarned: 0,
   });
+  const [bookingRequests, setBookingRequests] = useState([]);
 
   const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.PROFILE);
 
@@ -244,6 +246,7 @@ export default function ProfileScreen({
             totalCreditsEarned: 0,
           }
         );
+        setBookingRequests(cached.bookingRequests ?? []);
         setLoading(false);
       } else {
         loadProfile();
@@ -352,6 +355,7 @@ export default function ProfileScreen({
       let connections = 0;
       let userInviteCode = null;
       let userReferralStats = { totalReferrals: 0, totalCreditsEarned: 0 };
+      let incomingBookings = [];
       try {
         const [
           allAchievements,
@@ -360,6 +364,7 @@ export default function ProfileScreen({
           connectionsData,
           fetchedInviteCode,
           fetchedReferralStats,
+          fetchedBookingRequests,
         ] = await Promise.all([
           db.getAchievements(),
           db.getUserAchievements(user.id),
@@ -367,6 +372,7 @@ export default function ProfileScreen({
           db.getUserConnections(user.id, "accepted"), // Only count accepted connections
           db.getUserInviteCode(user.id),
           db.getReferralStats(user.id),
+          db.getIncomingBookingRequests(user.id),
         ]);
         
         connections = connectionsData?.length || 0;
@@ -375,6 +381,9 @@ export default function ProfileScreen({
           totalReferrals: 0,
           totalCreditsEarned: 0,
         };
+        incomingBookings = Array.isArray(fetchedBookingRequests)
+          ? fetchedBookingRequests
+          : [];
 
         if (allAchievements && allAchievements.length > 0) {
           const earnedIds = new Set(
@@ -402,6 +411,7 @@ export default function ProfileScreen({
         setConnectionsCount(connections);
         setInviteCode(userInviteCode);
         setReferralStats(userReferralStats);
+        setBookingRequests(incomingBookings);
       } catch (achievementsError) {
         console.error("❌ Error loading achievements:", achievementsError);
       }
@@ -655,6 +665,7 @@ export default function ProfileScreen({
           connectionsCount: connections,
           inviteCode: userInviteCode,
           referralStats: userReferralStats,
+          bookingRequests: incomingBookings,
         });
         console.log("✅ Profile loaded from database");
         console.log(
@@ -1543,6 +1554,11 @@ export default function ProfileScreen({
           </View>
         )}
 
+        <ProfileBookingRequests
+          requests={bookingRequests}
+          onSeeAll={() => onNavigate?.("admin-applications")}
+        />
+
         {/* Achievements */}
         {renderAchievements()}
 
@@ -1565,735 +1581,3 @@ export default function ProfileScreen({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "hsl(0, 0%, 0%)",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    paddingBottom: 120, // Extra padding to prevent content from being hidden behind play bar
-  },
-  bottomGradient: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 120,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    padding: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  headerActions: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  headerButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%)",
-  },
-  headerButtonText: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    color: "hsl(75, 100%, 60%)",
-  },
-  profileCard: {
-    margin: 20,
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "hsl(75, 100%, 60%)",
-    padding: 20,
-    alignItems: "center",
-  },
-  profileHeader: {
-    position: "relative",
-    marginBottom: 16,
-  },
-  profileImageContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  verifiedBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "hsl(75, 100%, 60%)",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "hsl(0, 0%, 0%)",
-  },
-  profileInfo: {
-    alignItems: "center",
-    width: "100%",
-  },
-  profileName: {
-    fontSize: 24,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 4,
-  },
-  profileUsername: {
-    fontSize: 16,
-    color: "hsl(0, 0%, 70%)",
-    marginBottom: 8,
-  },
-  profileStatus: {
-    fontSize: 14,
-    color: "hsl(75, 100%, 70%)",
-    marginBottom: 12,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  ratingText: {
-    fontSize: 16,
-    color: "hsl(0, 0%, 100%)",
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  gigsText: {
-    fontSize: 16,
-    color: "hsl(0, 0%, 70%)",
-    marginLeft: 4,
-  },
-  bio: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 100%)",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  locationContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  locationText: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
-    marginLeft: 4,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    gap: 12,
-    marginBottom: 20,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  statNumber: {
-    fontSize: 24,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
-  },
-  referralSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  inviteCodeCard: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  referralLinkCard: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  referralLinkHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    gap: 8,
-  },
-  referralLinkTitle: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
-  },
-  referralLinkContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "hsl(0, 0%, 5%)",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  referralLinkText: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    marginRight: 8,
-  },
-  copyLinkButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    gap: 6,
-  },
-  copyLinkButtonText: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 0%)",
-  },
-  shareOptionsContainer: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  shareOptionsTitle: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 70%)",
-    marginBottom: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  shareButtonsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  shareButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "hsl(0, 0%, 5%)",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-    gap: 6,
-  },
-  shareButtonText: {
-    fontSize: 12,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "500",
-    color: "hsl(0, 0%, 70%)",
-    textAlign: "center",
-  },
-  inviteCodeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    gap: 8,
-  },
-  inviteCodeTitle: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
-  },
-  inviteCodeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "hsl(0, 0%, 5%)",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%)",
-  },
-  inviteCodeText: {
-    fontSize: 20,
-    fontFamily: "TS Block Bold",
-    color: "hsl(75, 100%, 60%)",
-    letterSpacing: 2,
-  },
-  inviteCodeDescription: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 60%)",
-    fontFamily: "Helvetica Neue",
-    lineHeight: 16,
-  },
-  referralStatsCard: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  referralStatsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-  referralStatItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  referralStatDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "hsl(0, 0%, 15%)",
-  },
-  referralStatNumber: {
-    fontSize: 24,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 4,
-  },
-  referralStatLabel: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
-  },
-  genresContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  genresList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  genreTag: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%)",
-    backgroundColor: "transparent",
-  },
-  genreText: {
-    fontSize: 14,
-    color: "hsl(75, 100%, 60%)",
-    fontFamily: "Helvetica Neue",
-    fontWeight: "500",
-  },
-  audioContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  audioCard: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  audioHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  audioInfo: {
-    flex: 1,
-  },
-  audioTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 4,
-  },
-  audioDetails: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
-  },
-  playButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "hsl(75, 100%, 60%)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  waveformSection: {
-    marginBottom: 16,
-  },
-  waveformContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 40,
-    gap: 2,
-  },
-  waveformBar: {
-    width: 3,
-    backgroundColor: "hsl(0, 0%, 70%)",
-    borderRadius: 1.5,
-  },
-  progressContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  timeText: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
-    minWidth: 40,
-  },
-  progressBar: {
-    flex: 1,
-    height: 4,
-    backgroundColor: "hsl(0, 0%, 15%)",
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "hsl(75, 100%, 60%)",
-    borderRadius: 2,
-  },
-  socialContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  socialLinks: {
-    gap: 16,
-  },
-  socialLinkCard: {
-    backgroundColor: "hsl(0, 0%, 12%)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
-    overflow: "hidden",
-  },
-  socialLinkDisabled: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderColor: "hsl(0, 0%, 15%)",
-    opacity: 0.6,
-  },
-  socialLinkContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-  },
-  socialIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "hsl(0, 0%, 18%)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  socialLinkInfo: {
-    flex: 1,
-  },
-  socialPlatformName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
-    fontFamily: "Helvetica Neue",
-    marginBottom: 4,
-  },
-  socialPlatformNameDisabled: {
-    color: "hsl(0, 0%, 40%)",
-  },
-  socialHandle: {
-    fontSize: 14,
-    color: "hsl(75, 100%, 60%)",
-    fontFamily: "Helvetica Neue",
-    fontWeight: "500",
-  },
-  socialHandleDisabled: {
-    color: "hsl(0, 0%, 30%)",
-  },
-  gigsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  gigCard: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  gigHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  gigName: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    flex: 1,
-  },
-  gigPrice: {
-    fontSize: 16,
-    color: "hsl(75, 100%, 60%)",
-    fontFamily: "Helvetica Neue",
-    fontWeight: "600",
-  },
-  gigVenue: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
-    marginBottom: 8,
-  },
-  gigFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  gigDate: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 50%)",
-  },
-  gigRating: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  gigRatingText: {
-    fontSize: 12,
-    color: "hsl(0, 0%, 70%)",
-    marginLeft: 4,
-  },
-  achievementsContainer: {
-    marginTop: 0,
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  achievementsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  achievementsIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  achievementsInfo: {
-    flex: 1,
-  },
-  achievementsTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 4,
-  },
-  achievementsCount: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
-  },
-  connectionsContainer: {
-    marginTop: 0,
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  connectionsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  connectionsIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  connectionsInfo: {
-    flex: 1,
-  },
-  connectionsTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    fontWeight: "700",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 4,
-  },
-  connectionsCount: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
-  },
-  invitePanelContainer: {
-    marginTop: 0,
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  invitePanelHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "hsl(0, 0%, 15%)",
-  },
-  invitePanelIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  invitePanelInfo: {
-    flex: 1,
-  },
-  invitePanelTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginBottom: 4,
-  },
-  invitePanelCount: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
-  },
-  uploadButton: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  uploadButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    gap: 8,
-  },
-  uploadButtonText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "black",
-  },
-  // Empty Audio ID Styles
-  emptyAudioCard: {
-    backgroundColor: "hsl(0, 0%, 8%)",
-    borderRadius: 16,
-    padding: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 200,
-  },
-  emptyAudioContent: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyAudioTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "hsl(0, 0%, 100%)",
-    marginTop: 16,
-    marginBottom: 8,
-    fontFamily: "TS Block Bold",
-  },
-  emptyAudioSubtitle: {
-    fontSize: 14,
-    color: "hsl(0, 0%, 60%)",
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  uploadMixButton: {
-    backgroundColor: "hsl(75, 100%, 60%)",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 20,
-  },
-  uploadMixButtonText: {
-    color: "hsl(0, 0%, 0%)",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});

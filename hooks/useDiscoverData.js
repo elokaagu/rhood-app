@@ -52,13 +52,14 @@ export function useDiscoverData(user, searchQuery) {
   useEffect(() => {
     if (user?.id) {
       loadNearbyOpportunities();
+      loadNearbyDJs();
     } else {
       setNearbyOpportunities([]);
       setNearbyOpportunitiesLoading(false);
       setNearbyDJs([]);
       setNearbyDJsLoading(false);
     }
-  }, [user?.id, user?.city, loadNearbyOpportunities]);
+  }, [user?.id, user?.city, loadNearbyOpportunities, loadNearbyDJs]);
 
   const filteredDiscoverUsers = useMemo(() => {
     if (!searchQuery?.trim()) return discoverUsers;

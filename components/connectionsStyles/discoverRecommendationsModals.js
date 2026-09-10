@@ -325,6 +325,18 @@ export default {
     color: "hsl(0, 0%, 62%)",
     textAlign: "center",
   },
+  nearbyEmptyAction: {
+    marginTop: 8,
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  nearbyEmptyActionText: {
+    fontSize: 13,
+    fontFamily: FONT_HEADING,
+    color: "hsl(0, 0%, 0%)",
+  },
   recommendationsDivider: {
     height: 1,
     backgroundColor: "hsl(0, 0%, 15%)",
@@ -399,11 +411,12 @@ export default {
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "hsl(0, 0%, 0%)",
   },
   locationModalBackdrop: {
     flex: 1,
     minHeight: 48,
+    backgroundColor: "hsl(0, 0%, 0%)",
   },
   locationModalKeyboardAvoid: {
     width: "100%",
@@ -412,7 +425,7 @@ export default {
     backgroundColor: "hsl(0, 0%, 8%)",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: "60%",
+    maxHeight: "80%",
     paddingBottom: 20,
   },
   modalHeader: {

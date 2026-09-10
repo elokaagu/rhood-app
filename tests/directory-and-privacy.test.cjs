@@ -6,7 +6,12 @@ const assert = require("node:assert/strict");
 function loadExportedFunctions(relPath) {
   const abs = path.join(__dirname, "..", relPath);
   let src = fs.readFileSync(abs, "utf8");
+  src = src.replace(/^import .+?;?\s*$/gm, "");
   const names = [];
+  src = src.replace(/export async function (\w+)/g, (_, name) => {
+    names.push(name);
+    return `async function ${name}`;
+  });
   src = src.replace(/export function (\w+)/g, (_, name) => {
     names.push(name);
     return `function ${name}`;
@@ -25,6 +30,12 @@ const { canonicalCityName, citiesShareSameCity } = loadExportedFunctions(
   "lib/cityMatch.js"
 );
 const { sanitizePublicProfile } = loadExportedFunctions("lib/publicProfile.js");
+const {
+  buildDirectBase,
+  mapMediaToDirectRow,
+  mapMediaToGroupRow,
+} = loadExportedFunctions("lib/messagesScreen/sendMessagesOperations.js");
+const { normalizeInviteCode } = loadExportedFunctions("lib/pendingInvite.js");
 
 describe("excludeUserIds", () => {
   it("drops blocked profiles", () => {
@@ -62,6 +73,18 @@ describe("cityMatch", () => {
       true
     );
   });
+
+  it("treats Barnet as London", () => {
+    assert.equal(citiesShareSameCity("Barnet", "London"), true);
+    assert.equal(
+      citiesShareSameCity("Barnet, London, United Kingdom", "London"),
+      true
+    );
+  });
+
+  it("does not match Amsterdam to London", () => {
+    assert.equal(citiesShareSameCity("Amsterdam", "London"), false);
+  });
 });
 
 describe("sanitizePublicProfile", () => {
@@ -85,5 +108,51 @@ describe("sanitizePublicProfile", () => {
     });
     assert.equal(shown.email, "shown@example.com");
     assert.equal(shown.phone, "123");
+  });
+});
+
+describe("chat send payloads", () => {
+  it("builds a direct text row with thread and sender", () => {
+    assert.deepEqual(buildDirectBase("thread-1", "user-1"), {
+      thread_id: "thread-1",
+      sender_id: "user-1",
+    });
+  });
+
+  it("maps media onto a direct message without dropping the file", () => {
+    const row = mapMediaToDirectRow(buildDirectBase("t1", "u1"), {
+      type: "image",
+      url: "https://cdn.example/mix.jpg",
+      filename: "mix.jpg",
+      size: 12,
+      mimeType: "image/jpeg",
+      thumbnailUrl: null,
+      extension: "jpg",
+    });
+    assert.equal(row.message_type, "image");
+    assert.equal(row.media_url, "https://cdn.example/mix.jpg");
+    assert.equal(row.thread_id, "t1");
+    assert.equal(row.content, "");
+  });
+
+  it("maps group media onto community_posts shape", () => {
+    const row = mapMediaToGroupRow("comm-1", "u1", {
+      type: "audio",
+      url: "https://cdn.example/a.m4a",
+      filename: "a.m4a",
+      size: 9,
+      mimeType: "audio/mp4",
+      duration: 1500,
+    });
+    assert.equal(row.community_id, "comm-1");
+    assert.equal(row.author_id, "u1");
+    assert.equal(row.metadata.duration_millis, 1500);
+  });
+});
+
+describe("invite codes", () => {
+  it("normalizes codes the same way Studio and the app share them", () => {
+    assert.equal(normalizeInviteCode(" 8f758aca "), "8F758ACA");
+    assert.equal(normalizeInviteCode("8F-758-ACA"), "8F758ACA");
   });
 });

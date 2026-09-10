@@ -22,6 +22,7 @@ class NowPlayingInfoModule: RCTEventEmitter {
       "NowPlayingRemotePlayPause",
       "NowPlayingRemoteNext",
       "NowPlayingRemotePrevious",
+      "NowPlayingRemoteSeek",
     ]
   }
 
@@ -147,6 +148,21 @@ class NowPlayingInfoModule: RCTEventEmitter {
       self?.sendEvent(withName: "NowPlayingRemotePrevious", body: nil)
       return .success
     }
+
+    center.changePlaybackPositionCommand.isEnabled = true
+    center.changePlaybackPositionCommand.addTarget { [weak self] event in
+      guard let seekEvent = event as? MPChangePlaybackPositionCommandEvent else {
+        return .commandFailed
+      }
+      var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+      info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = seekEvent.positionTime
+      MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+      self?.sendEvent(
+        withName: "NowPlayingRemoteSeek",
+        body: ["position": seekEvent.positionTime]
+      )
+      return .success
+    }
   }
 
   private func removeRemoteCommands() {
@@ -159,11 +175,13 @@ class NowPlayingInfoModule: RCTEventEmitter {
     center.togglePlayPauseCommand.removeTarget(nil)
     center.nextTrackCommand.removeTarget(nil)
     center.previousTrackCommand.removeTarget(nil)
+    center.changePlaybackPositionCommand.removeTarget(nil)
 
     center.playCommand.isEnabled = false
     center.pauseCommand.isEnabled = false
     center.togglePlayPauseCommand.isEnabled = false
     center.nextTrackCommand.isEnabled = false
     center.previousTrackCommand.isEnabled = false
+    center.changePlaybackPositionCommand.isEnabled = false
   }
 }

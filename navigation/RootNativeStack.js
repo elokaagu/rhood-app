@@ -1,15 +1,36 @@
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import ScreenRouter from "./ScreenRouter";
-import { OVERLAY_SCREEN_IDS } from "./routes";
-import { navigationRef } from "./navigationRef";
+import { OVERLAY_SCREEN_IDS, TAB_SCREEN_IDS, SCREENS } from "./routes";
+import { getLeafRouteName, navigationRef } from "./navigationRef";
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+function MainTabs({ routerProps, initialTab }) {
+  return (
+    <Tab.Navigator
+      initialRouteName={initialTab || SCREENS.OPPORTUNITIES}
+      tabBar={() => null}
+      screenOptions={{
+        headerShown: false,
+        lazy: true,
+      }}
+    >
+      {TAB_SCREEN_IDS.map((name) => (
+        <Tab.Screen key={name} name={name}>
+          {() => <ScreenRouter screen={name} {...routerProps} />}
+        </Tab.Screen>
+      ))}
+    </Tab.Navigator>
+  );
+}
 
 /**
- * Native iOS/Android stack for pushed screens (profile, settings, DMs, legal).
- * Tab roots stay on "Main" so the OS owns back/swipe instead of a JS string swap.
+ * Native tabs for the four roots; overlays (profile, settings, DMs, legal)
+ * are real stack screens so iOS/Android own back/swipe.
  */
 export default function RootNativeStack({
   screen,
@@ -17,15 +38,17 @@ export default function RootNativeStack({
   routerProps,
   onNativeRouteChange,
 }) {
+  const initialTab = TAB_SCREEN_IDS.includes(tabScreen)
+    ? tabScreen
+    : SCREENS.OPPORTUNITIES;
+
   return (
     <NavigationContainer
       ref={navigationRef}
       onStateChange={(state) => {
-        const route = state?.routes?.[state.index];
-        if (!route) return;
-        const next =
-          route.name === "Main" ? tabScreen || screen : route.name;
-        onNativeRouteChange?.(next);
+        const leaf = getLeafRouteName(state);
+        if (!leaf || leaf === "Main") return;
+        onNativeRouteChange?.(leaf);
       }}
     >
       <Stack.Navigator
@@ -37,7 +60,9 @@ export default function RootNativeStack({
         }}
       >
         <Stack.Screen name="Main" options={{ gestureEnabled: false }}>
-          {() => <ScreenRouter screen={tabScreen || screen} {...routerProps} />}
+          {() => (
+            <MainTabs routerProps={routerProps} initialTab={initialTab} />
+          )}
         </Stack.Screen>
         {OVERLAY_SCREEN_IDS.map((name) => (
           <Stack.Screen key={name} name={name}>

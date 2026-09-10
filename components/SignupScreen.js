@@ -17,6 +17,10 @@ import { auth, db } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 import { getSignupErrorMessage } from "../lib/errorMessages";
 import { track, AnalyticsEvents } from "../lib/analytics";
+import {
+  savePendingInviteCode,
+  consumePendingInviteCode,
+} from "../lib/pendingInvite";
 import AuthLegalLinks from "./AuthLegalLinks";
 import PrivacyPolicyScreen from "./PrivacyPolicyScreen";
 import TermsOfServiceScreen from "./TermsOfServiceScreen";
@@ -107,7 +111,10 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
 
           if (formData.inviteCode && formData.inviteCode.trim()) {
             try {
-              await db.processReferral(formData.inviteCode.trim(), user.id);
+              await savePendingInviteCode(formData.inviteCode);
+              await consumePendingInviteCode((code) =>
+                db.processReferral(code, user.id)
+              );
             } catch (referralError) {
               // Non-blocking by design — a bad/stale invite code shouldn't
               // stop signup. console.warn alone is invisible in a
@@ -128,7 +135,8 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
             city: "",
           });
         } else {
-          // Email confirmation required — show the pending screen
+          // Email confirmation required — keep the code until they finish signup.
+          await savePendingInviteCode(formData.inviteCode);
           setPendingEmail(formData.email);
           startResendCooldown();
         }
@@ -219,6 +227,9 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
         };
 
         await db.createUserProfile(profileData);
+        await consumePendingInviteCode((code) =>
+          db.processReferral(code, user.id)
+        ).catch(() => {});
         onSignupSuccess(user, {
           dj_name: profileData.dj_name,
           first_name: profileData.first_name,

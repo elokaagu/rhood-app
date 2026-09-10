@@ -33,6 +33,7 @@ import YourLikesScreen from "../components/YourLikesScreen";
 import PlaylistDetailScreen from "../components/PlaylistDetailScreen";
 import ResetPasswordScreen from "../components/ResetPasswordScreen";
 import SwipeBackScreenShell from "../components/SwipeBackScreenShell";
+import { goBackApp, navigationRef } from "./navigationRef";
 import { auth, db } from "../lib/supabase";
 import { CONNECTIONS_SCREEN_TABS } from "../lib/connectionsScreenTabIds";
 import { clearScreenCachesForUser } from "../lib/screenCache";
@@ -223,9 +224,15 @@ export default function ScreenRouter({
     [user, setUser, setCurrentScreen, setScreenParams]
   );
 
-  /** `() => setCurrentScreen(target)` for swipe shell + simple backs */
+  /** Prefer native stack pop so swipe-back and the header arrow stay in sync. */
   const pickScreen = useCallback(
-    (target) => () => setCurrentScreen(target),
+    (target) => () => {
+      if (navigationRef.isReady() && navigationRef.canGoBack()) {
+        goBackApp();
+        return;
+      }
+      setCurrentScreen(target);
+    },
     [setCurrentScreen]
   );
 
@@ -423,6 +430,7 @@ export default function ScreenRouter({
           user={user}
           onSave={handleEditProfileSave}
           onCancel={pickScreen(SCREENS.PROFILE)}
+          focusField={screenParams.focusField}
         />
       );
 
@@ -492,7 +500,8 @@ export default function ScreenRouter({
     }
 
     case SCREENS.ACHIEVEMENTS_LIST:
-      return (
+      return withSwipeBack(
+        pickScreen(SCREENS.PROFILE),
         <AchievementsListScreen
           user={user}
           onBack={pickScreen(SCREENS.PROFILE)}

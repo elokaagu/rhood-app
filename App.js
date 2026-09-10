@@ -32,10 +32,12 @@ import {
 } from "./lib/notificationSetup";
 import RhoodModal from "./components/RhoodModal";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { reportCrash } from "./lib/crashReporter";
 import styles from "./App.styles";
 import EditProfileScreen from "./components/EditProfileScreen";
 import AuthGate from "./components/AuthGate";
 import { db, auth, supabase } from "./lib/supabase";
+import { consumePendingInviteCode } from "./lib/pendingInvite";
 import { getUserFriendlyError } from "./lib/errorMessages";
 import { clearScreenCachesForUser } from "./lib/screenCache";
 import { clearMessageThreadSnapshotsForUser } from "./lib/messageThreadSnapshotCache";
@@ -829,8 +831,8 @@ export default function App() {
 
         // Set analytics user
         await setAnalyticsUser(user.id, {
-          email: user.email,
           dj_name: profile.dj_name || profile.djName,
+          name: profile.dj_name || profile.djName,
           city: profile.city,
         });
         await track(AnalyticsEvents.USER_LOGGED_IN, {
@@ -973,8 +975,8 @@ export default function App() {
 
           // Update analytics user properties
           await setAnalyticsUser(user.id, {
-            email: user.email,
             dj_name: refreshedProfile.dj_name,
+            name: refreshedProfile.dj_name,
             city: refreshedProfile.city,
           });
 
@@ -1692,6 +1694,16 @@ export default function App() {
         if (__DEV__) console.warn("⚠️ Failed to ensure invite code:", codeError);
       }
 
+      try {
+        await consumePendingInviteCode((code) =>
+          db.processReferral(code, user.id)
+        );
+      } catch (referralError) {
+        if (__DEV__) {
+          console.warn("Pending invite processing failed:", referralError);
+        }
+      }
+
       await AsyncStorage.setItem("hasOnboarded", "true");
       await AsyncStorage.setItem("djProfile", JSON.stringify(djProfile));
       await AsyncStorage.setItem("userId", user.id);
@@ -1771,7 +1783,7 @@ export default function App() {
   if (authGateRender !== null) {
     return (
       <SafeAreaProvider>
-        <ErrorBoundary>
+        <ErrorBoundary onError={reportCrash}>
         {authGateRender}
         <RhoodModal
           visible={showModal}
@@ -1847,7 +1859,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <ErrorBoundary>
+    <ErrorBoundary onError={reportCrash}>
     <AppTutorialProvider activeScreenId={currentScreen}>
     <View style={styles.appRoot}>
     <AppShell

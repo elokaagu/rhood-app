@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -160,7 +160,7 @@ function normalizePortfolioUrl(raw) {
   return `https://${text.replace(/^\/+/, "")}`;
 }
 
-export default function EditProfileScreen({ user, onSave, onCancel }) {
+export default function EditProfileScreen({ user, onSave, onCancel, focusField }) {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -193,6 +193,13 @@ export default function EditProfileScreen({ user, onSave, onCancel }) {
     setProfile((prev) => ({ ...prev, city }));
     setErrors((prev) => ({ ...prev, city: null }));
   });
+  const openedCityFocus = useRef(false);
+
+  useEffect(() => {
+    if (focusField !== "city" || loading || openedCityFocus.current) return;
+    openedCityFocus.current = true;
+    cityPicker.open();
+  }, [focusField, loading, cityPicker.open]);
 
   // Available genres for selection
   const availableGenres = [

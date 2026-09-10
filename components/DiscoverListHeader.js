@@ -59,7 +59,16 @@ function OpportunityImagePlaceholder() {
 /**
  * Horizontal DJ cards (Popular / Nearby) — shared carousel chrome and card layout.
  */
-function DJRecommendationCarousel({ djs, loading, skeletonCardStyle, onDjPress }) {
+function DJRecommendationCarousel({
+  djs,
+  loading,
+  skeletonCardStyle,
+  onDjPress,
+  emptyTitle,
+  emptySubtitle,
+  emptyActionLabel,
+  onEmptyAction,
+}) {
   const list = djs ?? [];
   if (loading && list.length === 0) {
     return <DiscoverCarouselSkeleton cardStyle={skeletonCardStyle} />;
@@ -68,10 +77,27 @@ function DJRecommendationCarousel({ djs, loading, skeletonCardStyle, onDjPress }
     return (
       <View style={styles.nearbyEmptyCard}>
         <Ionicons name="location-outline" size={20} color="hsl(75, 100%, 60%)" />
-        <Text style={styles.nearbyEmptyTitle}>No DJs in your city yet</Text>
-        <Text style={styles.nearbyEmptySubtitle}>
-          Set your city in Edit Profile to see DJs in the same city.
+        <Text style={styles.nearbyEmptyTitle}>
+          {emptyTitle || "No DJs in your city yet"}
         </Text>
+        <Text style={styles.nearbyEmptySubtitle}>
+          {emptySubtitle ||
+            "Set your city in Edit Profile to see DJs in the same city."}
+        </Text>
+        {onEmptyAction ? (
+          <TouchableOpacity
+            style={styles.nearbyEmptyAction}
+            onPress={() => {
+              HapticPatterns.buttonPress();
+              onEmptyAction();
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.nearbyEmptyActionText}>
+              {emptyActionLabel || "Set your city"}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     );
   }
@@ -255,6 +281,12 @@ function DiscoverListHeader({
               HapticPatterns.itemPress();
               onNavigate?.("user-profile", { userId: dj.id, djName: dj.dj_name });
             }}
+            emptyTitle="No DJs in your city yet"
+            emptySubtitle="Set or update your city to see DJs near you."
+            emptyActionLabel="Set your city"
+            onEmptyAction={() =>
+              onNavigate?.("edit-profile", { focusField: "city" })
+            }
           />
           <View style={styles.recommendationsDivider} />
         </View>

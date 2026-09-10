@@ -1722,11 +1722,17 @@ export default function useAudioPlayback({ user }) {
     const subPrev = emitter.addListener("NowPlayingRemotePrevious", () => {
       actionsRef.current?.playPreviousTrack?.();
     });
+    const subSeek = emitter.addListener("NowPlayingRemoteSeek", (payload) => {
+      const seconds = Number(payload?.position);
+      if (!Number.isFinite(seconds) || seconds < 0) return;
+      actionsRef.current?.seekToPosition?.(seconds * 1000);
+    });
 
     return () => {
       subPlayPause.remove();
       subNext.remove();
       subPrev.remove();
+      subSeek.remove();
     };
   }, [actionsRef, stateRef]);
 

@@ -475,6 +475,9 @@ export default function NotificationsScreen({
         });
 
       syncNotificationsState(transformedNotifications);
+      if (onNotificationRead) {
+        onNotificationRead();
+      }
       if (user?.id) {
         notificationsCache.set(user.id, {
           user,
@@ -707,6 +710,10 @@ export default function NotificationsScreen({
         syncNotificationsState((prev) => [removedNotification, ...prev]);
       }
       Alert.alert("Error", "Failed to dismiss notification");
+      return;
+    }
+    if (onNotificationRead) {
+      onNotificationRead();
     }
   };
 
