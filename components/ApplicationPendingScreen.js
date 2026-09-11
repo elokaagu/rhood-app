@@ -22,11 +22,22 @@ export default function ApplicationPendingScreen({ status = "pending", onSignOut
         <Text style={styles.title}>
           {rejected ? "Application not approved" : "Thank you!"}
         </Text>
-        <Text style={styles.body}>
-          {rejected
-            ? "Your application to join R/HOOD was not approved this time. If you think this is a mistake, email hello@rhood.io."
-            : "Your application has been received. R/HOOD is invite-only — we'll email you and send a notification when you've been approved."}
-        </Text>
+        {rejected ? (
+          <Text style={styles.body}>
+            Your application to join R/HOOD was not approved this time. If you
+            think this is a mistake, email hello@rhood.io.
+          </Text>
+        ) : (
+          <>
+            <Text style={styles.body}>
+              Your application has been received and will be reviewed by the
+              R/HOOD team.
+            </Text>
+            <Text style={styles.body}>
+              You will get an email if you get approved.
+            </Text>
+          </>
+        )}
         <TouchableOpacity
           style={styles.signOut}
           onPress={onSignOut}
