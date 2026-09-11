@@ -42,7 +42,7 @@ import {
   profileWithInviteCodeUsed,
   readPendingInviteCode,
 } from "./lib/pendingInvite";
-import { normalizeMembershipStatus } from "./lib/membership";
+import { membershipStatusFromProfile } from "./lib/membership";
 import { parseBookingRequestDeepLink } from "./lib/appDeepLinks";
 import { getUserFriendlyError } from "./lib/errorMessages";
 import { clearScreenCachesForUser } from "./lib/screenCache";
@@ -119,10 +119,6 @@ const MENU_TIMINGS = {
  */
 function isOnboardingProfileComplete(profile) {
   return Array.isArray(profile?.genres) && profile.genres.length > 0;
-}
-
-function membershipStatusFromProfile(profile) {
-  return normalizeMembershipStatus(profile?.membership_status);
 }
 
 function isMissingProfileError(error) {

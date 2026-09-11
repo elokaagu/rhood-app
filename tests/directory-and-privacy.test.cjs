@@ -80,6 +80,15 @@ describe("isDirectoryReadyDj", () => {
       }),
       false
     );
+    assert.equal(
+      isDirectoryReadyDj({
+        dj_name: "DJ Test",
+        profile_image_url: "https://example.com/p.jpg",
+        membership_status: "pending",
+        is_verified: true,
+      }),
+      true
+    );
   });
 });
 
@@ -183,8 +192,10 @@ describe("invite codes", () => {
 
 const {
   normalizeMembershipStatus,
+  membershipStatusFromProfile,
   isMembershipApproved,
   isMembershipPending,
+  isMembershipRejected,
   membershipFromRedeemResult,
   isMissingRpcError,
   isMissingColumnError,
@@ -199,6 +210,27 @@ describe("invite-only membership", () => {
   it("holds organic applicants until Studio approves", () => {
     assert.equal(isMembershipPending({ membership_status: "pending" }), true);
     assert.equal(isMembershipApproved({ membership_status: "pending" }), false);
+  });
+
+  it("treats Studio-verified DJs as approved even if membership_status lagged", () => {
+    assert.equal(
+      membershipStatusFromProfile({
+        membership_status: "pending",
+        is_verified: true,
+      }),
+      "approved"
+    );
+    assert.equal(
+      isMembershipApproved({ membership_status: "pending", is_verified: true }),
+      true
+    );
+    assert.equal(
+      isMembershipRejected({
+        membership_status: "rejected",
+        is_verified: true,
+      }),
+      true
+    );
   });
 
   it("maps Studio redeem_dj_invite_code success onto approved", () => {

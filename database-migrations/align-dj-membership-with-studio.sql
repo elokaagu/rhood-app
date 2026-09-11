@@ -128,15 +128,31 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  INSERT INTO public.notifications (user_id, type, title, message, related_id, is_read)
-  VALUES (
-    NEW.id,
-    'membership_approved',
-    'You''re in',
-    'Your R/HOOD application was approved. Open the app to get started.',
-    NEW.id,
-    false
-  );
+  BEGIN
+    BEGIN
+      INSERT INTO public.notifications (user_id, type, title, message, related_id, is_read)
+      VALUES (
+        NEW.id,
+        'membership_approved',
+        'You''re in',
+        'Your R/HOOD application was approved. Open the app to get started.',
+        NEW.id,
+        false
+      );
+    EXCEPTION WHEN check_violation THEN
+      INSERT INTO public.notifications (user_id, type, title, message, related_id, is_read)
+      VALUES (
+        NEW.id,
+        'application_approved',
+        'You''re in',
+        'Your R/HOOD application was approved. Open the app to get started.',
+        NEW.id,
+        false
+      );
+    END;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'notify_dj_membership_approved: %', SQLERRM;
+  END;
 
   SELECT edge_function_url, internal_secret INTO cfg
   FROM public.expo_push_delivery_config
