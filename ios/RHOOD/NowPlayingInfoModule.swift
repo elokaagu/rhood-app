@@ -12,9 +12,32 @@ import UIKit
 class NowPlayingInfoModule: RCTEventEmitter {
 
   private var remoteCommandsInstalled = false
+  private var hasListeners = false
   /// Ignore stale JS time updates for a moment after the user scrubs the lock screen.
   private var ignoreStaleElapsedUntil: TimeInterval = 0
   private var expectedElapsedAfterSeek: Double = 0
+
+  override func startObserving() {
+    hasListeners = true
+  }
+
+  override func stopObserving() {
+    hasListeners = false
+  }
+
+  /// MPRemoteCommandCenter callbacks are not on the JS thread. Sending an
+  /// event with no listeners (or off-thread) crashes the app.
+  private func emitRemoteEvent(_ name: String, body: [AnyHashable: Any]? = nil) {
+    let send = { [weak self] in
+      guard let self = self, self.hasListeners else { return }
+      self.sendEvent(withName: name, body: body)
+    }
+    if Thread.isMainThread {
+      send()
+    } else {
+      DispatchQueue.main.async(execute: send)
+    }
+  }
 
   override static func requiresMainQueueSetup() -> Bool {
     true
@@ -133,31 +156,31 @@ class NowPlayingInfoModule: RCTEventEmitter {
 
     center.playCommand.isEnabled = true
     center.playCommand.addTarget { [weak self] _ in
-      self?.sendEvent(withName: "NowPlayingRemotePlayPause", body: nil)
+      self?.emitRemoteEvent("NowPlayingRemotePlayPause")
       return .success
     }
 
     center.pauseCommand.isEnabled = true
     center.pauseCommand.addTarget { [weak self] _ in
-      self?.sendEvent(withName: "NowPlayingRemotePlayPause", body: nil)
+      self?.emitRemoteEvent("NowPlayingRemotePlayPause")
       return .success
     }
 
     center.togglePlayPauseCommand.isEnabled = true
     center.togglePlayPauseCommand.addTarget { [weak self] _ in
-      self?.sendEvent(withName: "NowPlayingRemotePlayPause", body: nil)
+      self?.emitRemoteEvent("NowPlayingRemotePlayPause")
       return .success
     }
 
     center.nextTrackCommand.isEnabled = true
     center.nextTrackCommand.addTarget { [weak self] _ in
-      self?.sendEvent(withName: "NowPlayingRemoteNext", body: nil)
+      self?.emitRemoteEvent("NowPlayingRemoteNext")
       return .success
     }
 
     center.previousTrackCommand.isEnabled = true
     center.previousTrackCommand.addTarget { [weak self] _ in
-      self?.sendEvent(withName: "NowPlayingRemotePrevious", body: nil)
+      self?.emitRemoteEvent("NowPlayingRemotePrevious")
       return .success
     }
 
@@ -173,8 +196,8 @@ class NowPlayingInfoModule: RCTEventEmitter {
       MPNowPlayingInfoCenter.default().nowPlayingInfo = info
       self?.expectedElapsedAfterSeek = seekEvent.positionTime
       self?.ignoreStaleElapsedUntil = Date().timeIntervalSince1970 + 1.6
-      self?.sendEvent(
-        withName: "NowPlayingRemoteSeek",
+      self?.emitRemoteEvent(
+        "NowPlayingRemoteSeek",
         body: ["position": seekEvent.positionTime]
       )
       return .success

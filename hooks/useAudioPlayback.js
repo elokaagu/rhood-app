@@ -969,12 +969,17 @@ export default function useAudioPlayback({ user }) {
       isScrubbingRef.current = true;
 
       const status = await globalAudioRef.current.getStatusAsync();
+      if (!status?.isLoaded) {
+        isScrubbingRef.current = false;
+        pendingSeekMsRef.current = null;
+        return;
+      }
 
       // expo-av often reports durationMillis === 0 for a while; UI still has metadata duration.
       const st = stateRef.current;
       const metaDur = trackMetaDurationMs(st.currentTrack);
       const nativeDur =
-        status?.isLoaded && status.durationMillis > 0 ? status.durationMillis : 0;
+        status.durationMillis > 0 ? status.durationMillis : 0;
       const stateDur = st.durationMillis > 0 ? st.durationMillis : 0;
       const effectiveDuration = Math.max(nativeDur, stateDur, metaDur);
 
@@ -1754,11 +1759,14 @@ export default function useAudioPlayback({ user }) {
     const subSeek = emitter.addListener("NowPlayingRemoteSeek", (payload) => {
       const seconds = Number(payload?.position);
       if (!Number.isFinite(seconds) || seconds < 0) return;
-      const seek =
-        actionsRef.current?.seekToPosition ||
-        audioPlaybackBridge.actionsRef?.current?.seekToPosition;
-      if (!seek) return;
-      void seek(seconds * 1000);
+      // Get off the native command callback before touching expo-av.
+      setTimeout(() => {
+        const seek =
+          actionsRef.current?.seekToPosition ||
+          audioPlaybackBridge.actionsRef?.current?.seekToPosition;
+        if (!seek) return;
+        void seek(seconds * 1000);
+      }, 0);
     });
 
     return () => {

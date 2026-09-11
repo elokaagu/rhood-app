@@ -1142,7 +1142,6 @@ export default function App() {
                               const savedCity = updated?.city || nextCity;
                               setDjProfile((prev) => ({
                                 ...prev,
-                                ...(updated || {}),
                                 city: savedCity,
                               }));
                               setLocationMismatchWarning(false);
