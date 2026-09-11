@@ -125,7 +125,7 @@ export default function SwipeableOpportunityCard({
             const shouldSwipeLeft = dx < -SWIPE_THRESHOLD || vx < -0.5;
             const shouldSwipeRight = dx > SWIPE_THRESHOLD || vx > 0.5;
             // At the daily limit, a right-swipe is going to be rejected by
-            // handleSwipeRight anyway (it early-returns after the Alert) —
+            // handleSwipeRight anyway (it early-returns after the R/HOOD
             // letting the fly-off-screen animation play first left the card
             // stuck fully transparent/off-position with nothing to bring it
             // back (no pull-to-refresh in this view), since
@@ -150,7 +150,7 @@ export default function SwipeableOpportunityCard({
               if (isTap && onPress) {
                 onPress();
               } else if (shouldSwipeRight && limitReached) {
-                // Still surface the "Daily Limit Reached" alert — just
+                // Still surface the branded daily-limit modal — just
                 // without animating the card away first.
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 onSwipeRight?.();

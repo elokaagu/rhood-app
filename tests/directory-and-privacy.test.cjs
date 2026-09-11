@@ -263,7 +263,7 @@ describe("invite-only membership", () => {
 });
 
 const { resolveOverlayBackTarget } = loadExportedFunctions("lib/overlayBackTarget.js");
-const { applyingModalConfig } = loadExportedFunctions(
+const { applyingModalConfig, dailyLimitReachedModalConfig } = loadExportedFunctions(
   "lib/opportunities/applicationFlow.js"
 );
 
@@ -311,6 +311,20 @@ describe("apply sending modal", () => {
     assert.equal(config.primaryButtonText, "Sending...");
     assert.equal(config.title, "Headshots in STU22");
     assert.equal(config.showCloseButton, false);
+  });
+});
+
+describe("daily limit modal", () => {
+  it("uses the branded warning card, not a native alert", () => {
+    const config = dailyLimitReachedModalConfig({
+      dailyLimit: 3,
+      remaining: 0,
+    });
+    assert.equal(config.type, "warning");
+    assert.equal(config.title, "Daily Limit Reached");
+    assert.equal(config.primaryButtonText, "OK");
+    assert.match(config.message, /daily limit of 3/);
+    assert.match(config.message, /0 applications remaining/);
   });
 });
 

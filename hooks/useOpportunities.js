@@ -15,6 +15,7 @@ import {
   loadPostApplySuccessContext,
   classifyApplicationError,
   applyingModalConfig,
+  dailyLimitReachedModalConfig,
 } from "../lib/opportunities/applicationFlow";
 import { SCREENS } from "../navigation/routes";
 
@@ -341,12 +342,9 @@ export default function useOpportunities({
       }
 
       if (classified.kind === "daily_limit") {
-        showCustomModal({
-          type: "warning",
-          title: "Daily Limit Reached",
-          message: errorMessage,
-          primaryButtonText: "OK",
-        });
+        showCustomModal(
+          dailyLimitReachedModalConfig({ message: errorMessage })
+        );
         return;
       }
 
@@ -472,6 +470,16 @@ export default function useOpportunities({
     (opportunity) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+      if (dailyApplicationStats?.can_apply === false) {
+        showCustomModal(
+          dailyLimitReachedModalConfig({
+            dailyLimit: APPLICATION_LIMITS.DAILY_LIMIT,
+            remaining: dailyApplicationStats?.remaining_applications || 0,
+          })
+        );
+        return;
+      }
+
       track(AnalyticsEvents.OPPORTUNITY_VIEWED, {
         opportunity_id: opportunity.id,
         opportunity_title: opportunity.title,
@@ -498,7 +506,7 @@ export default function useOpportunities({
         onPrimaryPress: () => handleConfirmApply(opportunity),
       });
     },
-    [showCustomModal, handleConfirmApply]
+    [showCustomModal, handleConfirmApply, dailyApplicationStats]
   );
 
   const sendOpportunityShareMessage = useCallback(
@@ -578,14 +586,11 @@ export default function useOpportunities({
 
   const handleSwipeRight = useCallback(async () => {
     if (!dailyApplicationStats.can_apply) {
-      Alert.alert(
-        "Daily Limit Reached",
-        `You have reached your daily limit of ${
-          APPLICATION_LIMITS.DAILY_LIMIT
-        } applications. You have ${
-          dailyApplicationStats?.remaining_applications || 0
-        } applications remaining today. Please try again tomorrow.`,
-        [{ text: "OK" }]
+      showCustomModal(
+        dailyLimitReachedModalConfig({
+          dailyLimit: APPLICATION_LIMITS.DAILY_LIMIT,
+          remaining: dailyApplicationStats?.remaining_applications || 0,
+        })
       );
       return;
     }
