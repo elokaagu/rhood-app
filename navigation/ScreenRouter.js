@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { useAudioState } from "../context/AudioContext";
-import { SCREENS } from "./routes";
+import { SCREENS, isTabScreen } from "./routes";
 import OpportunitiesScreen from "../components/OpportunitiesScreen";
 import ConnectionsScreen from "../components/ConnectionsScreen";
 import ListenScreen from "../components/ListenScreen";
@@ -34,6 +34,7 @@ import PlaylistDetailScreen from "../components/PlaylistDetailScreen";
 import ResetPasswordScreen from "../components/ResetPasswordScreen";
 import SwipeBackScreenShell from "../components/SwipeBackScreenShell";
 import { goBackApp, navigationRef } from "./navigationRef";
+import { resolveOverlayBackTarget } from "../lib/overlayBackTarget";
 import { auth, db } from "../lib/supabase";
 import { CONNECTIONS_SCREEN_TABS } from "../lib/connectionsScreenTabIds";
 import { clearScreenCachesForUser } from "../lib/screenCache";
@@ -88,6 +89,7 @@ export default function ScreenRouter({
   shuffleAllMixes,
   shuffleByGenre,
   shuffleBasedOnLikes,
+  lastTabScreen,
 }) {
   const globalAudioState = useAudioState();
 
@@ -236,6 +238,31 @@ export default function ScreenRouter({
     [setCurrentScreen]
   );
 
+  /**
+   * Hamburger overlays (About, Tips) must always land on a real screen.
+   * Native `goBack` is a no-op when this overlay was the first push, which
+   * left the default white stack card empty under the app header.
+   */
+  const leaveOverlay = useCallback(
+    (returnScreen, overlayId) => () => {
+      const target = resolveOverlayBackTarget({
+        returnScreen,
+        overlayId,
+        lastTabScreen,
+      });
+      if (isTabScreen(target)) {
+        setCurrentScreen(target);
+        return;
+      }
+      if (navigationRef.isReady() && navigationRef.canGoBack()) {
+        goBackApp();
+        return;
+      }
+      setCurrentScreen(target);
+    },
+    [lastTabScreen, setCurrentScreen]
+  );
+
   const exitMessagesToConnections = useCallback(() => {
     setCurrentScreen(SCREENS.CONNECTIONS);
     setScreenParams((prev) => ({
@@ -350,12 +377,16 @@ export default function ScreenRouter({
     case SCREENS.COMMUNITY:
       return <CommunityScreen onNavigate={navigate} />;
 
-    case SCREENS.TIPS:
-      return (
-        <TipsScreen
-          onBack={pickScreen(screenParams.returnScreen ?? SCREENS.PROFILE)}
-        />
+    case SCREENS.TIPS: {
+      const backFromTips = leaveOverlay(
+        screenParams.returnScreen,
+        SCREENS.TIPS
       );
+      return withSwipeBack(
+        backFromTips,
+        <TipsScreen onBack={backFromTips} />
+      );
+    }
 
     case SCREENS.PROFILE:
       return (
@@ -534,8 +565,9 @@ export default function ScreenRouter({
       );
 
     case SCREENS.ABOUT: {
-      const backFromAbout = pickScreen(
-        screenParams.returnScreen ?? SCREENS.OPPORTUNITIES
+      const backFromAbout = leaveOverlay(
+        screenParams.returnScreen,
+        SCREENS.ABOUT
       );
       return withSwipeBack(
         backFromAbout,

@@ -371,6 +371,7 @@ export default function App() {
     onPrimaryPress: null,
     onSecondaryPress: null,
     showCloseButton: true,
+    busy: false,
   });
 
   // Helper function to show custom modal
@@ -391,6 +392,7 @@ export default function App() {
       shareOpportunity: config.shareOpportunity || null,
       shareUserId: config.shareUserId || null,
       onShareInApp: config.onShareInApp || null,
+      busy: Boolean(config.busy),
     });
     setShowModal(true);
   }, []);
@@ -1346,7 +1348,8 @@ export default function App() {
         (screen === SCREENS.TIPS || screen === SCREENS.ABOUT) &&
         nextParams.returnScreen === undefined
       ) {
-        nextParams.returnScreen = currentScreen;
+        nextParams.returnScreen =
+          currentScreen === screen ? lastTabScreen : currentScreen;
       }
       setCurrentScreen(screen);
       setScreenParams(nextParams);
@@ -1354,7 +1357,7 @@ export default function App() {
         closeMenuRef.current?.();
       }
     },
-    [currentScreen, showMenu]
+    [currentScreen, lastTabScreen, showMenu]
   );
 
   useEffect(() => {
@@ -1948,11 +1951,19 @@ export default function App() {
         screen={currentScreen}
         tabScreen={isTabScreen(currentScreen) ? currentScreen : lastTabScreen}
         onNativeRouteChange={(name) => {
-          if (name && name !== currentScreenRef.current) {
+          if (!name) return;
+          if (name === "Main") {
+            setCurrentScreen((prev) =>
+              isTabScreen(prev) ? prev : lastTabScreen
+            );
+            return;
+          }
+          if (name !== currentScreenRef.current) {
             setCurrentScreen(name);
           }
         }}
         routerProps={{
+        lastTabScreen,
         screenParams,
         styles,
         user,
@@ -2384,6 +2395,7 @@ export default function App() {
           shareOpportunity={modalConfig.shareOpportunity || null}
           shareUserId={modalConfig.shareUserId || null}
           onShareInApp={modalConfig.onShareInApp || null}
+          busy={modalConfig.busy}
         />
 
     </AppShell>

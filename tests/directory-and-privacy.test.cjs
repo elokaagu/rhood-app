@@ -252,6 +252,65 @@ describe("invite-only membership", () => {
 
   it("treats a missing column as fail-open, not a waitlist lock", () => {
     assert.equal(isMissingColumnError({ code: "42703", message: "column does not exist" }), true);
+    assert.equal(
+      isMissingColumnError({
+        code: "PGRST204",
+        message: "Could not find the 'is_rhood_approved_promoter' column",
+      }),
+      true
+    );
+  });
+});
+
+const { resolveOverlayBackTarget } = loadExportedFunctions("lib/overlayBackTarget.js");
+const { applyingModalConfig } = loadExportedFunctions(
+  "lib/opportunities/applicationFlow.js"
+);
+
+describe("overlay back target", () => {
+  it("returns to the screen About was opened from", () => {
+    assert.equal(
+      resolveOverlayBackTarget({
+        returnScreen: "listen",
+        overlayId: "about",
+        lastTabScreen: "opportunities",
+      }),
+      "listen"
+    );
+  });
+
+  it("falls back to the last tab when About has no prior screen", () => {
+    assert.equal(
+      resolveOverlayBackTarget({
+        returnScreen: "about",
+        overlayId: "about",
+        lastTabScreen: "listen",
+      }),
+      "listen"
+    );
+    assert.equal(
+      resolveOverlayBackTarget({
+        returnScreen: undefined,
+        overlayId: "about",
+        lastTabScreen: "connections",
+      }),
+      "connections"
+    );
+  });
+});
+
+describe("apply sending modal", () => {
+  it("keeps the opportunity card visible while the request is in flight", () => {
+    const config = applyingModalConfig({
+      title: "Headshots in STU22",
+      description: "A shoot",
+      date: "Fri",
+      location: "London",
+    });
+    assert.equal(config.busy, true);
+    assert.equal(config.primaryButtonText, "Sending...");
+    assert.equal(config.title, "Headshots in STU22");
+    assert.equal(config.showCloseButton, false);
   });
 });
 

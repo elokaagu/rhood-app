@@ -14,6 +14,7 @@ import { optimizeOpportunityImageUrl } from "../lib/opportunities/opportunityIma
 import {
   loadPostApplySuccessContext,
   classifyApplicationError,
+  applyingModalConfig,
 } from "../lib/opportunities/applicationFlow";
 import { SCREENS } from "../navigation/routes";
 
@@ -416,6 +417,8 @@ export default function useOpportunities({
           console.log("User ID:", user.id, "Opportunity ID:", opportunity.id);
         }
 
+        showCustomModal(applyingModalConfig(opportunity));
+
         const application = await db.applyToOpportunity(opportunity.id, user.id);
         const applicationId = application?.id;
 
@@ -454,6 +457,7 @@ export default function useOpportunities({
       refreshDailyApplicationStats,
       showPostApplySuccessModal,
       handleApplicationFlowError,
+      showCustomModal,
     ]
   );
 

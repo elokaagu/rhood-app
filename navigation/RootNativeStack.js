@@ -57,6 +57,7 @@ export default function RootNativeStack({
           animation: "slide_from_right",
           gestureEnabled: true,
           fullScreenGestureEnabled: true,
+          contentStyle: { backgroundColor: "#000000" },
         }}
       >
         <Stack.Screen name="Main" options={{ gestureEnabled: false }}>

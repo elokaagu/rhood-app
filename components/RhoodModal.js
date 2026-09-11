@@ -13,6 +13,7 @@ import {
   Share,
   Alert,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -47,6 +48,7 @@ const RhoodModal = ({
   shareUserId = null, // User ID for referral code
   onShareInApp = null, // Callback for in-app sharing
   bodyAccessory = null, // Optional node below main message (e.g. trust badges)
+  busy = false,
 }) => {
   const insets = useSafeAreaInsets();
   const getIconAndColor = () => {
@@ -350,6 +352,7 @@ const RhoodModal = ({
   };
 
   const handlePrimaryPress = () => {
+    if (busy) return;
     if (onPrimaryPress) {
       onPrimaryPress();
     } else {
@@ -358,6 +361,7 @@ const RhoodModal = ({
   };
 
   const handleSecondaryPress = () => {
+    if (busy) return;
     if (onSecondaryPress) {
       onSecondaryPress();
     } else {
@@ -514,6 +518,7 @@ const RhoodModal = ({
       transparent={true}
       animationType="fade"
       onRequestClose={() => {
+        if (busy) return;
         if (showShareOptions) {
           dismissShareSheet();
           return;
@@ -544,7 +549,7 @@ const RhoodModal = ({
         >
           {/* Header */}
           <View style={styles.header}>
-            {showShareButton && (
+            {showShareButton && !busy && (
               <TouchableOpacity
                 style={styles.shareButton}
                 onPress={handleShare}
@@ -556,7 +561,7 @@ const RhoodModal = ({
                 />
               </TouchableOpacity>
             )}
-            {showCloseButton && (
+            {showCloseButton && !busy && (
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => {
@@ -657,6 +662,7 @@ const RhoodModal = ({
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={handleSecondaryPress}
+                disabled={busy}
               >
                 <Text style={styles.secondaryButtonText}>
                   {secondaryButtonText}
@@ -669,9 +675,14 @@ const RhoodModal = ({
                 styles.primaryButton,
                 { backgroundColor: color },
                 !secondaryButtonText && styles.primaryButtonFull,
+                busy && styles.primaryButtonBusy,
               ]}
               onPress={handlePrimaryPress}
+              disabled={busy}
             >
+              {busy ? (
+                <ActivityIndicator color={COLORS.background || "#000"} />
+              ) : null}
               <Text style={styles.primaryButtonText}>{primaryButtonText}</Text>
             </TouchableOpacity>
           </View>
@@ -879,6 +890,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     borderRadius: RADIUS.lg,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: SPACING.sm,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45,
@@ -887,6 +901,9 @@ const styles = StyleSheet.create({
   },
   primaryButtonFull: {
     flex: 1,
+  },
+  primaryButtonBusy: {
+    opacity: 0.85,
   },
   primaryButtonText: {
     fontSize: TYPOGRAPHY.lg,

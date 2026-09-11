@@ -326,7 +326,16 @@ export default function UserProfileView({
       setLoading(true);
       setError(null);
 
+      if (!userId) {
+        setError("Failed to load profile");
+        return;
+      }
+
       const profileData = await db.getUserProfilePublic(userId);
+      if (!profileData) {
+        setError("Failed to load profile");
+        return;
+      }
 
       // Debug: Log the profile data to see what's being returned
       console.log("🔍 Profile data received:", profileData);
@@ -404,7 +413,6 @@ export default function UserProfileView({
     } catch (err) {
       console.error("❌ Error loading user profile:", err);
       setError("Failed to load profile");
-      Alert.alert("Error", "Failed to load user profile");
     } finally {
       setLoading(false);
     }
