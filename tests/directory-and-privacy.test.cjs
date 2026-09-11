@@ -238,3 +238,20 @@ describe("booking request deep links", () => {
     assert.equal(parseBookingRequestDeepLink("rhoodapp://reset-password"), null);
   });
 });
+
+const { parseRemoteSeekSeconds } = loadExportedFunctions("lib/nowPlayingRemote.js");
+
+describe("lock-screen remote seek payload", () => {
+  it("accepts a finite non-negative position from native NSNumber", () => {
+    assert.equal(parseRemoteSeekSeconds({ position: 12.5 }), 12.5);
+    assert.equal(parseRemoteSeekSeconds({ position: 0 }), 0);
+  });
+
+  it("rejects values that would crash expo-av setPositionAsync", () => {
+    assert.equal(parseRemoteSeekSeconds({ position: Number.NaN }), null);
+    assert.equal(parseRemoteSeekSeconds({ position: Infinity }), null);
+    assert.equal(parseRemoteSeekSeconds({ position: -1 }), null);
+    assert.equal(parseRemoteSeekSeconds(null), null);
+    assert.equal(parseRemoteSeekSeconds({}), null);
+  });
+});

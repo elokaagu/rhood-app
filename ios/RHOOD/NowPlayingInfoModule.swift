@@ -25,17 +25,22 @@ class NowPlayingInfoModule: RCTEventEmitter {
     hasListeners = false
   }
 
-  /// MPRemoteCommandCenter callbacks are not on the JS thread. Sending an
-  /// event with no listeners (or off-thread) crashes the app.
-  private func emitRemoteEvent(_ name: String, body: [AnyHashable: Any]? = nil) {
-    let send = { [weak self] in
-      guard let self = self, self.hasListeners else { return }
-      self.sendEvent(withName: name, body: body)
+  private func jsBridgeIsReady() -> Bool {
+    var ready = false
+    RhoodSafeRun {
+      ready = (self.value(forKey: "callableJSModules") as Any?) != nil
     }
-    if Thread.isMainThread {
-      send()
-    } else {
-      DispatchQueue.main.async(execute: send)
+    return ready
+  }
+
+  /// Never call sendEvent from an MPRemoteCommandCenter callback. That runs off
+  /// the RN thread; a Swift Double body or a nil callableJSModules aborts the app.
+  private func emitRemoteEvent(_ name: String, body: [String: Any]? = nil) {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self, self.hasListeners, self.jsBridgeIsReady() else { return }
+      RhoodSafeRun {
+        self.sendEvent(withName: name, body: body)
+      }
     }
   }
 
@@ -61,34 +66,35 @@ class NowPlayingInfoModule: RCTEventEmitter {
     rejecter: @escaping RCTPromiseRejectBlock
   ) {
     DispatchQueue.main.async {
-      let dict = info as? [String: Any] ?? [:]
-      var nowPlaying: [String: Any] = [:]
+      RhoodSafeRun {
+        let dict = info as? [String: Any] ?? [:]
+        var nowPlaying: [String: Any] = [:]
 
-      nowPlaying[MPMediaItemPropertyTitle] = dict["title"] as? String ?? "R/HOOD"
-      nowPlaying[MPMediaItemPropertyArtist] = dict["artist"] as? String ?? ""
-      nowPlaying[MPMediaItemPropertyAlbumTitle] = dict["albumTitle"] as? String ?? "R/HOOD"
+        nowPlaying[MPMediaItemPropertyTitle] = dict["title"] as? String ?? "R/HOOD"
+        nowPlaying[MPMediaItemPropertyArtist] = dict["artist"] as? String ?? ""
+        nowPlaying[MPMediaItemPropertyAlbumTitle] = dict["albumTitle"] as? String ?? "R/HOOD"
 
-      if let duration = dict["duration"] as? NSNumber {
-        nowPlaying[MPMediaItemPropertyPlaybackDuration] = duration.doubleValue
+        if let duration = dict["duration"] as? NSNumber, duration.doubleValue.isFinite {
+          nowPlaying[MPMediaItemPropertyPlaybackDuration] = duration
+        }
+        if let elapsed = dict["elapsedPlaybackTime"] as? NSNumber, elapsed.doubleValue.isFinite {
+          nowPlaying[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed
+        }
+        if let rate = dict["playbackRate"] as? NSNumber, rate.doubleValue.isFinite {
+          nowPlaying[MPNowPlayingInfoPropertyPlaybackRate] = rate
+        } else {
+          nowPlaying[MPNowPlayingInfoPropertyPlaybackRate] = NSNumber(value: 1.0)
+        }
+
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlaying
+        self.installRemoteCommandsIfNeeded()
+
+        if let artworkUrlString = dict["artwork"] as? String,
+           let url = URL(string: artworkUrlString),
+           url.scheme == "http" || url.scheme == "https" {
+          self.loadArtwork(from: url)
+        }
       }
-      if let elapsed = dict["elapsedPlaybackTime"] as? NSNumber {
-        nowPlaying[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed.doubleValue
-      }
-      if let rate = dict["playbackRate"] as? NSNumber {
-        nowPlaying[MPNowPlayingInfoPropertyPlaybackRate] = rate.doubleValue
-      } else {
-        nowPlaying[MPNowPlayingInfoPropertyPlaybackRate] = 1.0
-      }
-
-      MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlaying
-      self.installRemoteCommandsIfNeeded()
-
-      if let artworkUrlString = dict["artwork"] as? String,
-         let url = URL(string: artworkUrlString),
-         url.scheme == "http" || url.scheme == "https" {
-        self.loadArtwork(from: url)
-      }
-
       resolver(true)
     }
   }
@@ -102,20 +108,25 @@ class NowPlayingInfoModule: RCTEventEmitter {
     rejecter: @escaping RCTPromiseRejectBlock
   ) {
     DispatchQueue.main.async {
-      let incoming = positionSec.doubleValue
-      let now = Date().timeIntervalSince1970
-      if now < self.ignoreStaleElapsedUntil {
-        if abs(incoming - self.expectedElapsedAfterSeek) > 1.25 {
-          resolver(true)
-          return
+      RhoodSafeRun {
+        let incoming = positionSec.doubleValue
+        let duration = durationSec.doubleValue
+        let rate = playbackRate.doubleValue
+        guard incoming.isFinite, duration.isFinite, rate.isFinite else { return }
+
+        let now = Date().timeIntervalSince1970
+        if now < self.ignoreStaleElapsedUntil {
+          if abs(incoming - self.expectedElapsedAfterSeek) > 1.25 {
+            return
+          }
+          self.ignoreStaleElapsedUntil = 0
         }
-        self.ignoreStaleElapsedUntil = 0
+        var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = NSNumber(value: incoming)
+        info[MPMediaItemPropertyPlaybackDuration] = NSNumber(value: duration)
+        info[MPNowPlayingInfoPropertyPlaybackRate] = NSNumber(value: rate)
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
       }
-      var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-      info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = incoming
-      info[MPMediaItemPropertyPlaybackDuration] = durationSec.doubleValue
-      info[MPNowPlayingInfoPropertyPlaybackRate] = playbackRate.doubleValue
-      MPNowPlayingInfoCenter.default().nowPlayingInfo = info
       resolver(true)
     }
   }
@@ -126,8 +137,10 @@ class NowPlayingInfoModule: RCTEventEmitter {
     rejecter: @escaping RCTPromiseRejectBlock
   ) {
     DispatchQueue.main.async {
-      MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-      self.removeRemoteCommands()
+      RhoodSafeRun {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        self.removeRemoteCommands()
+      }
       resolver(true)
     }
   }
@@ -138,10 +151,12 @@ class NowPlayingInfoModule: RCTEventEmitter {
     URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
       guard let self = self, let data = data, let image = UIImage(data: data) else { return }
       DispatchQueue.main.async {
-        let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-        var np = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-        np[MPMediaItemPropertyArtwork] = artwork
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = np
+        RhoodSafeRun {
+          let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+          var np = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+          np[MPMediaItemPropertyArtwork] = artwork
+          MPNowPlayingInfoCenter.default().nowPlayingInfo = np
+        }
       }
     }.resume()
   }
@@ -189,17 +204,24 @@ class NowPlayingInfoModule: RCTEventEmitter {
       guard let seekEvent = event as? MPChangePlaybackPositionCommandEvent else {
         return .commandFailed
       }
-      var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-      let rate = (info[MPNowPlayingInfoPropertyPlaybackRate] as? NSNumber)?.doubleValue ?? 1.0
-      info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = seekEvent.positionTime
-      info[MPNowPlayingInfoPropertyPlaybackRate] = rate
-      MPNowPlayingInfoCenter.default().nowPlayingInfo = info
-      self?.expectedElapsedAfterSeek = seekEvent.positionTime
-      self?.ignoreStaleElapsedUntil = Date().timeIntervalSince1970 + 1.6
-      self?.emitRemoteEvent(
-        "NowPlayingRemoteSeek",
-        body: ["position": seekEvent.positionTime]
-      )
+      let position = seekEvent.positionTime
+      guard position.isFinite, position >= 0 else { return .commandFailed }
+
+      DispatchQueue.main.async {
+        RhoodSafeRun {
+          var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+          let rate = (info[MPNowPlayingInfoPropertyPlaybackRate] as? NSNumber)?.doubleValue ?? 1.0
+          info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = NSNumber(value: position)
+          info[MPNowPlayingInfoPropertyPlaybackRate] = NSNumber(value: rate)
+          MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        }
+        self?.expectedElapsedAfterSeek = position
+        self?.ignoreStaleElapsedUntil = Date().timeIntervalSince1970 + 1.6
+        self?.emitRemoteEvent(
+          "NowPlayingRemoteSeek",
+          body: ["position": NSNumber(value: position)]
+        )
+      }
       return .success
     }
   }

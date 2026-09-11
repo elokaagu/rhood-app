@@ -25,6 +25,7 @@ import {
   backfillMixDurationFromPlayback,
 } from "../lib/mixStatsRpc";
 import { audioPlaybackBridge } from "../lib/audioPlaybackBridge";
+import { parseRemoteSeekSeconds } from "../lib/nowPlayingRemote";
 import { applyMixPlaybackAudioMode } from "../lib/audioSessionMode";
 import { normalizeTrackForPlayback } from "../lib/normalizeTrackForPlayback";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
@@ -1736,36 +1737,60 @@ export default function useAudioPlayback({ user }) {
     const mod = NativeModules.NowPlayingInfoModule;
     if (!mod) return;
 
-    const emitter = new NativeEventEmitter(mod);
+    let emitter;
+    try {
+      emitter = new NativeEventEmitter(mod);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("NowPlaying NativeEventEmitter unavailable:", error);
+      }
+      return undefined;
+    }
+
     const subPlayPause = emitter.addListener(
       "NowPlayingRemotePlayPause",
       () => {
-        const playing = stateRef.current.isPlaying;
-        const actions = actionsRef.current;
-        if (!actions) return;
-        if (playing) {
-          actions.pauseGlobalAudio?.();
-        } else {
-          actions.resumeGlobalAudio?.();
+        try {
+          const playing = stateRef.current.isPlaying;
+          const actions = actionsRef.current;
+          if (!actions) return;
+          if (playing) {
+            actions.pauseGlobalAudio?.();
+          } else {
+            actions.resumeGlobalAudio?.();
+          }
+        } catch (error) {
+          if (__DEV__) console.warn("NowPlayingRemotePlayPause", error);
         }
       }
     );
     const subNext = emitter.addListener("NowPlayingRemoteNext", () => {
-      actionsRef.current?.playNextTrack?.();
+      try {
+        actionsRef.current?.playNextTrack?.();
+      } catch (error) {
+        if (__DEV__) console.warn("NowPlayingRemoteNext", error);
+      }
     });
     const subPrev = emitter.addListener("NowPlayingRemotePrevious", () => {
-      actionsRef.current?.playPreviousTrack?.();
+      try {
+        actionsRef.current?.playPreviousTrack?.();
+      } catch (error) {
+        if (__DEV__) console.warn("NowPlayingRemotePrevious", error);
+      }
     });
     const subSeek = emitter.addListener("NowPlayingRemoteSeek", (payload) => {
-      const seconds = Number(payload?.position);
-      if (!Number.isFinite(seconds) || seconds < 0) return;
-      // Get off the native command callback before touching expo-av.
+      const seconds = parseRemoteSeekSeconds(payload);
+      if (seconds == null) return;
       setTimeout(() => {
-        const seek =
-          actionsRef.current?.seekToPosition ||
-          audioPlaybackBridge.actionsRef?.current?.seekToPosition;
-        if (!seek) return;
-        void seek(seconds * 1000);
+        try {
+          const seek =
+            actionsRef.current?.seekToPosition ||
+            audioPlaybackBridge.actionsRef?.current?.seekToPosition;
+          if (!seek) return;
+          void seek(seconds * 1000);
+        } catch (error) {
+          if (__DEV__) console.warn("NowPlayingRemoteSeek", error);
+        }
       }, 0);
     });
 
