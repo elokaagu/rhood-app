@@ -18,6 +18,7 @@ import RhoodModal from "./RhoodModal";
 import AuthLegalLinks from "./AuthLegalLinks";
 import PrivacyPolicyScreen from "./PrivacyPolicyScreen";
 import TermsOfServiceScreen from "./TermsOfServiceScreen";
+import SocialAuthButtons from "./SocialAuthButtons";
 import { getLoginErrorMessage } from "../lib/errorMessages";
 import {
   COLORS,
@@ -338,36 +339,14 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Social Sign-In Buttons */}
+          {/* Social Sign-In — Apple first on iOS (App Store 4.8) */}
           <View style={styles.socialButtonsContainer}>
-            {/* Google Sign-In */}
-            <TouchableOpacity
-              style={[
-                styles.socialButton,
-                styles.googleButton,
-                loading && styles.buttonDisabled,
-              ]}
-              onPress={handleGoogleSignIn}
-              disabled={loading}
-            >
-              <Text style={styles.socialButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
-
-            {Platform.OS === "ios" && (
-              <TouchableOpacity
-                style={[
-                  styles.socialButton,
-                  styles.appleButton,
-                  loading && styles.buttonDisabled,
-                ]}
-                onPress={handleAppleSignIn}
-                disabled={loading}
-              >
-                <Text style={[styles.socialButtonText, styles.appleButtonText]}>
-                  Sign in with Apple
-                </Text>
-              </TouchableOpacity>
-            )}
+            <SocialAuthButtons
+              onGoogle={handleGoogleSignIn}
+              onApple={handleAppleSignIn}
+              loading={loading}
+              appleButtonType="signIn"
+            />
           </View>
 
           {/* Switch to Signup */}

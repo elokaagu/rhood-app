@@ -314,6 +314,15 @@ describe("apply sending modal", () => {
   });
 });
 
+describe("app tracking permission", () => {
+  it("does not require ATT for first-party analytics", async () => {
+    const { requestAppTrackingIfNeeded } = loadExportedFunctions(
+      "lib/trackingPermission.js"
+    );
+    assert.equal(await requestAppTrackingIfNeeded(), true);
+  });
+});
+
 describe("daily limit modal", () => {
   it("uses the branded warning card, not a native alert", () => {
     const config = dailyLimitReachedModalConfig({

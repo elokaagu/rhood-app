@@ -3,9 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { FONT_BODY, FONT_HEADING } from "./connectionsStyles/tokens";
 import { registerForPushNotifications } from "../lib/pushNotifications";
+import RhoodModal from "./RhoodModal";
+import { useDeleteAccount } from "../hooks/useDeleteAccount";
 
 export default function ApplicationPendingScreen({ status = "pending", onSignOut }) {
   const rejected = status === "rejected";
+  const deleteAccount = useDeleteAccount(onSignOut);
 
   useEffect(() => {
     registerForPushNotifications().catch(() => {});
@@ -46,6 +49,24 @@ export default function ApplicationPendingScreen({ status = "pending", onSignOut
         >
           <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={deleteAccount.open}
+          accessibilityRole="button"
+          accessibilityLabel="Delete account"
+        >
+          <Text style={styles.deleteText}>Delete account</Text>
+        </TouchableOpacity>
+        <RhoodModal
+          visible={deleteAccount.visible}
+          onClose={deleteAccount.close}
+          type="warning"
+          title={deleteAccount.title}
+          message={deleteAccount.message}
+          primaryButtonText={deleteAccount.primaryButtonText}
+          secondaryButtonText="Cancel"
+          onPrimaryPress={deleteAccount.confirm}
+          onSecondaryPress={deleteAccount.close}
+        />
     </View>
   );
 }
@@ -95,5 +116,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "hsl(0, 0%, 100%)",
     fontWeight: "600",
+  },
+  deleteText: {
+    fontFamily: FONT_BODY,
+    fontSize: 14,
+    color: "hsl(0, 0%, 55%)",
+    textDecorationLine: "underline",
+    marginTop: 4,
   },
 });

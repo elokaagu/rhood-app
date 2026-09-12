@@ -31,12 +31,12 @@
         "UIBackgroundModes": [
           "audio"
         ],
+        "NSPhotoLibraryAddUsageDescription": "R/HOOD may save images you choose, such as mix artwork, to your photo library only if you ask us to.",
         "NSCameraUsageDescription": "R/HOOD uses the camera so you can take a profile photo, add photos to messages, and attach images to gig applications.",
         "NSPhotoLibraryUsageDescription": "R/HOOD accesses your photos so you can set a profile picture, share images in messages, and attach photos to playlists and applications.",
         "NSMicrophoneUsageDescription": "R/HOOD uses the microphone if you record audio for messages or mixes.",
         "NSUserNotificationsUsageDescription": "R/HOOD sends notifications for messages, gig applications, connections, and lock-screen playback controls.",
         "NSLocationWhenInUseUsageDescription": "R/HOOD uses your location while the app is open to match you with DJs and opportunities in the same city.",
-        "NSUserTrackingUsageDescription": "We use analytics to understand how R/HOOD is used and improve the app. You can decline tracking.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLName": "rhoodapp",
@@ -93,7 +93,7 @@
       "aiChatAllowClientDirectInProduction": false,
       "openaiModel": "gpt-4o-mini",
       "mixpanelToken": "93ccc1f355ea98a1b4a34565320f6a83",
-      "mixpanelSessionReplayEnabled": true,
+      "mixpanelSessionReplayEnabled": false,
       "mixpanelSessionReplayRecordingPercent": 25,
       "mixpanelSessionReplayWifiOnly": false,
       "mixpanelSessionReplayAutoStart": true,
@@ -123,12 +123,7 @@
           "locationWhenInUsePermission": "R/HOOD uses your location while the app is open to match you with DJs and opportunities in the same city."
         }
       ],
-      [
-        "expo-tracking-transparency",
-        {
-          "userTrackingPermission": "We use analytics to understand how R/HOOD is used and improve the app. You can decline tracking."
-        }
-      ],
+      "expo-apple-authentication",
       "./plugins/withFirebaseModularHeaders",
       "@react-native-firebase/app",
       "expo-asset",

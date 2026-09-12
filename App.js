@@ -280,7 +280,7 @@ export default function App() {
 
     initializeNotifications();
 
-    // ATT first, then analytics (no IDFA / replay if the user declines).
+    // Product analytics only — we do not prompt for App Tracking Transparency.
     (async () => {
       const trackingAllowed = await requestAppTrackingIfNeeded();
       await initAnalytics({ trackingAllowed });

@@ -63,12 +63,12 @@
 	<string>R/HOOD uses your location while the app is open to match you with DJs and opportunities in the same city.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>R/HOOD uses the microphone if you record audio for messages or mixes.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>R/HOOD may save images you choose, such as mix artwork, to your photo library only if you ask us to.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>R/HOOD accesses your photos so you can set a profile picture, share images in messages, and attach photos to playlists and applications.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>R/HOOD sends notifications for messages, gig applications, connections, and lock-screen playback controls.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>We use analytics to understand how R/HOOD is used and improve the app. You can decline tracking.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIBackgroundModes</key>

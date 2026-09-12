@@ -401,7 +401,7 @@ const helpSections = [
         id: "delete-account",
         question: "How do I delete my account?",
         answer:
-          "Go to Settings → Account → Delete Account. This permanently deletes your profile and sign-in from R/HOOD. You do not need to email support.",
+          "Open Settings → Account → Delete Account. If your application is still under review, use Delete account on that screen. You can also delete during onboarding. This permanently deletes your profile and sign-in. You do not need to email support.",
       },
       {
         id: "privacy",

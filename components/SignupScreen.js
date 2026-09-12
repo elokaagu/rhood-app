@@ -24,6 +24,7 @@ import {
 import AuthLegalLinks from "./AuthLegalLinks";
 import PrivacyPolicyScreen from "./PrivacyPolicyScreen";
 import TermsOfServiceScreen from "./TermsOfServiceScreen";
+import SocialAuthButtons from "./SocialAuthButtons";
 
 export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [formData, setFormData] = useState({
@@ -456,37 +457,14 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Social Sign-In Buttons */}
+          {/* Social Sign-In — Apple first on iOS (App Store 4.8) */}
           <View style={styles.socialButtonsContainer}>
-            {/* Google Sign-In */}
-            <TouchableOpacity
-              style={[
-                styles.socialButton,
-                styles.googleButton,
-                loading && styles.buttonDisabled,
-              ]}
-              onPress={handleGoogleSignIn}
-              disabled={loading}
-            >
-              <Text style={styles.socialButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
-
-            {/* Apple Sign-In */}
-            {Platform.OS === "ios" && (
-              <TouchableOpacity
-                style={[
-                  styles.socialButton,
-                  styles.appleButton,
-                  loading && styles.buttonDisabled,
-                ]}
-                onPress={handleAppleSignIn}
-                disabled={loading}
-              >
-                <Text style={[styles.socialButtonText, styles.appleButtonText]}>
-                  Continue with Apple
-                </Text>
-              </TouchableOpacity>
-            )}
+            <SocialAuthButtons
+              onGoogle={handleGoogleSignIn}
+              onApple={handleAppleSignIn}
+              loading={loading}
+              appleButtonType="signUp"
+            />
           </View>
 
           {/* Switch to Login */}

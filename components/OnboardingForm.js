@@ -27,6 +27,8 @@ import { db } from "../lib/supabase";
 import ConnectionsLocationModal from "./ConnectionsLocationModal";
 import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
 import { resolveCurrentCityLabel } from "../lib/locationService";
+import RhoodModal from "./RhoodModal";
+import { useDeleteAccount } from "../hooks/useDeleteAccount";
 
 /** Shared animated wrapper for each onboarding step (fade + slide). */
 function StepAnimatedShell({ fadeAnim, slideAnim, style, children }) {
@@ -96,6 +98,7 @@ export default function OnboardingForm({
   // second tap fired a concurrent completeOnboarding() call (duplicate
   // "Welcome" / Complete-Profile modal, tutorial mode re-enabled twice).
   const [completingOnboarding, setCompletingOnboarding] = useState(false);
+  const deleteAccount = useDeleteAccount(onSignOut);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const [errors, setErrors] = useState({});
@@ -1000,6 +1003,25 @@ export default function OnboardingForm({
           </Text>
         </TouchableOpacity>
       </View>
+      <TouchableOpacity
+        onPress={deleteAccount.open}
+        accessibilityRole="button"
+        accessibilityLabel="Delete account"
+        style={styles.deleteAccountHit}
+      >
+        <Text style={styles.deleteAccountText}>Delete account</Text>
+      </TouchableOpacity>
+      <RhoodModal
+        visible={deleteAccount.visible}
+        onClose={deleteAccount.close}
+        type="warning"
+        title={deleteAccount.title}
+        message={deleteAccount.message}
+        primaryButtonText={deleteAccount.primaryButtonText}
+        secondaryButtonText="Cancel"
+        onPrimaryPress={deleteAccount.confirm}
+        onSecondaryPress={deleteAccount.close}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -1284,6 +1306,16 @@ const styles = {
     paddingHorizontal: 20, // Match container padding
     paddingTop: 20, // Add top padding for separation
     backgroundColor: "hsl(0, 0%, 0%)", // Match background
+  },
+  deleteAccountHit: {
+    alignItems: "center",
+    paddingBottom: 20,
+  },
+  deleteAccountText: {
+    fontSize: 13,
+    fontFamily: "Helvetica Neue",
+    color: "hsl(0, 0%, 55%)",
+    textDecorationLine: "underline",
   },
   primaryButton: {
     backgroundColor: "hsl(75, 100%, 60%)", // R/HOOD signature lime color
