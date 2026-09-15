@@ -123,9 +123,19 @@ function GlobalAudioPlayerUI({
       playPauseGuardRef.current = false;
     }, 400);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (state.isPlaying) pause();
-    else resume();
-  }, [state.isPlaying]);
+    if (state.isPlaying) {
+      pause();
+      return;
+    }
+    // After a failed first load the sound is gone but the track is still on
+    // screen — resume() no-ops, so replay instead of requiring an app restart.
+    if (state.error || !globalAudioRef?.current) {
+      if (track) play(track);
+      else resume();
+      return;
+    }
+    resume();
+  }, [state.isPlaying, state.error, track]);
 
   const onFullScreenNext = useCallback(() => {
     void actionsRef?.current?.skipForward?.();

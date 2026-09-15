@@ -103,6 +103,27 @@ function shuffleArray(array) {
   return shuffled;
 }
 
+const SOUND_LOAD_OPTIONS = {
+  shouldPlay: false,
+  isLooping: false,
+  volume: 1.0,
+  progressUpdateIntervalMillis: 250,
+};
+
+/**
+ * Newly uploaded / long mixes often fail the first AVPlayer create (CDN
+ * cold, range requests not ready) and report duration 0 until headers parse.
+ * One short retry covers the cold-object case without a full app restart.
+ */
+async function createPlaybackSound(audioSource) {
+  try {
+    return await Audio.Sound.createAsync(audioSource, SOUND_LOAD_OPTIONS);
+  } catch (_firstError) {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    return await Audio.Sound.createAsync(audioSource, SOUND_LOAD_OPTIONS);
+  }
+}
+
 /** Weighted shuffle for recommendation-based shuffling */
 function weightedShuffle(items) {
   const shuffled = [...items];
@@ -253,6 +274,7 @@ export default function useAudioPlayback({ user }) {
         ...prev,
         isLoading: true,
         currentTrack: trackForUI,
+        error: null,
       }));
       trackFinishedRef.current = false;
 
@@ -310,15 +332,7 @@ export default function useAudioPlayback({ user }) {
           // Load audio
           let sound;
           try {
-            const { sound: loadedSound } = await Audio.Sound.createAsync(
-              audioSource,
-              {
-                shouldPlay: false,
-                isLooping: false,
-                volume: 1.0,
-                progressUpdateIntervalMillis: 250,
-              }
-            );
+            const { sound: loadedSound } = await createPlaybackSound(audioSource);
             sound = loadedSound;
           } catch (loadError) {
             if (__DEV__) {
@@ -328,7 +342,7 @@ export default function useAudioPlayback({ user }) {
               ...prev,
               isLoading: false,
               isPlaying: false,
-              currentTrack: null,
+              currentTrack: trackForUI,
               error: getAudioErrorMessage(loadError),
             }));
             setAudioErrorModal({
@@ -353,24 +367,8 @@ export default function useAudioPlayback({ user }) {
               await sound.unloadAsync();
               throw new Error("Sound failed to load properly");
             }
-
-            if (status.durationMillis === 0) {
-              await sound.unloadAsync();
-              const error = new Error("Audio file has invalid duration");
-              setGlobalAudioState((prev) => ({
-                ...prev,
-                isLoading: false,
-                isPlaying: false,
-                currentTrack: null,
-                error: getAudioErrorMessage(error),
-              }));
-              setAudioErrorModal({
-                visible: true,
-                title: "Unable to Play Audio",
-                message: getAudioErrorMessage(error),
-              });
-              return;
-            }
+            // durationMillis === 0 is normal for long/streaming files until
+            // AVPlayer parses headers. We already have DB metadata duration.
           } catch (statusError) {
             if (sound) {
               try { await sound.unloadAsync(); } catch (_) {}
@@ -379,7 +377,7 @@ export default function useAudioPlayback({ user }) {
               ...prev,
               isLoading: false,
               isPlaying: false,
-              currentTrack: null,
+              currentTrack: trackForUI,
               error: getAudioErrorMessage(statusError),
             }));
             setAudioErrorModal({
@@ -652,6 +650,7 @@ export default function useAudioPlayback({ user }) {
               isPlaying: true,
               currentTrack: enhancedTrack,
               isLoading: false,
+              error: null,
               queue: newQueue,
               currentQueueIndex: newIndex,
             };
@@ -1135,7 +1134,7 @@ export default function useAudioPlayback({ user }) {
   // ── Like / Unlike ────────────────────────────────────────
 
   const toggleLike = useCallback(async () => {
-    if (!stateRef.current.currentTrack || !user) {
+    if (!user) {
       Alert.alert(
         "Sign In Required",
         "You need to be signed in to like a mix.",
@@ -1144,10 +1143,19 @@ export default function useAudioPlayback({ user }) {
       return;
     }
 
+    const track = stateRef.current.currentTrack;
+    if (!track?.id) {
+      Alert.alert(
+        "Error",
+        "We couldn't like this mix right now. Please try again."
+      );
+      return;
+    }
+
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      const mixId = stateRef.current.currentTrack.id;
+      const mixId = track.id;
       const isCurrentlyLiked = likedMixIds.has(mixId);
 
       // Optimistically update UI
@@ -1243,13 +1251,15 @@ export default function useAudioPlayback({ user }) {
         }
       }
     } catch (error) {
-      if (__DEV__) console.error("❌ Error toggling like:", error);
+      if (__DEV__) {
+        console.error("❌ Error toggling like:", error?.code, error?.message || error);
+      }
       Alert.alert(
         "Error",
         "We couldn't like this mix right now. Please try again."
       );
       // Revert optimistic update
-      const mixId = stateRef.current.currentTrack.id;
+      const mixId = track.id;
       const wasLiked = likedMixIds.has(mixId);
       setLikedMixIds((prev) => {
         const updated = new Set(prev);

@@ -1,26 +1,13 @@
 -- ============================================================================
--- Mix like notifications (in-app + push)
+-- Mix likes must succeed even if notify/push side-effects fail.
 -- ----------------------------------------------------------------------------
--- When someone likes a mix, the mix owner gets:
---   1. An in-app notification row (type = 'mix_like') shown in the Notifications
---      tab.
---   2. A push notification (via the same send-expo-push Edge Function used for
---      messages), delivered when the owner has push notifications on.
+-- AFTER INSERT on mix_likes writes a notifications row (and may POST to Expo).
+-- If that notify path throws (missing type, RLS, pg_net, CHECK, etc.) Postgres
+-- rolls back the like itself — the app then shows "We couldn't like this mix".
 --
--- Flow:
---   INSERT mix_likes
---     → notify_on_mix_like()  → INSERT notifications (type='mix_like')
---       → queue_expo_push_from_like_notification() → net.http_post
---         → send-expo-push → Expo API → device
---
--- Prereqs: pg_net enabled and expo_push_delivery_config seeded
---          (see database/queue-expo-push-on-message-notification.sql).
--- Safe to run multiple times (idempotent).
+-- Safe to run multiple times.
 -- ============================================================================
 
-CREATE EXTENSION IF NOT EXISTS pg_net;
-
--- ── 1. Create the in-app notification when a mix is liked ────────────────────
 CREATE OR REPLACE FUNCTION public.notify_on_mix_like()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -32,18 +19,15 @@ DECLARE
   v_mix_title  text;
   v_liker_name text;
 BEGIN
-  -- Who owns the liked mix, and what's it called?
   SELECT user_id, title
     INTO v_owner_id, v_mix_title
   FROM public.mixes
   WHERE id = NEW.mix_id;
 
-  -- No owner found, or you liked your own mix → nothing to notify.
   IF v_owner_id IS NULL OR v_owner_id = NEW.user_id THEN
     RETURN NEW;
   END IF;
 
-  -- Friendly name for the liker.
   SELECT COALESCE(
            NULLIF(dj_name, ''),
            NULLIF(trim(concat_ws(' ', first_name, last_name)), ''),
@@ -70,19 +54,11 @@ BEGIN
   RETURN NEW;
 EXCEPTION
   WHEN OTHERS THEN
-    -- Never roll back the like because notify/push side-effects failed.
     RAISE WARNING 'notify_on_mix_like failed: %', SQLERRM;
     RETURN NEW;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_notify_on_mix_like ON public.mix_likes;
-CREATE TRIGGER trg_notify_on_mix_like
-  AFTER INSERT ON public.mix_likes
-  FOR EACH ROW
-  EXECUTE FUNCTION public.notify_on_mix_like();
-
--- ── 2. Queue an Expo push when a mix_like notification is inserted ───────────
 CREATE OR REPLACE FUNCTION public.queue_expo_push_from_like_notification()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -135,10 +111,3 @@ EXCEPTION
     RETURN NEW;
 END;
 $$;
-
-DROP TRIGGER IF EXISTS queue_expo_push_after_like_notification ON public.notifications;
-CREATE TRIGGER queue_expo_push_after_like_notification
-  AFTER INSERT ON public.notifications
-  FOR EACH ROW
-  WHEN (NEW.type = 'mix_like')
-  EXECUTE FUNCTION public.queue_expo_push_from_like_notification();
