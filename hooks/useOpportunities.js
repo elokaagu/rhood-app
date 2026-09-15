@@ -128,16 +128,32 @@ export default function useOpportunities({
             })
           : Promise.resolve(null);
 
-      const { data: opportunitiesData, error: opportunitiesError } =
+      const OPPORTUNITY_FEED_COLUMNS =
+        "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, compensation, genre, skill_level, organizer_name, image_url, created_at";
+      const OPPORTUNITY_FEED_COLUMNS_NO_COMP =
+        "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, genre, skill_level, organizer_name, image_url, created_at";
+
+      let { data: opportunitiesData, error: opportunitiesError } =
         await supabase
           .from("opportunities")
           // Only the columns transformOpportunityRow consumes — avoids
           // shipping unused fields for every row in the swipe feed.
-          .select(
-            "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, genre, skill_level, organizer_name, image_url, created_at"
-          )
+          .select(OPPORTUNITY_FEED_COLUMNS)
           .eq("is_active", true)
           .order("created_at", { ascending: false });
+
+      if (
+        opportunitiesError &&
+        /compensation/i.test(opportunitiesError.message || "")
+      ) {
+        const retry = await supabase
+          .from("opportunities")
+          .select(OPPORTUNITY_FEED_COLUMNS_NO_COMP)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+        opportunitiesData = retry.data;
+        opportunitiesError = retry.error;
+      }
 
       if (opportunitiesError) {
         if (__DEV__) console.error("Error fetching opportunities:", opportunitiesError);
