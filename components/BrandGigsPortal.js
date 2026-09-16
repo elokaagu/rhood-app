@@ -197,7 +197,7 @@ export default function BrandGigsPortal({ user, onBack }) {
               color={COLORS.textSecondary}
             />
             <Text style={styles.detailText}>
-              {formatOpportunityDate(gig.event_date)}
+              {formatOpportunityDate(gig.event_date, gig.event_timezone)}
             </Text>
           </View>
           {gig.payment && (

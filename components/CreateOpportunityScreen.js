@@ -32,6 +32,11 @@ import {
   deleteOpportunityImage,
   validateOpportunityForm,
 } from "../lib/opportunitySubmission";
+import {
+  formatTimezoneLabel,
+  resolveTimeZone,
+  timezoneSelectOptions,
+} from "../lib/opportunityTimezones";
 import { track, AnalyticsEvents } from "../lib/analytics";
 import { db } from "../lib/supabase";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
@@ -247,7 +252,10 @@ function Dropdown({ value, options, placeholder, onSelect, disabled, error }) {
  * an admin approves them.
  */
 export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
-  const [form, setForm] = useState(EMPTY_OPPORTUNITY_FORM);
+  const [form, setForm] = useState(() => ({
+    ...EMPTY_OPPORTUNITY_FORM,
+    timezone: resolveTimeZone(),
+  }));
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [organizerFallback, setOrganizerFallback] = useState("");
@@ -312,6 +320,15 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
       return next;
     });
   }, []);
+
+  const timezoneOptions = useMemo(
+    () =>
+      timezoneSelectOptions(form.timezone).map((tz) => ({
+        value: tz,
+        label: formatTimezoneLabel(tz),
+      })),
+    [form.timezone]
+  );
 
   const toggleGenre = useCallback((value) => {
     setForm((prev) => {
@@ -689,6 +706,21 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
                   </Field>
                 </View>
               </View>
+
+              <Field
+                label="Timezone"
+                hint="Times stay in this zone, so 00:00 is 00:00 wherever the listing is viewed."
+                error={fieldErrors.timezone}
+              >
+                <Dropdown
+                  value={form.timezone}
+                  options={timezoneOptions}
+                  placeholder="Select timezone"
+                  onSelect={(v) => setField("timezone", v)}
+                  disabled={submitting}
+                  error={fieldErrors.timezone}
+                />
+              </Field>
             </View>
           </View>
 
