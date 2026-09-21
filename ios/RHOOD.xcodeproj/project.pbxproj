@@ -16,6 +16,8 @@
 		C7DF5887DD807DE498F7B02D /* Pods_RHOOD.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B2EADF80A4193C38CDAADAA /* Pods_RHOOD.framework */; };
 		E8A1F0022D0500010044C100 /* NowPlayingInfoModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8A1F0012D0500010044C100 /* NowPlayingInfoModule.swift */; };
 		E8A1F0042D0500010044C100 /* NowPlayingInfoModule.m in Sources */ = {isa = PBXBuildFile; fileRef = E8A1F0032D0500010044C100 /* NowPlayingInfoModule.m */; };
+		E8A1F0122D0500020044C100 /* AudioTranscodeModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8A1F0112D0500020044C100 /* AudioTranscodeModule.swift */; };
+		E8A1F0142D0500020044C100 /* AudioTranscodeModule.m in Sources */ = {isa = PBXBuildFile; fileRef = E8A1F0132D0500020044C100 /* AudioTranscodeModule.m */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -33,6 +35,8 @@
 		CC7442683C6EA053882A586E /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-RHOOD/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		E8A1F0012D0500010044C100 /* NowPlayingInfoModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NowPlayingInfoModule.swift; path = RHOOD/NowPlayingInfoModule.swift; sourceTree = "<group>"; };
 		E8A1F0032D0500010044C100 /* NowPlayingInfoModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = NowPlayingInfoModule.m; path = RHOOD/NowPlayingInfoModule.m; sourceTree = "<group>"; };
+		E8A1F0112D0500020044C100 /* AudioTranscodeModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AudioTranscodeModule.swift; path = RHOOD/AudioTranscodeModule.swift; sourceTree = "<group>"; };
+		E8A1F0132D0500020044C100 /* AudioTranscodeModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = AudioTranscodeModule.m; path = RHOOD/AudioTranscodeModule.m; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = RHOOD/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* RHOOD-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "RHOOD-Bridging-Header.h"; path = "RHOOD/RHOOD-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -64,6 +68,8 @@
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
 				E8A1F0012D0500010044C100 /* NowPlayingInfoModule.swift */,
 				E8A1F0032D0500010044C100 /* NowPlayingInfoModule.m */,
+				E8A1F0112D0500020044C100 /* AudioTranscodeModule.swift */,
+				E8A1F0132D0500020044C100 /* AudioTranscodeModule.m */,
 				F11748442D0722820044C1D9 /* RHOOD-Bridging-Header.h */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
@@ -386,6 +392,8 @@
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 				E8A1F0022D0500010044C100 /* NowPlayingInfoModule.swift in Sources */,
 				E8A1F0042D0500010044C100 /* NowPlayingInfoModule.m in Sources */,
+				E8A1F0122D0500020044C100 /* AudioTranscodeModule.swift in Sources */,
+				E8A1F0142D0500020044C100 /* AudioTranscodeModule.m in Sources */,
 				80FEE33037BA0D1EBA1EA94A /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

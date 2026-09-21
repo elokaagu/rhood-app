@@ -28,6 +28,7 @@ import { Audio } from "expo-av";
 import { supabase, db } from "../lib/supabase";
 import { track, AnalyticsEvents } from "../lib/analytics";
 import { uploadMixSubmission } from "../lib/mixUploadService";
+import { needsAacTranscode } from "../lib/mixAudioFormat";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from "../lib/sharedStyles";
 import {
@@ -342,10 +343,10 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         setSelectedFile(file);
         setSelectedFileDuration(detectedDurationMillis);
 
-        if (fileExt && fileExt !== "mp3") {
+        if (fileExt && needsAacTranscode(fileExt)) {
           Alert.alert(
-            "MP3 Recommended",
-            "MP3 files upload faster and are more reliable for playback. Consider exporting your mix as an MP3 before uploading.",
+            "WAV is fine",
+            "We'll convert this WAV to a streaming format before upload. Long sets can take a few minutes on the phone — then listeners get a much smaller file that actually plays.",
             [{ text: "OK" }]
           );
         }
@@ -744,7 +745,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
                     Tap to choose file · MP3 · WAV
                   </Text>
                   <Text style={styles.filePickerSubtext}>
-                    We will validate length after you pick.
+                    WAV is converted on your iPhone so listeners can stream it.
                   </Text>
                 </View>
               )}
@@ -1104,7 +1105,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
                   </View>
                 </View>
                 <Text style={styles.uploadProgressPercentText}>
-                  {uploadProgress}%
+                  {uploadProgress < 10 &&
+                  selectedFile &&
+                  needsAacTranscode(
+                    selectedFile.name?.split(".").pop()?.toLowerCase()
+                  )
+                    ? "Converting WAV…"
+                    : `${uploadProgress}%`}
                 </Text>
               </View>
             ) : (

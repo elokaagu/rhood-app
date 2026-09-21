@@ -343,12 +343,12 @@ export default function useAudioPlayback({ user }) {
               isLoading: false,
               isPlaying: false,
               currentTrack: trackForUI,
-              error: getAudioErrorMessage(loadError),
+              error: getAudioErrorMessage(loadError, audioUrl),
             }));
             setAudioErrorModal({
               visible: true,
               title: "Unable to Play Audio",
-              message: getAudioErrorMessage(loadError),
+              message: getAudioErrorMessage(loadError, audioUrl),
             });
             return;
           }
@@ -378,12 +378,12 @@ export default function useAudioPlayback({ user }) {
               isLoading: false,
               isPlaying: false,
               currentTrack: trackForUI,
-              error: getAudioErrorMessage(statusError),
+              error: getAudioErrorMessage(statusError, audioUrl),
             }));
             setAudioErrorModal({
               visible: true,
               title: "Unable to Play Audio",
-              message: getAudioErrorMessage(statusError),
+              message: getAudioErrorMessage(statusError, audioUrl),
             });
             return;
           }
