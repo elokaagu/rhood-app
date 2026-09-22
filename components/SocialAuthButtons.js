@@ -16,6 +16,7 @@ export default function SocialAuthButtons({
   onGoogle,
   onApple,
   loading = false,
+  disabled = false,
   appleButtonType = "signIn",
 }) {
   const appleType =
@@ -25,9 +26,9 @@ export default function SocialAuthButtons({
 
   const googleButton = (
     <TouchableOpacity
-      style={[styles.googleButton, loading && styles.disabled]}
+      style={[styles.googleButton, (loading || disabled) && styles.disabled]}
       onPress={onGoogle}
-      disabled={loading}
+      disabled={loading || disabled}
       accessibilityRole="button"
       accessibilityLabel="Continue with Google"
     >
@@ -41,8 +42,8 @@ export default function SocialAuthButtons({
         buttonType={appleType}
         buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
         cornerRadius={RADIUS.md}
-        style={[styles.appleOfficial, loading && styles.disabled]}
-        onPress={loading ? undefined : onApple}
+        style={[styles.appleOfficial, (loading || disabled) && styles.disabled]}
+        onPress={loading || disabled ? undefined : onApple}
       />
     ) : null;
 

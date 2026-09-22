@@ -25,6 +25,7 @@ import {
   ListenRecommendationStrip,
 } from "../components/ListenScreenRows";
 import { extractDurationSeconds, formatDurationLabel, normalizeSearchValue } from "../lib/listenScreenUtils";
+import { listBlockedUserIds, promptReport, promptBlockUser } from "../lib/moderation";
 import styles from "../components/ListenScreen.styles";
 
 export function useListenMixes({
@@ -88,7 +89,13 @@ export function useListenMixes({
         return;
       }
 
-      const mixIds = data
+      const blockedIds = new Set(await listBlockedUserIds());
+      const visibleData =
+        blockedIds.size === 0
+          ? data
+          : data.filter((mix) => !mix.user_id || !blockedIds.has(mix.user_id));
+
+      const mixIds = visibleData
         .map((mix) => mix.id)
         .filter((id) => id !== null && id !== undefined);
       let likeCountsMap = {};
@@ -122,7 +129,7 @@ export function useListenMixes({
       }
 
       // Batch-fetch all user profiles for mixes in one query (avoids N+1)
-      const userIds = [...new Set(data.map((m) => m.user_id).filter(Boolean))];
+      const userIds = [...new Set(visibleData.map((m) => m.user_id).filter(Boolean))];
       let profilesById = {};
       if (userIds.length > 0) {
         try {
@@ -143,7 +150,7 @@ export function useListenMixes({
       }
 
       // Transform mixes synchronously using batched profiles
-      const transformedMixes = data.map((mix) => {
+      const transformedMixes = visibleData.map((mix) => {
         const profile = mix.user_id ? profilesById[mix.user_id] : null;
         const latestArtistName = profile
           ? profile.dj_name ||
@@ -497,13 +504,20 @@ export function useListenMixes({
 
       if (Platform.OS === "ios") {
         const options = ["Cancel", "Add to Queue", "Play Next", "Save to Playlist"];
+        if (!isOwnMix) {
+          options.push("Report");
+          options.push("Block");
+        }
         if (isOwnMix) options.push("Delete Mix");
+        const reportIndex = options.indexOf("Report");
+        const blockIndex = options.indexOf("Block");
+        const deleteIndex = options.indexOf("Delete Mix");
 
         ActionSheetIOS.showActionSheetWithOptions(
           {
             options,
             cancelButtonIndex: 0,
-            destructiveButtonIndex: isOwnMix ? options.length - 1 : undefined,
+            destructiveButtonIndex: blockIndex >= 0 ? blockIndex : deleteIndex >= 0 ? deleteIndex : undefined,
           },
           (buttonIndex) => {
             if (buttonIndex === 1 && onAddToQueue) {
@@ -514,7 +528,18 @@ export function useListenMixes({
               HapticPatterns.success();
             } else if (buttonIndex === 3) {
               handleSaveToPlaylist(normalizedMix);
-            } else if (buttonIndex === 4 && isOwnMix) {
+            } else if (reportIndex >= 0 && buttonIndex === reportIndex) {
+              promptReport({
+                targetType: "mix",
+                targetId: mix?.id,
+                targetUserId: normalizedMix.user_id,
+              });
+            } else if (blockIndex >= 0 && buttonIndex === blockIndex) {
+              promptBlockUser({
+                userId: normalizedMix.user_id,
+                name: mix.artist || normalizedMix.user_dj_name,
+              });
+            } else if (deleteIndex >= 0 && buttonIndex === deleteIndex && isOwnMix) {
               handleDeleteMix(normalizedMix);
             }
           }
@@ -542,6 +567,26 @@ export function useListenMixes({
           },
           { text: "Save to Playlist", onPress: () => handleSaveToPlaylist(normalizedMix) },
         ];
+        if (!isOwnMix) {
+          alertOptions.push({
+            text: "Report",
+            onPress: () =>
+              promptReport({
+                targetType: "mix",
+                targetId: mix?.id,
+                targetUserId: normalizedMix.user_id,
+              }),
+          });
+          alertOptions.push({
+            text: "Block",
+            style: "destructive",
+            onPress: () =>
+              promptBlockUser({
+                userId: normalizedMix.user_id,
+                name: mix.artist || normalizedMix.user_dj_name,
+              }),
+          });
+        }
         if (isOwnMix) {
           alertOptions.push({
             text: "Delete Mix",

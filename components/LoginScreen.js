@@ -15,7 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { auth, supabase } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
-import AuthLegalLinks from "./AuthLegalLinks";
+import AuthLegalLinks, { termsNotAcceptedMessage } from "./AuthLegalLinks";
 import PrivacyPolicyScreen from "./PrivacyPolicyScreen";
 import TermsOfServiceScreen from "./TermsOfServiceScreen";
 import SocialAuthButtons from "./SocialAuthButtons";
@@ -45,8 +45,17 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
     message: "",
   });
   const [legalScreen, setLegalScreen] = useState(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const handleLogin = async () => {
+    if (!acceptedTerms) {
+      setErrorModal({
+        visible: true,
+        title: "Terms of Service",
+        message: termsNotAcceptedMessage(),
+      });
+      return;
+    }
     if (!email || !password) {
       setErrorModal({ visible: true, title: "Error", message: "Please fill in all fields" });
       return;
@@ -184,6 +193,14 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!acceptedTerms) {
+      setErrorModal({
+        visible: true,
+        title: "Terms of Service",
+        message: termsNotAcceptedMessage(),
+      });
+      return;
+    }
     try {
       setLoading(true);
       const sessionData = await auth.signInWithGoogle(false); // Pass false for login flow
@@ -211,6 +228,14 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
   };
 
   const handleAppleSignIn = async () => {
+    if (!acceptedTerms) {
+      setErrorModal({
+        visible: true,
+        title: "Terms of Service",
+        message: termsNotAcceptedMessage(),
+      });
+      return;
+    }
     try {
       setLoading(true);
       const sessionData = await auth.signInWithApple();
@@ -319,11 +344,18 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
+          <AuthLegalLinks
+            accepted={acceptedTerms}
+            onAcceptedChange={setAcceptedTerms}
+            onPrivacy={() => setLegalScreen("privacy")}
+            onTerms={() => setLegalScreen("terms")}
+          />
+
           {/* Login Button */}
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[styles.button, (loading || !acceptedTerms) && styles.buttonDisabled]}
             onPress={handleLogin}
-            disabled={loading}
+            disabled={loading || !acceptedTerms}
           >
             {loading ? (
               <ActivityIndicator color="hsl(0, 0%, 0%)" />
@@ -345,6 +377,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
               onGoogle={handleGoogleSignIn}
               onApple={handleAppleSignIn}
               loading={loading}
+              disabled={!acceptedTerms}
               appleButtonType="signIn"
             />
           </View>
@@ -356,11 +389,6 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
               <Text style={styles.switchLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
-
-          <AuthLegalLinks
-            onPrivacy={() => setLegalScreen("privacy")}
-            onTerms={() => setLegalScreen("terms")}
-          />
         </View>
       </ScrollView>
 

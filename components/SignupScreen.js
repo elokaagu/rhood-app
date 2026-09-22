@@ -21,7 +21,7 @@ import {
   profileWithInviteCodeUsed,
   readPendingInviteCode,
 } from "../lib/pendingInvite";
-import AuthLegalLinks from "./AuthLegalLinks";
+import AuthLegalLinks, { termsNotAcceptedMessage } from "./AuthLegalLinks";
 import PrivacyPolicyScreen from "./PrivacyPolicyScreen";
 import TermsOfServiceScreen from "./TermsOfServiceScreen";
 import SocialAuthButtons from "./SocialAuthButtons";
@@ -42,6 +42,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [pendingEmail, setPendingEmail] = useState(null); // set when email confirmation is required
   const [resendCooldown, setResendCooldown] = useState(0);
   const [legalScreen, setLegalScreen] = useState(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const updateFormData = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -81,6 +82,14 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   };
 
   const handleSignup = async () => {
+    if (!acceptedTerms) {
+      setErrorModal({
+        visible: true,
+        title: "Terms of Service",
+        message: termsNotAcceptedMessage(),
+      });
+      return;
+    }
     if (!validateForm()) return;
 
     try {
@@ -163,6 +172,14 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!acceptedTerms) {
+      setErrorModal({
+        visible: true,
+        title: "Terms of Service",
+        message: termsNotAcceptedMessage(),
+      });
+      return;
+    }
     try {
       setLoading(true);
       await savePendingInviteCode(formData.inviteCode);
@@ -196,6 +213,14 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   };
 
   const handleAppleSignIn = async () => {
+    if (!acceptedTerms) {
+      setErrorModal({
+        visible: true,
+        title: "Terms of Service",
+        message: termsNotAcceptedMessage(),
+      });
+      return;
+    }
     try {
       setLoading(true);
       const { user } = await auth.signInWithApple();
@@ -437,11 +462,18 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
             />
           </View>
 
+          <AuthLegalLinks
+            accepted={acceptedTerms}
+            onAcceptedChange={setAcceptedTerms}
+            onPrivacy={() => setLegalScreen("privacy")}
+            onTerms={() => setLegalScreen("terms")}
+          />
+
           {/* Signup Button */}
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[styles.button, (loading || !acceptedTerms) && styles.buttonDisabled]}
             onPress={handleSignup}
-            disabled={loading}
+            disabled={loading || !acceptedTerms}
           >
             {loading ? (
               <ActivityIndicator color="hsl(0, 0%, 0%)" />
@@ -463,6 +495,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
               onGoogle={handleGoogleSignIn}
               onApple={handleAppleSignIn}
               loading={loading}
+              disabled={!acceptedTerms}
               appleButtonType="signUp"
             />
           </View>
@@ -474,11 +507,6 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
               <Text style={styles.switchLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
-
-          <AuthLegalLinks
-            onPrivacy={() => setLegalScreen("privacy")}
-            onTerms={() => setLegalScreen("terms")}
-          />
         </View>
       </ScrollView>
 

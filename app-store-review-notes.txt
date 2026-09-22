@@ -5,15 +5,23 @@ R/HOOD is a DJ community: profiles, gig applications, mixes, connections, and me
 
 SIGN IN
 Email/password, Google, and Sign in with Apple (iOS) are available on both Login and Signup.
+You must tick “I agree to the Terms of Service and Privacy Policy” before Sign In / Create Account. Tap the Terms of Service link in that checkbox row to read the full EULA.
 
 ACCOUNT DELETION (Guideline 5.1.1)
 Settings → Account → Delete Account. This permanently deletes the user’s profile and auth account from the app. No email to support is required.
 
 USER CONTENT (Guideline 1.2)
-Users can Report and Block from another DJ’s profile (⋯ menu). Incoming messages can be reported from the message actions sheet. Reports are stored for our team to review.
+- Flag content: Listen → long-press a mix → Report. Or open another DJ’s profile → ⋯ → Report. Incoming messages: tap the message → Report.
+- Block: another DJ’s profile → ⋯ → Block, or long-press a mix → Block. Blocking hides them from Listen, Discover, and Messages immediately and notifies our team.
+- We aim to act on reports and blocks within 24 hours (remove content / suspend the offending account). Contact: hello@rhood.io
+
+Please attach a screen recording to this Notes field showing: (1) Terms checkbox + Terms of Service before login, (2) Report on a mix or profile, (3) Block on a profile.
 
 CREDITS / BOOSTS (Guideline 3.1.1)
 In-app credits are earned through activity (referrals, achievements, completed gigs). They cannot be purchased with real money. Boosting an application spends earned credits only. There is no Stripe, PayPal, or In-App Purchase for digital goods.
+
+AUDIO
+Playback uses streamed mixes (AAC/MP3). Please use a mix that is not an uncompressed WAV. Background audio is the lock-screen / Control Center player while a mix is playing.
 
 TRACKING
 On iOS we show App Tracking Transparency before Mixpanel/Firebase analytics. If the user denies tracking, we disable IDFA/automatic events and session replay.

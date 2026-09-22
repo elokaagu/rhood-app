@@ -23,7 +23,7 @@ import { SkeletonMix } from "./Skeleton";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
-import { promptReport } from "../lib/moderation";
+import { promptReport, promptBlockUser } from "../lib/moderation";
 
 const ICON_COLOR = "hsl(75, 100%, 60%)";
 const TRENDING_LIMIT = 15;
@@ -389,6 +389,17 @@ function ListenScreen({
             targetUserId: mix?.user_id,
           }),
       });
+      if (mix?.user_id) {
+        options.push({
+          text: "Block",
+          style: "destructive",
+          onPress: () =>
+            promptBlockUser({
+              userId: mix.user_id,
+              name: mix.artist,
+            }),
+        });
+      }
       Alert.alert(
         mix.title || "Mix",
         "What would you like to do?",
