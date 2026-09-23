@@ -41,9 +41,10 @@ import {
   consumePendingInviteCode,
   profileWithInviteCodeUsed,
   readPendingInviteCode,
+  savePendingInviteCode,
 } from "./lib/pendingInvite";
 import { membershipStatusFromProfile } from "./lib/membership";
-import { parseBookingRequestDeepLink } from "./lib/appDeepLinks";
+import { parseBookingRequestDeepLink, parseInviteCodeFromUrl } from "./lib/appDeepLinks";
 import { getUserFriendlyError } from "./lib/errorMessages";
 import { clearScreenCachesForUser } from "./lib/screenCache";
 import { clearMessageThreadSnapshotsForUser } from "./lib/messageThreadSnapshotCache";
@@ -481,6 +482,13 @@ export default function App() {
             ...prev,
             openBookingRequestId: bookingRequestId,
           }));
+          return;
+        }
+
+        const inviteCodeFromLink = parseInviteCodeFromUrl(url);
+        if (inviteCodeFromLink) {
+          await savePendingInviteCode(inviteCodeFromLink);
+          setAuthMode("signup");
           return;
         }
 
@@ -2240,6 +2248,10 @@ export default function App() {
             user={user}
             onSave={handleProfileSaved}
             onCancel={handleProfileCancel}
+            onNavigate={(screen, params) => {
+              setShowEditProfile(false);
+              navigateApp(screen, params);
+            }}
           />
         </Modal>
 

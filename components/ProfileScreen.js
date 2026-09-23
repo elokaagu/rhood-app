@@ -277,8 +277,60 @@ export default function ProfileScreen({
   };
 
   const handleGigPress = (gig) => {
-    onNavigate && onNavigate("gig-detail", { gigId: gig.id });
+    if (gig?.opportunityId) {
+      onNavigate?.("opportunities", { focusOpportunityId: gig.opportunityId });
+      return;
+    }
   };
+
+  const renderActivityCard = (item, index) => (
+    <AnimatedListItem
+      key={item.id || `${item.name}-${index}`}
+      index={index}
+      delay={70}
+      maxStaggerIndex={6}
+    >
+      <TouchableOpacity
+        style={styles.gigCard}
+        onPress={() => handleGigPress(item)}
+        activeOpacity={item.opportunityId ? 0.7 : 1}
+        disabled={!item.opportunityId}
+      >
+        <View style={styles.gigHeader}>
+          <Text style={styles.gigName}>{item.name}</Text>
+          {item.price ? <Text style={styles.gigPrice}>{item.price}</Text> : null}
+        </View>
+        {item.venue ? <Text style={styles.gigVenue}>{item.venue}</Text> : null}
+        <View style={styles.gigFooter}>
+          <Text style={styles.gigDate}>{item.date}</Text>
+          <View style={styles.gigMetaRow}>
+            {item.statusLabel ? (
+              <Text style={styles.gigStatus}>{item.statusLabel}</Text>
+            ) : null}
+            {item.rating != null ? (
+              <View style={styles.gigRating}>
+                <Ionicons name="star" size={14} color="hsl(45, 100%, 60%)" />
+                <Text style={styles.gigRatingText}>{item.rating}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </TouchableOpacity>
+    </AnimatedListItem>
+  );
+
+  const renderActivitySection = (title, items, emptyCopy) => (
+    <View style={styles.gigsContainer}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {items && items.length > 0 ? (
+        items.map((item, index) => renderActivityCard(item, index))
+      ) : (
+        <View style={styles.gigEmptyCard}>
+          <Text style={styles.gigEmptyText}>{emptyCopy}</Text>
+        </View>
+      )}
+    </View>
+  );
 
   const formatTime = (milliseconds) => {
     if (!Number.isFinite(milliseconds) || milliseconds < 0) {
@@ -855,41 +907,16 @@ export default function ProfileScreen({
           </View>
         </View>
 
-        {/* Recent Gigs */}
-        {profile.recentGigs && profile.recentGigs.length > 0 && (
-          <View style={styles.gigsContainer}>
-            <Text style={styles.sectionTitle}>Recent Gigs</Text>
-            {profile.recentGigs.map((gig, index) => (
-              <AnimatedListItem
-                key={gig.id}
-                index={index}
-                delay={70}
-                maxStaggerIndex={6}
-              >
-                <TouchableOpacity
-                  style={styles.gigCard}
-                  onPress={() => handleGigPress(gig)}
-                >
-                  <View style={styles.gigHeader}>
-                    <Text style={styles.gigName}>{gig.name}</Text>
-                    <Text style={styles.gigPrice}>{gig.price}</Text>
-                  </View>
-                  <Text style={styles.gigVenue}>{gig.venue}</Text>
-                  <View style={styles.gigFooter}>
-                    <Text style={styles.gigDate}>{gig.date}</Text>
-                    <View style={styles.gigRating}>
-                      <Ionicons
-                        name="star"
-                        size={14}
-                        color="hsl(45, 100%, 60%)"
-                      />
-                      <Text style={styles.gigRatingText}>{gig.rating}</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </AnimatedListItem>
-            ))}
-          </View>
+        {renderActivitySection(
+          "Recent Opportunities",
+          profile.recentOpportunities,
+          "Opportunities you apply for will show up here."
+        )}
+
+        {renderActivitySection(
+          "Recent Gigs",
+          profile.recentGigs,
+          "Gigs appear here after a brand or admin marks them done on the portal."
         )}
 
         <ProfileBookingRequests

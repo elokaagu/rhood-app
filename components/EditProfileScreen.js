@@ -21,6 +21,7 @@ import { db, supabase } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 import ConnectionsLocationModal from "./ConnectionsLocationModal";
 import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
+import { formatMixGenreLabel } from "../lib/mixGenres";
 
 // Duration extraction utilities (same as ListenScreen)
 const parseDurationString = (value) => {
@@ -116,15 +117,13 @@ const extractDurationSeconds = (mix) => {
   return null;
 };
 
-const formatDurationLabel = (seconds) => {
-  if (!Number.isFinite(seconds) || seconds <= 0) {
-    return "0:00";
-  }
-  const totalSeconds = Math.max(0, Math.round(seconds));
-  const minutes = Math.floor(totalSeconds / 60);
-  const remainingSeconds = totalSeconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-};
+const mixDurationText = (mix) =>
+  mix?.durationFormatted ||
+  (mix?.duration && Number.isFinite(mix.duration) && mix.duration > 0
+    ? formatDurationLabel(mix.duration)
+    : "0:00");
+
+const mixGenreLine = (mix) => formatMixGenreLabel(mix?.genre) || "Electronic";
 
 /** Applied on save (and when validating); inputs keep raw text while typing. */
 function normalizeInstagramUrl(raw) {
@@ -160,7 +159,13 @@ function normalizePortfolioUrl(raw) {
   return `https://${text.replace(/^\/+/, "")}`;
 }
 
-export default function EditProfileScreen({ user, onSave, onCancel, focusField }) {
+export default function EditProfileScreen({
+  user,
+  onSave,
+  onCancel,
+  focusField,
+  onNavigate,
+}) {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -188,6 +193,7 @@ export default function EditProfileScreen({ user, onSave, onCancel, focusField }
   const [showMixSelection, setShowMixSelection] = useState(false);
   const [selectingMix, setSelectingMix] = useState(false);
   const [currentPrimaryMix, setCurrentPrimaryMix] = useState(null);
+  const [confirmUnset, setConfirmUnset] = useState(false);
 
   const cityPicker = useCityLocationPicker(profile.city, (city) => {
     setProfile((prev) => ({ ...prev, city }));
@@ -567,99 +573,42 @@ export default function EditProfileScreen({ user, onSave, onCancel, focusField }
     }
   };
 
-  const handleDeleteAudioId = async () => {
-    if (!currentPrimaryMix) {
+  const handleEditMix = (mix) => {
+    if (!mix?.id) return;
+    setShowMixSelection(false);
+    if (onNavigate) {
+      onNavigate("upload-mix", {
+        mixId: mix.id,
+        returnScreen: "edit-profile",
+      });
       return;
     }
+    setErrorModal({
+      visible: true,
+      title: "Edit mix",
+      message:
+        "Open Create → Your mixes and tap this mix to change the name, genres, or artwork. You don't need to re-upload the audio.",
+    });
+  };
 
-    Alert.alert(
-      "Delete Audio ID",
-      `Are you sure you want to delete "${currentPrimaryMix.title}"? This will permanently remove the mix and cannot be undone.`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setSelectingMix(true);
-
-              // Delete the mix from database
-              const { error: dbError } = await supabase
-                .from("mixes")
-                .delete()
-                .eq("id", currentPrimaryMix.id);
-
-              if (dbError) {
-                console.error("❌ Error deleting mix from database:", dbError);
-                setErrorModal({ 
-                  visible: true, 
-                  title: "Error", 
-                  message: "Failed to delete mix. Please try again." 
-                });
-                return;
-              }
-
-              // Delete audio file from storage
-              if (currentPrimaryMix.file_url && typeof currentPrimaryMix.file_url === "string") {
-                const audioPath = currentPrimaryMix.file_url.split("/mixes/")[1];
-                if (audioPath) {
-                  const { error: audioError } = await supabase.storage
-                    .from("mixes")
-                    .remove([audioPath]);
-
-                  if (audioError) {
-                    console.error("❌ Error deleting audio file:", audioError);
-                  }
-                }
-              }
-
-              // Delete artwork from storage if it exists
-              if (
-                currentPrimaryMix.artwork_url &&
-                typeof currentPrimaryMix.artwork_url === "string" &&
-                currentPrimaryMix.artwork_url.includes("supabase")
-              ) {
-                const artworkPath = currentPrimaryMix.artwork_url.split("/mixes/")[1];
-                if (artworkPath) {
-                  const { error: artworkError } = await supabase.storage
-                    .from("mixes")
-                    .remove([artworkPath]);
-
-                  if (artworkError) {
-                    console.error("❌ Error deleting artwork:", artworkError);
-                  }
-                }
-              }
-
-              // Remove primary mix reference (set to null)
-              await db.setPrimaryMix(user.id, null);
-
-              // Update local state
-              setCurrentPrimaryMix(null);
-              
-              // Refresh user mixes list
-              await fetchUserMixes();
-
-              setShowSuccessModal(true);
-              setShowMixSelection(false);
-            } catch (error) {
-              console.error("❌ Error deleting Audio ID:", error);
-              setErrorModal({ 
-                visible: true, 
-                title: "Error", 
-                message: "Failed to delete Audio ID. Please try again." 
-              });
-            } finally {
-              setSelectingMix(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleUnsetAudioId = async () => {
+    if (!currentPrimaryMix) return;
+    try {
+      setSelectingMix(true);
+      await db.setPrimaryMix(user.id, null);
+      setCurrentPrimaryMix(null);
+      setShowMixSelection(false);
+      setConfirmUnset(false);
+    } catch (error) {
+      console.error("❌ Error unsetting Audio ID:", error);
+      setErrorModal({
+        visible: true,
+        title: "Error",
+        message: "Failed to remove Audio ID from your profile. Please try again.",
+      });
+    } finally {
+      setSelectingMix(false);
+    }
   };
 
   const handleGenreToggle = (genre) => {
@@ -1101,19 +1050,24 @@ export default function EditProfileScreen({ user, onSave, onCancel, focusField }
                       {currentPrimaryMix.title}
                     </Text>
                     <Text style={styles.audioIdDetails}>
-                      {currentPrimaryMix.genre || "Electronic"} •{" "}
-                      {currentPrimaryMix.durationFormatted || 
-                       (currentPrimaryMix.duration && Number.isFinite(currentPrimaryMix.duration) && currentPrimaryMix.duration > 0
-                        ? formatDurationLabel(currentPrimaryMix.duration)
-                        : "0:00")}
+                      {mixGenreLine(currentPrimaryMix)} •{" "}
+                      {mixDurationText(currentPrimaryMix)}
                     </Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.audioIdButton}
-                    onPress={handleChangeAudioId}
-                  >
-                    <Text style={styles.audioIdButtonText}>Change</Text>
-                  </TouchableOpacity>
+                  <View style={styles.audioIdActions}>
+                    <TouchableOpacity
+                      style={styles.audioIdEditButton}
+                      onPress={() => handleEditMix(currentPrimaryMix)}
+                    >
+                      <Text style={styles.audioIdEditButtonText}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.audioIdButton}
+                      onPress={handleChangeAudioId}
+                    >
+                      <Text style={styles.audioIdButtonText}>Change</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ) : (
                 <View style={styles.audioIdEmptyContainer}>
@@ -1131,6 +1085,9 @@ export default function EditProfileScreen({ user, onSave, onCancel, focusField }
                   </TouchableOpacity>
                 </View>
               )}
+              <Text style={styles.audioIdHint}>
+                Change the featured mix here. To rename it or update genres, tap Edit — you don’t need to re-upload the audio.
+              </Text>
             </View>
 
             <View style={styles.inputGroup}>
@@ -1247,49 +1204,41 @@ export default function EditProfileScreen({ user, onSave, onCancel, focusField }
 
             <ScrollView style={styles.mixList}>
               {userMixes.map((mix) => (
-                <TouchableOpacity
-                  key={mix.id}
-                  style={styles.mixItem}
-                  onPress={() => handleSelectMix(mix)}
-                  disabled={selectingMix}
-                >
-                  <View style={styles.mixInfo}>
+                <View key={mix.id} style={styles.mixItem}>
+                  <TouchableOpacity
+                    style={styles.mixInfo}
+                    onPress={() => handleSelectMix(mix)}
+                    disabled={selectingMix}
+                  >
                     <Text style={styles.mixTitle}>{mix.title}</Text>
                     <Text style={styles.mixDetails}>
-                      {mix.genre || "Electronic"} •{" "}
-                      {mix.durationFormatted || 
-                       (mix.duration && Number.isFinite(mix.duration) && mix.duration > 0
-                        ? formatDurationLabel(mix.duration)
-                        : "0:00")}
+                      {mixGenreLine(mix)} • {mixDurationText(mix)}
                     </Text>
-                  </View>
-                  {selectingMix ? (
-                    <ActivityIndicator
-                      size="small"
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.mixEditButton}
+                    onPress={() => handleEditMix(mix)}
+                    disabled={selectingMix}
+                  >
+                    <Ionicons
+                      name="create-outline"
+                      size={18}
                       color="hsl(75, 100%, 60%)"
                     />
-                  ) : (
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color="hsl(0, 0%, 50%)"
-                    />
-                  )}
-                </TouchableOpacity>
+                    <Text style={styles.mixEditButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
               ))}
-              {userMixes.length === 1 && currentPrimaryMix && (
+              {currentPrimaryMix ? (
                 <TouchableOpacity
                   style={[styles.mixItem, styles.deleteMixItem]}
-                  onPress={() => {
-                    setShowMixSelection(false);
-                    handleDeleteAudioId();
-                  }}
+                  onPress={() => setConfirmUnset(true)}
                   disabled={selectingMix}
                 >
                   <View style={styles.mixInfo}>
                     <Text style={styles.deleteMixText}>Remove Audio ID</Text>
                     <Text style={styles.deleteMixSubtext}>
-                      Delete your current Audio ID
+                      Unset the featured mix on your profile. The mix itself stays in your library.
                     </Text>
                   </View>
                   {selectingMix ? (
@@ -1299,13 +1248,13 @@ export default function EditProfileScreen({ user, onSave, onCancel, focusField }
                     />
                   ) : (
                     <Ionicons
-                      name="trash-outline"
+                      name="remove-circle-outline"
                       size={20}
                       color="hsl(0, 100%, 50%)"
                     />
                   )}
                 </TouchableOpacity>
-              )}
+              ) : null}
             </ScrollView>
           </View>
         </View>
@@ -1320,6 +1269,18 @@ export default function EditProfileScreen({ user, onSave, onCancel, focusField }
         type="error"
         primaryButtonText="OK"
         onPrimaryPress={() => setErrorModal({ visible: false, title: "", message: "" })}
+      />
+
+      <RhoodModal
+        visible={confirmUnset}
+        onClose={() => setConfirmUnset(false)}
+        type="warning"
+        title="Remove Audio ID"
+        message="This only unsets the featured mix on your profile. The mix stays in your library."
+        primaryButtonText="Remove"
+        onPrimaryPress={handleUnsetAudioId}
+        secondaryButtonText="Cancel"
+        onSecondaryPress={() => setConfirmUnset(false)}
       />
 
       <ConnectionsLocationModal
@@ -1646,6 +1607,31 @@ const styles = StyleSheet.create({
   },
   audioIdInfo: {
     flex: 1,
+    marginRight: 8,
+  },
+  audioIdActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  audioIdEditButton: {
+    backgroundColor: "hsl(0, 0%, 16%)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 22%)",
+  },
+  audioIdEditButtonText: {
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  audioIdHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "hsl(0, 0%, 50%)",
+    lineHeight: 17,
   },
   audioIdTitle: {
     fontSize: 16,
@@ -1727,6 +1713,19 @@ const styles = StyleSheet.create({
   },
   mixInfo: {
     flex: 1,
+    paddingRight: 12,
+  },
+  mixEditButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  mixEditButtonText: {
+    color: "hsl(75, 100%, 60%)",
+    fontSize: 13,
+    fontWeight: "600",
   },
   mixTitle: {
     fontSize: 16,

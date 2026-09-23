@@ -463,6 +463,7 @@ export default function ScreenRouter({
           onSave={handleEditProfileSave}
           onCancel={pickScreen(SCREENS.PROFILE)}
           focusField={screenParams.focusField}
+          onNavigate={navigate}
         />
       );
 

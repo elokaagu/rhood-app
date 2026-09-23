@@ -7,6 +7,7 @@ import {
   mapGigsForProfile,
   mixToAudioId,
   normalizeProfileForUI,
+  splitProfileOpportunityActivity,
 } from "../lib/profileScreen/model";
 
 const profileCache = createScreenCache("profile", { userScoped: true });
@@ -92,10 +93,31 @@ export function useProfileScreenData(user) {
       const userProfile = await db.getUserProfile(user.id);
 
       let recentGigs = [];
+      let recentOpportunities = [];
+      let gigsCompletedOverride = null;
       try {
-        recentGigs = mapGigsForProfile(await db.getUserGigs(user.id));
+        const activity = await db.getProfileActivity(user.id);
+        const split = splitProfileOpportunityActivity(
+          activity.applications,
+          activity.ratingsByApplicationId
+        );
+        recentOpportunities = split.recentOpportunities;
+        recentGigs = split.recentGigs;
+        gigsCompletedOverride = split.gigsCompleted;
+        if (!recentGigs.length) {
+          const legacyGigs = await db.getUserGigs(user.id).catch(() => []);
+          const completedLegacy = (legacyGigs || []).filter(
+            (gig) => String(gig.status || "").toLowerCase() === "completed"
+          );
+          if (completedLegacy.length) {
+            recentGigs = mapGigsForProfile(completedLegacy);
+            if (!gigsCompletedOverride) {
+              gigsCompletedOverride = completedLegacy.length;
+            }
+          }
+        }
       } catch (gigsError) {
-        if (__DEV__) console.error("Error loading gigs:", gigsError);
+        if (__DEV__) console.error("Error loading profile activity:", gigsError);
       }
 
       let achievements = [];
@@ -164,10 +186,12 @@ export function useProfileScreenData(user) {
         const profileData = buildProfileViewModel({
           userProfile,
           recentGigs,
+          recentOpportunities,
           achievements,
           achievementsStats,
           creditsValue,
           primaryMix,
+          gigsCompletedOverride,
         });
         setProfile(profileData);
         profileCache.set(user.id, {

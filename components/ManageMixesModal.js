@@ -10,6 +10,7 @@ import {
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { formatMixGenreLabel } from "../lib/mixGenres";
 import styles from "./ListenScreen.styles";
 
 export default function ManageMixesModal({
@@ -71,7 +72,7 @@ export default function ManageMixesModal({
                         {mix.title}
                       </Text>
                       <Text style={styles.manageMixItemGenre} numberOfLines={1}>
-                        {mix.genre || "No genre"}
+                        {formatMixGenreLabel(mix.genre) || "No genre"}
                       </Text>
                       <View style={styles.manageMixBadges}>
                         {mix.is_primary && (

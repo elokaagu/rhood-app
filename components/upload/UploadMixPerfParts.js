@@ -46,7 +46,7 @@ export const UploadMixLibraryPlaceholder = memo(
           <Text style={st.sectionKicker}>Library</Text>
           <Text style={st.sectionTitle}>Your mixes</Text>
           <Text style={st.sectionSubtitle}>
-            Tap a mix to edit metadata and artwork, or start fresh below.
+            Tap a mix to change the name, genres, or artwork — you don’t need to re-upload the audio.
           </Text>
           <View style={st.libraryPlaceholderStrip}>
             <View style={st.libraryPlaceholderCards}>
@@ -80,7 +80,7 @@ export const UploadMixLibraryEmptyState = memo(function UploadMixLibraryEmptySta
         <Text style={st.sectionKicker}>Library</Text>
         <Text style={st.sectionTitle}>Your mixes</Text>
         <Text style={st.sectionSubtitle}>
-          Tap a mix to edit metadata and artwork, or start fresh below.
+          Tap a mix to change the name, genres, or artwork — you don’t need to re-upload the audio.
         </Text>
         <View style={st.libraryEmptyMessageWrap}>
           <Ionicons
@@ -168,7 +168,7 @@ export const UploadMixLibraryCarousel = memo(function UploadMixLibraryCarousel({
         <Text style={st.sectionKicker}>Library</Text>
         <Text style={st.sectionTitle}>Your mixes</Text>
         <Text style={st.sectionSubtitle}>
-          Tap a mix to edit metadata and artwork, or start fresh below.
+          Tap a mix to change the name, genres, or artwork — you don’t need to re-upload the audio.
         </Text>
         <FlatList
           data={mixes}

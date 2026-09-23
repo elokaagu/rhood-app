@@ -548,6 +548,32 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  gigMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  gigStatus: {
+    fontSize: 12,
+    color: "hsl(75, 100%, 60%)",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  gigEmptyCard: {
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 15%)",
+  },
+  gigEmptyText: {
+    fontSize: 14,
+    color: "hsl(0, 0%, 55%)",
+    fontFamily: "Helvetica Neue",
+    lineHeight: 20,
+  },
   gigDate: {
     fontSize: 12,
     color: "hsl(0, 0%, 50%)",

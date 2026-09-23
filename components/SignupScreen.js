@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -43,6 +43,25 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [legalScreen, setLegalScreen] = useState(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const pending = await readPendingInviteCode();
+        if (!cancelled && pending) {
+          setFormData((prev) =>
+            prev.inviteCode ? prev : { ...prev, inviteCode: pending }
+          );
+        }
+      } catch (_err) {
+        /* non-fatal */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updateFormData = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
