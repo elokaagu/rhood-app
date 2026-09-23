@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Platform,
   Modal,
@@ -27,7 +26,14 @@ import { HapticPatterns } from "../lib/haptics";
 import { Audio } from "expo-av";
 import { supabase, db } from "../lib/supabase";
 import { track, AnalyticsEvents } from "../lib/analytics";
+import {
+  GENRE_OTHER,
+  MIN_MIX_GENRES,
+  parseMixGenresForForm,
+  resolveMixGenres,
+} from "../lib/mixGenres";
 import { uploadMixSubmission } from "../lib/mixUploadService";
+import RhoodModal from "./RhoodModal";
 import { needsAacTranscode } from "../lib/mixAudioFormat";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from "../lib/sharedStyles";
@@ -78,13 +84,65 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
   const [mixData, setMixData] = useState({
     title: "",
     description: "",
-    genres: [], // multi-select; minimum 3 required
+    genres: [], // multi-select; at least one required
+    customGenre: "",
     isPublic: true,
     // Default ON; user can turn off before upload (single setPrimaryMix in service)
     setAsPrimary: true,
     isPinned: false,
   });
   const [pinnedMixesCount, setPinnedMixesCount] = useState(0);
+  const [feedback, setFeedback] = useState({
+    visible: false,
+    type: "info",
+    title: "",
+    message: "",
+    primaryButtonText: "OK",
+    secondaryButtonText: undefined,
+  });
+  const feedbackActionsRef = useRef({ primary: null, secondary: null });
+
+  const closeFeedback = useCallback(() => {
+    setFeedback((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  const showFeedback = useCallback(
+    ({
+      type = "info",
+      title,
+      message,
+      primaryButtonText = "OK",
+      secondaryButtonText,
+      onPrimaryPress,
+      onSecondaryPress,
+    }) => {
+      feedbackActionsRef.current = {
+        primary: onPrimaryPress || null,
+        secondary: onSecondaryPress || null,
+      };
+      setFeedback({
+        visible: true,
+        type,
+        title,
+        message,
+        primaryButtonText,
+        secondaryButtonText,
+      });
+    },
+    []
+  );
+
+  const handleFeedbackPrimary = useCallback(() => {
+    const fn = feedbackActionsRef.current.primary;
+    closeFeedback();
+    fn?.();
+  }, [closeFeedback]);
+
+  const handleFeedbackSecondary = useCallback(() => {
+    const fn = feedbackActionsRef.current.secondary;
+    closeFeedback();
+    fn?.();
+  }, [closeFeedback]);
 
   const fetchPinnedMixesCount = useCallback(async () => {
     if (!user?.id) {
@@ -210,13 +268,12 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     setEditingMix(mix);
     setShowMixSelector(false);
     // Parse the stored comma-separated genre string back into an array
-    const parsedGenres = mix.genre
-      ? mix.genre.split(",").map((g) => g.trim()).filter(Boolean)
-      : [];
+    const parsed = parseMixGenresForForm(mix.genre);
     setMixData({
       title: mix.title || "",
       description: mix.description || "",
-      genres: parsedGenres,
+      genres: parsed.genres,
+      customGenre: parsed.customGenre,
       isPublic: mix.is_public !== false,
       setAsPrimary: false, // Don't change primary mix when editing
       isPinned: mix.is_pinned || false,
@@ -234,6 +291,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       title: "",
       description: "",
       genres: [],
+      customGenre: "",
       isPublic: true,
       setAsPrimary: true,
       isPinned: false,
@@ -256,11 +314,14 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     setMixData((prev) => {
       const current = prev.genres || [];
       const isSelected = current.includes(genre);
+      const nextGenres = isSelected
+        ? current.filter((g) => g !== genre)
+        : [...current, genre];
       return {
         ...prev,
-        genres: isSelected
-          ? current.filter((g) => g !== genre)
-          : [...current, genre],
+        genres: nextGenres,
+        customGenre:
+          genre === GENRE_OTHER && isSelected ? "" : prev.customGenre,
       };
     });
   }, []);
@@ -286,10 +347,12 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         const fileUri = file.uri || file.fileCopyUri;
 
         if (!fileUri) {
-          Alert.alert(
-            "File Unavailable",
-            "We couldn't access this audio file. Please try selecting it again."
-          );
+          showFeedback({
+            type: "error",
+            title: "File Unavailable",
+            message:
+              "We couldn't access this audio file. Please try selecting it again.",
+          });
           return;
         }
 
@@ -300,11 +363,11 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         console.log(`📁 Selected file size: ${fileSizeMB}MB`);
 
         if (file.size > maxSizeMB * 1024 * 1024) {
-          Alert.alert(
-            "File Too Large",
-            `Your file is ${fileSizeMB}MB, but the maximum allowed size is ${maxSizeMB}MB (5GB).\n\nFor files this large, consider:\n1. Splitting into multiple parts\n2. Using higher compression\n3. Contacting support for enterprise limits`,
-            [{ text: "OK" }]
-          );
+          showFeedback({
+            type: "warning",
+            title: "File Too Large",
+            message: `Your file is ${fileSizeMB}MB, but the maximum allowed size is ${maxSizeMB}MB (5GB).\n\nFor files this large, consider:\n1. Splitting into multiple parts\n2. Using higher compression\n3. Contacting support for enterprise limits`,
+          });
           return;
         }
 
@@ -344,11 +407,12 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         setSelectedFileDuration(detectedDurationMillis);
 
         if (fileExt && needsAacTranscode(fileExt)) {
-          Alert.alert(
-            "WAV is fine",
-            "We'll convert this WAV to a streaming format before upload. Long sets can take a few minutes on the phone — then listeners get a much smaller file that actually plays.",
-            [{ text: "OK" }]
-          );
+          showFeedback({
+            type: "info",
+            title: "WAV is fine",
+            message:
+              "We'll convert this WAV to a streaming format before upload. Long sets can take a few minutes on the phone — then listeners get a much smaller file that actually plays.",
+          });
         }
 
         // Auto-fill title from filename if empty
@@ -361,9 +425,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       }
     } catch (error) {
       console.error("Error picking file:", error);
-      Alert.alert("Error", "Failed to select file. Please try again.");
+      showFeedback({
+        type: "error",
+        title: "Error",
+        message: "Failed to select file. Please try again.",
+      });
     }
-  }, [mixData.title]);
+  }, [mixData.title, showFeedback]);
 
   /**
    * Empty library is already a "new mix" in state — resetting alone does nothing visible.
@@ -382,10 +450,12 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       HapticPatterns.buttonPress();
 
       if (!ImagePicker) {
-        Alert.alert(
-          "Feature Not Available",
-          "Artwork is required for mix submissions. Please use the development build to select artwork."
-        );
+        showFeedback({
+          type: "warning",
+          title: "Feature Not Available",
+          message:
+            "Artwork is required for mix submissions. Please use the development build to select artwork.",
+        });
         return;
       }
 
@@ -394,14 +464,15 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== "granted") {
-        Alert.alert(
-          "Permission Required",
-          "We need access to your photo library to select artwork. Please enable media library access in your device settings.",
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Settings", onPress: () => Linking.openSettings() },
-          ]
-        );
+        showFeedback({
+          type: "warning",
+          title: "Permission Required",
+          message:
+            "We need access to your photo library to select artwork. Please enable media library access in your device settings.",
+          primaryButtonText: "Settings",
+          secondaryButtonText: "Cancel",
+          onPrimaryPress: () => Linking.openSettings(),
+        });
         return;
       }
 
@@ -437,11 +508,11 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
 
         // Check file size (max 10MB for images) only if we have size info
         if (imageFile.size > 0 && imageFile.size > 10 * 1024 * 1024) {
-          Alert.alert(
-            "File Too Large",
-            "Please select an image smaller than 10MB.",
-            [{ text: "OK" }]
-          );
+          showFeedback({
+            type: "warning",
+            title: "File Too Large",
+            message: "Please select an image smaller than 10MB.",
+          });
           return;
         }
 
@@ -463,9 +534,13 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           "Network error. Please check your connection and try again.";
       }
 
-      Alert.alert("Error", errorMessage, [{ text: "OK" }]);
+      showFeedback({
+        type: "error",
+        title: "Error",
+        message: errorMessage,
+      });
     }
-  }, []);
+  }, [showFeedback]);
 
   const uploadMix = useCallback(async () => {
     try {
@@ -508,14 +583,6 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         effectiveDurationMillis,
       } = result;
 
-      if (primaryError && mixSnapshot.setAsPrimary && !editingMix && mixRecord) {
-        Alert.alert(
-          "Upload Successful",
-          "Your mix was uploaded, but there was an issue setting it as your Audio ID. You can set it manually from your profile.",
-          [{ text: "OK" }]
-        );
-      }
-
       await fetchPinnedMixesCount();
 
       if (editingMix && !mixSnapshot.isPinned && editingMix.is_pinned) {
@@ -544,34 +611,35 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         is_update: !!editingMix,
       });
 
-      Alert.alert(
-        "Success!",
-        editingMix
-          ? "Your mix has been updated successfully!"
-          : "Your mix has been uploaded successfully" +
-              (becamePrimary ? " and set as your primary mix!" : "!"),
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              if (onUploadComplete) {
-                onUploadComplete(mixRecord);
-              }
-              if (onBack) {
-                onBack();
-              }
-            },
-          },
-        ]
-      );
+      const successMessage = editingMix
+        ? "Your mix has been updated successfully!"
+        : "Your mix has been uploaded successfully" +
+          (becamePrimary ? " and set as your primary mix!" : "!");
+
+      showFeedback({
+        type: "success",
+        title: "Success",
+        message:
+          primaryError && mixSnapshot.setAsPrimary && !editingMix && mixRecord
+            ? "Your mix was uploaded, but there was an issue setting it as your Audio ID. You can set it manually from your profile."
+            : successMessage,
+        onPrimaryPress: () => {
+          if (onUploadComplete) {
+            onUploadComplete(mixRecord);
+          }
+          if (onBack) {
+            onBack();
+          }
+        },
+      });
     } catch (error) {
       console.error("Error uploading mix:", error);
       HapticPatterns.error();
-      const title = error.alertTitle || "Upload Failed";
-      Alert.alert(
-        title,
-        error.message || "Failed to upload mix. Please try again."
-      );
+      showFeedback({
+        type: "error",
+        title: error.alertTitle || "Upload Failed",
+        message: error.message || "Failed to upload mix. Please try again.",
+      });
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -587,6 +655,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
     onUploadComplete,
     onBack,
     fetchPinnedMixesCount,
+    showFeedback,
   ]);
 
   const formatFileSize = useCallback((bytes) => {
@@ -873,12 +942,12 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         <View style={styles.section}>
           <View style={styles.sectionCard}>
             <Text style={styles.sectionKicker}>Step 3</Text>
-            <Text style={styles.sectionTitle}>Details & visibility</Text>
+            <Text style={styles.sectionTitle}>Mix Details</Text>
             <Text
               style={styles.sectionSubtitle}
               {...androidSubtitleTextProps}
             >
-              Add a title (required) and at least 3 genres so listeners can find your mix.
+              Add a title (required) and at least 1 genre so listeners can find your mix.
             </Text>
 
             <View style={styles.inputGroup}>
@@ -917,10 +986,14 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
                 <Text
                   style={[
                     styles.genreCount,
-                    (mixData.genres || []).length >= 3 && styles.genreCountMet,
+                    resolveMixGenres(
+                      mixData.genres,
+                      mixData.customGenre
+                    ).length >= MIN_MIX_GENRES && styles.genreCountMet,
                   ]}
                 >
-                  {(mixData.genres || []).length}/3 min
+                  {resolveMixGenres(mixData.genres, mixData.customGenre).length}/
+                  {MIN_MIX_GENRES} min
                 </Text>
               </View>
               <UploadMixGenreStrip
@@ -930,6 +1003,24 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
                 styles={styles}
                 onToggleGenre={onToggleGenre}
               />
+              {(mixData.genres || []).includes(GENRE_OTHER) ? (
+                <View style={styles.customGenreWrap}>
+                  <Text style={styles.label}>Specify the genre</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Amapiano"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={mixData.customGenre}
+                    onChangeText={(text) =>
+                      setMixData((prev) => ({ ...prev, customGenre: text }))
+                    }
+                    editable={!uploading}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    maxLength={40}
+                  />
+                </View>
+              ) : null}
             </View>
 
             <Text style={styles.subsectionLabel}>Profile</Text>
@@ -991,11 +1082,12 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
                   HapticPatterns.buttonPress();
 
                   if (!mixData.isPinned && pinnedMixesCount >= 3) {
-                    Alert.alert(
-                      "Maximum Pinned Mixes",
-                      "You can only pin up to 3 mixes. Please unpin another mix first.",
-                      [{ text: "OK" }]
-                    );
+                    showFeedback({
+                      type: "warning",
+                      title: "Maximum Pinned Mixes",
+                      message:
+                        "You can only pin up to 3 mixes. Please unpin another mix first.",
+                    });
                     return;
                   }
 
@@ -1162,6 +1254,19 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
           </View>
         </View>
       </Modal>
+      <RhoodModal
+        visible={feedback.visible}
+        onClose={closeFeedback}
+        type={feedback.type}
+        title={feedback.title}
+        message={feedback.message}
+        primaryButtonText={feedback.primaryButtonText}
+        onPrimaryPress={handleFeedbackPrimary}
+        secondaryButtonText={feedback.secondaryButtonText}
+        onSecondaryPress={
+          feedback.secondaryButtonText ? handleFeedbackSecondary : undefined
+        }
+      />
       {tutorialModalProps ? (
         <AppScreenTutorialModal {...tutorialModalProps} />
       ) : null}
@@ -1407,6 +1512,9 @@ const styles = StyleSheet.create({
   genreCountMet: {
     color: COLORS.primary,
     fontWeight: TYPOGRAPHY.semibold,
+  },
+  customGenreWrap: {
+    marginTop: SPACING.md,
   },
   genreScroll: {
     flexGrow: 0,

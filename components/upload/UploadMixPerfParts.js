@@ -16,6 +16,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { HapticPatterns } from "../../lib/haptics";
 import ProgressiveImage from "../ProgressiveImage";
 
+export const GENRE_OTHER = "Other";
+
 export const MIX_GENRES = [
   "House",
   "Techno",
@@ -30,7 +32,7 @@ export const MIX_GENRES = [
   "Tech House",
   "Disco",
   "Funk",
-  "Other",
+  GENRE_OTHER,
 ];
 
 const GENRE_BATCH = 8;
