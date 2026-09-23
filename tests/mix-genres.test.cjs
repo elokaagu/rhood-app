@@ -26,6 +26,7 @@ function loadExportedFunctions(relPath) {
 const {
   GENRE_OTHER,
   MIN_MIX_GENRES,
+  formatMixGenreLabel,
   parseMixGenresForForm,
   resolveMixGenres,
 } = loadExportedFunctions("lib/mixGenres.js");
@@ -51,5 +52,10 @@ describe("mix genres", () => {
       genres: ["House", GENRE_OTHER],
       customGenre: "Amapiano",
     });
+  });
+
+  it("hides Other when formatting mix genres for display", () => {
+    assert.equal(formatMixGenreLabel("R&B,Other,Hip-Hop"), "R&B · Hip-Hop");
+    assert.equal(formatMixGenreLabel("Other"), "");
   });
 });

@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Alert,
   RefreshControl,
   Platform,
   ActionSheetIOS,
@@ -22,25 +21,36 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
-import * as ImagePicker from "expo-image-picker";
-import ProgressiveImage from "./ProgressiveImage";
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from "../lib/sharedStyles";
+import { formatMixGenreLabel } from "../lib/mixGenres";
 import { normalizeMixForPlayback } from "../lib/yourLikesUtils";
 import { invalidateUserPlaylistsCache } from "../hooks/useListenPlaylists";
+import ProgressiveImage from "./ProgressiveImage";
+import RhoodModal from "./RhoodModal";
 
 const SEARCH_DEBOUNCE_MS = 350;
 const PLAYLIST_NAME_MAX_LEN = 255;
 
-// Memoized mix row: stable props reduce re-renders when only playing state changes
+function formatMixDuration(duration) {
+  const sec = Number(duration);
+  if (!Number.isFinite(sec) || sec <= 0) return "";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 const PlaylistDetailMixRow = memo(function PlaylistDetailMixRow({
   mix,
   index,
   totalCount,
   isPlaying,
-  isEditMode,
+  isOwner,
   onPress,
   onLongPress,
   onRemove,
@@ -51,82 +61,86 @@ const PlaylistDetailMixRow = memo(function PlaylistDetailMixRow({
     mix.artwork_url || mix.image_url || mix.image
       ? { uri: mix.artwork_url || mix.image_url || mix.image }
       : null;
+  const genreLabel = formatMixGenreLabel(mix.genre);
+  const durationLabel = formatMixDuration(mix.duration);
+  const meta = [durationLabel, genreLabel].filter(Boolean).join("  ·  ");
+
   return (
     <TouchableOpacity
-      style={[styles.mixRow, isEditMode && styles.mixRowEdit]}
+      style={styles.mixRow}
       onPress={() => onPress(mix)}
       onLongPress={() => onLongPress(mix)}
       delayLongPress={500}
       activeOpacity={0.8}
     >
-      {isEditMode && (
+      {isOwner && totalCount > 1 ? (
         <View style={styles.reorderButtons}>
           <TouchableOpacity
-            style={[styles.reorderButton, index === 0 && styles.reorderButtonDisabled]}
+            style={styles.reorderButton}
             onPress={() => onMoveUp(mix, index)}
             disabled={index === 0}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             <Ionicons
               name="chevron-up"
-              size={18}
-              color={index === 0 ? "hsl(0, 0%, 30%)" : "hsl(0, 0%, 70%)"}
+              size={16}
+              color={index === 0 ? COLORS.borderLight : COLORS.textSecondary}
             />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.reorderButton,
-              index === totalCount - 1 && styles.reorderButtonDisabled,
-            ]}
+            style={styles.reorderButton}
             onPress={() => onMoveDown(mix, index)}
             disabled={index === totalCount - 1}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             <Ionicons
               name="chevron-down"
-              size={18}
+              size={16}
               color={
-                index === totalCount - 1 ? "hsl(0, 0%, 30%)" : "hsl(0, 0%, 70%)"
+                index === totalCount - 1
+                  ? COLORS.borderLight
+                  : COLORS.textSecondary
               }
             />
           </TouchableOpacity>
         </View>
-      )}
+      ) : null}
       <View style={styles.mixImageWrap}>
         <Image
           source={mixImageUri || require("../assets/rhood_logo.webp")}
           style={styles.mixImage}
           resizeMode="cover"
         />
-        {isPlaying && !isEditMode && (
+        {isPlaying ? (
           <View style={styles.playingOverlay}>
-            <Ionicons name="play" size={20} color="hsl(75, 100%, 60%)" />
+            <Ionicons name="play" size={18} color={COLORS.primary} />
           </View>
-        )}
+        ) : null}
       </View>
       <View style={styles.mixInfo}>
-        <Text style={styles.mixTitle} numberOfLines={1} ellipsizeMode="tail">
+        <Text style={styles.mixTitle} numberOfLines={2} ellipsizeMode="tail">
           {mix.title}
         </Text>
         <Text style={styles.mixSubtitle} numberOfLines={1}>
           {mix.artist || mix.user_dj_name || "Unknown"}
         </Text>
-        <View style={styles.mixMetaRow}>
-          {mix.durationFormatted && (
-            <Text style={styles.mixMeta}>{mix.durationFormatted}</Text>
-          )}
-          {mix.genre && (
-            <>
-              {mix.durationFormatted && <Text style={styles.mixMeta}> • </Text>}
-              <Text style={styles.mixMeta}>{mix.genre}</Text>
-            </>
-          )}
-        </View>
+        {meta ? (
+          <Text style={styles.mixMeta} numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : null}
       </View>
-      {isEditMode ? (
-        <TouchableOpacity style={styles.removeButton} onPress={() => onRemove(mix)}>
-          <Ionicons name="trash-outline" size={20} color="hsl(0, 100%, 60%)" />
+      {isOwner ? (
+        <TouchableOpacity
+          style={styles.removeButton}
+          onPress={() => onRemove(mix)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel={`Remove ${mix.title} from playlist`}
+        >
+          <Ionicons name="trash-outline" size={20} color={COLORS.textTertiary} />
         </TouchableOpacity>
       ) : (
-        <Ionicons name="chevron-forward" size={18} color="hsl(0, 0%, 60%)" />
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
       )}
     </TouchableOpacity>
   );
@@ -149,7 +163,6 @@ function PlaylistDetailScreen({
   const [playingMixId, setPlayingMixId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [showAddMixesModal, setShowAddMixesModal] = useState(false);
   const [availableMixes, setAvailableMixes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -159,6 +172,23 @@ function PlaylistDetailScreen({
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameDraft, setRenameDraft] = useState("");
   const [renamingPlaylist, setRenamingPlaylist] = useState(false);
+  const [deletingPlaylist, setDeletingPlaylist] = useState(false);
+  const [feedback, setFeedback] = useState({
+    visible: false,
+    type: "info",
+    title: "",
+    message: "",
+    primaryButtonText: "OK",
+    secondaryButtonText: undefined,
+  });
+  const [confirm, setConfirm] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    primaryButtonText: "Remove",
+  });
+  const feedbackActionsRef = useRef({ primary: null, secondary: null });
+  const confirmActionRef = useRef(null);
   const searchDebounceRef = useRef(null);
 
   const displayPlaylistName =
@@ -168,7 +198,71 @@ function PlaylistDetailScreen({
     !!playlistData?.user_id &&
     !!user?.id &&
     playlistData.user_id === user.id;
-  const effectiveEditMode = isPlaylistOwner && isEditMode;
+
+  const closeFeedback = useCallback(() => {
+    setFeedback((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  const showFeedback = useCallback(
+    ({
+      type = "info",
+      title,
+      message,
+      primaryButtonText = "OK",
+      secondaryButtonText,
+      onPrimaryPress,
+      onSecondaryPress,
+    }) => {
+      feedbackActionsRef.current = {
+        primary: onPrimaryPress || null,
+        secondary: onSecondaryPress || null,
+      };
+      setFeedback({
+        visible: true,
+        type,
+        title,
+        message,
+        primaryButtonText,
+        secondaryButtonText,
+      });
+    },
+    []
+  );
+
+  const handleFeedbackPrimary = useCallback(() => {
+    const fn = feedbackActionsRef.current.primary;
+    closeFeedback();
+    fn?.();
+  }, [closeFeedback]);
+
+  const handleFeedbackSecondary = useCallback(() => {
+    const fn = feedbackActionsRef.current.secondary;
+    closeFeedback();
+    fn?.();
+  }, [closeFeedback]);
+
+  const closeConfirm = useCallback(() => {
+    setConfirm((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  const showConfirm = useCallback(
+    ({ title, message, primaryButtonText = "Remove", onConfirm }) => {
+      confirmActionRef.current = onConfirm || null;
+      setConfirm({
+        visible: true,
+        title,
+        message,
+        primaryButtonText,
+      });
+    },
+    []
+  );
+
+  const handleConfirmPrimary = useCallback(() => {
+    const fn = confirmActionRef.current;
+    closeConfirm();
+    fn?.();
+  }, [closeConfirm]);
 
   useEffect(
     () => () => {
@@ -179,7 +273,6 @@ function PlaylistDetailScreen({
     []
   );
 
-  // Fetch mixes in playlist
   const fetchPlaylistMixes = useCallback(async () => {
     if (!playlistId || !user?.id) {
       setMixes([]);
@@ -200,23 +293,19 @@ function PlaylistDetailScreen({
         console.error("❌ Error fetching playlist:", playlistError);
         setPlaylistData(null);
         setMixes([]);
-        setIsEditMode(false);
         setLoading(false);
         return;
       }
 
       setPlaylistData(playlistRow);
-      if (playlistRow.user_id !== user.id) {
-        setIsEditMode(false);
-      }
 
-      // Get mix IDs from playlist_mixes, ordered by position
-      const { data: playlistMixesData, error: playlistMixesError } = await supabase
-        .from("playlist_mixes")
-        .select("mix_id, added_at, position")
-        .eq("playlist_id", playlistId)
-        .order("position", { ascending: true, nullsFirst: false })
-        .order("added_at", { ascending: true });
+      const { data: playlistMixesData, error: playlistMixesError } =
+        await supabase
+          .from("playlist_mixes")
+          .select("mix_id, added_at, position")
+          .eq("playlist_id", playlistId)
+          .order("position", { ascending: true, nullsFirst: false })
+          .order("added_at", { ascending: true });
 
       if (playlistMixesError) {
         console.error("❌ Error fetching playlist mixes:", playlistMixesError);
@@ -225,10 +314,7 @@ function PlaylistDetailScreen({
         return;
       }
 
-      console.log("📋 Found playlist mixes:", playlistMixesData?.length || 0);
-
       if (!playlistMixesData || playlistMixesData.length === 0) {
-        console.log("ℹ️ No mixes found in playlist");
         setMixes([]);
         setLoading(false);
         return;
@@ -241,7 +327,6 @@ function PlaylistDetailScreen({
 
       const mixIds = playlistMixesData.map((pm) => pm.mix_id).filter(Boolean);
 
-      // Fetch the actual mixes
       const { data: mixesData, error: mixesError } = await supabase
         .from("mixes")
         .select("*")
@@ -254,13 +339,13 @@ function PlaylistDetailScreen({
         return;
       }
 
-      // Sort mixes by position from playlist_mixes
       const sortedMixes = mixIds
         .map((id) => mixesData.find((m) => m.id === id))
         .filter(Boolean);
 
-      // Batch-fetch user profiles (one query instead of N)
-      const userIds = [...new Set(sortedMixes.map((m) => m.user_id).filter(Boolean))];
+      const userIds = [
+        ...new Set(sortedMixes.map((m) => m.user_id).filter(Boolean)),
+      ];
       let profileMap = {};
       if (userIds.length > 0) {
         try {
@@ -302,13 +387,12 @@ function PlaylistDetailScreen({
     } finally {
       setLoading(false);
     }
-  }, [playlistId, user?.id]);
+  }, [playlistId, user?.id, playlistName]);
 
   useEffect(() => {
     fetchPlaylistMixes();
   }, [fetchPlaylistMixes]);
 
-  // Sync playing state
   useEffect(() => {
     if (globalAudioState.currentTrack) {
       setPlayingMixId(globalAudioState.currentTrack.id);
@@ -324,45 +408,45 @@ function PlaylistDetailScreen({
     setRefreshing(false);
   }, [fetchPlaylistMixes]);
 
-  const handleRemoveFromPlaylist = useCallback(
+  const removeMix = useCallback(
     async (mix) => {
-    if (!playlistId || !mix.id) return;
+      if (!playlistId || !mix.id) return;
+      try {
+        const { error } = await supabase
+          .from("playlist_mixes")
+          .delete()
+          .eq("playlist_id", playlistId)
+          .eq("mix_id", mix.id);
 
-    Alert.alert(
-      "Remove from Playlist?",
-      `Remove "${mix.title}" from this playlist?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from("playlist_mixes")
-                .delete()
-                .eq("playlist_id", playlistId)
-                .eq("mix_id", mix.id);
+        if (error) throw error;
 
-              if (error) {
-                throw error;
-              }
-
-              setMixes((prev) => prev.filter((m) => m.id !== mix.id));
-              HapticPatterns.success();
-            } catch (error) {
-              console.error("❌ Error removing mix from playlist:", error);
-              Alert.alert("Error", "Failed to remove mix from playlist");
-            }
-          },
-        },
-      ]
-    );
+        setMixes((prev) => prev.filter((m) => m.id !== mix.id));
+        if (user?.id) invalidateUserPlaylistsCache(user.id);
+        HapticPatterns.success();
+      } catch (error) {
+        console.error("❌ Error removing mix from playlist:", error);
+        showFeedback({
+          type: "error",
+          title: "Couldn't remove mix",
+          message: "Failed to remove this mix. Please try again.",
+        });
+      }
     },
-    [playlistId]
+    [playlistId, user?.id, showFeedback]
   );
 
-  // Update positions in database (stable for move handlers)
+  const handleRemoveFromPlaylist = useCallback(
+    (mix) => {
+      showConfirm({
+        title: "Remove mix?",
+        message: `Remove “${mix.title}” from this playlist?`,
+        primaryButtonText: "Remove",
+        onConfirm: () => removeMix(mix),
+      });
+    },
+    [showConfirm, removeMix]
+  );
+
   const updatePositions = useCallback(
     async (orderedMixes) => {
       const results = await Promise.all(
@@ -385,17 +469,24 @@ function PlaylistDetailScreen({
       if (index === 0) return;
       try {
         const newMixes = [...mixes];
-        [newMixes[index - 1], newMixes[index]] = [newMixes[index], newMixes[index - 1]];
+        [newMixes[index - 1], newMixes[index]] = [
+          newMixes[index],
+          newMixes[index - 1],
+        ];
         setMixes(newMixes);
         await updatePositions(newMixes);
         HapticPatterns.success();
       } catch (error) {
         console.error("❌ Error moving mix up:", error);
-        Alert.alert("Error", "Failed to reorder playlist");
+        showFeedback({
+          type: "error",
+          title: "Couldn't reorder",
+          message: "Failed to reorder this playlist.",
+        });
         fetchPlaylistMixes();
       }
     },
-    [mixes, updatePositions, fetchPlaylistMixes]
+    [mixes, updatePositions, fetchPlaylistMixes, showFeedback]
   );
 
   const handleMoveDown = useCallback(
@@ -403,22 +494,28 @@ function PlaylistDetailScreen({
       if (index === mixes.length - 1) return;
       try {
         const newMixes = [...mixes];
-        [newMixes[index], newMixes[index + 1]] = [newMixes[index + 1], newMixes[index]];
+        [newMixes[index], newMixes[index + 1]] = [
+          newMixes[index + 1],
+          newMixes[index],
+        ];
         setMixes(newMixes);
         await updatePositions(newMixes);
         HapticPatterns.success();
       } catch (error) {
         console.error("❌ Error moving mix down:", error);
-        Alert.alert("Error", "Failed to reorder playlist");
+        showFeedback({
+          type: "error",
+          title: "Couldn't reorder",
+          message: "Failed to reorder this playlist.",
+        });
         fetchPlaylistMixes();
       }
     },
-    [mixes, updatePositions, fetchPlaylistMixes]
+    [mixes, updatePositions, fetchPlaylistMixes, showFeedback]
   );
 
   const handleMixPress = useCallback(
     (mix) => {
-      if (effectiveEditMode) return;
       HapticPatterns.playPause();
       const current = globalAudioState.currentTrack;
       const sameTrack =
@@ -440,7 +537,6 @@ function PlaylistDetailScreen({
       onPlayAudio?.(normalized);
     },
     [
-      effectiveEditMode,
       globalAudioState.currentTrack,
       globalAudioState.isPlaying,
       onPauseAudio,
@@ -449,9 +545,13 @@ function PlaylistDetailScreen({
     ]
   );
 
+  const handlePlayPlaylist = useCallback(() => {
+    if (!mixes.length) return;
+    handleMixPress(mixes[0]);
+  }, [mixes, handleMixPress]);
+
   const handleMixLongPress = useCallback(
     (mix) => {
-      if (effectiveEditMode) return;
       HapticPatterns.itemPress();
       const normalizedMix = normalizeMixForPlayback(mix);
       if (!normalizedMix?.audioUrl) return;
@@ -478,86 +578,80 @@ function PlaylistDetailScreen({
           }
         );
       } else {
-        const buttons = [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Add to Queue",
-            onPress: () => {
-              onAddToQueue?.(normalizedMix);
-              HapticPatterns.success();
-            },
+        showConfirm({
+          title: mix.title || "Mix",
+          message: isPlaylistOwner
+            ? "Add to queue, play next, or remove from this playlist."
+            : "Add to queue or play next.",
+          primaryButtonText: "Add to queue",
+          onConfirm: () => {
+            onAddToQueue?.(normalizedMix);
+            HapticPatterns.success();
           },
-          {
-            text: "Play Next",
-            onPress: () => {
-              onPlayNext?.(normalizedMix);
-              HapticPatterns.success();
-            },
-          },
-        ];
-        if (isPlaylistOwner) {
-          buttons.push({
-            text: "Remove from Playlist",
-            style: "destructive",
-            onPress: () => handleRemoveFromPlaylist(mix),
-          });
-        }
-        Alert.alert(mix.title || "Mix", "Choose an option", buttons, {
-          cancelable: true,
         });
       }
     },
     [
-      effectiveEditMode,
       isPlaylistOwner,
       onAddToQueue,
       onPlayNext,
       handleRemoveFromPlaylist,
+      showConfirm,
     ]
   );
 
-  // Fetch available mixes for adding
-  const fetchAvailableMixes = useCallback(async (query = "") => {
-    if (!user?.id) return;
+  const fetchAvailableMixes = useCallback(
+    async (query = "") => {
+      if (!user?.id) return;
 
-    try {
-      setLoadingMixes(true);
-      let queryBuilder = supabase
-        .from("mixes")
-        .select("*, user_profiles!mixes_user_id_fkey(dj_name, profile_image_url)")
-        .eq("is_public", true)
-        .limit(50);
+      try {
+        setLoadingMixes(true);
+        let queryBuilder = supabase
+          .from("mixes")
+          .select(
+            "*, user_profiles!mixes_user_id_fkey(dj_name, profile_image_url)"
+          )
+          .eq("is_public", true)
+          .limit(50);
 
-      if (query.trim()) {
-        queryBuilder = queryBuilder.or(`title.ilike.%${query}%,genre.ilike.%${query}%`);
+        if (query.trim()) {
+          queryBuilder = queryBuilder.or(
+            `title.ilike.%${query}%,genre.ilike.%${query}%`
+          );
+        }
+
+        const { data, error } = await queryBuilder.order("created_at", {
+          ascending: false,
+        });
+
+        if (error) throw error;
+
+        const playlistMixIds = new Set(mixes.map((m) => m.id));
+        const available = (data || []).filter(
+          (mix) => !playlistMixIds.has(mix.id)
+        );
+
+        setAvailableMixes(available);
+      } catch (error) {
+        console.error("❌ Error fetching available mixes:", error);
+        showFeedback({
+          type: "error",
+          title: "Couldn't load mixes",
+          message: "Failed to load mixes. Please try again.",
+        });
+      } finally {
+        setLoadingMixes(false);
       }
+    },
+    [mixes, user?.id, showFeedback]
+  );
 
-      const { data, error } = await queryBuilder.order("created_at", { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      // Filter out mixes already in playlist
-      const playlistMixIds = new Set(mixes.map((m) => m.id));
-      const available = (data || []).filter((mix) => !playlistMixIds.has(mix.id));
-
-      setAvailableMixes(available);
-    } catch (error) {
-      console.error("❌ Error fetching available mixes:", error);
-      Alert.alert("Error", "Failed to load mixes");
-    } finally {
-      setLoadingMixes(false);
-    }
-  }, [mixes, user?.id]);
-
-  // Add mix to playlist
   const handleAddMixToPlaylist = async (mix) => {
     if (!playlistId || !mix.id) return;
 
     try {
-      // Get current max position
-      const maxPosition = mixes.length > 0 ? Math.max(...mixes.map((m) => m.position ?? 0)) : -1;
+      const maxPosition =
+        mixes.length > 0 ? Math.max(...mixes.map((m) => m.position ?? 0)) : -1;
 
       const { error } = await supabase.from("playlist_mixes").insert({
         playlist_id: playlistId,
@@ -567,90 +661,59 @@ function PlaylistDetailScreen({
 
       if (error) {
         if (error.code === "23505") {
-          Alert.alert("Already Added", "This mix is already in the playlist");
+          showFeedback({
+            type: "info",
+            title: "Already added",
+            message: "This mix is already in the playlist.",
+          });
           return;
         }
         throw error;
       }
 
-      // Refresh playlist
       await fetchPlaylistMixes();
-      setShowAddMixesModal(false);
-      setSearchQuery("");
+      setAvailableMixes((prev) => prev.filter((m) => m.id !== mix.id));
+      if (user?.id) invalidateUserPlaylistsCache(user.id);
       HapticPatterns.success();
-      Alert.alert("Success", `Added "${mix.title}" to playlist`);
     } catch (error) {
       console.error("❌ Error adding mix to playlist:", error);
-      Alert.alert("Error", "Failed to add mix to playlist");
+      showFeedback({
+        type: "error",
+        title: "Couldn't add mix",
+        message: "Failed to add this mix. Please try again.",
+      });
     }
   };
 
-  // Open add mixes modal
-  const handleOpenAddMixes = () => {
+  const handleOpenAddMixes = useCallback(() => {
     setShowAddMixesModal(true);
     fetchAvailableMixes();
-  };
+  }, [fetchAvailableMixes]);
 
-  // Upload playlist artwork
   const uploadPlaylistArtwork = async (imageUri) => {
-    try {
-      console.log("📤 Uploading playlist artwork...");
+    const fileExt = imageUri.split(".").pop() || "jpg";
+    const fileName = `playlist_${playlistId}_${Date.now()}.${fileExt}`;
+    const response = await fetch(imageUri);
+    const arrayBuffer = await response.arrayBuffer();
+    const fileData = new Uint8Array(arrayBuffer);
 
-      // Generate unique filename
-      const fileExt = imageUri.split(".").pop() || "jpg";
-      const fileName = `playlist_${playlistId}_${Date.now()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage
+      .from("mixes")
+      .upload(`playlist_images/${fileName}`, fileData, {
+        contentType: `image/${fileExt}`,
+        cacheControl: "3600",
+        upsert: false,
+      });
 
-      // Convert image to Uint8Array
-      const response = await fetch(imageUri);
-      const arrayBuffer = await response.arrayBuffer();
-      const fileData = new Uint8Array(arrayBuffer);
+    if (uploadError) throw uploadError;
 
-      // Upload to Supabase storage (using mixes bucket like profile images)
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("mixes")
-        .upload(`playlist_images/${fileName}`, fileData, {
-          contentType: `image/${fileExt}`,
-          cacheControl: "3600",
-          upsert: false,
-        });
+    const { data: urlData } = supabase.storage
+      .from("mixes")
+      .getPublicUrl(`playlist_images/${fileName}`);
 
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("mixes")
-        .getPublicUrl(`playlist_images/${fileName}`);
-
-      console.log("✅ Playlist artwork uploaded:", urlData.publicUrl);
-      return urlData.publicUrl;
-    } catch (error) {
-      console.error("❌ Error uploading playlist artwork:", error);
-      throw error;
-    }
+    return urlData.publicUrl;
   };
 
-  // Handle edit artwork
-  const handleEditArtwork = () => {
-    Alert.alert(
-      "Edit Playlist Artwork",
-      "Choose how you'd like to add artwork",
-      [
-        {
-          text: "Camera",
-          onPress: () => openImagePicker("camera"),
-        },
-        {
-          text: "Photo Library",
-          onPress: () => openImagePicker("library"),
-        },
-        { text: "Cancel", style: "cancel" },
-      ]
-    );
-  };
-
-  // Open image picker
   const openImagePicker = async (source) => {
     try {
       let result;
@@ -658,10 +721,11 @@ function PlaylistDetailScreen({
       if (source === "camera") {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert(
-            "Permission Required",
-            "Camera permission is needed to take photos"
-          );
+          showFeedback({
+            type: "warning",
+            title: "Permission required",
+            message: "Camera access is needed to take a photo.",
+          });
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -671,12 +735,14 @@ function PlaylistDetailScreen({
           quality: 0.8,
         });
       } else {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const permission =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert(
-            "Permission Required",
-            "Photo library permission is needed to select images"
-          );
+          showFeedback({
+            type: "warning",
+            title: "Permission required",
+            message: "Photo library access is needed to choose artwork.",
+          });
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
@@ -689,52 +755,51 @@ function PlaylistDetailScreen({
 
       if (!result.canceled && result.assets[0]) {
         const localUri = result.assets[0].uri;
-
-        // Show loading state
         setUploadingArtwork(true);
-
         try {
-          // Upload image to Supabase storage
           const publicUrl = await uploadPlaylistArtwork(localUri);
-
-          // Update playlist with public URL
           const { error: updateError } = await supabase
             .from("playlists")
             .update({ image_url: publicUrl })
             .eq("id", playlistId);
 
-          if (updateError) {
-            throw updateError;
-          }
+          if (updateError) throw updateError;
 
-          // Update local state
           setPlaylistData((prev) => ({ ...prev, image_url: publicUrl }));
-
-          console.log("✅ Playlist artwork updated with URL:", publicUrl);
+          if (user?.id) invalidateUserPlaylistsCache(user.id);
           HapticPatterns.success();
-          Alert.alert("Success", "Playlist artwork updated!");
         } catch (uploadError) {
           console.error("❌ Failed to upload artwork:", uploadError);
-          Alert.alert(
-            "Upload Error",
-            "Failed to upload artwork. Please try again."
-          );
+          showFeedback({
+            type: "error",
+            title: "Upload failed",
+            message: "Couldn't update artwork. Please try again.",
+          });
         } finally {
           setUploadingArtwork(false);
         }
       }
     } catch (error) {
       console.error("❌ Image picker error:", error);
-      Alert.alert("Error", "Failed to pick image. Please try again.");
+      showFeedback({
+        type: "error",
+        title: "Couldn't pick image",
+        message: "Failed to pick an image. Please try again.",
+      });
       setUploadingArtwork(false);
     }
   };
 
-  // Toggle edit mode
-  const toggleEditMode = () => {
-    if (!isPlaylistOwner) return;
-    setIsEditMode(!isEditMode);
-    HapticPatterns.itemPress();
+  const handleEditArtwork = () => {
+    showFeedback({
+      type: "info",
+      title: "Playlist artwork",
+      message: "Choose a photo for this playlist cover.",
+      primaryButtonText: "Photo library",
+      secondaryButtonText: "Camera",
+      onPrimaryPress: () => openImagePicker("library"),
+      onSecondaryPress: () => openImagePicker("camera"),
+    });
   };
 
   const openRenameModal = useCallback(() => {
@@ -748,14 +813,19 @@ function PlaylistDetailScreen({
   const handleSaveRename = useCallback(async () => {
     const nextName = renameDraft.trim();
     if (!nextName) {
-      Alert.alert("Name required", "Please enter a playlist name.");
+      showFeedback({
+        type: "warning",
+        title: "Name required",
+        message: "Please enter a playlist name.",
+      });
       return;
     }
     if (nextName.length > PLAYLIST_NAME_MAX_LEN) {
-      Alert.alert(
-        "Name too long",
-        `Use at most ${PLAYLIST_NAME_MAX_LEN} characters.`
-      );
+      showFeedback({
+        type: "warning",
+        title: "Name too long",
+        message: `Use at most ${PLAYLIST_NAME_MAX_LEN} characters.`,
+      });
       return;
     }
     if (!playlistId || !user?.id || !isPlaylistOwner) return;
@@ -783,7 +853,11 @@ function PlaylistDetailScreen({
       HapticPatterns.success();
     } catch (e) {
       console.error("❌ Error renaming playlist:", e);
-      Alert.alert("Error", "Could not rename playlist. Try again.");
+      showFeedback({
+        type: "error",
+        title: "Couldn't rename",
+        message: "Could not rename this playlist. Try again.",
+      });
     } finally {
       setRenamingPlaylist(false);
     }
@@ -794,9 +868,54 @@ function PlaylistDetailScreen({
     isPlaylistOwner,
     playlistData?.name,
     playlistName,
+    showFeedback,
   ]);
 
-  // All hooks must run unconditionally (before any early return)
+  const handleDeletePlaylist = useCallback(() => {
+    if (!isPlaylistOwner) return;
+    showConfirm({
+      title: "Delete playlist?",
+      message: `“${displayPlaylistName}” will be removed. Mixes stay in Listen.`,
+      primaryButtonText: "Delete",
+      onConfirm: async () => {
+        if (!playlistId || !user?.id) return;
+        try {
+          setDeletingPlaylist(true);
+          await supabase
+            .from("playlist_mixes")
+            .delete()
+            .eq("playlist_id", playlistId);
+          const { error } = await supabase
+            .from("playlists")
+            .delete()
+            .eq("id", playlistId)
+            .eq("user_id", user.id);
+          if (error) throw error;
+          invalidateUserPlaylistsCache(user.id);
+          HapticPatterns.success();
+          onBack?.();
+        } catch (e) {
+          console.error("❌ Error deleting playlist:", e);
+          showFeedback({
+            type: "error",
+            title: "Couldn't delete",
+            message: "Could not delete this playlist. Try again.",
+          });
+        } finally {
+          setDeletingPlaylist(false);
+        }
+      },
+    });
+  }, [
+    isPlaylistOwner,
+    displayPlaylistName,
+    playlistId,
+    user?.id,
+    showConfirm,
+    showFeedback,
+    onBack,
+  ]);
+
   const keyExtractor = useCallback((item) => item.id, []);
 
   const renderMixRow = useCallback(
@@ -810,7 +929,7 @@ function PlaylistDetailScreen({
             String(playingMixId) === String(mix.id) &&
             globalAudioState.isPlaying
           }
-          isEditMode={effectiveEditMode}
+          isOwner={isPlaylistOwner}
           onPress={handleMixPress}
           onLongPress={handleMixLongPress}
           onRemove={handleRemoveFromPlaylist}
@@ -823,7 +942,7 @@ function PlaylistDetailScreen({
       mixes.length,
       playingMixId,
       globalAudioState.isPlaying,
-      effectiveEditMode,
+      isPlaylistOwner,
       handleMixPress,
       handleMixLongPress,
       handleRemoveFromPlaylist,
@@ -832,45 +951,156 @@ function PlaylistDetailScreen({
     ]
   );
 
-  const listHeader = useMemo(
-    () =>
-      playlistData?.image_url ? (
-        <View style={styles.artworkContainer}>
-          <ProgressiveImage
-            source={{ uri: playlistData.image_url }}
-            style={styles.playlistArtwork}
-            contentFit="cover"
-            placeholder={
-              <View
-                style={[
-                  styles.playlistArtwork,
-                  { justifyContent: "center", alignItems: "center" },
-                ]}
-              >
-                <Ionicons name="musical-notes" size={48} color="hsl(0, 0%, 30%)" />
-              </View>
-            }
-          />
-          {effectiveEditMode && (
-            <TouchableOpacity
-              style={styles.artworkEditOverlay}
-              onPress={handleEditArtwork}
-            >
-              <Ionicons name="camera" size={24} color="hsl(0, 0%, 100%)" />
-              <Text style={styles.artworkEditText}>Change Artwork</Text>
-            </TouchableOpacity>
+  const listHeader = useMemo(() => {
+    const coverUri = playlistData?.image_url;
+    const mixCountLabel =
+      mixes.length === 1 ? "1 mix" : `${mixes.length} mixes`;
+
+    return (
+      <View style={styles.hero}>
+        <View style={styles.coverWrap}>
+          {coverUri ? (
+            <ProgressiveImage
+              source={{ uri: coverUri }}
+              style={styles.coverImage}
+              contentFit="cover"
+              placeholder={
+                <View style={[styles.coverImage, styles.coverPlaceholder]}>
+                  <Ionicons
+                    name="albums-outline"
+                    size={48}
+                    color={COLORS.textMuted}
+                  />
+                </View>
+              }
+            />
+          ) : (
+            <View style={[styles.coverImage, styles.coverPlaceholder]}>
+              <Ionicons
+                name="albums-outline"
+                size={48}
+                color={COLORS.primary}
+                style={{ opacity: 0.7 }}
+              />
+            </View>
           )}
+          {uploadingArtwork ? (
+            <View style={styles.coverBusy}>
+              <ActivityIndicator color={COLORS.primary} />
+            </View>
+          ) : null}
         </View>
-      ) : null,
-    [playlistData?.image_url, effectiveEditMode]
+
+        <Text style={styles.heroKicker}>Playlist</Text>
+        <Text style={styles.heroTitle} numberOfLines={2}>
+          {displayPlaylistName}
+        </Text>
+        <Text style={styles.heroMeta}>{mixCountLabel}</Text>
+
+        <View style={styles.heroActions}>
+          {mixes.length > 0 ? (
+            <TouchableOpacity
+              style={styles.primaryAction}
+              onPress={handlePlayPlaylist}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.primaryDark]}
+                style={styles.primaryActionGradient}
+              >
+                <Ionicons name="play" size={18} color={COLORS.background} />
+                <Text style={styles.primaryActionText}>Play</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : null}
+          {isPlaylistOwner ? (
+            <TouchableOpacity
+              style={[
+                styles.secondaryAction,
+                mixes.length === 0 && styles.secondaryActionGrow,
+              ]}
+              onPress={handleOpenAddMixes}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add" size={18} color={COLORS.primary} />
+              <Text style={styles.secondaryActionText}>Add mixes</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {isPlaylistOwner ? (
+          <View style={styles.ownerTools}>
+            <TouchableOpacity style={styles.ownerTool} onPress={openRenameModal}>
+              <Ionicons
+                name="create-outline"
+                size={16}
+                color={COLORS.textSecondary}
+              />
+              <Text style={styles.ownerToolText}>Rename</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ownerTool} onPress={handleEditArtwork}>
+              <Ionicons name="image-outline" size={16} color={COLORS.textSecondary} />
+              <Text style={styles.ownerToolText}>Artwork</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.ownerTool}
+              onPress={handleDeletePlaylist}
+              disabled={deletingPlaylist}
+            >
+              <Ionicons name="trash-outline" size={16} color={COLORS.textSecondary} />
+              <Text style={styles.ownerToolText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </View>
+    );
+  }, [
+    playlistData?.image_url,
+    mixes.length,
+    displayPlaylistName,
+    uploadingArtwork,
+    isPlaylistOwner,
+    deletingPlaylist,
+    handlePlayPlaylist,
+    handleOpenAddMixes,
+    openRenameModal,
+    handleEditArtwork,
+    handleDeletePlaylist,
+  ]);
+
+  const emptyState = (
+    <View style={styles.emptyState}>
+      <Ionicons name="musical-notes-outline" size={48} color={COLORS.primary} />
+      <Text style={styles.emptyTitle}>No mixes yet</Text>
+      <Text style={styles.emptySubtitle}>
+        {isPlaylistOwner
+          ? "Add mixes here to build this playlist."
+          : "This playlist is empty."}
+      </Text>
+      {isPlaylistOwner ? (
+        <TouchableOpacity
+          style={styles.emptyCta}
+          onPress={handleOpenAddMixes}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={[COLORS.primary, COLORS.primaryDark]}
+            style={styles.primaryActionGradient}
+          >
+            <Ionicons name="add" size={18} color={COLORS.background} />
+            <Text style={styles.primaryActionText}>Add mixes</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
+            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerTitleWrap}>
             <Text style={styles.headerTitle} numberOfLines={1}>
@@ -880,7 +1110,7 @@ function PlaylistDetailScreen({
           <View style={styles.backButton} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading playlist...</Text>
         </View>
       </View>
@@ -892,7 +1122,7 @@ function PlaylistDetailScreen({
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
+            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerTitleWrap}>
             <Text style={styles.headerTitle} numberOfLines={1}>
@@ -902,7 +1132,7 @@ function PlaylistDetailScreen({
           <View style={styles.backButton} />
         </View>
         <View style={styles.loadingContainer}>
-          <Ionicons name="lock-closed-outline" size={48} color="hsl(0, 0%, 40%)" />
+          <Ionicons name="lock-closed-outline" size={48} color={COLORS.textMuted} />
           <Text style={styles.emptyTitle}>Couldn&apos;t open this playlist</Text>
           <Text style={styles.emptySubtitle}>
             It may be private or you don&apos;t have access.
@@ -916,86 +1146,29 @@ function PlaylistDetailScreen({
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color="hsl(0, 0%, 100%)" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
-        {isPlaylistOwner ? (
-          <TouchableOpacity
-            style={styles.headerTitleWrap}
-            onPress={openRenameModal}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={`Playlist ${displayPlaylistName}. Tap to rename`}
-          >
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {displayPlaylistName}
-            </Text>
-            <Ionicons
-              name="pencil"
-              size={14}
-              color="hsl(0, 0%, 45%)"
-              style={styles.headerRenameHint}
-            />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerTitleWrap}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {displayPlaylistName}
-            </Text>
-          </View>
-        )}
-        {isPlaylistOwner ? (
-          <TouchableOpacity style={styles.backButton} onPress={toggleEditMode}>
-            <Text style={[styles.editButton, isEditMode && styles.editButtonActive]}>
-              {isEditMode ? "Done" : "Edit"}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.backButton} />
-        )}
-      </View>
-
-      {effectiveEditMode && (
-        <View style={styles.editToolbar}>
-          <TouchableOpacity style={styles.toolbarButton} onPress={openRenameModal}>
-            <Ionicons name="create-outline" size={20} color="hsl(75, 100%, 60%)" />
-            <Text style={styles.toolbarButtonText}>Rename</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} onPress={handleOpenAddMixes}>
-            <Ionicons name="add-circle" size={20} color="hsl(75, 100%, 60%)" />
-            <Text style={styles.toolbarButtonText}>Add Mixes</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton} onPress={handleEditArtwork}>
-            <Ionicons name="image" size={20} color="hsl(75, 100%, 60%)" />
-            <Text style={styles.toolbarButtonText}>Artwork</Text>
-          </TouchableOpacity>
+        <View style={styles.headerTitleWrap}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {displayPlaylistName}
+          </Text>
         </View>
-      )}
+        <View style={styles.backButton} />
+      </View>
 
       <FlatList
         data={mixes}
         keyExtractor={keyExtractor}
         renderItem={renderMixRow}
         ListHeaderComponent={listHeader}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="musical-notes-outline" size={64} color="hsl(0, 0%, 30%)" />
-            <Text style={styles.emptyTitle}>No mixes in this playlist</Text>
-            <Text style={styles.emptySubtitle}>
-              {!isPlaylistOwner
-                ? "This playlist is empty."
-                : isEditMode
-                  ? "Tap 'Add Mixes' to get started"
-                  : "Add mixes to this playlist from the Listen tab"}
-            </Text>
-          </View>
-        }
+        ListEmptyComponent={emptyState}
         contentContainerStyle={styles.scrollContent}
         style={styles.scrollView}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="hsl(75, 100%, 60%)"
+            tintColor={COLORS.primary}
           />
         }
         initialNumToRender={LIST_PERFORMANCE.INITIAL_NUM_TO_RENDER}
@@ -1004,7 +1177,6 @@ function PlaylistDetailScreen({
         removeClippedSubviews={LIST_PERFORMANCE.REMOVE_CLIPPED_SUBVIEWS}
       />
 
-      {/* Add Mixes Modal */}
       <Modal
         visible={showAddMixesModal}
         animationType="slide"
@@ -1020,18 +1192,23 @@ function PlaylistDetailScreen({
                 setSearchQuery("");
               }}
             >
-              <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
+              <Ionicons name="close" size={24} color={COLORS.textPrimary} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Add Mixes</Text>
+            <Text style={styles.modalTitle}>Add mixes</Text>
             <View style={styles.modalCloseButton} />
           </View>
 
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="hsl(0, 0%, 60%)" style={styles.searchIcon} />
+            <Ionicons
+              name="search"
+              size={20}
+              color={COLORS.textMuted}
+              style={styles.searchIcon}
+            />
             <TextInput
               style={styles.searchInput}
               placeholder="Search mixes..."
-              placeholderTextColor="hsl(0, 0%, 60%)"
+              placeholderTextColor={COLORS.textMuted}
               value={searchQuery}
               onChangeText={(text) => {
                 setSearchQuery(text);
@@ -1048,7 +1225,7 @@ function PlaylistDetailScreen({
 
           {loadingMixes ? (
             <View style={styles.modalLoading}>
-              <ActivityIndicator size="large" color="hsl(75, 100%, 60%)" />
+              <ActivityIndicator size="large" color={COLORS.primary} />
             </View>
           ) : (
             <FlatList
@@ -1079,8 +1256,13 @@ function PlaylistDetailScreen({
                     <Text style={styles.availableMixSubtitle} numberOfLines={1}>
                       {mix.artist || mix.user_profiles?.dj_name || "Unknown"}
                     </Text>
+                    {formatMixGenreLabel(mix.genre) ? (
+                      <Text style={styles.availableMixGenre} numberOfLines={1}>
+                        {formatMixGenreLabel(mix.genre)}
+                      </Text>
+                    ) : null}
                   </View>
-                  <Ionicons name="add-circle" size={24} color="hsl(75, 100%, 60%)" />
+                  <Ionicons name="add-circle" size={24} color={COLORS.primary} />
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
@@ -1103,13 +1285,14 @@ function PlaylistDetailScreen({
       >
         <View style={styles.renameModalOverlay}>
           <View style={styles.renameModalCard}>
-            <Text style={styles.renameModalTitle}>Rename playlist</Text>
+            <Text style={styles.renameModalKicker}>Playlist</Text>
+            <Text style={styles.renameModalTitle}>Rename</Text>
             <TextInput
               style={styles.renameModalInput}
               value={renameDraft}
               onChangeText={setRenameDraft}
               placeholder="Playlist name"
-              placeholderTextColor="hsl(0, 0%, 45%)"
+              placeholderTextColor={COLORS.textMuted}
               maxLength={PLAYLIST_NAME_MAX_LEN}
               autoFocus
               autoCorrect={false}
@@ -1132,7 +1315,7 @@ function PlaylistDetailScreen({
                 disabled={renamingPlaylist}
               >
                 {renamingPlaylist ? (
-                  <ActivityIndicator color="hsl(0, 0%, 0%)" size="small" />
+                  <ActivityIndicator color={COLORS.background} size="small" />
                 ) : (
                   <Text style={styles.renameModalButtonPrimaryText}>Save</Text>
                 )}
@@ -1141,6 +1324,31 @@ function PlaylistDetailScreen({
           </View>
         </View>
       </Modal>
+
+      <RhoodModal
+        visible={feedback.visible}
+        onClose={closeFeedback}
+        type={feedback.type}
+        title={feedback.title}
+        message={feedback.message}
+        primaryButtonText={feedback.primaryButtonText}
+        onPrimaryPress={handleFeedbackPrimary}
+        secondaryButtonText={feedback.secondaryButtonText}
+        onSecondaryPress={
+          feedback.secondaryButtonText ? handleFeedbackSecondary : undefined
+        }
+      />
+      <RhoodModal
+        visible={confirm.visible}
+        onClose={closeConfirm}
+        type="warning"
+        title={confirm.title}
+        message={confirm.message}
+        primaryButtonText={confirm.primaryButtonText}
+        onPrimaryPress={handleConfirmPrimary}
+        secondaryButtonText="Cancel"
+        onSecondaryPress={closeConfirm}
+      />
     </View>
   );
 }
@@ -1150,80 +1358,388 @@ export default memo(PlaylistDetailScreen);
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "hsl(0, 0%, 0%)",
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
   },
   backButton: {
-    width: 60,
+    width: 44,
     height: 40,
     justifyContent: "center",
     alignItems: "flex-start",
   },
   headerTitleWrap: {
     flex: 1,
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
     paddingHorizontal: 4,
   },
   headerTitle: {
-    flexShrink: 1,
-    fontSize: 18,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
+    fontSize: TYPOGRAPHY.lg,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
     textAlign: "center",
     textTransform: "uppercase",
   },
-  headerRenameHint: {
-    marginTop: 2,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.xl,
   },
-  editButton: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)",
+  loadingText: {
+    color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.md,
+    fontFamily: TYPOGRAPHY.primary,
   },
-  editButtonActive: {
-    fontWeight: "600",
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 120,
+  },
+  hero: {
+    alignItems: "center",
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.lg,
+  },
+  coverWrap: {
+    width: 196,
+    height: 196,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: COLORS.backgroundTertiary,
+    marginBottom: SPACING.lg,
+  },
+  coverImage: {
+    width: "100%",
+    height: "100%",
+  },
+  coverPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.backgroundCard,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  coverBusy: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroKicker: {
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.primary,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  heroTitle: {
+    fontSize: TYPOGRAPHY["3xl"],
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
+    textAlign: "center",
+    textTransform: "uppercase",
+    paddingHorizontal: SPACING.md,
+  },
+  heroMeta: {
+    marginTop: 6,
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textSecondary,
+  },
+  heroActions: {
+    flexDirection: "row",
+    gap: SPACING.sm,
+    marginTop: SPACING.lg,
+    width: "100%",
+  },
+  primaryAction: {
+    flex: 1,
+    borderRadius: RADIUS.full,
+    overflow: "hidden",
+  },
+  primaryActionGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.full,
+  },
+  primaryActionText: {
+    fontSize: TYPOGRAPHY.md,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.background,
+  },
+  secondaryAction: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    backgroundColor: COLORS.backgroundSecondary,
+  },
+  secondaryActionGrow: {
+    flex: 1,
+  },
+  secondaryActionText: {
+    fontSize: TYPOGRAPHY.md,
+    fontFamily: TYPOGRAPHY.semibold,
+    color: COLORS.primary,
+  },
+  ownerTools: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: SPACING.xl,
+    marginTop: SPACING.lg,
+  },
+  ownerTool: {
+    alignItems: "center",
+    gap: 6,
+  },
+  ownerToolText: {
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textSecondary,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING["2xl"] || 32,
+  },
+  emptyTitle: {
+    fontSize: TYPOGRAPHY.xl,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
+    marginTop: SPACING.md,
+    marginBottom: 8,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  emptyCta: {
+    marginTop: SPACING.lg,
+    width: "100%",
+    maxWidth: 280,
+    borderRadius: RADIUS.full,
+    overflow: "hidden",
+  },
+  mixRowWrap: {
+    paddingHorizontal: SPACING.lg,
+  },
+  mixRowWrapFirst: {
+    paddingTop: SPACING.sm,
+  },
+  mixRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  reorderButtons: {
+    gap: 2,
+  },
+  reorderButton: {
+    padding: 2,
+  },
+  mixImageWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: COLORS.backgroundTertiary,
+    position: "relative",
+  },
+  mixImage: {
+    width: "100%",
+    height: "100%",
+  },
+  playingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  mixInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  mixTitle: {
+    fontSize: TYPOGRAPHY.md,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
+  },
+  mixSubtitle: {
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textSecondary,
+  },
+  mixMeta: {
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textTertiary,
+  },
+  removeButton: {
+    padding: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalTitle: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.lg,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: SPACING.lg,
+    marginVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
+    backgroundColor: COLORS.backgroundSecondary,
+    borderRadius: RADIUS.lg,
+    gap: 12,
+  },
+  searchIcon: {
+    marginRight: 4,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.md,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textPrimary,
+  },
+  modalLoading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  availableMixRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  availableMixImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: COLORS.backgroundTertiary,
+  },
+  availableMixInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  availableMixTitle: {
+    fontSize: TYPOGRAPHY.md,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
+  },
+  availableMixSubtitle: {
+    fontSize: TYPOGRAPHY.sm,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textSecondary,
+  },
+  availableMixGenre: {
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textTertiary,
+  },
+  modalEmpty: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+  },
+  modalEmptyText: {
+    fontSize: TYPOGRAPHY.md,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textMuted,
   },
   renameModalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.65)",
+    backgroundColor: COLORS.overlay,
     justifyContent: "center",
     paddingHorizontal: 24,
   },
   renameModalCard: {
-    backgroundColor: "hsl(0, 0%, 10%)",
+    backgroundColor: COLORS.backgroundSecondary,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: "hsl(0, 0%, 20%)",
+    borderColor: COLORS.border,
+  },
+  renameModalKicker: {
+    fontSize: TYPOGRAPHY.xs,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.primary,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    marginBottom: 6,
   },
   renameModalTitle: {
-    fontSize: 18,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
+    fontSize: TYPOGRAPHY.xl,
+    fontFamily: TYPOGRAPHY.bold,
+    color: COLORS.textPrimary,
     marginBottom: 14,
     textTransform: "uppercase",
   },
   renameModalInput: {
-    backgroundColor: "hsl(0, 0%, 6%)",
+    backgroundColor: COLORS.background,
     borderWidth: 1,
-    borderColor: "hsl(75, 50%, 35%)",
+    borderColor: COLORS.borderLight,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 100%)",
+    fontSize: TYPOGRAPHY.md,
+    fontFamily: TYPOGRAPHY.primary,
+    color: COLORS.textPrimary,
     marginBottom: 18,
   },
   renameModalActions: {
@@ -1236,12 +1752,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   renameModalButtonSecondaryText: {
-    fontSize: 16,
-    color: "hsl(0, 0%, 70%)",
-    fontFamily: "Helvetica Neue",
+    fontSize: TYPOGRAPHY.md,
+    color: COLORS.textSecondary,
+    fontFamily: TYPOGRAPHY.primary,
   },
   renameModalButtonPrimary: {
-    backgroundColor: "hsl(75, 100%, 60%)",
+    backgroundColor: COLORS.primary,
     paddingVertical: 12,
     paddingHorizontal: 22,
     borderRadius: 10,
@@ -1250,268 +1766,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   renameModalButtonPrimaryText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "hsl(0, 0%, 0%)",
-    fontFamily: "Helvetica Neue",
+    fontSize: TYPOGRAPHY.md,
+    fontWeight: TYPOGRAPHY.semibold,
+    color: COLORS.background,
+    fontFamily: TYPOGRAPHY.primary,
   },
   renameModalButtonDisabled: {
     opacity: 0.6,
-  },
-  editToolbar: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
-    gap: 16,
-  },
-  toolbarButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "hsl(0, 0%, 10%)",
-  },
-  toolbarButtonText: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(75, 100%, 60%)",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-  },
-  loadingText: {
-    color: "hsl(0, 0%, 70%)",
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
-  artworkContainer: {
-    width: "100%",
-    height: 200,
-    marginBottom: 20,
-    position: "relative",
-  },
-  playlistArtwork: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "hsl(0, 0%, 12%)",
-  },
-  artworkEditOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    gap: 8,
-  },
-  artworkEditText: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 100%)",
-    fontWeight: "600",
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-    minHeight: 400,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 70%)",
-    textAlign: "center",
-  },
-  mixRowWrap: {
-    paddingHorizontal: 20,
-  },
-  mixRowWrapFirst: {
-    paddingTop: 20,
-  },
-  mixRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
-  },
-  mixRowEdit: {
-    paddingVertical: 16,
-  },
-  reorderButtons: {
-    gap: 4,
-  },
-  reorderButton: {
-    padding: 4,
-  },
-  reorderButtonDisabled: {
-    opacity: 0.3,
-  },
-  mixImageWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "hsl(0, 0%, 12%)",
-    position: "relative",
-  },
-  mixImage: {
-    width: "100%",
-    height: "100%",
-  },
-  playingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  mixInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  mixTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-  },
-  mixSubtitle: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 80%)",
-  },
-  mixMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  mixMeta: {
-    fontSize: 13,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
-  },
-  removeButton: {
-    padding: 8,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "hsl(0, 0%, 0%)",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
-  },
-  modalCloseButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-    textAlign: "center",
-    textTransform: "uppercase",
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 20,
-    marginVertical: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "hsl(0, 0%, 10%)",
-    borderRadius: 12,
-    gap: 12,
-  },
-  searchIcon: {
-    marginRight: 4,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 100%)",
-  },
-  modalLoading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  availableMixRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "hsl(0, 0%, 15%)",
-  },
-  availableMixImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    backgroundColor: "hsl(0, 0%, 12%)",
-  },
-  availableMixInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  availableMixTitle: {
-    fontSize: 16,
-    fontFamily: "TS Block Bold",
-    color: "hsl(0, 0%, 100%)",
-  },
-  availableMixSubtitle: {
-    fontSize: 14,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 80%)",
-  },
-  modalEmpty: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  modalEmptyText: {
-    fontSize: 16,
-    fontFamily: "Helvetica Neue",
-    color: "hsl(0, 0%, 60%)",
   },
 });
