@@ -10,6 +10,10 @@ import {
   transformOpportunityRow,
   mergeOpportunityFromRealtime,
 } from "../lib/opportunities/transformOpportunityRow";
+import {
+  excludeAppliedOpportunities,
+  toAppliedOpportunityIdSet,
+} from "../lib/opportunities/excludeAppliedOpportunities";
 import { optimizeOpportunityImageUrl } from "../lib/opportunities/opportunityImageUrl";
 import {
   loadPostApplySuccessContext,
@@ -93,6 +97,7 @@ export default function useOpportunities({
   // for the same opportunity, which can insert two applications and
   // advance the deck by 2 (skipping the next card).
   const applyInFlightRef = useRef(false);
+  const appliedOpportunityIdsRef = useRef(new Set());
 
   useEffect(() => {
     userLocationRef.current = userLocation;
@@ -127,6 +132,16 @@ export default function useOpportunities({
               };
             })
           : Promise.resolve(null);
+
+      const appliedIdsPromise =
+        user?.id != null
+          ? db.getAppliedOpportunityIds(user.id).catch((appliedError) => {
+              if (__DEV__) {
+                console.error("Error loading applied opportunity ids:", appliedError);
+              }
+              return [];
+            })
+          : Promise.resolve([]);
 
       const OPPORTUNITY_FEED_COLUMNS =
         "id, title, description, event_date, event_start_time, event_end_time, event_timezone, location, city, venue, payment, payment_currency, compensation, genre, skill_level, organizer_name, image_url, created_at";
@@ -184,8 +199,17 @@ export default function useOpportunities({
         console.log(`Fetched ${opportunitiesData.length} opportunities from database`);
       }
 
-      const transformedOpportunities = opportunitiesData.map((opp) =>
-        transformOpportunityRow(opp, userLocation)
+      const appliedIds = await appliedIdsPromise;
+      if (requestId !== fetchOpportunitiesRequestIdRef.current) return;
+
+      const appliedSet = toAppliedOpportunityIdSet(appliedIds);
+      appliedOpportunityIdsRef.current = appliedSet;
+
+      const transformedOpportunities = excludeAppliedOpportunities(
+        (opportunitiesData || []).map((opp) =>
+          transformOpportunityRow(opp, userLocation)
+        ),
+        appliedSet
       );
 
       // Warm expo-image disk cache (RN Image.prefetch does not share this cache).
@@ -358,7 +382,7 @@ export default function useOpportunities({
   );
 
   const handleApplicationFlowError = useCallback(
-    (error) => {
+    (error, opportunity) => {
       const classified = classifyApplicationError(error);
       const errorMessage = classified.message;
 
@@ -380,6 +404,9 @@ export default function useOpportunities({
       }
 
       if (classified.kind === "already_applied") {
+        if (opportunity?.id) {
+          appliedOpportunityIdsRef.current.add(String(opportunity.id));
+        }
         showCustomModal({
           type: "info",
           title: "Already Applied",
@@ -460,6 +487,7 @@ export default function useOpportunities({
         });
 
         await refreshDailyApplicationStats(user.id);
+        appliedOpportunityIdsRef.current.add(String(opportunity.id));
 
         InteractionManager.runAfterInteractions(() => {
           void showPostApplySuccessModal(opportunity, applicationId);
@@ -475,7 +503,7 @@ export default function useOpportunities({
           }, 180);
         });
       } catch (error) {
-        handleApplicationFlowError(error);
+        handleApplicationFlowError(error, opportunity);
       } finally {
         applyInFlightRef.current = false;
         setSelectedOpportunity(null);
@@ -813,6 +841,13 @@ export default function useOpportunities({
         },
         (payload) => {
           if (__DEV__) console.log("New opportunity added:", payload.new);
+          const newId = payload.new?.id;
+          if (
+            newId != null &&
+            appliedOpportunityIdsRef.current.has(String(newId))
+          ) {
+            return;
+          }
           setOpportunities((prev) =>
             mergeOpportunityFromRealtime(
               prev,
@@ -832,6 +867,16 @@ export default function useOpportunities({
         },
         (payload) => {
           if (__DEV__) console.log("Opportunity updated:", payload.new);
+          const updatedId = payload.new?.id;
+          if (
+            updatedId != null &&
+            appliedOpportunityIdsRef.current.has(String(updatedId))
+          ) {
+            setOpportunities((prev) =>
+              prev.filter((o) => String(o.id) !== String(updatedId))
+            );
+            return;
+          }
           setOpportunities((prev) =>
             mergeOpportunityFromRealtime(
               prev,

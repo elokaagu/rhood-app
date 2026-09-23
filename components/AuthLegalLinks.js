@@ -12,9 +12,10 @@ export default function AuthLegalLinks({
   onTerms,
   accepted = false,
   onAcceptedChange,
+  style,
 }) {
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, style]}>
       <TouchableOpacity
         style={styles.row}
         onPress={() => onAcceptedChange?.(!accepted)}
@@ -36,8 +37,8 @@ export default function AuthLegalLinks({
             }}
           >
             Terms of Service
-          </Text>{" "}
-          and{" "}
+          </Text>
+          {" and "}
           <Text
             style={styles.link}
             onPress={() => {
@@ -59,8 +60,7 @@ export function termsNotAcceptedMessage() {
 
 const styles = StyleSheet.create({
   wrap: {
-    marginTop: 20,
-    paddingHorizontal: 8,
+    marginTop: 0,
   },
   row: {
     flexDirection: "row",

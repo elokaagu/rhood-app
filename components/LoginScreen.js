@@ -13,6 +13,7 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth, supabase } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 import AuthLegalLinks, { termsNotAcceptedMessage } from "./AuthLegalLinks";
@@ -29,6 +30,7 @@ import {
 } from "../lib/sharedStyles";
 
 export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -274,7 +276,17 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Math.max(insets.top, 12) + SPACING.md,
+            paddingBottom: Math.max(insets.bottom, 12) + SPACING.lg,
+          },
+        ]}
+      >
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Image
@@ -294,7 +306,6 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
         <View style={styles.form}>
           <Text style={styles.formTitle}>Sign In</Text>
 
-          {/* Email Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -309,8 +320,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
             />
           </View>
 
-          {/* Password Input */}
-          <View style={styles.inputContainer}>
+          <View style={styles.passwordBlock}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.passwordContainer}>
               <TextInput
@@ -334,24 +344,22 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
                 />
               </TouchableOpacity>
             </View>
+            <TouchableOpacity
+              style={styles.forgotPassword}
+              onPress={handleForgotPassword}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Forgot Password */}
-          <TouchableOpacity
-            style={styles.forgotPassword}
-            onPress={handleForgotPassword}
-          >
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
-
           <AuthLegalLinks
+            style={styles.legal}
             accepted={acceptedTerms}
             onAcceptedChange={setAcceptedTerms}
             onPrivacy={() => setLegalScreen("privacy")}
             onTerms={() => setLegalScreen("terms")}
           />
 
-          {/* Login Button */}
           <TouchableOpacity
             style={[styles.button, (loading || !acceptedTerms) && styles.buttonDisabled]}
             onPress={handleLogin}
@@ -364,14 +372,12 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
           <View style={styles.dividerContainer}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Social Sign-In — Apple first on iOS (App Store 4.8) */}
           <View style={styles.socialButtonsContainer}>
             <SocialAuthButtons
               onGoogle={handleGoogleSignIn}
@@ -381,14 +387,13 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
               appleButtonType="signIn"
             />
           </View>
+        </View>
 
-          {/* Switch to Signup */}
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={onSwitchToSignup}>
-              <Text style={styles.switchLink}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.switchContainer}>
+          <Text style={styles.switchText}>Don't have an account? </Text>
+          <TouchableOpacity onPress={onSwitchToSignup}>
+            <Text style={styles.switchLink}>Sign Up</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -426,11 +431,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
   },
   header: {
     ...sharedStyles.center,
-    marginBottom: SPACING["3xl"],
+    marginBottom: SPACING.xl,
   },
   logoText: {
     color: COLORS.primary,
@@ -443,38 +448,43 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: SPACING.base,
+    marginBottom: SPACING.sm,
   },
   logoIcon: {
-    height: 40,
-    width: 40,
+    height: 36,
+    width: 36,
     marginRight: SPACING.sm,
   },
   logoImage: {
-    height: 48,
-    width: 180,
+    height: 40,
+    width: 160,
   },
   subtitle: {
     ...sharedStyles.textSecondary,
-    fontSize: TYPOGRAPHY.lg,
+    fontSize: TYPOGRAPHY.md,
     textAlign: "center",
   },
   form: {
     backgroundColor: COLORS.backgroundCard,
-    borderRadius: RADIUS.md,
-    padding: SPACING.xl,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   formTitle: {
-    fontSize: TYPOGRAPHY["3xl"],
+    fontSize: TYPOGRAPHY["2xl"],
     fontFamily: TYPOGRAPHY.primary,
     fontWeight: TYPOGRAPHY.weightBold,
     color: COLORS.textPrimary,
     textAlign: "center",
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   inputContainer: {
+    marginBottom: SPACING.md,
+  },
+  passwordBlock: {
     marginBottom: SPACING.lg,
   },
   label: {
@@ -482,6 +492,7 @@ const styles = StyleSheet.create({
   },
   input: {
     ...sharedStyles.input,
+    minHeight: 48,
   },
   passwordContainer: {
     position: "relative",
@@ -491,6 +502,7 @@ const styles = StyleSheet.create({
   passwordInput: {
     flex: 1,
     ...sharedStyles.input,
+    minHeight: 48,
     paddingRight: 50,
   },
   eyeButton: {
@@ -500,17 +512,21 @@ const styles = StyleSheet.create({
   },
   forgotPassword: {
     alignSelf: "flex-end",
-    marginBottom: SPACING.xl,
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.xs,
   },
   forgotPasswordText: {
     color: COLORS.primary,
     fontSize: TYPOGRAPHY.sm,
     fontFamily: TYPOGRAPHY.primary,
   },
+  legal: {
+    marginBottom: SPACING.md,
+  },
   button: {
     ...sharedStyles.buttonPrimary,
     borderRadius: RADIUS.md,
-    marginBottom: SPACING.xl,
+    minHeight: 48,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -521,7 +537,7 @@ const styles = StyleSheet.create({
   switchContainer: {
     ...sharedStyles.row,
     justifyContent: "center",
-    marginTop: SPACING.md,
+    marginTop: SPACING.xl,
   },
   switchText: {
     ...sharedStyles.textSecondary,
@@ -536,7 +552,8 @@ const styles = StyleSheet.create({
   dividerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: SPACING.lg,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   dividerLine: {
     flex: 1,
@@ -550,8 +567,7 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
   },
   socialButtonsContainer: {
-    gap: SPACING.md,
-    marginBottom: SPACING.xl,
+    gap: SPACING.sm,
   },
   socialButton: {
     flexDirection: "row",

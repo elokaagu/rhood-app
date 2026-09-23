@@ -13,6 +13,7 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth, db } from "../lib/supabase";
 import RhoodModal from "./RhoodModal";
 import { getSignupErrorMessage } from "../lib/errorMessages";
@@ -27,6 +28,7 @@ import TermsOfServiceScreen from "./TermsOfServiceScreen";
 import SocialAuthButtons from "./SocialAuthButtons";
 
 export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
+  const insets = useSafeAreaInsets();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -343,7 +345,17 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Math.max(insets.top, 12) + 16,
+            paddingBottom: Math.max(insets.bottom, 12) + 20,
+          },
+        ]}
+      >
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Image
@@ -482,6 +494,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
           </View>
 
           <AuthLegalLinks
+            style={styles.legal}
             accepted={acceptedTerms}
             onAcceptedChange={setAcceptedTerms}
             onPrivacy={() => setLegalScreen("privacy")}
@@ -518,14 +531,13 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
               appleButtonType="signUp"
             />
           </View>
+        </View>
 
-          {/* Switch to Login */}
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchText}>Already have an account? </Text>
-            <TouchableOpacity onPress={onSwitchToLogin}>
-              <Text style={styles.switchLink}>Sign In</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.switchContainer}>
+          <Text style={styles.switchText}>Already have an account? </Text>
+          <TouchableOpacity onPress={onSwitchToLogin}>
+            <Text style={styles.switchLink}>Sign In</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -550,12 +562,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    padding: 20,
+    paddingHorizontal: 20,
   },
   header: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 24,
   },
   logoText: {
     color: "hsl(75, 100%, 60%)",
@@ -647,8 +658,9 @@ const styles = StyleSheet.create({
     backgroundColor: "hsl(75, 100%, 60%)",
     borderRadius: 8,
     paddingVertical: 16,
+    minHeight: 48,
     alignItems: "center",
-    marginBottom: 24,
+    marginTop: 4,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -662,7 +674,7 @@ const styles = StyleSheet.create({
   switchContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 16,
+    marginTop: 24,
   },
   switchText: {
     color: "hsl(0, 0%, 70%)",
@@ -678,7 +690,8 @@ const styles = StyleSheet.create({
   dividerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 20,
+    marginTop: 20,
+    marginBottom: 16,
   },
   dividerLine: {
     flex: 1,
@@ -692,8 +705,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   socialButtonsContainer: {
-    gap: 16,
-    marginBottom: 24,
+    gap: 12,
+  },
+  legal: {
+    marginBottom: 16,
   },
   socialButton: {
     flexDirection: "row",
