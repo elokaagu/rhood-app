@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import { useAudioPlayback } from "../context/AudioContext";
 import {
   View,
@@ -18,6 +18,7 @@ import AnimatedListItem from "./AnimatedListItem";
 import { SkeletonProfile } from "./Skeleton";
 import { HapticPatterns } from "../lib/haptics";
 import AppScreenTutorialModal from "./AppScreenTutorialModal";
+import RhoodModal from "./RhoodModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import ProfileBookingRequests from "./ProfileBookingRequests";
@@ -50,6 +51,15 @@ export default function ProfileScreen({
 
   const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.PROFILE);
   const audioPlayback = useAudioPlayback();
+  const [inviteFeedback, setInviteFeedback] = useState({
+    visible: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
+  const showInviteFeedback = (type, title, message) => {
+    setInviteFeedback({ visible: true, type, title, message });
+  };
 
   const audioIdTrackId =
     profile?.audioId?.id || (profile?.id ? `audio-id-${profile.id}` : null);
@@ -95,23 +105,23 @@ export default function ProfileScreen({
   const handleCopyLink = async () => {
     const link = getReferralLink(inviteCode);
     if (!link) {
-      Alert.alert("Error", "Invite code not available");
+      showInviteFeedback("error", "Couldn't copy", "Invite code not available.");
       return;
     }
     try {
       await Clipboard.setStringAsync(link);
       HapticPatterns.success();
-      Alert.alert("Copied!", "Referral link copied to clipboard");
+      showInviteFeedback("success", "Copied", "Referral link copied to clipboard.");
     } catch (error) {
       console.error("Failed to copy link:", error);
-      Alert.alert("Error", "Failed to copy link");
+      showInviteFeedback("error", "Couldn't copy", "Failed to copy link.");
     }
   };
 
   const handleShareWhatsApp = async () => {
     const message = getReferralShareMessage(inviteCode);
     if (!message) {
-      Alert.alert("Error", "Invite code not available");
+      showInviteFeedback("error", "Couldn't share", "Invite code not available.");
       return;
     }
     try {
@@ -140,9 +150,10 @@ export default function ProfileScreen({
       });
     } catch (error) {
       console.error("Error sharing via WhatsApp:", error);
-      Alert.alert(
-        "Share Error",
-        "Could not open WhatsApp. Please make sure WhatsApp is installed, or use the 'More' option to share via other apps."
+      showInviteFeedback(
+        "error",
+        "Couldn't share",
+        "Could not open WhatsApp. Please make sure WhatsApp is installed, or use the More option to share via other apps."
       );
     }
   };
@@ -150,7 +161,7 @@ export default function ProfileScreen({
   const handleShareInstagram = async () => {
     const message = getReferralShareMessage(inviteCode);
     if (!message) {
-      Alert.alert("Error", "Invite code not available");
+      showInviteFeedback("error", "Couldn't share", "Invite code not available.");
       return;
     }
     try {
@@ -160,21 +171,21 @@ export default function ProfileScreen({
       });
     } catch (error) {
       console.error("Error sharing via Instagram:", error);
-      Alert.alert("Error", "Could not share");
+      showInviteFeedback("error", "Couldn't share", "Could not share.");
     }
   };
 
   const handleShareSMS = async () => {
     const message = getReferralShareMessage(inviteCode);
     if (!message) {
-      Alert.alert("Error", "Invite code not available");
+      showInviteFeedback("error", "Couldn't share", "Invite code not available.");
       return;
     }
     try {
       await Linking.openURL(`sms:?body=${encodeURIComponent(message)}`);
     } catch (error) {
       console.error("Error sharing via SMS:", error);
-      Alert.alert("Error", "Could not open SMS");
+      showInviteFeedback("error", "Couldn't share", "Could not open SMS.");
     }
   };
 
@@ -182,7 +193,7 @@ export default function ProfileScreen({
     const message = getReferralShareMessage(inviteCode);
     const link = getReferralLink(inviteCode);
     if (!message || !link) {
-      Alert.alert("Error", "Invite code not available");
+      showInviteFeedback("error", "Couldn't share", "Invite code not available.");
       return;
     }
     try {
@@ -945,6 +956,17 @@ export default function ProfileScreen({
       {tutorialModalProps ? (
         <AppScreenTutorialModal {...tutorialModalProps} />
       ) : null}
+      <RhoodModal
+        visible={inviteFeedback.visible}
+        onClose={() => setInviteFeedback((prev) => ({ ...prev, visible: false }))}
+        type={inviteFeedback.type}
+        title={inviteFeedback.title}
+        message={inviteFeedback.message}
+        primaryButtonText="OK"
+        onPrimaryPress={() =>
+          setInviteFeedback((prev) => ({ ...prev, visible: false }))
+        }
+      />
     </View>
   );
 }

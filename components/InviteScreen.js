@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Linking,
   Share,
   ActivityIndicator,
@@ -15,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import { db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
+import RhoodModal from "./RhoodModal";
 import {
   ANCHORED_TAB_BAR_CONTENT_HEIGHT,
   MINI_PLAYER_GAP_ABOVE_TAB_BAR,
@@ -30,6 +30,16 @@ export default function InviteScreen({ user, onBack }) {
   });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [feedback, setFeedback] = useState({
+    visible: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
+
+  const showFeedback = (type, title, message) => {
+    setFeedback({ visible: true, type, title, message });
+  };
 
   const { totalReferrals, totalCreditsEarned } = referralStats;
 
@@ -102,10 +112,10 @@ export default function InviteScreen({ user, onBack }) {
     try {
       await Clipboard.setStringAsync(inviteCode);
       HapticPatterns.success();
-      Alert.alert("Copied!", "Invite code copied to clipboard");
+      showFeedback("success", "Copied", "Invite code copied to clipboard.");
     } catch (error) {
       console.error("Failed to copy:", error);
-      Alert.alert("Error", "Failed to copy invite code");
+      showFeedback("error", "Couldn't copy", "Failed to copy invite code.");
     }
   };
 
@@ -117,10 +127,10 @@ export default function InviteScreen({ user, onBack }) {
     try {
       await Clipboard.setStringAsync(link);
       HapticPatterns.success();
-      Alert.alert("Copied!", "Referral link copied to clipboard");
+      showFeedback("success", "Copied", "Referral link copied to clipboard.");
     } catch (error) {
       console.error("Failed to copy link:", error);
-      Alert.alert("Error", "Failed to copy link");
+      showFeedback("error", "Couldn't copy", "Failed to copy link.");
     }
   };
 
@@ -140,7 +150,7 @@ export default function InviteScreen({ user, onBack }) {
       });
     } catch (error) {
       console.error("Error opening share sheet (email subject):", error);
-      Alert.alert("Error", "Could not open share sheet. Please try again.");
+      showFeedback("error", "Couldn't share", "Could not open share sheet. Please try again.");
     }
   };
 
@@ -154,7 +164,7 @@ export default function InviteScreen({ user, onBack }) {
       await Linking.openURL(url);
     } catch (error) {
       console.error("Error sharing via SMS:", error);
-      Alert.alert("Error", "Could not open SMS");
+      showFeedback("error", "Couldn't share", "Could not open SMS.");
     }
   };
 
@@ -431,6 +441,17 @@ export default function InviteScreen({ user, onBack }) {
           </View>
         </View>
       </ScrollView>
+      <RhoodModal
+        visible={feedback.visible}
+        onClose={() => setFeedback((prev) => ({ ...prev, visible: false }))}
+        type={feedback.type}
+        title={feedback.title}
+        message={feedback.message}
+        primaryButtonText="OK"
+        onPrimaryPress={() =>
+          setFeedback((prev) => ({ ...prev, visible: false }))
+        }
+      />
     </View>
   );
 }
