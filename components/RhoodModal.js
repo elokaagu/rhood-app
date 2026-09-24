@@ -11,7 +11,6 @@ import {
   Image,
   Linking,
   Share,
-  Alert,
   ScrollView,
   ActivityIndicator,
 } from "react-native";
@@ -29,6 +28,7 @@ import {
   generateDMShareMessage,
 } from "../lib/shareOpportunity";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const { width, height } = Dimensions.get("window");
 
 const RhoodModal = ({
@@ -410,14 +410,14 @@ const RhoodModal = ({
         onShareInApp(shareMessage, shareOpportunity);
         onClose(); // Close the opportunity modal after sharing
       } else {
-        Alert.alert(
+        rhoodAlert(
           "Not Available",
           "In-app sharing is not available right now."
         );
       }
     } catch (error) {
       console.error("Error sharing in-app:", error);
-      Alert.alert("Error", "Failed to share via DM. Please try again.");
+      rhoodAlert("Error", "Failed to share via DM. Please try again.");
     }
   };
 

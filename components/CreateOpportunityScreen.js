@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Animated,
-  Alert,
   Image,
   Modal,
   FlatList,
@@ -43,6 +42,7 @@ import AppScreenTutorialModal from "./AppScreenTutorialModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const androidSubtitleTextProps =
   Platform.OS === "android" ? { includeFontPadding: false } : {};
 
@@ -410,7 +410,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
         if (source === "camera") {
           const permission = await ImagePicker.requestCameraPermissionsAsync();
           if (!permission.granted) {
-            Alert.alert(
+            rhoodAlert(
               "Permission required",
               "Camera permission is needed to take a photo."
             );
@@ -426,7 +426,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
           const permission =
             await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (!permission.granted) {
-            Alert.alert(
+            rhoodAlert(
               "Permission required",
               "Photo library permission is needed to select an image."
             );
@@ -460,7 +460,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
         }
       } catch (err) {
         console.error("Image picker error:", err);
-        Alert.alert("Couldn't open picker", "Please try again.");
+        rhoodAlert("Couldn't open picker", "Please try again.");
       }
     },
     [uploadImage, setField]
@@ -479,7 +479,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
   const handleSubmit = useCallback(async () => {
     if (submitting) return;
     if (uploadingImage) {
-      Alert.alert(
+      rhoodAlert(
         "Image still uploading",
         "Give it a moment to finish, or tap the image and remove it to submit without one."
       );
@@ -490,7 +490,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
     if (!valid) {
       setFieldErrors(errors);
       HapticPatterns.error();
-      Alert.alert("Check the form", Object.values(errors)[0]);
+      rhoodAlert("Check the form", Object.values(errors)[0]);
       return;
     }
 
@@ -525,7 +525,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
       // tracking it locally so a later "replace" in a fresh form session
       // doesn't try to clean up an image that belongs to this submission.
       setUploadedImagePath(null);
-      Alert.alert(
+      rhoodAlert(
         "Submitted for review",
         "Thanks! Our team will review your opportunity and publish it to the deck shortly. You'll be notified once it's live.",
         [
@@ -536,7 +536,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
       console.error("Opportunity submission failed:", error);
       HapticPatterns.error();
       if (error.fieldErrors) setFieldErrors(error.fieldErrors);
-      Alert.alert(
+      rhoodAlert(
         error.alertTitle || "Submission failed",
         error.message || "Could not submit the opportunity. Please try again."
       );

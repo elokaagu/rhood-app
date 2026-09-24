@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
-import { Alert } from "react-native";
+
 import { deleteOwnAccount } from "../lib/moderation";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 /**
  * App Store 5.1.1(v): account deletion must be available wherever an
  * account exists — including onboarding and the application-pending screen.
@@ -23,7 +24,7 @@ export function useDeleteAccount(onSignedOut) {
       setVisible(false);
       onSignedOut?.();
     } catch (error) {
-      Alert.alert(
+      rhoodAlert(
         "Couldn't delete account",
         error?.message ||
           "Please try again. If this keeps happening, email hello@rhood.io."

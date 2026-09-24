@@ -8,12 +8,12 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const SCROLL_BOTTOM_PADDING = 32;
 
 export default function BriefForm({
@@ -72,7 +72,7 @@ export default function BriefForm({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Error", "Failed to submit application. Please try again.");
+      rhoodAlert("Error", "Failed to submit application. Please try again.");
     }
   };
 

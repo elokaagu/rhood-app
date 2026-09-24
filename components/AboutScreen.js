@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
-  Alert,
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,10 +16,11 @@ import {
 } from "../lib/sharedStyles";
 import { HapticPatterns } from "../lib/haptics";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 export default function AboutScreen({ onBack }) {
   const handleOpenLink = (url) => {
     Linking.openURL(url).catch(() => {
-      Alert.alert("Error", "Could not open link");
+      rhoodAlert("Error", "Could not open link");
     });
   };
 

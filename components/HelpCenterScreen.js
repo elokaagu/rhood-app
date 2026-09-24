@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +16,7 @@ import {
 } from "../lib/sharedStyles";
 import { HapticPatterns } from "../lib/haptics";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const SUPPORT_EMAIL = "hello@rhood.io";
 const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Help Request")}`;
 
@@ -31,13 +31,13 @@ async function openMailtoSupport() {
     if (can) {
       await Linking.openURL(SUPPORT_MAILTO);
     } else {
-      Alert.alert(
+      rhoodAlert(
         "Email support",
         `Send a message to ${SUPPORT_EMAIL} from your mail app.`
       );
     }
   } catch {
-    Alert.alert(
+    rhoodAlert(
       "Email support",
       `We couldn't open your mail app. Email us at ${SUPPORT_EMAIL}.`
     );
@@ -103,7 +103,7 @@ const FaqItem = memo(function FaqItem({ item, expanded, onToggle }) {
                 openMailtoSupport();
               } else {
                 Linking.openURL(href).catch(() => {
-                  Alert.alert("Unable to open link", "Please try again later.");
+                  rhoodAlert("Unable to open link", "Please try again later.");
                 });
               }
             }}
@@ -123,7 +123,7 @@ const FaqItem = memo(function FaqItem({ item, expanded, onToggle }) {
                           openMailtoSupport();
                         } else {
                           Linking.openURL(href).catch(() => {
-                            Alert.alert(
+                            rhoodAlert(
                               "Unable to open link",
                               "Please try again later."
                             );

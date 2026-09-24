@@ -5,9 +5,9 @@ import {
   TouchableOpacity,
   Modal,
   StyleSheet,
-  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { rhoodAlert } from "../lib/rhoodAlert";
 
 /**
  * Single options menu for mix rows. Render once at list/screen level; rows call onOpenOptions(mix).
@@ -24,7 +24,7 @@ function DJMixOptionsModal({
 }) {
   const handleDelete = () => {
     if (!mix) return;
-    Alert.alert(
+    rhoodAlert(
       "Delete Mix",
       `Are you sure you want to delete "${mix.title}"? This action cannot be undone.`,
       [

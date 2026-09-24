@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Alert } from "react-native";
+
 import { Audio } from "expo-av";
 import {
   applyMixPlaybackAudioMode,
   applyMessageAttachmentPlaybackAudioMode,
 } from "../lib/audioSessionMode";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 /**
  * In-thread audio message playback + duration extraction for message list items.
  *
@@ -137,7 +138,7 @@ export function useMessagesScreenAudio(messages) {
       }
 
       if (!audioUrl) {
-        Alert.alert("Error", "Audio URL is missing");
+        rhoodAlert("Error", "Audio URL is missing");
         return;
       }
 
@@ -229,7 +230,7 @@ export function useMessagesScreenAudio(messages) {
         audioUrl,
       });
       void applyMixPlaybackAudioMode();
-      Alert.alert(
+      rhoodAlert(
         "Error",
         `Failed to play audio: ${error.message || "Unknown error"}`
       );

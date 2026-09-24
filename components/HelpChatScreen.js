@@ -40,6 +40,7 @@ import {
 } from "../lib/helpChatFallback";
 import { runHelpChatEscalation } from "../lib/helpChatEscalation";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const MessageBubble = memo(function MessageBubble({ message, onQuickAction }) {
   const isUser = message.sender === "user";
   return (
@@ -198,7 +199,7 @@ export default function HelpChatScreen({ user, onBack }) {
     if (!messageText) return;
 
     if (!user?.id) {
-      Alert.alert(
+      rhoodAlert(
         "Please sign in",
         "You need to be signed in to use the help chat."
       );

@@ -13,7 +13,6 @@ import {
   Animated,
   AppState,
   Linking,
-  Alert,
   Platform,
   Dimensions,
   PanResponder,
@@ -31,6 +30,7 @@ import {
   requestNotificationPermissions,
 } from "./lib/notificationSetup";
 import RhoodModal from "./components/RhoodModal";
+import RhoodAlertHost from "./components/RhoodAlertHost";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { reportCrash } from "./lib/crashReporter";
 import styles from "./App.styles";
@@ -93,6 +93,7 @@ import useAudioPlayback from "./hooks/useAudioPlayback";
 import useOpportunities from "./hooks/useOpportunities";
 import useMixUploadReminder from "./hooks/useMixUploadReminder";
 
+import { rhoodAlert } from "./lib/rhoodAlert";
 /** Menu sheet motion — cubic easing reads smoother than linear defaults */
 const MENU_EASE = {
   out: Easing.out(Easing.cubic),
@@ -521,7 +522,7 @@ export default function App() {
               
               if (error) {
                 if (__DEV__) console.error("❌ Error setting reset session:", error);
-                Alert.alert("Error", "This password reset link is invalid or has expired. Please request a new one.");
+                rhoodAlert("Error", "This password reset link is invalid or has expired. Please request a new one.");
                 return;
               }
               
@@ -960,7 +961,7 @@ export default function App() {
         // Set isFirstTime to false to avoid showing onboarding for existing users
         // The app will show a loading/error state instead
         setIsFirstTime(false);
-        Alert.alert(
+        rhoodAlert(
           "Error Loading Profile",
           "There was an issue loading your profile. Please try again or contact support.",
           [{ text: "OK" }]
@@ -1016,7 +1017,7 @@ export default function App() {
       setMembershipStatus("approved");
     } catch (error) {
       if (__DEV__) console.error("Logout error:", error);
-      Alert.alert("Error", "Failed to sign out");
+      rhoodAlert("Error", "Failed to sign out");
     }
   }, [user?.id]);
 
@@ -1946,6 +1947,7 @@ export default function App() {
           onSecondaryPress={modalConfig.onSecondaryPress}
           showCloseButton={modalConfig.showCloseButton}
         />
+        <RhoodAlertHost />
         </ErrorBoundary>
       </SafeAreaProvider>
     );
@@ -2409,6 +2411,7 @@ export default function App() {
           onShareInApp={modalConfig.onShareInApp || null}
           busy={modalConfig.busy}
         />
+        <RhoodAlertHost />
 
     </AppShell>
 

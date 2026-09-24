@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   RefreshControl,
   ActivityIndicator,
   Modal,
@@ -27,6 +26,7 @@ import {
   resolveBrandGigDjId,
 } from "../lib/brandGigUtils";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 export default function BrandGigsPortal({ user, onBack }) {
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +79,7 @@ export default function BrandGigsPortal({ user, onBack }) {
       setGigs(rows.map(normalizeBrandGig));
     } catch (err) {
       console.error("Error loading gigs:", err);
-      Alert.alert("Error", "Failed to load gigs");
+      rhoodAlert("Error", "Failed to load gigs");
       setGigs([]);
     } finally {
       setLoading(false);
@@ -104,7 +104,7 @@ export default function BrandGigsPortal({ user, onBack }) {
 
   const handleSubmitRating = async () => {
     if (!selectedGig || rating === 0) {
-      Alert.alert("Error", "Please select a rating");
+      rhoodAlert("Error", "Please select a rating");
       return;
     }
 
@@ -144,7 +144,7 @@ export default function BrandGigsPortal({ user, onBack }) {
       setSelectedGig(null);
       setRating(0);
 
-      Alert.alert(
+      rhoodAlert(
         "Success",
         "Gig marked as completed and DJ rated. The DJ's profile has been updated."
       );
@@ -152,7 +152,7 @@ export default function BrandGigsPortal({ user, onBack }) {
       await loadGigs();
     } catch (error) {
       console.error("Error completing gig:", error);
-      Alert.alert("Error", "Failed to complete gig");
+      rhoodAlert("Error", "Failed to complete gig");
     } finally {
       setUpdating(null);
     }

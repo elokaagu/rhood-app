@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   Platform,
 } from "react-native";
 import Constants from "expo-constants";
@@ -15,6 +14,7 @@ import { HapticPatterns } from "../lib/haptics";
 import { track, AnalyticsEvents } from "../lib/analytics";
 import RhoodModal from "./RhoodModal";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const CATEGORIES = [
   { id: "idea", label: "Idea" },
   { id: "bug", label: "Bug" },
@@ -39,11 +39,11 @@ export default function ProductFeedbackPanel({ user }) {
   const submit = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed) {
-      Alert.alert("Feedback", "Please enter a message before sending.");
+      rhoodAlert("Feedback", "Please enter a message before sending.");
       return;
     }
     if (!user?.id) {
-      Alert.alert("Sign in required", "Sign in to send feedback.");
+      rhoodAlert("Sign in required", "Sign in to send feedback.");
       return;
     }
 

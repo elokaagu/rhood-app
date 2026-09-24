@@ -1,8 +1,13 @@
 import React from "react";
-import { Modal, View, TouchableOpacity, Alert } from "react-native";
+import {
+  Modal,
+  View,
+  TouchableOpacity,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Video } from "expo-av";
 
+import { rhoodAlert } from "../../lib/rhoodAlert";
 export default function MessagesFullscreenVideoModal({
   uri,
   styles,
@@ -32,7 +37,7 @@ export default function MessagesFullscreenVideoModal({
             isLooping={false}
             onError={(error) => {
               console.error("Video playback error:", error);
-              Alert.alert("Error", "Failed to play video");
+              rhoodAlert("Error", "Failed to play video");
               onClose();
             }}
           />

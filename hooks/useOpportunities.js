@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Alert, AppState, InteractionManager } from "react-native";
+import {
+  AppState,
+  InteractionManager,
+} from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
@@ -23,6 +26,7 @@ import {
 } from "../lib/opportunities/applicationFlow";
 import { SCREENS } from "../navigation/routes";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 /** Fallback stats refresh while on screen; primary updates are mount, foreground, and post-apply. */
 const DAILY_STATS_REFRESH_INTERVAL_MS = 90_000;
 
@@ -609,10 +613,10 @@ export default function useOpportunities({
           returnToConnectionsTab: "connections",
         });
 
-        Alert.alert("Sent!", "Opportunity shared successfully!");
+        rhoodAlert("Sent!", "Opportunity shared successfully!");
       } catch (error) {
         if (__DEV__) console.error("Error sending opportunity share:", error);
-        Alert.alert("Error", "Failed to send message. Please try again.");
+        rhoodAlert("Error", "Failed to send message. Please try again.");
       }
     },
     [user?.id, setCurrentScreen, setScreenParams]
@@ -637,7 +641,7 @@ export default function useOpportunities({
         });
       } catch (error) {
         if (__DEV__) console.error("Error initiating in-app share:", error);
-        Alert.alert("Error", "Failed to open connections. Please try again.");
+        rhoodAlert("Error", "Failed to open connections. Please try again.");
       }
     },
     [setCurrentScreen, setScreenParams, sendOpportunityShareMessage]

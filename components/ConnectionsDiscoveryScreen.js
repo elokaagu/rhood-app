@@ -12,7 +12,6 @@ import {
   StyleSheet,
   TextInput,
   RefreshControl,
-  Alert,
   FlatList,
   ActivityIndicator,
 } from "react-native";
@@ -23,6 +22,7 @@ import ConnectionsScreen from "./ConnectionsScreen";
 import { connectionsService } from "../lib/connectionsService";
 import { supabase, db } from "../lib/supabase";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const GENRE_ICON_MAP = {
   house: "home",
   techno: "pulse",
@@ -288,7 +288,7 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
       } = await supabase.auth.getSession();
 
       if (sessionError || !session?.user) {
-        Alert.alert("Error", "Please log in to discover connections");
+        rhoodAlert("Error", "Please log in to discover connections");
         setDjs([]);
         setUser(null);
         return;
@@ -320,12 +320,12 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
         console.error("Error loading recommended DJs:", error);
       }
       if (isRefresh) {
-        Alert.alert(
+        rhoodAlert(
           "Couldn't refresh",
           "Check your connection and pull to try again."
         );
       } else {
-        Alert.alert("Error", "Failed to load recommended DJs");
+        rhoodAlert("Error", "Failed to load recommended DJs");
         setDjs([]);
       }
     } finally {
@@ -358,7 +358,7 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
         data: { user: currentUser },
       } = await supabase.auth.getUser();
       if (!currentUser) {
-        Alert.alert("Error", "Please log in to connect with users");
+        rhoodAlert("Error", "Please log in to connect with users");
         return;
       }
       const connectionResult = await db.createConnection(djId);
@@ -394,7 +394,7 @@ export default function ConnectionsDiscoveryScreen({ onNavigate }) {
       if (__DEV__) {
         console.error("Error sending connection request:", error);
       }
-      Alert.alert("Error", "Failed to send connection request");
+      rhoodAlert("Error", "Failed to send connection request");
     }
   }, []);
 

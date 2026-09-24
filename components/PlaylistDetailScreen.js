@@ -14,7 +14,6 @@ import {
   Image,
   RefreshControl,
   Platform,
-  ActionSheetIOS,
   Modal,
   TextInput,
   FlatList,
@@ -34,6 +33,7 @@ import { invalidateUserPlaylistsCache } from "../hooks/useListenPlaylists";
 import ProgressiveImage from "./ProgressiveImage";
 import RhoodModal from "./RhoodModal";
 
+import { rhoodActionSheet } from "../lib/rhoodAlert";
 const SEARCH_DEBOUNCE_MS = 350;
 const PLAYLIST_NAME_MAX_LEN = 255;
 
@@ -559,7 +559,7 @@ function PlaylistDetailScreen({
         const options = isPlaylistOwner
           ? ["Cancel", "Add to Queue", "Play Next", "Remove from Playlist"]
           : ["Cancel", "Add to Queue", "Play Next"];
-        ActionSheetIOS.showActionSheetWithOptions(
+        rhoodActionSheet(
           {
             options,
             cancelButtonIndex: 0,

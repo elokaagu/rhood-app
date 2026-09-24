@@ -13,7 +13,6 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Modal,
   FlatList,
 } from "react-native";
@@ -34,6 +33,7 @@ import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import { SCREENS } from "../navigation/routes";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 async function getDjIdForMessageNotification(messageId) {
   if (!messageId) return null;
   const { data, error } = await supabase
@@ -488,7 +488,7 @@ export default function NotificationsScreen({
     } catch (error) {
       console.error("Error loading notifications:", error);
       if (showErrorAlert) {
-        Alert.alert("Error", "Failed to load notifications");
+        rhoodAlert("Error", "Failed to load notifications");
       }
       syncNotificationsState([]);
     } finally {
@@ -709,7 +709,7 @@ export default function NotificationsScreen({
       if (removedNotification) {
         syncNotificationsState((prev) => [removedNotification, ...prev]);
       }
-      Alert.alert("Error", "Failed to dismiss notification");
+      rhoodAlert("Error", "Failed to dismiss notification");
       return;
     }
     if (onNotificationRead) {
@@ -747,7 +747,7 @@ export default function NotificationsScreen({
           "❌ Connection ID not found in notification:",
           notification
         );
-        Alert.alert("Error", "Connection ID not found");
+        rhoodAlert("Error", "Connection ID not found");
         return;
       }
 
@@ -797,7 +797,7 @@ export default function NotificationsScreen({
       }
     } catch (error) {
       console.error("❌ Error accepting connection:", error);
-      Alert.alert(
+      rhoodAlert(
         "Error",
         `Failed to accept connection request: ${error.message}`
       );
@@ -821,7 +821,7 @@ export default function NotificationsScreen({
           "❌ Connection ID not found in notification for decline:",
           notification
         );
-        Alert.alert("Error", "Connection ID not found");
+        rhoodAlert("Error", "Connection ID not found");
         return;
       }
 
@@ -835,13 +835,13 @@ export default function NotificationsScreen({
         onNotificationRead();
       }
 
-      Alert.alert(
+      rhoodAlert(
         "Connection Declined",
         "The connection request has been declined."
       );
     } catch (error) {
       console.error("❌ Error declining connection:", error);
-      Alert.alert(
+      rhoodAlert(
         "Error",
         `Failed to decline connection request: ${error.message}`
       );
@@ -902,7 +902,7 @@ export default function NotificationsScreen({
       }
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
-      Alert.alert("Error", "Failed to mark all notifications as read");
+      rhoodAlert("Error", "Failed to mark all notifications as read");
     } finally {
       setBulkActionBusy(false);
     }
@@ -936,7 +936,7 @@ export default function NotificationsScreen({
       }
     } catch (error) {
       console.error("Error clearing notifications:", error);
-      Alert.alert("Error", "Failed to clear notifications");
+      rhoodAlert("Error", "Failed to clear notifications");
     } finally {
       setBulkActionBusy(false);
     }

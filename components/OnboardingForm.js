@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -30,6 +29,7 @@ import { resolveCurrentCityLabel } from "../lib/locationService";
 import RhoodModal from "./RhoodModal";
 import { useDeleteAccount } from "../hooks/useDeleteAccount";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 /** Shared animated wrapper for each onboarding step (fade + slide). */
 function StepAnimatedShell({ fadeAnim, slideAnim, style, children }) {
   return (
@@ -448,7 +448,7 @@ export default function OnboardingForm({
       if (source === "camera") {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert("Permission Required", "Camera permission is needed to take photos");
+          rhoodAlert("Permission Required", "Camera permission is needed to take photos");
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -460,7 +460,7 @@ export default function OnboardingForm({
       } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert("Permission Required", "Photo library permission is needed to select images");
+          rhoodAlert("Permission Required", "Photo library permission is needed to select images");
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
@@ -482,7 +482,7 @@ export default function OnboardingForm({
       }
     } catch (error) {
       console.error("❌ Image picker error:", error);
-      Alert.alert("Error", "Failed to open image picker. Please try again.");
+      rhoodAlert("Error", "Failed to open image picker. Please try again.");
       setUploadingImage(false);
     }
   };

@@ -5,13 +5,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Alert,
   PanResponder,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { HapticPatterns } from "../lib/haptics";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const formatSecondsToLabel = (seconds) => {
   if (!Number.isFinite(seconds) || seconds <= 0) {
     return "0:00";
@@ -197,7 +197,7 @@ const DJMix = ({
   ]);
 
   const confirmDeleteFromSwipe = () => {
-    Alert.alert(
+    rhoodAlert(
       "Delete Mix",
       `Are you sure you want to delete "${mix.title}"? This action cannot be undone.`,
       [

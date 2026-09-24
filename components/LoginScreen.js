@@ -10,7 +10,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,6 +28,7 @@ import {
   sharedStyles,
 } from "../lib/sharedStyles";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
@@ -220,7 +220,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
       }
     } catch (error) {
       console.error("Google sign-in error:", error);
-      Alert.alert(
+      rhoodAlert(
         "Sign-In Failed",
         error.message || "Google sign-in was cancelled"
       );
@@ -255,7 +255,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
       }
     } catch (error) {
       console.error("Apple sign-in error:", error);
-      Alert.alert(
+      rhoodAlert(
         "Sign-In Failed",
         error.message || "Apple sign-in was cancelled"
       );

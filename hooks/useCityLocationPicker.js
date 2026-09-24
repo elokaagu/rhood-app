@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
-import { Alert } from "react-native";
+
 import { resolveCurrentCityLabel } from "../lib/locationService";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 /**
  * Shared city picker state for Edit Profile and onboarding.
  * Update commits locally (caller persists with the rest of the profile).
@@ -34,7 +35,7 @@ export function useCityLocationPicker(currentCity, onCommitCity) {
       setUpdating(true);
       const city = await resolveCurrentCityLabel();
       if (!city) {
-        Alert.alert(
+        rhoodAlert(
           "Location Unavailable",
           "Could not determine your city. Please search for it instead."
         );
@@ -43,7 +44,7 @@ export function useCityLocationPicker(currentCity, onCommitCity) {
       setDraft(city);
     } catch (error) {
       console.error("Error getting current city:", error);
-      Alert.alert(
+      rhoodAlert(
         "Error",
         "Failed to get your location. Please search for your city instead."
       );

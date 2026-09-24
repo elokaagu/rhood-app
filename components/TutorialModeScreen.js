@@ -6,7 +6,6 @@ import {
   ScrollView,
   Switch,
   TouchableOpacity,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +13,7 @@ import { SPACING, RADIUS } from "../lib/sharedStyles";
 import { HapticPatterns } from "../lib/haptics";
 import { useAppTutorialContext } from "../context/AppTutorialContext";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 export default function TutorialModeScreen({ onBack }) {
   const insets = useSafeAreaInsets();
   const {
@@ -44,7 +44,7 @@ export default function TutorialModeScreen({ onBack }) {
 
   const handleResetTips = useCallback(() => {
     HapticPatterns.itemPress();
-    Alert.alert(
+    rhoodAlert(
       "Show tips again?",
       "The next time you open each main screen, the short guide will appear again (while Tutorial mode is on).",
       [

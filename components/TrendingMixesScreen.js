@@ -7,8 +7,6 @@ import {
   StyleSheet,
   RefreshControl,
   Platform,
-  ActionSheetIOS,
-  Alert,
   FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,6 +20,7 @@ import MixListRow, {
   MIX_LIST_ROW_HEIGHT_TRENDING,
 } from "./mixList/MixListRow";
 
+import { rhoodAlert, rhoodActionSheet } from "../lib/rhoodAlert";
 const TRENDING_ROW_HEIGHT = MIX_LIST_ROW_HEIGHT_TRENDING;
 
 export default function TrendingMixesScreen({
@@ -145,7 +144,7 @@ export default function TrendingMixesScreen({
       }
 
       if (Platform.OS === "ios") {
-        ActionSheetIOS.showActionSheetWithOptions(
+        rhoodActionSheet(
           {
             options: ["Cancel", "Add to Queue", "Play Next"],
             cancelButtonIndex: 0,
@@ -165,7 +164,7 @@ export default function TrendingMixesScreen({
           }
         );
       } else {
-        Alert.alert(
+        rhoodAlert(
           mix.title || "Mix",
           "Choose an option",
           [

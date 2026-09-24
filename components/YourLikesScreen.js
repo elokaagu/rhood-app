@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Alert,
   SectionList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +22,7 @@ import CategoryPickerModal from "./yourLikes/CategoryPickerModal";
 import ManageCategoriesModal from "./yourLikes/ManageCategoriesModal";
 import YourLikesRow from "./yourLikes/YourLikesRow";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 export default function YourLikesScreen({
   globalAudioState,
   onPlayAudio,
@@ -231,7 +231,7 @@ export default function YourLikesScreen({
       HapticPatterns.success();
     } catch (error) {
       console.error("❌ Error assigning mix to category:", error);
-      Alert.alert("Error", "Failed to assign mix to category");
+      rhoodAlert("Error", "Failed to assign mix to category");
     }
   };
 
@@ -257,7 +257,7 @@ export default function YourLikesScreen({
       HapticPatterns.success();
     } catch (error) {
       console.error("❌ Error removing mix from category:", error);
-      Alert.alert("Error", "Failed to remove mix from category");
+      rhoodAlert("Error", "Failed to remove mix from category");
     }
   };
 
@@ -283,9 +283,9 @@ export default function YourLikesScreen({
     } catch (error) {
       console.error("❌ Error creating category:", error);
       if (error.code === "23505") {
-        Alert.alert("Error", "A category with this name already exists");
+        rhoodAlert("Error", "A category with this name already exists");
       } else {
-        Alert.alert("Error", "Failed to create category");
+        rhoodAlert("Error", "Failed to create category");
       }
     }
   };
@@ -294,7 +294,7 @@ export default function YourLikesScreen({
     (categoryId) => {
       if (!user?.id) return;
 
-      Alert.alert(
+      rhoodAlert(
         "Delete Category",
         "Are you sure? Mixes in this category will be moved to Uncategorized.",
         [
@@ -337,7 +337,7 @@ export default function YourLikesScreen({
                 HapticPatterns.success();
               } catch (error) {
                 console.error("❌ Error deleting category:", error);
-                Alert.alert("Error", "Failed to delete category");
+                rhoodAlert("Error", "Failed to delete category");
               }
             },
           },

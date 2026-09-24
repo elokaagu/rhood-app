@@ -13,14 +13,12 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
   Animated,
   FlatList,
   Image,
   Linking,
   Share,
-  ActionSheetIOS,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
@@ -72,6 +70,7 @@ import {
   formatMessageTime,
 } from "../lib/messagesScreen/messageList";
 
+import { rhoodAlert, rhoodActionSheet, rhoodPrompt } from "../lib/rhoodAlert";
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
   const {
@@ -245,7 +244,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       };
 
       if (Platform.OS === "ios") {
-        ActionSheetIOS.showActionSheetWithOptions(
+        rhoodActionSheet(
           {
             options: ["Cancel", "Copy Link", "Open Link", "Share Link"],
             cancelButtonIndex: 0,
@@ -259,7 +258,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         return;
       }
 
-      Alert.alert("Link actions", sanitizedUrl, [
+      rhoodAlert("Link actions", sanitizedUrl, [
         { text: "Copy Link", onPress: copyAction },
         { text: "Open Link", onPress: openAction },
         { text: "Share Link", onPress: shareAction },
@@ -447,7 +446,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       }
 
       if (!parts.length) {
-        Alert.alert(
+        rhoodAlert(
           "Nothing to forward",
           "This message doesn't contain any shareable content yet."
         );
@@ -457,7 +456,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       await Share.share({ message: parts.join("\n\n") });
     } catch (error) {
       console.error("Error forwarding message:", error);
-      Alert.alert("Error", "Unable to forward this message right now.");
+      rhoodAlert("Error", "Unable to forward this message right now.");
     }
   }, []);
 
@@ -482,7 +481,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         discardPreviewsForMessage(message.id);
       } catch (error) {
         console.error("Error deleting message:", error);
-        Alert.alert(
+        rhoodAlert(
           "Error",
           "Failed to delete this message. Please try again."
         );
@@ -497,11 +496,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
       if (textToCopy) {
         await Clipboard.setStringAsync(textToCopy);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("Copied", "Message copied to clipboard");
+        rhoodAlert("Copied", "Message copied to clipboard");
       }
     } catch (error) {
       console.error("Error copying message:", error);
-      Alert.alert("Error", "Failed to copy message");
+      rhoodAlert("Error", "Failed to copy message");
     }
   }, []);
 
@@ -514,11 +513,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handlePinMessage = useCallback(async (message) => {
     try {
       // TODO: Implement pin functionality in database
-      Alert.alert("Pin", "Pin functionality coming soon");
+      rhoodAlert("Pin", "Pin functionality coming soon");
       setShowMessageOptionsModal(false);
     } catch (error) {
       console.error("Error pinning message:", error);
-      Alert.alert("Error", "Failed to pin message");
+      rhoodAlert("Error", "Failed to pin message");
     }
   }, []);
 
@@ -526,7 +525,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     async (message) => {
       if (!message?.id) return;
       try {
-        Alert.alert(
+        rhoodAlert(
           "Delete for you",
           "This message will be hidden from you but remain visible to others.",
           [
@@ -551,7 +550,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   // same as before this fix, rather than silently claiming
                   // success server-side never actually happened).
                   console.error("Error persisting delete-for-you:", error);
-                  Alert.alert(
+                  rhoodAlert(
                     "Couldn't hide message",
                     "This will reappear next time you reload. Please try again."
                   );
@@ -562,7 +561,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         );
       } catch (error) {
         console.error("Error deleting message for you:", error);
-        Alert.alert("Error", "Failed to delete message");
+        rhoodAlert("Error", "Failed to delete message");
       }
     },
     [supabase]
@@ -570,11 +569,11 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
   const handleUnsendMessage = useCallback(async (message) => {
     if (!message.isOwn) {
-      Alert.alert("Error", "You can only unsend your own messages");
+      rhoodAlert("Error", "You can only unsend your own messages");
       return;
     }
 
-    Alert.alert(
+    rhoodAlert(
       "Unsend message?",
       "This will remove the message for everyone.",
       [
@@ -630,7 +629,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         if (!result.ok) {
           if (result.code === "no_thread") {
             console.error("❌ Failed to get or create thread ID");
-            Alert.alert("Error", "Failed to initialize chat. Please try again.");
+            rhoodAlert("Error", "Failed to initialize chat. Please try again.");
           } else if (result.code === "query_error" && result.error) {
             console.error("❌ Error loading messages:", result.error);
             console.error("❌ Error details:", {
@@ -639,7 +638,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
               hint: result.error.hint,
               details: result.error.details,
             });
-            Alert.alert(
+            rhoodAlert(
               "Error",
               `Failed to load messages: ${result.error.message}`
             );
@@ -688,7 +687,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     } catch (error) {
       if (stillHere()) {
         console.error("❌ Error in loadMessages:", error);
-        Alert.alert("Error", "Failed to load messages");
+        rhoodAlert("Error", "Failed to load messages");
       }
     } finally {
       if (stillHere()) {
@@ -890,7 +889,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       }
 
       // Prompt user for audio label/name
-      Alert.prompt(
+      rhoodPrompt(
         "Audio Label",
         "Enter a name for this audio file:",
         [
@@ -983,7 +982,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       console.log("💾 Downloading file:", { fileUrl, filename });
 
       if (!FileSystem) {
-        Alert.alert(
+        rhoodAlert(
           "Error",
           "File system not available. Please use a development build for file downloads."
         );
@@ -1030,7 +1029,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
 
       if (result && result.uri) {
         console.log("✅ File downloaded to:", result.uri);
-        Alert.alert(
+        rhoodAlert(
           "Download Complete",
           `File saved to Downloads folder.\n\n${sanitizedFilename}`,
           [
@@ -1041,7 +1040,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   await Linking.openURL(`file://${result.uri}`);
                 } catch (openError) {
                   console.error("Error opening downloaded file:", openError);
-                  Alert.alert(
+                  rhoodAlert(
                     "Download Complete",
                     "File has been downloaded. You can find it in your Downloads folder."
                   );
@@ -1056,7 +1055,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       }
     } catch (error) {
       console.error("❌ Error downloading file:", error);
-      Alert.alert(
+      rhoodAlert(
         "Download Error",
         `Failed to download file: ${
           error.message || "Unknown error"
@@ -1085,12 +1084,12 @@ const MessagesScreen = ({ user, navigation, route }) => {
         console.log("📄 Opening file:", { fileUrl, filename, mimeType });
 
         if (!fileUrl) {
-          Alert.alert("Error", "File URL is missing");
+          rhoodAlert("Error", "File URL is missing");
           return;
         }
 
         // Show options: Open or Download
-        Alert.alert(
+        rhoodAlert(
           filename || "File",
           "Choose an action",
           [
@@ -1112,7 +1111,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
                   }
                 } catch (openError) {
                   console.error("Error opening file:", openError);
-                  Alert.alert(
+                  rhoodAlert(
                     "Error",
                     "Could not open file. Trying download instead..."
                   );

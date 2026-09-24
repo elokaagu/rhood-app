@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TextInput,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,6 +19,7 @@ import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import { SCREENS } from "../navigation/routes";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const COMMUNITY_CACHE_KEY = "list";
 const communityCache = createScreenCache("community");
 
@@ -106,7 +106,7 @@ export default function CommunityScreen({ onNavigate }) {
       }
       // Previously silent — the button appeared to do nothing on failure,
       // with no indication the join/leave didn't actually happen.
-      Alert.alert(
+      rhoodAlert(
         "Something went wrong",
         wasJoined
           ? "Couldn't leave this community. Please try again."

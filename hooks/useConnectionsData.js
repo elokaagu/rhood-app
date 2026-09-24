@@ -1,8 +1,9 @@
+import { rhoodAlert } from "../lib/rhoodAlert";
 /**
  * Connections tab state, loaders, realtime, and derived list data.
  */
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Alert, Animated } from "react-native";
+import { Animated } from "react-native";
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { CONNECTIONS_LIST_PERFORMANCE } from "../lib/performanceConstants";
@@ -99,7 +100,7 @@ export function useConnectionsData(
   );
 
   const handleAuthRequired = useCallback(() => {
-    Alert.alert("Error", "Please log in to view connections");
+    rhoodAlert("Error", "Please log in to view connections");
   }, []);
 
   /** Explicit loader context (rebuilt when deps change) — avoids ref-based service locator. */

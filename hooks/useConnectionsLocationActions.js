@@ -1,3 +1,4 @@
+import { rhoodAlert } from "../lib/rhoodAlert";
 /**
  * Location modal state + update handlers for Connections screen.
  * Split from useConnectionsActions so location changes don't couple to connection mutations.
@@ -5,7 +6,7 @@
  * Nearby list reloads live on discoverData (same source as useDiscoverData / discoverLoaders).
  */
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Alert } from "react-native";
+
 import { db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 
@@ -59,7 +60,7 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
     } catch (error) {
       console.error("Error updating location:", error);
       if (mountedRef.current) {
-        Alert.alert("Error", "Failed to update location. Please try again.");
+        rhoodAlert("Error", "Failed to update location. Please try again.");
       }
     } finally {
       if (mountedRef.current) {
@@ -81,7 +82,7 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
 
       const location = await getCurrentLocation();
       if (!location) {
-        Alert.alert(
+        rhoodAlert(
           "Location Unavailable",
           "Could not get your current location. Please enter your city manually."
         );
@@ -109,7 +110,7 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
       }
 
       if (!city) {
-        Alert.alert(
+        rhoodAlert(
           "Location Unavailable",
           "Could not determine your city. Please enter it manually."
         );
@@ -120,7 +121,7 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
       }
     } catch (error) {
       console.error("Error getting current location:", error);
-      Alert.alert(
+      rhoodAlert(
         "Error",
         "Failed to get your location. Please enter your city manually."
       );

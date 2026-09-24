@@ -1,8 +1,9 @@
+import { rhoodAlert } from "../lib/rhoodAlert";
 /**
  * Connection / discover action handlers + composed location actions (see useConnectionsLocationActions).
  */
 import { useState, useCallback } from "react";
-import { Alert } from "react-native";
+
 import { supabase, db } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { getUserName } from "../lib/connectionListUtils";
@@ -129,19 +130,19 @@ export function useConnectionsActions(
   const handleJoinRhoodGroup = useCallback(async () => {
     try {
       if (!user?.id) {
-        Alert.alert("Error", "Please log in to join the R/HOOD Group");
+        rhoodAlert("Error", "Please log in to join the R/HOOD Group");
         return;
       }
       await db.joinCommunity(RHOOD_COMMUNITY_ID, user.id);
       await loadUserCommunities?.();
-      Alert.alert(
+      rhoodAlert(
         "Welcome to R/HOOD Group!",
         "You've successfully joined the main R/HOOD community chat. Start connecting with fellow DJs!",
         [{ text: "OK" }]
       );
     } catch (error) {
       console.error("Error joining R/HOOD group:", error);
-      Alert.alert("Error", "Failed to join R/HOOD Group. Please try again.");
+      rhoodAlert("Error", "Failed to join R/HOOD Group. Please try again.");
     }
   }, [user?.id, loadUserCommunities]);
 
@@ -188,7 +189,7 @@ export function useConnectionsActions(
         onNavigate?.("user-profile", { userId: connection.id });
       } catch (e) {
         console.error("Error viewing profile:", e);
-        Alert.alert("Error", "Failed to open profile");
+        rhoodAlert("Error", "Failed to open profile");
       }
     },
     [onNavigate]
@@ -205,7 +206,7 @@ export function useConnectionsActions(
           data: { user: currentUser },
         } = await supabase.auth.getUser();
         if (!currentUser) {
-          Alert.alert("Error", "Please log in to connect with users");
+          rhoodAlert("Error", "Please log in to connect with users");
           return;
         }
         const connectionResult = await db.createConnection(connection.id);
@@ -426,7 +427,7 @@ export function useConnectionsActions(
         });
       } catch (error) {
         console.error("Error cancelling connection request:", error);
-        Alert.alert("Error", `Failed to cancel connection request: ${error?.message || "Unknown error"}`);
+        rhoodAlert("Error", `Failed to cancel connection request: ${error?.message || "Unknown error"}`);
       } finally {
         setCancellingConnectionId(null);
       }
@@ -442,7 +443,7 @@ export function useConnectionsActions(
         connection?.full_name ||
         `${connection?.first_name || ""} ${connection?.last_name || ""}`.trim() ||
         "this DJ";
-      Alert.alert("Cancel Connection Request?", `Do you want to cancel your pending connection request to ${displayName}?`, [
+      rhoodAlert("Cancel Connection Request?", `Do you want to cancel your pending connection request to ${displayName}?`, [
         { text: "Keep Pending", style: "cancel" },
         {
           text: "Cancel Request",
@@ -451,13 +452,13 @@ export function useConnectionsActions(
             try {
               const connectionId = await resolveConnectionId(connection);
               if (!connectionId) {
-                Alert.alert("Error", "We couldn't find the pending request to cancel. Please try again.");
+                rhoodAlert("Error", "We couldn't find the pending request to cancel. Please try again.");
                 return;
               }
               await performCancelPendingConnection(connection, connectionId, displayName);
             } catch (error) {
               console.error("Error resolving connection for cancellation:", error);
-              Alert.alert("Error", `Failed to cancel connection request: ${error?.message || "Unknown error"}`);
+              rhoodAlert("Error", `Failed to cancel connection request: ${error?.message || "Unknown error"}`);
             }
           },
         },
@@ -473,7 +474,7 @@ export function useConnectionsActions(
         const connectionId =
           connection.connectionId || connection.connection_id || (await resolveConnectionId(connection));
         if (!connectionId) {
-          Alert.alert("Error", "We couldn't find this connection request. Please try again.");
+          rhoodAlert("Error", "We couldn't find this connection request. Please try again.");
           return;
         }
         setAcceptingUserId(connection.id);
@@ -483,7 +484,7 @@ export function useConnectionsActions(
         await loadNearbyDJs?.();
       } catch (error) {
         console.error("Error accepting connection request:", error);
-        Alert.alert("Error", `Failed to accept connection request: ${error?.message || "Unknown error"}`);
+        rhoodAlert("Error", `Failed to accept connection request: ${error?.message || "Unknown error"}`);
       } finally {
         setAcceptingUserId(null);
       }
@@ -504,7 +505,7 @@ export function useConnectionsActions(
         const connectionId =
           connection.connectionId || connection.connection_id || (await resolveConnectionId(connection));
         if (!connectionId) {
-          Alert.alert("Error", "We couldn't find this connection request to decline. Please try again.");
+          rhoodAlert("Error", "We couldn't find this connection request to decline. Please try again.");
           return;
         }
         setDecliningUserId(connection.id);
@@ -522,7 +523,7 @@ export function useConnectionsActions(
         });
       } catch (error) {
         console.error("Error declining connection request:", error);
-        Alert.alert("Error", `Failed to decline connection request: ${error?.message || "Unknown error"}`);
+        rhoodAlert("Error", `Failed to decline connection request: ${error?.message || "Unknown error"}`);
       } finally {
         setDecliningUserId(null);
       }

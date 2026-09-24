@@ -13,7 +13,6 @@ import {
   StyleSheet,
   TextInput,
   Switch,
-  Alert,
   Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,6 +31,7 @@ import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import { SCREENS } from "../navigation/routes";
 import { deleteOwnAccount } from "../lib/moderation";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 export default function SettingsScreen({
   user,
   onNavigate,
@@ -140,7 +140,7 @@ export default function SettingsScreen({
       } catch (error) {
         console.error(`❌ Failed to save ${key}:`, error);
         revert();
-        Alert.alert(
+        rhoodAlert(
           "Update Failed",
           "We couldn't save your preference. Please try again."
         );
@@ -173,7 +173,7 @@ export default function SettingsScreen({
       setShowDeleteAccountModal(false);
       onSignOut?.();
     } catch (error) {
-      Alert.alert(
+      rhoodAlert(
         "Couldn't delete account",
         error?.message ||
           "Please try again. If this keeps happening, email hello@rhood.io."
@@ -185,7 +185,7 @@ export default function SettingsScreen({
 
   const handleOpenLink = useCallback((url) => {
     Linking.openURL(url).catch(() => {
-      Alert.alert("Error", "Could not open link");
+      rhoodAlert("Error", "Could not open link");
     });
   }, []);
 

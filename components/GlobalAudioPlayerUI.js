@@ -1,3 +1,4 @@
+import { rhoodAlert } from "../lib/rhoodAlert";
 /**
  * Global Audio Player UI – play bar (mini) + full-screen player + queue.
  * Reads from AudioContext (useAudioState / useAudioActions); playback via actionsRef.
@@ -9,7 +10,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Alert,
   StyleSheet,
   Share,
 } from "react-native";
@@ -164,7 +164,7 @@ function GlobalAudioPlayerUI({
 
   const addTrackToPlaylist = useCallback(() => {
     if (!track?.id) {
-      Alert.alert("Unavailable", "This track cannot be added to a playlist yet.");
+      rhoodAlert("Unavailable", "This track cannot be added to a playlist yet.");
       return;
     }
     const mixLikeTrack = {
@@ -190,7 +190,7 @@ function GlobalAudioPlayerUI({
 
   const addTrackToQueue = useCallback(() => {
     if (!track?.id) {
-      Alert.alert("Unavailable", "This track cannot be queued right now.");
+      rhoodAlert("Unavailable", "This track cannot be queued right now.");
       return;
     }
     const normalized = {
@@ -199,19 +199,19 @@ function GlobalAudioPlayerUI({
       image: track.image || track.artwork_url || track.image_url || null,
     };
     if (!normalized.audioUrl) {
-      Alert.alert("Unavailable", "No playable audio was found for this track.");
+      rhoodAlert("Unavailable", "No playable audio was found for this track.");
       return;
     }
     addToQueue(normalized);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert("Added to queue", `"${track.title || "Track"}" is queued.`);
+    rhoodAlert("Added to queue", `"${track.title || "Track"}" is queued.`);
   }, [track]);
 
   const removeTrackFromPlaylist = useCallback(() => {
     const playlistId = track?.sourcePlaylistId;
     const mixId = track?.id;
     if (!playlistId || !mixId) return;
-    Alert.alert(
+    rhoodAlert(
       "Remove from playlist?",
       `Remove "${track?.title || "this track"}" from ${track?.sourcePlaylistName || "this playlist"}?`,
       [
@@ -230,7 +230,7 @@ function GlobalAudioPlayerUI({
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (error) {
               if (__DEV__) console.error("Error removing track from playlist:", error);
-              Alert.alert("Error", "Failed to remove track from playlist.");
+              rhoodAlert("Error", "Failed to remove track from playlist.");
             }
           },
         },
@@ -445,7 +445,7 @@ function GlobalAudioPlayerUI({
                 <TouchableOpacity
                   style={s.queueClearButton ?? localStyles.queueClearBtn}
                   onPress={() => {
-                    Alert.alert(
+                    rhoodAlert(
                       "Clear Queue?",
                       "Remove all tracks from the queue?",
                       [

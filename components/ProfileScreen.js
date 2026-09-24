@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   Linking,
-  Alert,
   Share,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,6 +30,7 @@ import {
 } from "../lib/profileScreen/model";
 import styles from "./ProfileScreen.styles";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 export default function ProfileScreen({
   onNavigate,
   user,
@@ -94,11 +94,11 @@ export default function ProfileScreen({
 
   const handleSocialLinkPress = (platform, link) => {
     if (!link || link.trim() === "") {
-      Alert.alert("No Link", `No ${platform} link available`);
+      rhoodAlert("No Link", `No ${platform} link available`);
       return;
     }
     Linking.openURL(link).catch(() => {
-      Alert.alert("Error", "Could not open link");
+      rhoodAlert("Error", "Could not open link");
     });
   };
 
@@ -283,7 +283,7 @@ export default function ProfileScreen({
       }
     } catch (error) {
       console.error("Error playing audio:", error);
-      Alert.alert("Error", "Could not play audio");
+      rhoodAlert("Error", "Could not play audio");
     }
   };
 

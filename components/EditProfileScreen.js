@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
-  Alert,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +22,7 @@ import ConnectionsLocationModal from "./ConnectionsLocationModal";
 import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
 import { formatMixGenreLabel } from "../lib/mixGenres";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 // Duration extraction utilities (same as ListenScreen)
 const parseDurationString = (value) => {
   if (value == null || value === undefined) return null;
@@ -621,7 +621,7 @@ export default function EditProfileScreen({
   };
 
   const handleImagePicker = () => {
-    Alert.alert("Profile photo", "Choose a source", [
+    rhoodAlert("Profile photo", "Choose a source", [
       { text: "Camera", onPress: () => openImagePicker("camera") },
       { text: "Photo library", onPress: () => openImagePicker("library") },
       { text: "Cancel", style: "cancel" },

@@ -1,3 +1,4 @@
+import { rhoodAlert } from "../lib/rhoodAlert";
 // components/AdminApplicationsScreen.js
 // Admin interface for reviewing and updating application status
 
@@ -8,7 +9,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   RefreshControl,
   ActivityIndicator,
 } from "react-native";
@@ -50,14 +50,14 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
 
       if (error) {
         console.error("Error loading applications:", error);
-        Alert.alert("Error", "Failed to load applications");
+        rhoodAlert("Error", "Failed to load applications");
         return;
       }
 
       setApplications(data || []);
     } catch (error) {
       console.error("Error loading applications:", error);
-      Alert.alert("Error", "Failed to load applications");
+      rhoodAlert("Error", "Failed to load applications");
     } finally {
       setLoading(false);
     }
@@ -93,7 +93,7 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
 
       if (error) {
         console.error("Error updating application status:", error);
-        Alert.alert("Error", "Failed to update application status");
+        rhoodAlert("Error", "Failed to update application status");
         return;
       }
 
@@ -129,7 +129,7 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
 
       await loadApplications();
 
-      Alert.alert(
+      rhoodAlert(
         "Success",
         `Application ${
           newStatus === "approved" ? "approved" : "rejected"
@@ -137,14 +137,14 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
       );
     } catch (error) {
       console.error("Error updating application status:", error);
-      Alert.alert("Error", "Failed to update application status");
+      rhoodAlert("Error", "Failed to update application status");
     } finally {
       setUpdating(null);
     }
   };
 
   const handleApprove = (applicationId) => {
-    Alert.alert(
+    rhoodAlert(
       "Approve Application",
       "Are you sure you want to approve this application? The applicant will be notified.",
       [
@@ -158,7 +158,7 @@ export default function AdminApplicationsScreen({ user, onNavigate }) {
   };
 
   const handleReject = (applicationId) => {
-    Alert.alert(
+    rhoodAlert(
       "Reject Application",
       "Are you sure you want to reject this application? The applicant will be notified.",
       [

@@ -8,10 +8,8 @@ import {
   StyleSheet,
   Image,
   Animated,
-  Alert,
   ActivityIndicator,
   Platform,
-  ActionSheetIOS,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -28,6 +26,7 @@ import ApprovedPromoterStamp from "./ApprovedPromoterStamp";
 import { profileIsApprovedPromoter } from "../lib/approvedPromoterUtils";
 import { promptBlockUser, promptReport } from "../lib/moderation";
 
+import { rhoodAlert, rhoodActionSheet } from "../lib/rhoodAlert";
 export default function UserProfileView({
   userId,
   onBack,
@@ -506,7 +505,7 @@ export default function UserProfileView({
       await checkConnectionStatus();
     } catch (error) {
       console.error("Error cancelling connection request:", error);
-      Alert.alert(
+      rhoodAlert(
         "Error",
         `Failed to cancel connection request: ${error.message || "Unknown error"}`
       );
@@ -517,7 +516,7 @@ export default function UserProfileView({
 
   const handleCancelConnectionRequest = () => {
     if (!connectionId) {
-      Alert.alert(
+      rhoodAlert(
         "No Pending Request",
         "We couldn't find a pending connection request to cancel."
       );
@@ -526,7 +525,7 @@ export default function UserProfileView({
 
     const displayName = getDisplayName();
 
-    Alert.alert(
+    rhoodAlert(
       "Cancel Connection Request?",
       `Do you want to cancel your pending connection request to ${displayName}?`,
       [
@@ -604,7 +603,7 @@ export default function UserProfileView({
     }
 
     if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
+      rhoodActionSheet(
         {
           options: ["Share", "Report", "Block", "Cancel"],
           destructiveButtonIndex: 2,
@@ -619,7 +618,7 @@ export default function UserProfileView({
       return;
     }
 
-    Alert.alert(displayName, "Choose an action", [
+    rhoodAlert(displayName, "Choose an action", [
       { text: "Share", onPress: share },
       { text: "Report", onPress: report },
       { text: "Block", style: "destructive", onPress: block },
@@ -632,7 +631,7 @@ export default function UserProfileView({
     // In a real app, you'd copy to clipboard using Clipboard API
     setShowShareModal(false);
     // Show success feedback
-    Alert.alert("Copied!", "Profile link copied to clipboard");
+    rhoodAlert("Copied!", "Profile link copied to clipboard");
   };
 
   // Audio playback handlers
@@ -642,7 +641,7 @@ export default function UserProfileView({
 
       const pm = profile.primaryMix;
       if (!pm?.file_url) {
-        Alert.alert("No audio", "This profile has no mix file to play.");
+        rhoodAlert("No audio", "This profile has no mix file to play.");
         return;
       }
 
@@ -675,7 +674,7 @@ export default function UserProfileView({
       await onPlayAudio(trackData);
     } catch (error) {
       console.error("Error playing audio ID:", error);
-      Alert.alert("Error", "Could not play audio");
+      rhoodAlert("Error", "Could not play audio");
     }
   };
 
@@ -684,7 +683,7 @@ export default function UserProfileView({
       HapticPatterns.primaryButtonPress();
       const mix = profile.primary_mix;
       if (!mix?.file_url) {
-        Alert.alert("No audio", "This mix has no file to play.");
+        rhoodAlert("No audio", "This mix has no file to play.");
         return;
       }
 
@@ -717,7 +716,7 @@ export default function UserProfileView({
       await onPlayAudio(trackData);
     } catch (error) {
       console.error("Error playing primary mix:", error);
-      Alert.alert("Error", "Could not play mix");
+      rhoodAlert("Error", "Could not play mix");
     }
   };
 

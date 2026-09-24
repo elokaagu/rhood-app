@@ -5,7 +5,6 @@ import {
   SectionList,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,6 +24,7 @@ import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import { promptReport, promptBlockUser } from "../lib/moderation";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const ICON_COLOR = "hsl(75, 100%, 60%)";
 const TRENDING_LIMIT = 15;
 const TRENDING_SKELETON_ROWS = 5;
@@ -240,7 +240,7 @@ function ListenScreen({
   const handleOpenUpload = useCallback(() => {
     HapticPatterns.buttonPress();
     if (!user?.id) {
-      Alert.alert(
+      rhoodAlert(
         "Sign in required",
         "Sign in to upload a mix to R/HOOD."
       );
@@ -287,7 +287,7 @@ function ListenScreen({
         HapticPatterns.like();
       } catch (e) {
         if (__DEV__) console.warn("Toggle like failed:", e);
-        Alert.alert("Error", "Couldn't update like. Try again.");
+        rhoodAlert("Error", "Couldn't update like. Try again.");
       } finally {
         setLikeLoadingId(null);
       }
@@ -400,7 +400,7 @@ function ListenScreen({
             }),
         });
       }
-      Alert.alert(
+      rhoodAlert(
         mix.title || "Mix",
         "What would you like to do?",
         [

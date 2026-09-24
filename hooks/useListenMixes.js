@@ -4,11 +4,9 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Image,
   RefreshControl,
   Platform,
-  ActionSheetIOS,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -28,6 +26,7 @@ import { extractDurationSeconds, formatDurationLabel, normalizeSearchValue } fro
 import { listBlockedUserIds, promptReport, promptBlockUser } from "../lib/moderation";
 import styles from "../components/ListenScreen.styles";
 
+import { rhoodAlert, rhoodActionSheet } from "../lib/rhoodAlert";
 export function useListenMixes({
   user,
   globalAudioState,
@@ -443,14 +442,14 @@ export function useListenMixes({
         const result = await deleteMixFromDatabaseAndStorage(mix);
         if (!result.ok) {
           console.error("❌ Error deleting mix:", result.error);
-          Alert.alert("Error", "Failed to delete mix. Please try again.");
+          rhoodAlert("Error", "Failed to delete mix. Please try again.");
           return;
         }
         setMixes((prevMixes) => prevMixes.filter((m) => m.id !== mix.id));
-        Alert.alert("Success", "Mix deleted successfully");
+        rhoodAlert("Success", "Mix deleted successfully");
       } catch (error) {
         console.error("❌ Error deleting mix:", error);
-        Alert.alert("Error", "Failed to delete mix. Please try again.");
+        rhoodAlert("Error", "Failed to delete mix. Please try again.");
       }
     },
     [playingMixId, onStopAudio, deleteMixFromDatabaseAndStorage]
@@ -513,7 +512,7 @@ export function useListenMixes({
         const blockIndex = options.indexOf("Block");
         const deleteIndex = options.indexOf("Delete Mix");
 
-        ActionSheetIOS.showActionSheetWithOptions(
+        rhoodActionSheet(
           {
             options,
             cancelButtonIndex: 0,
@@ -594,7 +593,7 @@ export function useListenMixes({
             onPress: () => handleDeleteMix(normalizedMix),
           });
         }
-        Alert.alert(mix.title || "Mix", "Choose an option", alertOptions, { cancelable: true });
+        rhoodAlert(mix.title || "Mix", "Choose an option", alertOptions, { cancelable: true });
       }
     },
     [user?.id, onAddToQueue, onPlayNext, handleSaveToPlaylist, handleDeleteMix]
@@ -603,7 +602,7 @@ export function useListenMixes({
   const handleArtistPress = (artistName, userId) => {
     HapticPatterns.itemPress();
     if (!userId) {
-      Alert.alert("Error", "Unable to find artist profile");
+      rhoodAlert("Error", "Unable to find artist profile");
       return;
     }
 
@@ -628,7 +627,7 @@ export function useListenMixes({
     // Check if we can pin (max 3)
     const currentPinnedCount = userMixes.filter(m => m.is_pinned && m.id !== mix.id).length;
     if (!mix.is_pinned && currentPinnedCount >= 3) {
-      Alert.alert(
+      rhoodAlert(
         "Maximum Pinned Mixes",
         "You can only pin up to 3 mixes. Please unpin another mix first.",
         [{ text: "OK" }]
@@ -659,7 +658,7 @@ export function useListenMixes({
       HapticPatterns.success();
     } catch (error) {
       console.error("❌ Error pinning/unpinning mix:", error);
-      Alert.alert("Error", "Failed to update pinned status. Please try again.");
+      rhoodAlert("Error", "Failed to update pinned status. Please try again.");
     }
   };
 
@@ -673,7 +672,7 @@ export function useListenMixes({
 
   // Handle delete mix
   const handleDeleteMixFromManage = async (mix) => {
-    Alert.alert(
+    rhoodAlert(
       "Delete Mix",
       `Are you sure you want to delete "${mix.title}"? This action cannot be undone.`,
       [
@@ -692,7 +691,7 @@ export function useListenMixes({
               const result = await deleteMixFromDatabaseAndStorage(mix);
               if (!result.ok) {
                 console.error("❌ Error deleting mix:", result.error);
-                Alert.alert("Error", "Failed to delete mix. Please try again.");
+                rhoodAlert("Error", "Failed to delete mix. Please try again.");
                 return;
               }
               setMixes((prev) => prev.filter((m) => m.id !== mix.id));
@@ -700,7 +699,7 @@ export function useListenMixes({
               HapticPatterns.success();
             } catch (error) {
               console.error("❌ Error deleting mix:", error);
-              Alert.alert("Error", "Failed to delete mix. Please try again.");
+              rhoodAlert("Error", "Failed to delete mix. Please try again.");
             }
           },
         },
@@ -729,7 +728,7 @@ export function useListenMixes({
   const handleAddToQueue = (mix) => {
     if (onAddToQueue) {
       onAddToQueue(mix);
-      Alert.alert(
+      rhoodAlert(
         "Added to Queue",
         `"${mix.title}" by ${mix.artist} has been added to your queue.`,
         [{ text: "OK" }]
@@ -744,7 +743,7 @@ export function useListenMixes({
     }
 
     if (!user?.id) {
-      Alert.alert(
+      rhoodAlert(
         "Sign In Required",
         "You need to be signed in to like a mix.",
         [{ text: "OK" }]
@@ -779,14 +778,14 @@ export function useListenMixes({
             likeError.code === "42P01" ||
             likeError.code === "PGRST205"
           ) {
-            Alert.alert(
+            rhoodAlert(
               "Feature Unavailable",
               "Mix likes are not available right now. Please try again later."
             );
             return;
           } else {
             console.error("❌ Error liking mix:", likeError);
-            Alert.alert(
+            rhoodAlert(
               "Error",
               "We couldn't like this mix right now. Please try again."
             );
@@ -835,7 +834,7 @@ export function useListenMixes({
 
         if (unlikeError) {
           if (unlikeError.code === "42P01" || unlikeError.code === "PGRST205") {
-            Alert.alert(
+            rhoodAlert(
               "Feature Unavailable",
               "Mix likes are not available right now. Please try again later."
             );
@@ -843,7 +842,7 @@ export function useListenMixes({
           }
 
           console.error("❌ Error unliking mix:", unlikeError);
-          Alert.alert(
+          rhoodAlert(
             "Error",
             "We couldn't unlike this mix right now. Please try again."
           );
@@ -888,7 +887,7 @@ export function useListenMixes({
       }
     } catch (error) {
       console.error("❌ Unexpected error liking mix:", error);
-      Alert.alert(
+      rhoodAlert(
         "Error",
         "We couldn't like this mix right now. Please try again."
       );

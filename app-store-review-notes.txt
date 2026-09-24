@@ -1,33 +1,46 @@
-R/HOOD App Review notes (paste into App Store Connect)
+R/HOOD App Review notes (paste into App Store Connect → App Review Information → Notes)
+
+PLEASE REVIEW THIS BINARY
+Version 1.2.0, build 428 (iPhone only). Do not review build 406 — that older binary is the one that was rejected.
 
 WHAT THE APP IS
-R/HOOD is a DJ community: profiles, gig applications, mixes, connections, and messaging.
+R/HOOD is an iPhone DJ community: profiles, gig applications, mixes, connections, and messaging. It is not an iPad app. Please use the iPhone screenshots only.
+
+DEMO ACCOUNT (Guideline 2.1 — required)
+New signups without an invite stay on a waitlist and cannot use the full app. Please sign in with this already-approved DJ account (Sign-in information on this page, and here):
+
+Email: [PASTE APPROVED DEMO DJ EMAIL]
+Password: [PASTE PASSWORD]
+This account is membership_status = approved. It can swipe gigs, play mixes, message, and open Settings.
+
+You can also create a new account with an invite code on Signup; that skips the waitlist. Leave the demo account above as the primary path.
 
 SIGN IN
-Email/password, Google, and Sign in with Apple (iOS) are available on both Login and Signup.
-You must tick “I agree to the Terms of Service and Privacy Policy” before Sign In / Create Account. Tap the Terms of Service link in that checkbox row to read the full EULA.
+Email/password, Google, and Sign in with Apple (iOS) are on both Login and Signup. Apple’s official button is listed first.
+You must tick “I agree to the Terms of Service and Privacy Policy” before Sign In / Create Account. Tap Terms of Service in that row for the full EULA.
 
 ACCOUNT DELETION (Guideline 5.1.1)
-Settings → Account → Delete Account. This permanently deletes the user’s profile and auth account from the app. No email to support is required.
+Settings → Account → Delete Account. Also available on the waitlist / not-approved screen. This permanently deletes the profile and auth account in-app. No email to support is required.
 
 USER CONTENT (Guideline 1.2)
-- Flag content: Listen → long-press a mix → Report. Or open another DJ’s profile → ⋯ → Report. Incoming messages: tap the message → Report.
+- Report: Listen → long-press a mix → Report. Another DJ’s profile → ⋯ → Report. Incoming messages → tap the message → Report.
 - Block: another DJ’s profile → ⋯ → Block, or long-press a mix → Block. Blocking hides them from Listen, Discover, and Messages immediately and notifies our team.
-- We aim to act on reports and blocks within 24 hours (remove content / suspend the offending account). Contact: hello@rhood.io
+- We act on reports and blocks within 24 hours (remove content / suspend the offending account). Contact: hello@rhood.io
 
-Please attach a screen recording to this Notes field showing: (1) Terms checkbox + Terms of Service before login, (2) Report on a mix or profile, (3) Block on a profile.
+Please see the attached screen recording: (1) Terms checkbox + Terms of Service before login, (2) Report on a mix or profile, (3) Block on a profile.
 
 CREDITS / BOOSTS (Guideline 3.1.1)
-In-app credits are earned through activity (referrals, achievements, completed gigs). They cannot be purchased with real money. Boosting an application spends earned credits only. There is no Stripe, PayPal, or In-App Purchase for digital goods.
+Credits are earned only (referrals, achievements, completed gigs). They cannot be bought. Boosting an application spends earned credits only. There is no Stripe, PayPal, or In-App Purchase for digital goods.
 
 AUDIO
-Playback uses streamed mixes (AAC/MP3). Please use a mix that is not an uncompressed WAV. Background audio is the lock-screen / Control Center player while a mix is playing.
+Playback is streamed AAC/MP3. WAV uploads are converted to AAC on the iPhone before they are stored, so mixes should play in-app and on the lock screen. Background audio is the lock-screen / Control Center player.
 
 TRACKING
-On iOS we show App Tracking Transparency before Mixpanel/Firebase analytics. If the user denies tracking, we disable IDFA/automatic events and session replay.
+We do not track users across other companies’ apps or websites for advertising. There is no App Tracking Transparency prompt. Mixpanel and Firebase are first-party product analytics only (no IDFA, no session replay for ads).
 
 LOCATION
-We only use When In Use location to match DJs and opportunities in the same city. We do not use Always/background location.
+When In Use only, to match DJs and opportunities in the same city. No Always / background location.
 
 SUPPORT
 hello@rhood.io
+Privacy Policy: https://www.rhood.io

@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
-import { Alert } from "react-native";
+
 import { supabase } from "../lib/supabase";
 import { HapticPatterns } from "../lib/haptics";
 import { createScreenCache } from "../lib/screenCache";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 const playlistsCache = createScreenCache("playlists", { userScoped: true });
 
 /** Call after mutating playlists outside this hook (e.g. rename on detail screen) so Listen refetches. */
@@ -114,7 +115,7 @@ export function useListenPlaylists(user) {
   const handleSaveToPlaylist = useCallback(
     async (mix) => {
       if (!user?.id) {
-        Alert.alert("Sign In Required", "You need to be signed in to save mixes to playlists.");
+        rhoodAlert("Sign In Required", "You need to be signed in to save mixes to playlists.");
         return;
       }
       setSelectedMixForPlaylist(mix);
@@ -145,7 +146,7 @@ export function useListenPlaylists(user) {
           return { ok: true, duplicate: true };
         }
         if (isMissingTableError(error)) {
-          Alert.alert(
+          rhoodAlert(
             "Database Setup Required",
             "The playlists feature requires database setup. Please contact support."
           );
@@ -166,12 +167,12 @@ export function useListenPlaylists(user) {
   const handleCreatePlaylist = useCallback(async () => {
     const playlistName = newPlaylistName.trim();
     if (!playlistName) {
-      Alert.alert("Error", "Please enter a playlist name");
+      rhoodAlert("Error", "Please enter a playlist name");
       return;
     }
 
     if (!user?.id) {
-      Alert.alert("Error", "You must be signed in to create playlists");
+      rhoodAlert("Error", "You must be signed in to create playlists");
       return;
     }
 
@@ -189,7 +190,7 @@ export function useListenPlaylists(user) {
 
       if (error) {
         if (isMissingTableError(error)) {
-          Alert.alert(
+          rhoodAlert(
             "Database Setup Required",
             "The playlists feature requires database setup. Please contact support."
           );
@@ -228,7 +229,7 @@ export function useListenPlaylists(user) {
       if (!selectedMixForPlaylist?.id) {
         HapticPatterns.success();
       }
-      Alert.alert(
+      rhoodAlert(
         "Success",
         selectedMixForPlaylist?.id
           ? `"${playlistName}" created and mix added!`
@@ -236,7 +237,7 @@ export function useListenPlaylists(user) {
       );
     } catch (error) {
       console.error("❌ Error creating playlist:", error);
-      Alert.alert("Error", "Failed to create playlist. Please try again.");
+      rhoodAlert("Error", "Failed to create playlist. Please try again.");
     } finally {
       setCreatingPlaylist(false);
     }
@@ -274,14 +275,14 @@ export function useListenPlaylists(user) {
         }
 
         fetchPlaylists();
-        Alert.alert(
+        rhoodAlert(
           "Success",
           res.duplicate
             ? `Already in "${playlist.name}"`
             : `Added to "${playlist.name}"`
         );
       } catch (error) {
-        Alert.alert("Error", "Failed to add mix to playlist. Please try again.");
+        rhoodAlert("Error", "Failed to add mix to playlist. Please try again.");
       }
     },
     [selectedMixForPlaylist, handleAddMixToPlaylist, fetchPlaylists, closeSaveModal, user?.id]

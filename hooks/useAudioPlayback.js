@@ -7,7 +7,6 @@ import {
 } from "react";
 import {
   Platform,
-  Alert,
   Share,
   InteractionManager,
   NativeModules,
@@ -30,6 +29,7 @@ import { applyMixPlaybackAudioMode } from "../lib/audioSessionMode";
 import { normalizeTrackForPlayback } from "../lib/normalizeTrackForPlayback";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
 
+import { rhoodAlert } from "../lib/rhoodAlert";
 /** Mix duration in ms from metadata (Listen/DB). Used when expo-av reports 0 briefly. */
 function trackMetaDurationMs(track) {
   if (!track) return 0;
@@ -753,7 +753,7 @@ export default function useAudioPlayback({ user }) {
             : errorMessage.includes("Failed to start playback")
             ? errorMessage
             : `Failed to play "${track.title || "this mix"}". ${errorMessage}`;
-          Alert.alert("Audio Error", userFriendlyMessage);
+          rhoodAlert("Audio Error", userFriendlyMessage);
         } finally {
           isPlayingAudioRef.current = false;
         }
@@ -1135,7 +1135,7 @@ export default function useAudioPlayback({ user }) {
 
   const toggleLike = useCallback(async () => {
     if (!user) {
-      Alert.alert(
+      rhoodAlert(
         "Sign In Required",
         "You need to be signed in to like a mix.",
         [{ text: "OK" }]
@@ -1145,7 +1145,7 @@ export default function useAudioPlayback({ user }) {
 
     const track = stateRef.current.currentTrack;
     if (!track?.id) {
-      Alert.alert(
+      rhoodAlert(
         "Error",
         "We couldn't like this mix right now. Please try again."
       );
@@ -1187,7 +1187,7 @@ export default function useAudioPlayback({ user }) {
 
         if (error) {
           if (error.code === "42P01" || error.code === "PGRST205") {
-            Alert.alert(
+            rhoodAlert(
               "Feature Unavailable",
               "Mix likes are not available right now. Please try again later."
             );
@@ -1222,7 +1222,7 @@ export default function useAudioPlayback({ user }) {
           if (error.code === "23505") {
             // Already liked, sync state
           } else if (error.code === "42P01" || error.code === "PGRST205") {
-            Alert.alert(
+            rhoodAlert(
               "Feature Unavailable",
               "Mix likes are not available right now. Please try again later."
             );
@@ -1254,7 +1254,7 @@ export default function useAudioPlayback({ user }) {
       if (__DEV__) {
         console.error("❌ Error toggling like:", error?.code, error?.message || error);
       }
-      Alert.alert(
+      rhoodAlert(
         "Error",
         "We couldn't like this mix right now. Please try again."
       );
@@ -1666,7 +1666,7 @@ export default function useAudioPlayback({ user }) {
         });
       } catch (error) {
         if (__DEV__) console.log("Error sharing track:", error);
-        Alert.alert("Error", "Failed to share track");
+        rhoodAlert("Error", "Failed to share track");
       }
     }
   }, [stateRef]);
