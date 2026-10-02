@@ -124,7 +124,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "R/HOOD uses your location while the app is open to match you with DJs and opportunities in the same city."
+          "locationWhenInUsePermission": "R/HOOD uses your location while the app is open to match you with DJs and opportunities in the same city.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "isIosBackgroundLocationEnabled": false
         }
       ],
       "expo-apple-authentication",

@@ -5,6 +5,7 @@ import { HapticPatterns } from "../lib/haptics";
 import { createScreenCache } from "../lib/screenCache";
 
 import { rhoodAlert } from "../lib/rhoodAlert";
+import { containsObjectionableContent, OBJECTIONABLE_CONTENT_MESSAGE } from "../lib/contentFilter";
 const playlistsCache = createScreenCache("playlists", { userScoped: true });
 
 /** Call after mutating playlists outside this hook (e.g. rename on detail screen) so Listen refetches. */
@@ -168,6 +169,11 @@ export function useListenPlaylists(user) {
     const playlistName = newPlaylistName.trim();
     if (!playlistName) {
       rhoodAlert("Error", "Please enter a playlist name");
+      return;
+    }
+
+    if (containsObjectionableContent(playlistName)) {
+      rhoodAlert("Please edit the name", OBJECTIONABLE_CONTENT_MESSAGE);
       return;
     }
 
