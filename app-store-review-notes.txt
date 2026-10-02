@@ -1,7 +1,7 @@
 R/HOOD App Review notes (paste into App Store Connect → App Review Information → Notes)
 
 PLEASE REVIEW THIS BINARY
-Version 1.2.0, build 440. Builds 406 and 432 were rejected; 440 contains the fixes below (submission ad1f5099-b8e2-4a24-b795-6fca5f0eaf95).
+Version 1.2.0, build 443. Builds 406 and 432 were rejected; 443 contains the fixes below (submission ad1f5099-b8e2-4a24-b795-6fca5f0eaf95).
 
 WHAT CHANGED SINCE THE 2 OCTOBER REVIEW (build 432)
 - Guideline 4 (iPad layout): the "how to use this screen" tip on each tab now fits between the header and tab bar and scrolls if needed, so it is no longer cut off at the top on iPad, and it is centred on larger screens. Tips also stay hidden while any other popup is open, so they no longer overlap. The opportunity card and other layouts now scale to the iPad's full screen.
