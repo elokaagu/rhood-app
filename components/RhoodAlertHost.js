@@ -167,6 +167,10 @@ export default function RhoodAlertHost() {
         close();
         if (state.kind === "sheet" && cancelSheet) {
           state.onPress?.(cancelSheet.index);
+          return;
+        }
+        if (state.kind === "alert") {
+          (state.buttons || []).find((b) => b?.style === "cancel")?.onPress?.();
         }
       }}
       type={state.type}

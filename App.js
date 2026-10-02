@@ -840,8 +840,10 @@ export default function App() {
   // so fields are already filled when the user lands on the first onboarding step.
   const _seedDjProfileFromMeta = useCallback((user) => {
     const meta = user?.user_metadata || {};
-    const firstName = meta.given_name || meta.first_name || "";
-    const lastName = meta.family_name || meta.last_name || "";
+    const fullNameParts = String(meta.full_name || meta.name || "").trim().split(/\s+/).filter(Boolean);
+    const firstName = meta.given_name || meta.first_name || fullNameParts[0] || "";
+    const lastName =
+      meta.family_name || meta.last_name || (fullNameParts.length > 1 ? fullNameParts.slice(1).join(" ") : "");
     const djName = meta.full_name || meta.name || [firstName, lastName].filter(Boolean).join(" ");
     if (djName || firstName || lastName) {
       setDjProfile((prev) => ({

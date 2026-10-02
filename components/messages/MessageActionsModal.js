@@ -10,7 +10,6 @@ export default function MessageActionsModal({
   onCopy,
   onReply,
   onForward,
-  onPin,
   onUnsend,
   onDeleteForYou,
   onReport,
@@ -53,14 +52,6 @@ export default function MessageActionsModal({
                 >
                   <Ionicons name="arrow-forward-outline" size={24} color="hsl(0, 0%, 100%)" />
                   <Text style={styles.messageOptionText}>Forward</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.messageOption}
-                  onPress={() => onPin(message)}
-                >
-                  <Ionicons name="pin-outline" size={24} color="hsl(0, 0%, 100%)" />
-                  <Text style={styles.messageOptionText}>Pin</Text>
                 </TouchableOpacity>
 
                 {message.isOwn ? (

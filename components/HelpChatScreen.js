@@ -39,6 +39,7 @@ import {
   QUICK_ACTION_USER_MESSAGES,
 } from "../lib/helpChatFallback";
 import { runHelpChatEscalation } from "../lib/helpChatEscalation";
+import { ensureHelpChatAiConsent } from "../lib/helpChatAiConsent";
 
 import { rhoodAlert } from "../lib/rhoodAlert";
 const MessageBubble = memo(function MessageBubble({ message, onQuickAction }) {
@@ -234,10 +235,11 @@ export default function HelpChatScreen({ user, onBack }) {
     }
 
     try {
+      const aiAllowed = await ensureHelpChatAiConsent();
       const historyForAi = [...messages, userMessage].slice(-10);
-      const ai = await getAssistantReply(messageText, {
-        history: historyForAi,
-      });
+      const ai = aiAllowed
+        ? await getAssistantReply(messageText, { history: historyForAi })
+        : null;
       const textReply = ai?.text;
 
       // Check if AI returned an error message

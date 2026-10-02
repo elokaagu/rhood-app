@@ -511,17 +511,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
     // Focus on input (you may need to add a ref to TextInput)
   }, []);
 
-  const handlePinMessage = useCallback(async (message) => {
-    try {
-      // TODO: Implement pin functionality in database
-      rhoodAlert("Pin", "Pin functionality coming soon");
-      setShowMessageOptionsModal(false);
-    } catch (error) {
-      console.error("Error pinning message:", error);
-      rhoodAlert("Error", "Failed to pin message");
-    }
-  }, []);
-
   const handleDeleteForYou = useCallback(
     async (message) => {
       if (!message?.id) return;
@@ -1621,7 +1610,6 @@ const MessagesScreen = ({ user, navigation, route }) => {
           await handleForwardMessage(m);
           setShowMessageOptionsModal(false);
         }}
-        onPin={handlePinMessage}
         onUnsend={handleUnsendMessage}
         onDeleteForYou={handleDeleteForYou}
         onReport={(m) => {
