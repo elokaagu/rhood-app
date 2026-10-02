@@ -1106,7 +1106,10 @@ export default function App() {
     try {
       // Don't await - let it run in background to prevent blocking app initialization
       // This is especially important in new countries where GPS might take longer
-      getCurrentLocation()
+      // No prompt here: an iOS permission alert shown over an open modal can
+      // leave that modal unresponsive. Users are asked in context instead
+      // (onboarding, Edit Profile, Connections).
+      getCurrentLocation({ prompt: false })
         .then((location) => {
           if (location) {
                 setUserLocation(location);
