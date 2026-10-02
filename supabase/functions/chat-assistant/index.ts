@@ -2,7 +2,43 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-const DEFAULT_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
+
+// Cost controls: the client cannot choose the model, reply length, or volume.
+const MODEL = "gpt-4o-mini";
+const MAX_REPLY_TOKENS = 500;
+const TEMPERATURE = 0.6;
+const DAILY_LIMIT_PER_USER = 30;
+const MAX_MESSAGES = 14;
+const MAX_CHARS_PER_MESSAGE = 4000;
+const MAX_TOTAL_CHARS = 24000;
+
+const DAILY_LIMIT_TEXT =
+  `You've reached today's limit of ${DAILY_LIMIT_PER_USER} AI answers. ` +
+  "You can still browse the Help Center articles or tap **Raise a support ticket** and our team will reply by email.";
+
+function capMessages(
+  messages: Array<{ role: string; content: string }>
+): Array<{ role: string; content: string }> {
+  const systemMessages = messages.filter((m) => m.role === "system");
+  const conversation = messages.filter((m) => m.role !== "system").slice(-MAX_MESSAGES);
+  let budget = MAX_TOTAL_CHARS;
+  const capped: Array<{ role: string; content: string }> = [];
+  // Keep the newest conversation turns first, then fit as much system context as remains.
+  for (const m of [...conversation].reverse()) {
+    const content = String(m.content).slice(0, MAX_CHARS_PER_MESSAGE);
+    if (content.length > budget) break;
+    budget -= content.length;
+    capped.unshift({ role: m.role === "assistant" ? "assistant" : "user", content });
+  }
+  const system: Array<{ role: string; content: string }> = [];
+  for (const m of systemMessages) {
+    const content = String(m.content).slice(0, Math.min(MAX_CHARS_PER_MESSAGE * 2, budget));
+    if (!content) break;
+    budget -= content.length;
+    system.push({ role: "system", content });
+  }
+  return [...system, ...capped];
+}
 
 interface LegacyChatRequest {
   userMessage: string;
@@ -97,19 +133,32 @@ serve(async (req) => {
       );
     }
 
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count: usedToday, error: usageError } = await adminClient
+      .from("ai_chat_usage")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", since);
+    if (usageError) {
+      console.error("Usage check failed:", usageError.message);
+    } else if ((usedToday ?? 0) >= DAILY_LIMIT_PER_USER) {
+      return new Response(JSON.stringify({ text: DAILY_LIMIT_TEXT, limited: true }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
+
     // Parse request body
     const body = (await req.json()) as LegacyChatRequest | EndpointChatRequest;
-    const model = body.model || DEFAULT_MODEL;
-    const temperature =
-      typeof (body as EndpointChatRequest).temperature === "number"
-        ? (body as EndpointChatRequest).temperature
-        : 0.6;
-    const maxTokens =
-      typeof (body as EndpointChatRequest).max_tokens === "number"
-        ? (body as EndpointChatRequest).max_tokens
-        : 500;
 
-    // Build system prompt (legacy mode only)
+    // Always sent first so the assistant stays scoped to R/HOOD support.
     const defaultSystemPrompt = [
       "You are R/HOOD Assistant — an in‑app helper for the R/HOOD mobile app.",
       "STRICT SOURCING POLICY:",
@@ -134,7 +183,10 @@ serve(async (req) => {
       );
 
     if (hasMessageArray) {
-      messages = requestMessages as Array<{ role: string; content: string }>;
+      messages = [
+        { role: "system", content: defaultSystemPrompt },
+        ...(requestMessages as Array<{ role: string; content: string }>),
+      ];
     } else {
       const legacy = body as LegacyChatRequest;
       const userMessage = legacy.userMessage;
@@ -155,8 +207,8 @@ serve(async (req) => {
         );
       }
 
-      const finalSystemPrompt = systemPrompt || defaultSystemPrompt;
-      messages = [{ role: "system", content: finalSystemPrompt }];
+      messages = [{ role: "system", content: defaultSystemPrompt }];
+      if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
 
       if (kbContext.length > 0) {
         messages.push({
@@ -176,6 +228,13 @@ serve(async (req) => {
       messages.push({ role: "user", content: userMessage });
     }
 
+    messages = capMessages(messages);
+
+    const { error: logError } = await adminClient
+      .from("ai_chat_usage")
+      .insert({ user_id: user.id });
+    if (logError) console.error("Usage log failed:", logError.message);
+
     // Call OpenAI API
     const openaiResponse = await fetch(
       "https://api.openai.com/v1/chat/completions",
@@ -186,9 +245,9 @@ serve(async (req) => {
           Authorization: `Bearer ${OPENAI_API_KEY}`,
         },
         body: JSON.stringify({
-          model,
-          temperature,
-          max_tokens: maxTokens,
+          model: MODEL,
+          temperature: TEMPERATURE,
+          max_tokens: MAX_REPLY_TOKENS,
           messages,
         }),
       }
