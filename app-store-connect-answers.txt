@@ -1,0 +1,108 @@
+R/HOOD — App Store Connect answers (version 1.2.0)
+These match what the app actually collects and ios/RHOOD/PrivacyInfo.xcprivacy.
+
+==================================================
+1. APP PRIVACY  (App Store Connect → App Privacy → Edit)
+==================================================
+"Do you or your third-party partners collect data from this app?"  →  Yes
+
+For EVERY data type below answer:
+  - Linked to the user's identity?  →  Yes   (except Crash Data and Performance Data → No)
+  - Used for tracking?              →  No
+
+Contact Info
+  [x] Name ............... App Functionality, Analytics
+  [x] Email Address ...... App Functionality
+  [x] Phone Number ....... App Functionality   (optional field on Edit Profile)
+
+Location
+  [x] Precise Location ... App Functionality   (matching DJs and gigs nearby; never sent to analytics)
+  [x] Coarse Location .... App Functionality, Analytics   (city on the profile)
+
+User Content
+  [x] Emails or Text Messages ... App Functionality   (direct and group messages)
+  [x] Photos or Videos .......... App Functionality   (profile photo, artwork, message images)
+  [x] Audio Data ................ App Functionality   (uploaded mixes, audio in messages)
+  [x] Customer Support .......... App Functionality   (Help chat, reports, feedback)
+  [x] Other User Content ........ App Functionality   (bio, applications, playlists)
+
+Identifiers
+  [x] User ID ............ App Functionality, Analytics
+
+Usage Data
+  [x] Product Interaction ... App Functionality, Analytics   (Mixpanel / Firebase Analytics)
+
+Diagnostics
+  [x] Crash Data ......... App Functionality   — NOT linked
+  [x] Performance Data ... App Functionality   — NOT linked
+
+Do NOT tick: Health, Fitness, Financial Info, Payment Info, Contacts, Browsing
+History, Search History, Purchases, Device ID, Advertising Data, Sensitive Info.
+(No in-app purchases, no ads, no ATT tracking.)
+
+Privacy Policy URL:  https://www.rhood.io/privacy
+
+==================================================
+2. AGE RATING  (App Information → Age Rating → Edit)
+==================================================
+In-App Controls
+  Parental Controls ................. No
+  Age Assurance ..................... No
+
+Capabilities
+  Unrestricted Web Access ........... No
+  User-Generated Content ............ YES
+  Messaging and Chat ................ YES
+  Advertising ....................... No
+
+Mature Themes
+  Profanity or Crude Humor .......... None
+  Horror/Fear Themes ................ None
+  Alcohol, Tobacco, or Drug Use
+    or References ................... Infrequent/Mild   (nightlife / club event listings)
+
+Medical or Wellness
+  Medical or Treatment Information .. None
+  Health or Wellness Topics ......... No
+
+Sexuality or Nudity / Violence ...... None (all)
+
+Chance-Based Activities
+  Gambling / Simulated Gambling ..... None / No
+  Contests .......................... YES  (brands can post giveaways, e.g. "Win Db luggage")
+  Loot Boxes ........................ No
+
+Accept whatever rating Apple calculates (expect 13+ or higher). Do NOT pick a
+rating lower than the calculation suggests.
+
+==================================================
+3. ACCOUNT DELETION VIDEO  (App Review Information → Attachment)
+==================================================
+Apple asked for a recording on a PHYSICAL device showing: creating a new account
+(or signing in with the demo account) → navigating to deletion → the complete
+flow to confirmation. Use a NEW account, not the demo account, because this
+deletes it. Record on a real iPhone (Control Centre → Screen Recording):
+  1. Install build 440 from TestFlight. Start recording.
+  2. Sign Up with a new email (or Sign in with Apple) and get into the app.
+     If it lands on the waitlist screen, delete from there — that counts too.
+  3. Tap the menu (top right) → Settings → Account → Delete Account.
+  4. Tap Delete Account to confirm → the app returns to the sign-in screen.
+  5. Try to sign in again with the same login → it fails (account is gone).
+Attach the .mp4 in App Review Information (Attachment), AND reply to the
+rejection message in App Store Connect with the same video.
+
+==================================================
+4. BEFORE PRESSING "SUBMIT FOR REVIEW"
+==================================================
+  [ ] Build selected = 440 (on the existing "iOS App 1.0" version: Edit → Build →
+      remove 432 → add 440).
+  [ ] Test Sign in with Apple on build 440 from a FRESH install (delete the app
+      first), on an iPad if you have one, and decline location — that is the
+      exact path that failed for the reviewer.
+  [ ] Open each tab on iPad and check the first-visit tip card isn't cut off.
+  [ ] Review notes pasted from app-store-review-notes.txt, with the REAL demo
+      password filled in. Sign in with the demo login yourself on TestFlight first.
+  [ ] Demo account is approved (not stuck on "application pending").
+  [ ] Sign-in required → Yes, demo account username + password filled in.
+  [ ] A few live upcoming opportunities exist in the portal.
+  [ ] Screenshots include an iPad 13" set (iPad runs the app) and show real content.

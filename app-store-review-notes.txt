@@ -1,11 +1,11 @@
 R/HOOD App Review notes (paste into App Store Connect → App Review Information → Notes)
 
 PLEASE REVIEW THIS BINARY
-Version 1.2.0, build 439. Builds 406 and 432 were rejected; 439 contains the fixes below.
+Version 1.2.0, build 440. Builds 406 and 432 were rejected; 440 contains the fixes below (submission ad1f5099-b8e2-4a24-b795-6fca5f0eaf95).
 
 WHAT CHANGED SINCE THE 2 OCTOBER REVIEW (build 432)
 - Guideline 4 (iPad layout): the "how to use this screen" tip on each tab now fits between the header and tab bar and scrolls if needed, so it is no longer cut off at the top on iPad, and it is centred on larger screens. Tips also stay hidden while any other popup is open, so they no longer overlap. The opportunity card and other layouts now scale to the iPad's full screen.
-- Guideline 2.1(a) (Sign in with Apple): fixed. Onboarding failed to save when the optional city / location step was skipped (common when location access is declined), which showed "Invalid information provided" on every attempt. Sign in with Apple, then onboarding, now completes with or without a city.
+- Guideline 2.1(a) (Sign in with Apple): fixed. Onboarding failed to save when the optional city / location step was skipped (common when location access is declined), which showed "Invalid information provided" on every attempt. Sign in with Apple, then onboarding, now completes with or without a city, on iPhone and iPad.
 - Guideline 5.1.1(v) (account deletion): Delete Account is now the last row of the "Account" section at the top of Settings. A screen recording from a physical iPhone is attached.
 - Also fixed: the menu scrolls on smaller iPhones so every item (including Settings) is reachable, the opportunity card fits smaller screens and opens its details when tapped, and messages and profile text are now checked against an objectionable-content filter before they are posted. Sign in with Apple now fills in the first and last name Apple shares, so they are not asked for again. Help chat asks permission before using AI. An unfinished "Pin message" option was removed.
 
@@ -27,7 +27,7 @@ You must tick “I agree to the Terms of Service and Privacy Policy” before Si
 
 ACCOUNT DELETION (Guideline 5.1.1(v))
 Tap the menu button (top right, ☰) → Settings → the first section, "Account" → Delete Account → confirm Delete Account. (The first time each screen opens, a short tip card may appear; tap "Got it" to close it.) It is also on the onboarding screens ("Delete account" link), and on the waitlist / not-approved screen. Deletion is permanent and completes in-app: the profile, content and sign-in account are removed and the user is signed out. No email or website visit is required.
-Screen recording (physical iPhone): sign in → Settings → Delete Account → confirmation → signed out.
+Screen recording (physical iPhone, attached): create a new account → menu → Settings → Delete Account → confirm → signed out, and the same login no longer works. A new account is used so the demo account above stays available for review.
 
 USER CONTENT (Guideline 1.2)
 - Terms of Service (accepted before sign-in) state zero tolerance for objectionable content and abusive users.

@@ -1198,11 +1198,7 @@ export default function App() {
                   }
 
                   // Track location fetched
-                  track(AnalyticsEvents.LOCATION_FETCHED, {
-                    latitude: location.latitude,
-                    longitude: location.longitude,
-                    accuracy: location.accuracy,
-                  });
+                  track(AnalyticsEvents.LOCATION_FETCHED);
                 })
                 .catch((matchError) => {
                   if (__DEV__) console.error("Error checking location match:", matchError);
