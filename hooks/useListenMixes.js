@@ -16,6 +16,7 @@ import { getRecommendedMixes } from "../lib/mixRecommendations";
 import { LISTEN_LIST_PERFORMANCE } from "../lib/performanceConstants";
 import ListenScreenHeader from "../components/ListenScreenHeader";
 import ListenScreenFooter from "../components/ListenScreenFooter";
+import ProgressiveImage from "../components/ProgressiveImage";
 import {
   ListenMixRow,
   ListenPlaylistRow,

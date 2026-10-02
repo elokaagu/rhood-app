@@ -439,7 +439,7 @@ const helpSections = [
           "Close and restart the app",
           "Check for app updates in the App Store",
           "Restart your device",
-          "Make sure you have the latest iOS/Android version",
+          "Make sure your iPhone is on the latest version of iOS",
           [
             "Still stuck? ",
             LINK_SHORT,

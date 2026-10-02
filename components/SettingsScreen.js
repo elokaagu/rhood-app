@@ -220,6 +220,15 @@ export default function SettingsScreen({
             type: "toggle",
             value: settings.showPhone,
           },
+          {
+            id: "deleteAccount",
+            title: "Delete Account",
+            subtitle: "Permanently delete your profile and data",
+            icon: "trash-outline",
+            type: "action",
+            destructive: true,
+            action: handleDeleteAccount,
+          },
         ],
       },
       {
@@ -302,7 +311,7 @@ export default function SettingsScreen({
       },
       {
         id: "accountActions",
-        title: "Account",
+        title: "Session",
         icon: "person-circle",
         items: [
           {
@@ -312,15 +321,6 @@ export default function SettingsScreen({
             icon: "log-out",
             type: "action",
             action: handleSignOut,
-          },
-          {
-            id: "deleteAccount",
-            title: "Delete Account",
-            subtitle: "Permanently delete your profile and data",
-            icon: "trash-outline",
-            type: "action",
-            destructive: true,
-            action: handleDeleteAccount,
           },
         ],
       },

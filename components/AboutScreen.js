@@ -30,7 +30,7 @@ export default function AboutScreen({ onBack }) {
       items: [
         {
           title: "Platform",
-          value: "iOS & Android",
+          value: "iPhone",
         },
       ],
     },

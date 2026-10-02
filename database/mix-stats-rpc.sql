@@ -30,7 +30,7 @@ BEGIN
   UPDATE public.mixes
   SET duration = p_seconds
   WHERE id = p_mix_id
-    AND (duration IS NULL OR duration = 0);
+    AND (duration IS NULL OR duration::text IN ('', '0', '0:00'));
 END;
 $$;
 

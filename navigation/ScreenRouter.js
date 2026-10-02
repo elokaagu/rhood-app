@@ -464,6 +464,7 @@ export default function ScreenRouter({
           onCancel={pickScreen(SCREENS.PROFILE)}
           focusField={screenParams.focusField}
           onNavigate={navigate}
+          belowAppHeader
         />
       );
 

@@ -1475,7 +1475,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "hsl(75, 100%, 60%, 0.15)",
+    backgroundColor: "hsla(75, 100%, 60%, 0.15)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,

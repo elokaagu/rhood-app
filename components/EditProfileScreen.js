@@ -21,6 +21,7 @@ import RhoodModal from "./RhoodModal";
 import ConnectionsLocationModal from "./ConnectionsLocationModal";
 import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
 import { formatMixGenreLabel } from "../lib/mixGenres";
+import { formatDurationLabel } from "../lib/listenScreenUtils";
 
 import { rhoodAlert } from "../lib/rhoodAlert";
 // Duration extraction utilities (same as ListenScreen)
@@ -165,6 +166,7 @@ export default function EditProfileScreen({
   onCancel,
   focusField,
   onNavigate,
+  belowAppHeader = false,
 }) {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
@@ -517,7 +519,10 @@ export default function EditProfileScreen({
       setErrorModal({ 
         visible: true, 
         title: "Error", 
-        message: `Failed to update profile: ${error.message || "Please try again."}` 
+        message:
+          error?.code === "OBJECTIONABLE_CONTENT"
+            ? error.message
+            : `Failed to update profile: ${error.message || "Please try again."}`,
       });
       setSaving(false);
     }
@@ -782,7 +787,12 @@ export default function EditProfileScreen({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       {/* Sticky Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: (belowAppHeader ? 0 : insets.top) + 16 },
+        ]}
+      >
         <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
           <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
         </TouchableOpacity>

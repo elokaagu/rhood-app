@@ -430,7 +430,10 @@ export default function NotificationsScreen({
         id: notification.id,
         type: notification.type,
           title: displayTitle,
-        description: notification.message,
+        description:
+          typeof notification.message === "string"
+            ? notification.message.replace(/^\s*:\s*/, "")
+            : notification.message,
         timestamp: formatRelativeTime(notification.created_at),
         rawTimestamp: notification.created_at, // Keep original timestamp for sorting
         isRead: notification.is_read,
@@ -1475,6 +1478,7 @@ const styles = StyleSheet.create({
   /** Margins live outside Swipeable so row height matches the card; delete action aligns to panel. */
   notificationSwipeRow: {
     marginBottom: 12,
+    marginHorizontal: 20,
   },
   notificationSwipeRowFirst: {
     marginTop: 12,

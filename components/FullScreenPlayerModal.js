@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     borderRadius: RADIUS.base,
-    backgroundColor: "hsl(0, 75%, 55%, 0.12)",
+    backgroundColor: "hsla(0, 75%, 55%, 0.12)",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.error,
   },

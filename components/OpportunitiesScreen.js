@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import React, { useCallback, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import SwipeableOpportunityCard from "./SwipeableOpportunityCard";
@@ -43,6 +43,12 @@ export default function OpportunitiesScreen({
   handleDismissSwipeTutorial,
 }) {
   const insets = useSafeAreaInsets();
+  const [deckHeight, setDeckHeight] = useState(0);
+  const deckPadding = StyleSheet.flatten(styles.opportunitiesCardContainer) || {};
+  const handleDeckLayout = useCallback((event) => {
+    const next = Math.round(event.nativeEvent.layout.height);
+    setDeckHeight((prev) => (prev === next ? prev : next));
+  }, []);
   const { tutorialModalProps } = useAppTutorialModal(
     APP_TUTORIAL_SCREEN_IDS.OPPORTUNITIES,
     { preventShow: !!showSwipeTutorial }
@@ -100,6 +106,7 @@ export default function OpportunitiesScreen({
             styles.opportunitiesCardContainer,
             isEmptyDeck && styles.opportunitiesCardContainerEmpty,
           ]}
+          onLayout={handleDeckLayout}
         >
           {isLoadingOpportunities ? (
             <View style={styles.loadingContainer}>
@@ -117,6 +124,13 @@ export default function OpportunitiesScreen({
               onSwipeRight={handleSwipeRight}
               isTopCard={true}
               dailyApplicationStats={dailyApplicationStats}
+              availableHeight={
+                deckHeight > 0
+                  ? deckHeight -
+                    (deckPadding.paddingTop || 0) -
+                    (deckPadding.paddingBottom || 0)
+                  : 0
+              }
             />
           ) : (
             <View

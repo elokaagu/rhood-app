@@ -18,6 +18,7 @@ import {
   PanResponder,
   Easing,
   InteractionManager,
+  ScrollView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -94,6 +95,7 @@ import useOpportunities from "./hooks/useOpportunities";
 import useMixUploadReminder from "./hooks/useMixUploadReminder";
 
 import { rhoodAlert } from "./lib/rhoodAlert";
+import { buildOnboardingProfilePayload } from "./lib/profileRequiredFields";
 /** Menu sheet motion — cubic easing reads smoother than linear defaults */
 const MENU_EASE = {
   out: Easing.out(Easing.cubic),
@@ -1748,14 +1750,8 @@ export default function App() {
     if (__DEV__) console.log("🎉 completeOnboarding called");
     if (__DEV__) console.log("👤 djProfile:", djProfile);
 
-    const firstName = djProfile.first_name || djProfile.firstName || "";
-    const lastName = djProfile.last_name || djProfile.lastName || "";
-    const djName =
-      djProfile.dj_name?.trim() ||
-      djProfile.djName?.trim() ||
-      [firstName, lastName].filter(Boolean).join(" ") ||
-      (user?.email?.split("@")[0] ?? "DJ");
-    const genres = Array.isArray(djProfile.genres) ? djProfile.genres : [];
+    const profilePayload = buildOnboardingProfilePayload(djProfile, user?.email);
+    const { genres } = profilePayload;
 
     if (genres.length === 0) {
       showCustomModal({
@@ -1767,22 +1763,6 @@ export default function App() {
       });
       return;
     }
-
-    const profilePayload = {
-      dj_name: djName,
-      first_name: firstName,
-      last_name: lastName,
-      instagram: djProfile.instagram || null,
-      soundcloud: djProfile.soundcloud || null,
-      tiktok: djProfile.tiktok || null,
-      youtube: djProfile.youtube || null,
-      city: djProfile.city?.trim() || null,
-      genres,
-      bio: djProfile.city?.trim()
-        ? `DJ from ${djProfile.city} specializing in ${genres.join(", ")}`
-        : `DJ specializing in ${genres.join(", ")}`,
-      profile_image_url: djProfile.profile_image_url || null,
-    };
 
     try {
       if (!user?.id) {
@@ -2062,8 +2042,8 @@ export default function App() {
                 },
               ]}
             >
-              <View style={styles.menuContent} {...menuPanResponder.panHandlers}>
-                <View style={styles.menuHeader}>
+              <View style={styles.menuContent}>
+                <View style={styles.menuHeader} {...menuPanResponder.panHandlers}>
                   <Text style={styles.menuTitle}>MENU</Text>
                   <TouchableOpacity
                     style={styles.closeButton}
@@ -2073,7 +2053,12 @@ export default function App() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.menuItems}>
+                <ScrollView
+                  style={styles.menuScroll}
+                  contentContainerStyle={styles.menuItems}
+                  bounces={false}
+                  showsVerticalScrollIndicator
+                >
                   <TouchableOpacity
                     style={[
                       styles.menuItem,
@@ -2231,7 +2216,7 @@ export default function App() {
                       </Text>
                     </View>
                   </TouchableOpacity>
-                </View>
+                </ScrollView>
               </View>
             </Animated.View>
           </Animated.View>

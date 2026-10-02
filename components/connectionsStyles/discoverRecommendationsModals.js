@@ -254,7 +254,7 @@ export default {
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.1)",
+    borderColor: "hsla(75, 100%, 60%, 0.1)",
   },
   recommendationImageContainer: {
     width: "100%",
@@ -348,7 +348,7 @@ export default {
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.15)",
+    borderColor: "hsla(75, 100%, 60%, 0.15)",
     backgroundColor: "hsl(0, 0%, 8%)",
   },
   opportunityImageContainer: {
@@ -477,7 +477,7 @@ export default {
     borderRadius: 12,
     backgroundColor: "hsl(0, 0%, 12%)",
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.3)",
+    borderColor: "hsla(75, 100%, 60%, 0.3)",
   },
   useCurrentLocationText: {
     fontSize: 14,

@@ -1,10 +1,16 @@
 R/HOOD App Review notes (paste into App Store Connect → App Review Information → Notes)
 
 PLEASE REVIEW THIS BINARY
-Version 1.2.0, build 428 (iPhone only). Do not review build 406 — that older binary is the one that was rejected.
+Version 1.2.0, build 433. Builds 406 and 432 were rejected; 433 contains the fixes below.
+
+WHAT CHANGED SINCE THE 2 OCTOBER REVIEW (build 432)
+- Guideline 4 (iPad layout): the "how to use this screen" tip on each tab now fits between the header and tab bar and scrolls if needed, so it is no longer cut off at the top on iPad, and it is centred on larger screens. Tips also stay hidden while any other popup is open, so they no longer overlap. The opportunity card and other layouts now scale to the iPad's full screen.
+- Guideline 2.1(a) (Sign in with Apple): fixed. Onboarding failed to save when the optional city / location step was skipped (common when location access is declined), which showed "Invalid information provided" on every attempt. Sign in with Apple, then onboarding, now completes with or without a city.
+- Guideline 5.1.1(v) (account deletion): Delete Account is now the last row of the "Account" section at the top of Settings. A screen recording from a physical iPhone is attached.
+- Also fixed: the menu scrolls on smaller iPhones so every item (including Settings) is reachable, the opportunity card fits smaller screens and opens its details when tapped, and messages and profile text are now checked against an objectionable-content filter before they are posted.
 
 WHAT THE APP IS
-R/HOOD is an iPhone DJ community: profiles, gig applications, mixes, connections, and messaging. It is not an iPad app. Please use the iPhone screenshots only.
+R/HOOD is an iPhone DJ community: profiles, gig applications, mixes, connections, and messaging. It is built for iPhone; on iPad the iPhone app runs full-screen and its layouts adapt to the larger display.
 
 DEMO ACCOUNT (Guideline 2.1 — required)
 New signups without an invite stay on a waitlist and cannot use the full app. Please sign in with this already-approved DJ account (Sign-in information on this page, and here):
@@ -19,15 +25,18 @@ SIGN IN
 Email/password, Google, and Sign in with Apple (iOS) are on both Login and Signup. Apple’s official button is listed first.
 You must tick “I agree to the Terms of Service and Privacy Policy” before Sign In / Create Account. Tap Terms of Service in that row for the full EULA.
 
-ACCOUNT DELETION (Guideline 5.1.1)
-Settings → Account → Delete Account. Also available on the waitlist / not-approved screen. This permanently deletes the profile and auth account in-app. No email to support is required.
+ACCOUNT DELETION (Guideline 5.1.1(v))
+Tap the menu button (top right, ☰) → Settings → the first section, "Account" → Delete Account → confirm Delete Account. (The first time each screen opens, a short tip card may appear; tap "Got it" to close it.) It is also on the onboarding screens ("Delete account" link), and on the waitlist / not-approved screen. Deletion is permanent and completes in-app: the profile, content and sign-in account are removed and the user is signed out. No email or website visit is required.
+Screen recording (physical iPhone): sign in → Settings → Delete Account → confirmation → signed out.
 
 USER CONTENT (Guideline 1.2)
+- Terms of Service (accepted before sign-in) state zero tolerance for objectionable content and abusive users.
+- Filter: direct messages, group messages, and profile text (DJ name, bio, status) are checked against a blocklist of slurs and abusive phrases before posting; blocked text is rejected with a message asking the user to edit it.
 - Report: Listen → long-press a mix → Report. Another DJ’s profile → ⋯ → Report. Incoming messages → tap the message → Report.
 - Block: another DJ’s profile → ⋯ → Block, or long-press a mix → Block. Blocking hides them from Listen, Discover, and Messages immediately and notifies our team.
 - We act on reports and blocks within 24 hours (remove content / suspend the offending account). Contact: hello@rhood.io
 
-Please see the attached screen recording: (1) Terms checkbox + Terms of Service before login, (2) Report on a mix or profile, (3) Block on a profile.
+Moderation screen recording (iPhone): (1) Terms of Service opened and the Terms checkbox ticked before Sign In, (2) sign-in with the demo account, (3) Connections → another DJ's profile → ⋯ → Report, (4) ⋯ → Block, confirmed.
 
 CREDITS / BOOSTS (Guideline 3.1.1)
 Credits are earned only (referrals, achievements, completed gigs). They cannot be bought. Boosting an application spends earned credits only. There is no Stripe, PayPal, or In-App Purchase for digital goods.

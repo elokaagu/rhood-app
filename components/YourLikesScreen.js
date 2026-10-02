@@ -505,7 +505,7 @@ export default function YourLikesScreen({
             </Text>
           </View>
         </ScrollView>
-      ) : connectionSections.length === 0 ? (
+      ) : likeCategorySections.length === 0 ? (
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}

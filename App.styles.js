@@ -1045,7 +1045,12 @@ const styles = StyleSheet.create({
   },
   menuContent: {
     padding: 24,
-    paddingBottom: 60,
+    paddingBottom: 40,
+    flexShrink: 1,
+  },
+  menuScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
   },
   menuHeader: {
     flexDirection: "row",
@@ -1072,6 +1077,7 @@ const styles = StyleSheet.create({
   },
   menuItems: {
     gap: 12,
+    paddingBottom: 20,
   },
   menuItem: {
     flexDirection: "row",

@@ -1234,7 +1234,7 @@ const styles = {
     fontFamily: "Helvetica Neue",
     color: "hsl(75, 100%, 60%)", // R/HOOD lime color
     fontWeight: "500",
-    backgroundColor: "hsl(75, 100%, 60%, 0.1)", // Subtle background
+    backgroundColor: "hsla(75, 100%, 60%, 0.1)", // Subtle background
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1471,9 +1471,9 @@ const styles = {
     lineHeight: 20,
   },
   betaNotice: {
-    backgroundColor: "hsl(75, 100%, 60%, 0.08)",
+    backgroundColor: "hsla(75, 100%, 60%, 0.08)",
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.25)",
+    borderColor: "hsla(75, 100%, 60%, 0.25)",
     borderRadius: 10,
     padding: 12,
     marginBottom: 20,
@@ -1606,7 +1606,7 @@ const styles = {
   addCityItem: {
     gap: 8,
     justifyContent: "flex-start",
-    backgroundColor: "hsl(75, 100%, 60%, 0.06)",
+    backgroundColor: "hsla(75, 100%, 60%, 0.06)",
   },
   addCityText: {
     fontSize: 15,

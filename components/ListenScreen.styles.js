@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "hsl(0, 0%, 8%)",
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.3)",
+    borderColor: "hsla(75, 100%, 60%, 0.3)",
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.1)",
+    borderColor: "hsla(75, 100%, 60%, 0.1)",
   },
   recommendationImageContainer: {
     position: "relative",
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(75, 255, 150, 0.12)",
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.4)",
+    borderColor: "hsla(75, 100%, 60%, 0.4)",
   },
   viewAllText: {
     fontSize: 13,
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.1)",
+    borderColor: "hsla(75, 100%, 60%, 0.1)",
   },
   recommendationGridImage: {
     width: "100%",
@@ -1161,7 +1161,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "hsl(75, 100%, 60%, 0.15)",
+    backgroundColor: "hsla(75, 100%, 60%, 0.15)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -1172,7 +1172,7 @@ const styles = StyleSheet.create({
     color: "hsl(75, 100%, 60%)",
   },
   manageMixActionButtonPinned: {
-    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
+    backgroundColor: "hsla(75, 100%, 60%, 0.1)",
   },
   manageMixActionTextPinned: {
     color: "hsl(75, 100%, 60%)",

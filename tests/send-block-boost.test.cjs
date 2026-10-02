@@ -23,6 +23,11 @@ function loadExportedFunctions(relPath) {
   return mod.exports;
 }
 
+// sendMessagesOperations' imports are stripped by the loader, so expose the
+// content-filter helper it references as a global.
+globalThis.objectionableContentError = () =>
+  Object.assign(new Error("objectionable"), { code: "OBJECTIONABLE_CONTENT" });
+
 const {
   sendIndividualChatMessages,
   buildDirectBase,
@@ -73,9 +78,29 @@ describe("send-message flow", () => {
       canMessage: async () => {
         throw new Error("You can't message this person.");
       },
+      isObjectionable: () => false,
     });
     assert.equal(result.ok, false);
     assert.match(String(result.error.message), /can't message/i);
+    assert.equal(inserted.length, 0);
+  });
+
+  it("refuses a send when the text is objectionable", async () => {
+    const inserted = [];
+    const result = await sendDirectMessageFlow({
+      sendIndividualChatMessages,
+      supabase: mockSupabase({ inserted }),
+      db: { findOrCreateIndividualMessageThread: async () => "thread-1" },
+      userId: "me",
+      djId: "them",
+      threadId: "thread-1",
+      messageContent: "blocked text",
+      mediaArray: [],
+      canMessage: async () => {},
+      isObjectionable: () => true,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.rollback.messageContent, "blocked text");
     assert.equal(inserted.length, 0);
   });
 
@@ -91,6 +116,7 @@ describe("send-message flow", () => {
       messageContent: "hey",
       mediaArray: [],
       canMessage: async () => {},
+      isObjectionable: () => false,
     });
     assert.equal(result.ok, true);
     assert.equal(inserted.length, 1);

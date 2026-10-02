@@ -1,6 +1,7 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useAnyModalOpen } from "../lib/modalPresence";
 
 const localStyles = StyleSheet.create({
   // Deliberately blocking (unlike AppScreenTutorialModal's box-none tip cards):
@@ -25,6 +26,7 @@ const localStyles = StyleSheet.create({
     padding: 24,
     width: "100%",
     maxWidth: 400,
+    maxHeight: "100%",
     borderWidth: 1,
     borderColor: "hsl(0, 0%, 15%)",
   },
@@ -44,6 +46,8 @@ const localStyles = StyleSheet.create({
     padding: 4,
   },
   tutorialInstructions: {
+    flexGrow: 0,
+    flexShrink: 1,
     marginBottom: 24,
   },
   tutorialInstructionRow: {
@@ -95,7 +99,8 @@ const localStyles = StyleSheet.create({
  * First-run swipe tutorial for the opportunities deck.
  */
 export default function OpportunitiesSwipeTutorialModal({ visible, onDismiss }) {
-  if (!visible) return null;
+  const anotherPopupOpen = useAnyModalOpen();
+  if (!visible || anotherPopupOpen) return null;
   return (
     <View style={localStyles.tutorialOverlay} pointerEvents="auto">
       <View style={localStyles.tutorialContent}>
@@ -110,7 +115,7 @@ export default function OpportunitiesSwipeTutorialModal({ visible, onDismiss }) 
             <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
         </View>
-        <View style={localStyles.tutorialInstructions}>
+        <ScrollView style={localStyles.tutorialInstructions} bounces={false}>
           <View style={localStyles.tutorialInstructionRow}>
             <View style={localStyles.tutorialIconContainer}>
               <Ionicons name="arrow-forward" size={32} color="hsl(75, 100%, 60%)" />
@@ -133,7 +138,7 @@ export default function OpportunitiesSwipeTutorialModal({ visible, onDismiss }) 
               </Text>
             </View>
           </View>
-        </View>
+        </ScrollView>
         <TouchableOpacity
           style={localStyles.tutorialGotItButton}
           onPress={onDismiss}

@@ -259,7 +259,7 @@ export default function TipsScreen({ onBack }) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
+      <View style={[styles.header, { paddingTop: 12 }]}>
         {onBack ? (
           <TouchableOpacity
             onPress={() => {
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
+    backgroundColor: "hsla(75, 100%, 60%, 0.1)",
     justifyContent: "center",
     alignItems: "center",
   },

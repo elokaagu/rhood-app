@@ -250,7 +250,7 @@ function DiscoverListHeader({
   const requests = incomingConnectionRequests ?? [];
 
   return (
-    <View style={styles.discoverList}>
+    <View>
       {showPopularBlock && (
         <View style={styles.recommendationsSection}>
           <View style={styles.recommendationsHeader}>

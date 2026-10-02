@@ -29,6 +29,7 @@ import {
 } from "../lib/shareOpportunity";
 
 import { rhoodAlert } from "../lib/rhoodAlert";
+import { useRegisterModalPresence } from "../lib/modalPresence";
 const { width, height } = Dimensions.get("window");
 
 const RhoodModal = ({
@@ -51,31 +52,32 @@ const RhoodModal = ({
   busy = false,
 }) => {
   const insets = useSafeAreaInsets();
+  useRegisterModalPresence(!!visible);
   const getIconAndColor = () => {
     switch (type) {
       case "success":
         return {
           icon: "checkmark-circle",
           color: COLORS.primary, // R/HOOD lime green
-          bgColor: "hsl(75, 100%, 60%, 0.15)",
+          bgColor: "hsla(75, 100%, 60%, 0.15)",
         };
       case "warning":
         return {
           icon: "warning",
           color: COLORS.primary, // Use R/HOOD lime instead of generic warning
-          bgColor: "hsl(75, 100%, 60%, 0.15)",
+          bgColor: "hsla(75, 100%, 60%, 0.15)",
         };
       case "error":
         return {
           icon: "close-circle",
           color: COLORS.primary, // Use R/HOOD lime instead of red
-          bgColor: "hsl(75, 100%, 60%, 0.15)",
+          bgColor: "hsla(75, 100%, 60%, 0.15)",
         };
       default:
         return {
           icon: "rhood-logo", // Custom type for R/HOOD logo
           color: COLORS.primary, // R/HOOD lime green
-          bgColor: "hsl(75, 100%, 60%, 0.15)",
+          bgColor: "hsla(75, 100%, 60%, 0.15)",
         };
     }
   };
@@ -776,7 +778,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.2)", // R/HOOD lime border
+    borderColor: "hsla(75, 100%, 60%, 0.2)", // R/HOOD lime border
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -813,7 +815,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: SPACING.lg,
     borderWidth: 2,
-    borderColor: "hsl(75, 100%, 60%, 0.3)", // R/HOOD lime border
+    borderColor: "hsla(75, 100%, 60%, 0.3)", // R/HOOD lime border
   },
   rhoodLogoContainer: {
     width: 80,
@@ -826,7 +828,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     backgroundColor: "hsl(0, 0%, 0%)",
     borderWidth: 2,
-    borderColor: "hsl(75, 100%, 60%, 0.3)",
+    borderColor: "hsla(75, 100%, 60%, 0.3)",
   },
   rhoodLogo: {
     width: 76,
@@ -918,7 +920,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "transparent",
     borderWidth: 2,
-    borderColor: "hsl(75, 100%, 60%, 0.4)", // R/HOOD lime border
+    borderColor: "hsla(75, 100%, 60%, 0.4)", // R/HOOD lime border
   },
   secondaryButtonText: {
     fontSize: TYPOGRAPHY.lg,
@@ -947,7 +949,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
+    backgroundColor: "hsla(75, 100%, 60%, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: SPACING.sm,
@@ -999,11 +1001,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "hsl(75, 100%, 60%, 0.1)",
+    backgroundColor: "hsla(75, 100%, 60%, 0.1)",
     borderRadius: RADIUS.md,
     padding: SPACING.sm,
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.2)",
+    borderColor: "hsla(75, 100%, 60%, 0.2)",
   },
   applicationsIcon: {
     marginRight: SPACING.xs,

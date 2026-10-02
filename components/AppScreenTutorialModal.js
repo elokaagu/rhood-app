@@ -4,8 +4,11 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useAnyModalOpen } from "../lib/modalPresence";
 
 const localStyles = StyleSheet.create({
   // Non-blocking: the overlay container lets touches pass through to the page
@@ -17,9 +20,21 @@ const localStyles = StyleSheet.create({
     justifyContent: "flex-end",
     alignItems: "center",
     paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 96,
     zIndex: 9999,
     elevation: 9999,
+  },
+  // Short windows (iPad running the iPhone build, small iPhones): the card
+  // must shrink into the space between the screen header and tab bar, or it
+  // grows upward past the top of the page and gets cut off.
+  tutorialOverlayCompact: {
+    paddingBottom: 16,
+  },
+  tutorialOverlayWide: {
+    justifyContent: "center",
+    paddingBottom: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
   },
   tutorialContent: {
     backgroundColor: "hsl(0, 0%, 10%)",
@@ -27,8 +42,9 @@ const localStyles = StyleSheet.create({
     padding: 22,
     width: "100%",
     maxWidth: 440,
+    maxHeight: "100%",
     borderWidth: 1,
-    borderColor: "hsl(75, 100%, 60%, 0.35)",
+    borderColor: "hsla(75, 100%, 60%, 0.35)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
@@ -56,8 +72,19 @@ const localStyles = StyleSheet.create({
   tutorialCloseButton: {
     padding: 4,
   },
+  tutorialContentCompact: {
+    padding: 16,
+  },
   tutorialInstructions: {
+    flexGrow: 0,
+    flexShrink: 1,
     marginBottom: 24,
+  },
+  tutorialInstructionsCompact: {
+    marginBottom: 12,
+  },
+  tutorialHeaderCompact: {
+    marginBottom: 12,
   },
   tutorialInstructionRow: {
     flexDirection: "row",
@@ -126,15 +153,37 @@ export default function AppScreenTutorialModal({
   modalTitle,
   rows = [],
 }) {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const anotherPopupOpen = useAnyModalOpen();
   // On some real devices, keeping a hidden RN Modal mounted can still interfere with touches.
   // Only mount the native modal when we truly intend to show it.
-  if (!visible || !rows.length) return null;
+  if (!visible || !rows.length || anotherPopupOpen) return null;
   const compactTitle = String(modalTitle || "").trim().length >= 12;
+  const compact = windowHeight < 760;
+  const wide = windowWidth >= 700;
 
   return (
-    <View style={localStyles.tutorialOverlay} pointerEvents="box-none">
-      <View style={localStyles.tutorialContent} pointerEvents="auto">
-        <View style={localStyles.tutorialHeader}>
+    <View
+      style={[
+        localStyles.tutorialOverlay,
+        compact && localStyles.tutorialOverlayCompact,
+        wide && localStyles.tutorialOverlayWide,
+      ]}
+      pointerEvents="box-none"
+    >
+      <View
+        style={[
+          localStyles.tutorialContent,
+          compact && localStyles.tutorialContentCompact,
+        ]}
+        pointerEvents="auto"
+      >
+        <View
+          style={[
+            localStyles.tutorialHeader,
+            compact && localStyles.tutorialHeaderCompact,
+          ]}
+        >
           <Text
             style={[
               localStyles.tutorialTitle,
@@ -155,7 +204,14 @@ export default function AppScreenTutorialModal({
             <Ionicons name="close" size={24} color="hsl(0, 0%, 100%)" />
           </TouchableOpacity>
         </View>
-        <View style={localStyles.tutorialInstructions}>
+        <ScrollView
+          style={[
+            localStyles.tutorialInstructions,
+            compact && localStyles.tutorialInstructionsCompact,
+          ]}
+          bounces={false}
+          showsVerticalScrollIndicator
+        >
           {rows.map((row, i) => (
             <View
               key={`${row.title}-${i}`}
@@ -178,7 +234,7 @@ export default function AppScreenTutorialModal({
               </View>
             </View>
           ))}
-        </View>
+        </ScrollView>
         <TouchableOpacity
           style={localStyles.tutorialGotItButton}
           onPress={onDismiss}

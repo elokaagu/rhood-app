@@ -7,6 +7,7 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,6 +21,11 @@ const SWIPE_OUT_DURATION = 250;
 const VERTICAL_DRAG_SCALE = 0.15;
 const TAP_MAX_MOVEMENT = 12;
 const TAP_MAX_DURATION_MS = 280;
+const CARD_HEIGHT = 400;
+/** iPad runs the iPhone build full-screen; fill more of the deck area there. */
+const WIDE_CARD_MAX_HEIGHT = 780;
+/** Small iPhones (SE) have less room than CARD_HEIGHT between the header and tab bar. */
+const MIN_CARD_HEIGHT = 240;
 
 export default function SwipeableOpportunityCard({
   opportunity,
@@ -29,6 +35,7 @@ export default function SwipeableOpportunityCard({
   isTopCard = false,
   isNextCard = false,
   dailyApplicationStats = null,
+  availableHeight = 0,
 }) {
   const position = useRef(new Animated.ValueXY()).current;
   const scale = useRef(new Animated.Value(isNextCard ? 0.95 : 1)).current;
@@ -38,6 +45,20 @@ export default function SwipeableOpportunityCard({
   const entranceOpacity = useRef(new Animated.Value(0)).current;
   const entranceTranslateY = useRef(new Animated.Value(30)).current;
   const grantTimeRef = useRef(0);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isWide = windowWidth >= 700;
+  const preferredHeight = isWide
+    ? Math.round(Math.min(windowHeight * 0.64, WIDE_CARD_MAX_HEIGHT))
+    : CARD_HEIGHT;
+  const cardHeight =
+    availableHeight > 0
+      ? Math.max(
+          MIN_CARD_HEIGHT,
+          Math.floor(
+            Math.min(isWide ? WIDE_CARD_MAX_HEIGHT : CARD_HEIGHT, availableHeight)
+          )
+        )
+      : preferredHeight;
 
   useEffect(() => {
     if (__DEV__ && isTopCard) {
@@ -81,7 +102,7 @@ export default function SwipeableOpportunityCard({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
+        onStartShouldSetPanResponder: () => isTopCard,
         onMoveShouldSetPanResponder: (_, gestureState) => {
           // Only claim the gesture when it's clearly a horizontal swipe.
           // Letting dy movements through would fight scroll views elsewhere.
@@ -224,6 +245,7 @@ export default function SwipeableOpportunityCard({
     <Animated.View
       style={[
         styles.card,
+        { height: cardHeight },
         {
           transform: [
             { translateX: position.x },
@@ -290,12 +312,11 @@ export default function SwipeableOpportunityCard({
                 </View>
               )}
               <Text style={styles.eventTitle}>{opportunity.title}</Text>
-              <Text style={styles.applicationsLeft}>
-                {dailyApplicationStats &&
-                dailyApplicationStats.remaining_applications !== undefined
-                  ? `${dailyApplicationStats.remaining_applications} applications remaining today`
-                  : "Loading..."}
-              </Text>
+              {opportunity.brandName || opportunity.venue ? (
+                <Text style={styles.brandName} numberOfLines={1}>
+                  {opportunity.brandName || opportunity.venue}
+                </Text>
+              ) : null}
             </View>
           </LinearGradient>
         </View>
@@ -319,7 +340,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginVertical: 0,
     overflow: "hidden",
-    height: 400,
+    height: CARD_HEIGHT,
     width: "100%",
   },
   cardShadow: {
@@ -406,8 +427,8 @@ const styles = StyleSheet.create({
     color: "hsl(0, 0%, 100%)",
     lineHeight: 26,
   },
-  applicationsLeft: {
-    fontSize: 12,
+  brandName: {
+    fontSize: 13,
     fontFamily: "Helvetica Neue",
     color: "hsl(75, 100%, 60%)",
     marginTop: 4,

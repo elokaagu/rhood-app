@@ -59,6 +59,7 @@ import { profileIsApprovedPromoter } from "../lib/approvedPromoterUtils";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import { promptReport, isMessagingBlockedWith } from "../lib/moderation";
+import { OBJECTIONABLE_CONTENT_CODE } from "../lib/contentFilter";
 import styles from "./MessagesScreen.styles";
 import {
   getMessageThreadSnapshot,
@@ -1204,7 +1205,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
             });
             showThemedError(
               "Error",
-              result.textAlreadySent
+              err.code === OBJECTIONABLE_CONTENT_CODE
+                ? err.message
+                : result.textAlreadySent
                 ? `Your message sent, but the attachment failed: ${
                     err.message || "Unknown error"
                   }. Tap send again to retry just the attachment.`
@@ -1255,7 +1258,9 @@ const MessagesScreen = ({ user, navigation, route }) => {
           });
           showThemedError(
             "Error",
-            result.textAlreadySent
+            err?.code === OBJECTIONABLE_CONTENT_CODE
+              ? err.message
+              : result.textAlreadySent
               ? `Your message sent, but the attachment failed: ${
                   err?.message || "Unknown error"
                 }. Tap send again to retry just the attachment.`
