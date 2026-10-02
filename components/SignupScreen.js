@@ -273,6 +273,7 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
         });
       }
     } catch (error) {
+      if (error?.code === "ERR_APPLE_SIGNIN_CANCELLED") return;
       console.error("Apple sign-in error:", error);
       rhoodAlert(
         "Sign-Up Failed",

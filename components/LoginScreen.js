@@ -254,6 +254,7 @@ export default function LoginScreen({ onLoginSuccess, onSwitchToSignup }) {
         console.error("❌ No user in sessionData");
       }
     } catch (error) {
+      if (error?.code === "ERR_APPLE_SIGNIN_CANCELLED") return;
       console.error("Apple sign-in error:", error);
       rhoodAlert(
         "Sign-In Failed",
