@@ -153,7 +153,7 @@ export default function HelpCenterScreen({ onBack, onNavigate }) {
     }));
   }, []);
 
-  const headerPaddingTop = Math.max(SPACING.lg, insets.top);
+  const headerPaddingTop = SPACING.lg;
 
   return (
     <View style={styles.container}>

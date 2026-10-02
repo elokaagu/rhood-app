@@ -103,10 +103,7 @@ export default function HelpChatScreen({ user, onBack }) {
     [insets.bottom]
   );
 
-  const headerPaddingTop = useMemo(
-    () => Math.max(SPACING.lg, insets.top),
-    [insets.top]
-  );
+  const headerPaddingTop = SPACING.lg;
 
   const scrollBottomPadding = useMemo(
     () => bottomInputPadding + 24,
