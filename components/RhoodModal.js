@@ -50,6 +50,7 @@ const RhoodModal = ({
   onShareInApp = null, // Callback for in-app sharing
   bodyAccessory = null, // Optional node below main message (e.g. trust badges)
   busy = false,
+  onShow,
 }) => {
   const insets = useSafeAreaInsets();
   useRegisterModalPresence(!!visible);
@@ -519,6 +520,7 @@ const RhoodModal = ({
       visible={visible}
       transparent={true}
       animationType="fade"
+      onShow={onShow}
       onRequestClose={() => {
         if (busy) return;
         if (showShareOptions) {

@@ -1,5 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { TextInput, TouchableOpacity, View, Text, StyleSheet } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActionSheetIOS,
+  Alert,
+  Platform,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Text,
+  StyleSheet,
+} from "react-native";
 import RhoodModal from "./RhoodModal";
 import {
   subscribeRhoodAlert,
@@ -7,7 +16,35 @@ import {
 } from "../lib/rhoodAlert";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from "../lib/sharedStyles";
 
+// iOS presents RN Modals from the root view controller, which can only
+// present one at a time. If another Modal (city picker, Edit Profile, a
+// RhoodModal...) is already up, ours never appears but stays mounted and the
+// app stops taking touches. No onShow within this window = not presented.
+const PRESENT_TIMEOUT_MS = 1200;
+
+function showNativeFallback(alert) {
+  if (alert.kind === "sheet") {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: alert.title || undefined,
+        message: alert.message || undefined,
+        options: alert.options,
+        cancelButtonIndex: alert.cancelButtonIndex,
+        destructiveButtonIndex: alert.destructiveButtonIndex,
+      },
+      (index) => alert.onPress?.(index)
+    );
+    return;
+  }
+  if (alert.kind === "prompt") {
+    Alert.prompt(alert.title || "R/HOOD", alert.message || undefined, alert.buttons);
+    return;
+  }
+  Alert.alert(alert.title || "R/HOOD", alert.message || undefined, alert.buttons);
+}
+
 const EMPTY = {
+  id: 0,
   visible: false,
   kind: "alert",
   type: "info",
@@ -28,6 +65,7 @@ export default function RhoodAlertHost() {
     return subscribeRhoodAlert((payload) => {
       setPromptValue("");
       setState({
+        id: payload.id,
         visible: true,
         kind: payload.kind || "alert",
         type: payload.type || inferRhoodAlertType(payload.title, payload.buttons),
@@ -44,6 +82,28 @@ export default function RhoodAlertHost() {
 
   const close = useCallback(() => {
     setState((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  const shownIdRef = useRef(0);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  useEffect(() => {
+    if (Platform.OS !== "ios" || !state.visible) return undefined;
+    const id = state.id;
+    const timer = setTimeout(() => {
+      const current = stateRef.current;
+      if (shownIdRef.current === id || current.id !== id || !current.visible) {
+        return;
+      }
+      close();
+      showNativeFallback(current);
+    }, PRESENT_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [state.id, state.visible, close]);
+
+  const handleShow = useCallback(() => {
+    shownIdRef.current = stateRef.current.id;
   }, []);
 
   const runButton = useCallback(
@@ -163,6 +223,7 @@ export default function RhoodAlertHost() {
   return (
     <RhoodModal
       visible={state.visible}
+      onShow={handleShow}
       onClose={() => {
         close();
         if (state.kind === "sheet" && cancelSheet) {

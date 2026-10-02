@@ -145,8 +145,10 @@ export default function OnboardingForm({
     setErrors((prev) => ({ ...prev, city: null }));
   });
 
-  // Ask for location on the city step and pre-fill so they only confirm.
-  // Deny / timeout / missing GPS leaves the field empty for search.
+  // Pre-fill the city only if location is already allowed. Prompting here,
+  // while the signup keyboard / Apple sheet is still dismissing, left the
+  // whole screen unresponsive on iOS; "Use current location" in the picker
+  // asks instead. No permission / timeout leaves the field empty for search.
   useEffect(() => {
     if (!profileNeeds.city) return;
     if ((djProfile.city ?? "").trim()) return;
@@ -155,7 +157,7 @@ export default function OnboardingForm({
 
     let cancelled = false;
     setDetectingCity(true);
-    resolveCurrentCityLabel()
+    resolveCurrentCityLabel({ prompt: false })
       .then((city) => {
         if (cancelled || !city) return;
         let filled = false;
