@@ -387,6 +387,7 @@ export default function OnboardingForm({
           : [...current, genre],
       };
     });
+    setErrors((prev) => (prev.genres ? { ...prev, genres: null } : prev));
   };
 
   /** Add a genre typed by the user that isn't in the preset list. */
@@ -597,6 +598,7 @@ export default function OnboardingForm({
           </Text>
         </View>
         <Text style={styles.genreHint}>Select at least one genre you play</Text>
+        {errors.genres && <Text style={styles.errorText}>{errors.genres}</Text>}
         <View style={styles.genreGrid}>
           {genreOptions.map((genre) => (
             <TouchableOpacity
@@ -648,8 +650,6 @@ export default function OnboardingForm({
             <Ionicons name="add" size={22} color="hsl(0, 0%, 0%)" />
           </TouchableOpacity>
         </View>
-
-        {errors.genres && <Text style={styles.errorText}>{errors.genres}</Text>}
       </View>
     </StepAnimatedShell>
   );
