@@ -226,7 +226,6 @@ export default function SettingsScreen({
             subtitle: "Permanently delete your profile and data",
             icon: "trash-outline",
             type: "action",
-            destructive: true,
             action: handleDeleteAccount,
           },
         ],
@@ -392,12 +391,7 @@ export default function SettingsScreen({
               />
             </View>
             <View style={styles.settingContent}>
-              <Text
-                style={[
-                  styles.settingTitle,
-                  item.destructive && styles.settingTitleDestructive,
-                ]}
-              >
+              <Text style={styles.settingTitle}>
                 {item.title}
               </Text>
               <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
@@ -668,16 +662,10 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginBottom: 2,
   },
-  settingTitleDestructive: {
-    color: "hsl(0, 100%, 60%)",
-  },
   settingSubtitle: {
     fontSize: 14,
     color: "hsl(0, 0%, 70%)",
     fontFamily: "Helvetica Neue",
-  },
-  destructiveSubtitle: {
-    color: "hsla(0, 100%, 70%, 0.85)",
   },
   settingRight: {
     alignItems: "center",

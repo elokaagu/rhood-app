@@ -148,11 +148,11 @@ export default function useOpportunities({
           : Promise.resolve([]);
 
       const OPPORTUNITY_FEED_COLUMNS =
-        "id, title, description, event_date, event_start_time, event_end_time, event_timezone, location, city, venue, payment, payment_currency, compensation, genre, skill_level, organizer_name, image_url, created_at";
+        "id, title, description, event_date, event_start_time, event_end_time, event_timezone, location, city, venue, payment, payment_currency, compensation, genre, skill_level, organizer_name, image_url, created_at, organizer:user_profiles!opportunities_organizer_id_fkey(brand_name)";
       const OPPORTUNITY_FEED_COLUMNS_NO_TZ =
-        "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, compensation, genre, skill_level, organizer_name, image_url, created_at";
+        "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, compensation, genre, skill_level, organizer_name, image_url, created_at, organizer:user_profiles!opportunities_organizer_id_fkey(brand_name)";
       const OPPORTUNITY_FEED_COLUMNS_NO_COMP =
-        "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, genre, skill_level, organizer_name, image_url, created_at";
+        "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, genre, skill_level, organizer_name, image_url, created_at, organizer:user_profiles!opportunities_organizer_id_fkey(brand_name)";
 
       let { data: opportunitiesData, error: opportunitiesError } =
         await supabase
