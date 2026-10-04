@@ -82,7 +82,7 @@ Apple asked for a recording on a PHYSICAL device showing: creating a new account
 (or signing in with the demo account) → navigating to deletion → the complete
 flow to confirmation. Use a NEW account, not the demo account, because this
 deletes it. Record on a real iPhone (Control Centre → Screen Recording):
-  1. Install build 456 from TestFlight. Start recording.
+  1. Install build 458 from TestFlight. Start recording.
   2. Sign Up with a new email (or Sign in with Apple) and get into the app.
      If it lands on the waitlist screen, delete from there — that counts too.
   3. Tap the menu (top right) → Settings → Account → Delete Account.
@@ -94,9 +94,9 @@ rejection message in App Store Connect with the same video.
 ==================================================
 4. BEFORE PRESSING "SUBMIT FOR REVIEW"
 ==================================================
-  [ ] Build selected = 456 (on the existing "iOS App 1.0" version: Edit → Build →
-      remove 432 → add 456).
-  [ ] Test Sign in with Apple on build 456 from a FRESH install (delete the app
+  [ ] Build selected = 458 (on the existing "iOS App 1.0" version: Edit → Build →
+      remove 432 → add 458).
+  [ ] Test Sign in with Apple on build 458 from a FRESH install (delete the app
       first), on an iPad if you have one, and decline location — that is the
       exact path that failed for the reviewer.
   [ ] Open each tab on iPad and check the first-visit tip card isn't cut off.

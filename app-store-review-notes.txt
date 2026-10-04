@@ -1,6 +1,6 @@
-R/HOOD App Review notes (build 456)
+R/HOOD App Review notes (build 458)
 
-Builds 406 and 432 were rejected. Build 456 fixes all three issues (submission ad1f5099-b8e2-4a24-b795-6fca5f0eaf95):
+Builds 406 and 432 were rejected. Build 458 fixes all three issues (submission ad1f5099-b8e2-4a24-b795-6fca5f0eaf95):
 
 - Guideline 4 (iPad): the "how to use this screen" tip on each tab now fits between the header and tab bar, scrolls if needed, is centred on larger screens, and never overlaps other popups. Layouts scale to the full iPad screen.
 - Guideline 2.1(a) (Sign in with Apple): fixed. Onboarding failed to save when the optional city step was skipped, which showed "Invalid information provided". Sign in with Apple and onboarding now complete with or without a city, on iPhone and iPad.
