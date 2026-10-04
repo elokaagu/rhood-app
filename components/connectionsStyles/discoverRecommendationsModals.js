@@ -422,8 +422,13 @@ export default {
     bottom: 0,
     backgroundColor: "transparent",
   },
+  // KeyboardAvoidingView can leave bottom padding after the slide-in; colour it
+  // like the sheet so the backdrop never shows under the buttons.
   locationModalKeyboardAvoid: {
     width: "100%",
+    backgroundColor: "hsl(0, 0%, 8%)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   modalContent: {
     backgroundColor: "hsl(0, 0%, 8%)",
