@@ -15,7 +15,6 @@ export function useConnectionsInitialLoad({
         discoverData.loadDiscoverDJs().catch(() => {});
         discoverData.loadPopularDJs().catch(() => {});
         discoverData.loadNearbyDJs().catch(() => {});
-        discoverData.loadNearbyOpportunities().catch(() => {});
         return;
       }
       const connectionsPromise = connectionsData
@@ -36,7 +35,6 @@ export function useConnectionsInitialLoad({
         discoverData.loadDiscoverDJs(),
         discoverData.loadPopularDJs(),
         discoverData.loadNearbyDJs(),
-        discoverData.loadNearbyOpportunities(),
       ]);
     };
     initializeData();

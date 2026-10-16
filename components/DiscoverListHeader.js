@@ -5,17 +5,14 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  StyleSheet,
 } from "react-native";
-import { Image as ExpoImage } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ProgressiveImage from "./ProgressiveImage";
-import { optimizeOpportunityImageUrl } from "../lib/opportunities/opportunityImageUrl";
 import { HapticPatterns } from "../lib/haptics";
 import styles from "./ConnectionsScreen.styles";
 
-/** Shared gradient for DJ + opportunity image overlays */
+/** Shared gradient for DJ recommendation image overlays */
 const RECOMMENDATION_CARD_GRADIENT = [
   "transparent",
   "rgba(0, 0, 0, 0.3)",
@@ -42,16 +39,6 @@ function RecommendationImagePlaceholder() {
   return (
     <View style={[styles.recommendationImage, styles.recommendationImagePlaceholderRoot]}>
       <Ionicons name="person" size={40} color="hsl(75, 100%, 60%)" />
-    </View>
-  );
-}
-
-function OpportunityImagePlaceholder() {
-  return (
-    <View
-      style={[StyleSheet.absoluteFillObject, styles.opportunityImagePlaceholderRoot]}
-    >
-      <Ionicons name="briefcase" size={36} color="hsl(75, 100%, 60%)" />
     </View>
   );
 }
@@ -145,82 +132,7 @@ function DJRecommendationCarousel({
 }
 
 /**
- * Horizontal opportunity cards — matches DJ carousels (ProgressiveImage + same gradient pattern).
- */
-function OpportunityRecommendationCarousel({
-  opportunities,
-  loading,
-  skeletonCardStyle,
-  onOpenOpportunities,
-}) {
-  const list = opportunities ?? [];
-  if (loading && list.length === 0) {
-    return <DiscoverCarouselSkeleton cardStyle={skeletonCardStyle} />;
-  }
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.recommendationsScroll}
-      contentContainerStyle={styles.recommendationsContent}
-    >
-      {list.map((opp, index) => (
-        <TouchableOpacity
-          key={opp?.id != null ? String(opp.id) : `opp-${index}`}
-          style={styles.opportunityCard}
-          onPress={() => {
-            HapticPatterns.itemPress();
-            onOpenOpportunities?.();
-          }}
-          activeOpacity={0.8}
-        >
-          <View style={styles.opportunityImageContainer}>
-            <View style={styles.opportunityImage}>
-              {opp.image ? (
-                <ExpoImage
-                  source={{
-                    uri:
-                      optimizeOpportunityImageUrl(String(opp.image).trim()) ||
-                      String(opp.image).trim(),
-                  }}
-                  style={StyleSheet.absoluteFillObject}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                  priority="low"
-                  transition={200}
-                />
-              ) : (
-                <OpportunityImagePlaceholder />
-              )}
-            </View>
-            <LinearGradient colors={RECOMMENDATION_CARD_GRADIENT} style={styles.opportunityGradient} />
-            <View style={styles.opportunityInfo}>
-              <Text style={styles.opportunityTitle} numberOfLines={2}>
-                {opp.title ?? ""}
-              </Text>
-              <Text style={styles.opportunityVenue} numberOfLines={1}>
-                {opp.venue ?? ""}
-              </Text>
-              <View style={styles.opportunityMeta}>
-                <Text style={styles.opportunityMetaText} numberOfLines={1}>
-                  {opp.date ?? ""} • {opp.city ?? ""}
-                </Text>
-              </View>
-              {opp.compensation ? (
-                <Text style={styles.opportunityCompensation} numberOfLines={1}>
-                  {opp.compensation}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-}
-
-/**
- * Memoized Discover tab header (Popular DJs, Nearby DJs, Opportunities, Connection Requests).
+ * Memoized Discover tab header (Popular DJs, Nearby DJs, Connection Requests).
  * Reduces re-renders when parent state changes but these props are unchanged.
  */
 function DiscoverListHeader({
@@ -228,8 +140,6 @@ function DiscoverListHeader({
   popularDJsLoading = false,
   nearbyDJs,
   nearbyDJsLoading = false,
-  nearbyOpportunities,
-  nearbyOpportunitiesLoading = false,
   searchQuery,
   onNavigate,
   incomingConnectionRequests,
@@ -243,9 +153,6 @@ function DiscoverListHeader({
     showCarousels && (popularDJsLoading || (popularDJs?.length ?? 0) > 0);
   // Keep this section mounted to avoid "load then disappear" jank when empty.
   const showNearbyBlock = showCarousels;
-  const showOpportunitiesBlock =
-    showCarousels &&
-    (nearbyOpportunitiesLoading || (nearbyOpportunities?.length ?? 0) > 0);
 
   const requests = incomingConnectionRequests ?? [];
 
@@ -287,21 +194,6 @@ function DiscoverListHeader({
             onEmptyAction={() =>
               onNavigate?.("edit-profile", { focusField: "city" })
             }
-          />
-          <View style={styles.recommendationsDivider} />
-        </View>
-      )}
-
-      {showOpportunitiesBlock && (
-        <View style={styles.recommendationsSection}>
-          <View style={styles.recommendationsHeader}>
-            <Text style={styles.recommendationsTitle}>Opportunities Near You</Text>
-          </View>
-          <OpportunityRecommendationCarousel
-            opportunities={nearbyOpportunities}
-            loading={nearbyOpportunitiesLoading}
-            skeletonCardStyle={styles.opportunityCarouselSkeletonCard}
-            onOpenOpportunities={() => onNavigate?.("opportunities")}
           />
           <View style={styles.recommendationsDivider} />
         </View>

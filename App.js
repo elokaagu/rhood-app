@@ -1833,12 +1833,25 @@ export default function App() {
       await AsyncStorage.setItem("djProfile", JSON.stringify(djProfile));
       await AsyncStorage.setItem("userId", user.id);
 
+      await setAnalyticsUser(user.id, {
+        dj_name: profilePayload.dj_name || djProfile?.djName,
+        name: profilePayload.dj_name || djProfile?.djName,
+        city: profilePayload.city || djProfile?.city,
+      });
+      await track(AnalyticsEvents.PROFILE_COMPLETED, {
+        membership_status: nextMembership,
+      });
+      await track(AnalyticsEvents.USER_SIGNED_UP, {
+        membership_status: nextMembership,
+      });
+
       setIsFirstTime(false);
       if (nextMembership !== "approved") {
         return;
       }
 
       setCurrentScreen("opportunities");
+      await setAnalyticsScreen("opportunities");
 
       InteractionManager.runAfterInteractions(() => {
         const ctx = tutorialContextRef.current;

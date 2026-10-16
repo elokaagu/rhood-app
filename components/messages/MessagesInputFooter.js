@@ -9,13 +9,17 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 /**
- * Bottom input: either “connect to message” (1:1 not allowed to compose) or composer row.
+ * Bottom input: either “connect / accept brand request” or composer row.
  */
 export default function MessagesInputFooter({
   chatType,
   isConnected,
   canCompose = isConnected,
   connectionStatus,
+  isBrandMessageRequest = false,
+  brandDisplayName = "Brand",
+  onAcceptBrandMessage,
+  acceptingBrandMessage = false,
   messagesLoading = false,
   bottomInputPadding,
   styles,
@@ -61,6 +65,33 @@ export default function MessagesInputFooter({
   const showConnectionGate = chatType === "individual" && !canCompose;
 
   if (showConnectionGate) {
+    if (isBrandMessageRequest) {
+      return (
+        <View
+          style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}
+        >
+          <View style={styles.connectionRequiredContainer}>
+            <Text style={styles.connectionRequiredText}>
+              {brandDisplayName} wants to message you
+            </Text>
+            <TouchableOpacity
+              style={styles.connectButton}
+              onPress={onAcceptBrandMessage}
+              disabled={acceptingBrandMessage || !onAcceptBrandMessage}
+            >
+              {acceptingBrandMessage ? (
+                <ActivityIndicator size="small" color="hsl(0, 0%, 0%)" />
+              ) : (
+                <Text style={styles.connectButtonText}>
+                  Accept message request
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View
         style={[styles.inputContainer, { paddingBottom: bottomInputPadding }]}

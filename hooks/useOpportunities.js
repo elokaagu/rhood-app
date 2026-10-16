@@ -307,6 +307,11 @@ export default function useOpportunities({
 
   const handleSwipeLeft = useCallback(() => {
     const currentOpportunity = opportunities[currentOpportunityIndex];
+    void track(AnalyticsEvents.SWIPE_LEFT, {
+      opportunity_id: currentOpportunity?.id,
+      opportunity_title: currentOpportunity?.title,
+      opportunity_location: currentOpportunity?.location,
+    });
     setSwipedOpportunities((prev) => [
       ...prev,
       { ...currentOpportunity, action: "pass" },

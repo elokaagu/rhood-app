@@ -9,6 +9,7 @@ import { HapticPatterns } from "../lib/haptics";
 import { getUserName } from "../lib/connectionListUtils";
 import { useConnectionsLocationActions } from "./useConnectionsLocationActions";
 import { RHOOD_COMMUNITY_ID } from "../lib/communityConstants";
+import { track, AnalyticsEvents } from "../lib/analytics";
 
 /**
  * Store a zero-arg callback in useState without React treating the outer function as a state updater incorrectly.
@@ -210,6 +211,9 @@ export function useConnectionsActions(
           return;
         }
         const connectionResult = await db.createConnection(connection.id);
+        void track(AnalyticsEvents.CONNECTION_REQUESTED, {
+          target_user_id: connection.id,
+        });
         const displayName =
           connection?.dj_name ||
           connection?.full_name ||
@@ -479,6 +483,10 @@ export function useConnectionsActions(
         }
         setAcceptingUserId(connection.id);
         await db.acceptConnection(connectionId);
+        void track(AnalyticsEvents.CONNECTION_ACCEPTED, {
+          connection_id: connectionId,
+          other_user_id: connection.id,
+        });
         await loadUserAndConnections?.({ showLoader: false });
         await loadDiscoverDJs?.();
         await loadNearbyDJs?.();

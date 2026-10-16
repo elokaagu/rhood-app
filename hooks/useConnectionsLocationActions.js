@@ -14,7 +14,6 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
   const user = connectionsData?.user;
   const setUser = connectionsData?.setUser;
   const loadNearbyDJs = discoverData?.loadNearbyDJs;
-  const loadNearbyOpportunities = discoverData?.loadNearbyOpportunities;
 
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [newLocationCity, setNewLocationCity] = useState("");
@@ -47,10 +46,7 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
       setUser?.((prev) => (prev ? { ...prev, city } : prev));
 
       // Best-effort: DB update already succeeded; don’t fail the UX if a list refresh rejects.
-      await Promise.allSettled([
-        loadNearbyDJs?.(),
-        loadNearbyOpportunities?.(),
-      ]);
+      await Promise.allSettled([loadNearbyDJs?.()]);
 
       if (!mountedRef.current) return;
       setShowLocationModal(false);
@@ -67,7 +63,7 @@ export function useConnectionsLocationActions(connectionsData, discoverData) {
         setUpdatingLocation(false);
       }
     }
-  }, [newLocationCity, user?.id, setUser, loadNearbyDJs, loadNearbyOpportunities]);
+  }, [newLocationCity, user?.id, setUser, loadNearbyDJs]);
 
   const handleUseCurrentLocation = useCallback(async () => {
     if (updatingLocation) return;

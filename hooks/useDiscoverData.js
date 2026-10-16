@@ -8,7 +8,6 @@ import { Animated } from "react-native";
 import {
   loadPopularDJsImpl,
   loadNearbyDJsImpl,
-  loadNearbyOpportunitiesImpl,
   loadDiscoverDJsImpl,
 } from "../lib/discoverLoaders";
 import DiscoverUserCard from "../components/DiscoverUserCard";
@@ -24,8 +23,6 @@ export function useDiscoverData(user, searchQuery) {
   const [popularDJsLoading, setPopularDJsLoading] = useState(true);
   const [nearbyDJs, setNearbyDJs] = useState([]);
   const [nearbyDJsLoading, setNearbyDJsLoading] = useState(true);
-  const [nearbyOpportunities, setNearbyOpportunities] = useState([]);
-  const [nearbyOpportunitiesLoading, setNearbyOpportunitiesLoading] = useState(() => Boolean(user?.id));
   const [discoverLoadError, setDiscoverLoadError] = useState(null);
   const [discoverFadeAnim] = useState(() => new Animated.Value(1));
 
@@ -39,27 +36,21 @@ export function useDiscoverData(user, searchQuery) {
     setPopularDJsLoading,
     setNearbyDJs,
     setNearbyDJsLoading,
-    setNearbyOpportunities,
-    setNearbyOpportunitiesLoading,
     discoverFadeAnim,
   };
 
   const loadDiscoverDJs = useCallback(() => loadDiscoverDJsImpl(discoverCtxRef.current), []);
   const loadPopularDJs = useCallback(() => loadPopularDJsImpl(discoverCtxRef.current), []);
   const loadNearbyDJs = useCallback(() => loadNearbyDJsImpl(discoverCtxRef.current), []);
-  const loadNearbyOpportunities = useCallback(() => loadNearbyOpportunitiesImpl(discoverCtxRef.current), []);
 
   useEffect(() => {
     if (user?.id) {
-      loadNearbyOpportunities();
       loadNearbyDJs();
     } else {
-      setNearbyOpportunities([]);
-      setNearbyOpportunitiesLoading(false);
       setNearbyDJs([]);
       setNearbyDJsLoading(false);
     }
-  }, [user?.id, user?.city, loadNearbyOpportunities, loadNearbyDJs]);
+  }, [user?.id, user?.city, loadNearbyDJs]);
 
   const filteredDiscoverUsers = useMemo(() => {
     if (!searchQuery?.trim()) return discoverUsers;
@@ -89,13 +80,10 @@ export function useDiscoverData(user, searchQuery) {
     popularDJsLoading,
     nearbyDJs,
     nearbyDJsLoading,
-    nearbyOpportunities,
-    nearbyOpportunitiesLoading,
     discoverFadeAnim,
     loadDiscoverDJs,
     loadPopularDJs,
     loadNearbyDJs,
-    loadNearbyOpportunities,
     filteredDiscoverUsers,
     getDiscoverItemLayout,
     discoverCtxRef,

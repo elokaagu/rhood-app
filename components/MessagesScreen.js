@@ -47,6 +47,10 @@ import {
   sendIndividualChatMessages,
   sendGroupChatMessages,
 } from "../lib/messagesScreen/sendMessagesOperations";
+import {
+  getMessagingDisplayName,
+  isMessagingBrandProfile,
+} from "../lib/messagingDisplayName";
 import MessagesSelectedMediaTray from "./messages/MessagesSelectedMediaTray";
 import MessagesMediaPickerModal from "./messages/MessagesMediaPickerModal";
 import MessagesFullscreenImageModal from "./messages/MessagesFullscreenImageModal";
@@ -72,6 +76,8 @@ import {
 } from "../lib/messagesScreen/messageList";
 
 import { rhoodAlert, rhoodActionSheet, rhoodPrompt } from "../lib/rhoodAlert";
+import { track, AnalyticsEvents } from "../lib/analytics";
+
 const MessagesScreen = ({ user, navigation, route }) => {
   const { params } = route || {};
   const {
@@ -114,6 +120,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [canCompose, setCanCompose] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
+  const [isBrandMessageRequest, setIsBrandMessageRequest] = useState(false);
+  const [acceptingBrandMessage, setAcceptingBrandMessage] = useState(false);
   const [threadId, setThreadId] = useState(null);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
@@ -175,6 +183,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       setIsConnected(!!snap.isConnected);
       setCanCompose(snap.canCompose ?? !!snap.isConnected);
       setConnectionStatus(snap.connectionStatus ?? null);
+      setIsBrandMessageRequest(!!snap.isBrandMessageRequest);
       setLoading(false);
       requestAnimationFrame(() => {
         scrollViewRef.current?.scrollToEnd({ animated: false });
@@ -188,6 +197,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       setIsConnected(false);
       setCanCompose(false);
       setConnectionStatus(null);
+      setIsBrandMessageRequest(false);
       setLoading(true);
     }
   }, [user?.id, conversationKey, chatType, djId, communityId]);
@@ -580,6 +590,31 @@ const MessagesScreen = ({ user, navigation, route }) => {
     );
   }, [handleDeleteMessage]);
 
+  const handleAcceptBrandMessage = useCallback(async () => {
+    if (!djId || acceptingBrandMessage) return;
+    try {
+      setAcceptingBrandMessage(true);
+      await db.acceptBrandMessageRequest(djId);
+      setIsConnected(true);
+      setCanCompose(true);
+      setIsBrandMessageRequest(false);
+      setConnectionStatus("accepted");
+      await track(AnalyticsEvents.BRAND_MESSAGE_REQUEST_ACCEPTED, {
+        brand_user_id: djId,
+        brand_name: getMessagingDisplayName(otherUser),
+      });
+      HapticPatterns.success();
+    } catch (error) {
+      console.error("Error accepting brand message request:", error);
+      rhoodAlert(
+        "Couldn't accept",
+        error?.message || "Failed to accept this message request. Please try again."
+      );
+    } finally {
+      setAcceptingBrandMessage(false);
+    }
+  }, [djId, acceptingBrandMessage, otherUser]);
+
   const handleMessageLongPress = useCallback(
     (message) => {
       if (!message) return;
@@ -650,6 +685,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
         if (!stillHere()) return;
         setCanCompose(!!p.canCompose && !blocked);
         setConnectionStatus(p.connectionStatus);
+        setIsBrandMessageRequest(!!p.isBrandMessageRequest && !blocked);
         setMemberCount(p.memberCount);
       } else if (chatType === "group" && communityId) {
         const result = await loadGroupThreadState({
@@ -712,6 +748,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
       isConnected,
       canCompose,
       connectionStatus,
+      isBrandMessageRequest,
     });
   }, [
     loading,
@@ -727,6 +764,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     isConnected,
     canCompose,
     connectionStatus,
+    isBrandMessageRequest,
   ]);
 
   // Initial load
@@ -1224,6 +1262,13 @@ const MessagesScreen = ({ user, navigation, route }) => {
           console.log("✅ Text message sent successfully");
         }
 
+        void track(AnalyticsEvents.DM_SENT, {
+          chat_type: "individual",
+          to_user_id: djId,
+          is_brand: isMessagingBrandProfile(otherUser),
+          has_media: mediaArray.length > 0,
+        });
+
         setTimeout(() => {
           loadMessages();
         }, 300);
@@ -1299,6 +1344,7 @@ const MessagesScreen = ({ user, navigation, route }) => {
     selectedMedia,
     loadMessages,
     showThemedError,
+    otherUser,
   ]);
 
   const formatTime = useCallback((timestamp) => formatMessageTime(timestamp), []);
@@ -1397,17 +1443,23 @@ const MessagesScreen = ({ user, navigation, route }) => {
               />
               <View style={styles.headerText}>
                 <Text style={styles.headerName}>
-                  {otherUser.dj_name || otherUser.full_name || otherUser.username || "DJ"}
+                  {getMessagingDisplayName(otherUser)}
                 </Text>
                 <View style={styles.headerMetaRow}>
                   <Text style={styles.headerLocation}>
-                    {otherUser.location ||
-                      otherUser.city ||
-                      otherUser.country ||
-                      "Unknown Location"}
+                    {isMessagingBrandProfile(otherUser)
+                      ? "Brand"
+                      : otherUser.location ||
+                        otherUser.city ||
+                        otherUser.country ||
+                        "Location not set"}
                   </Text>
                   <Text style={styles.headerStatusToken}>
-                    {isConnected ? "Online" : "Last seen recently"}
+                    {isBrandMessageRequest
+                      ? "Message request"
+                      : isConnected
+                        ? "Online"
+                        : "Last seen recently"}
                   </Text>
                 </View>
               </View>
@@ -1580,6 +1632,10 @@ const MessagesScreen = ({ user, navigation, route }) => {
           isConnected={isConnected}
           canCompose={chatType === "group" ? true : canCompose}
           connectionStatus={connectionStatus}
+          isBrandMessageRequest={isBrandMessageRequest}
+          brandDisplayName={getMessagingDisplayName(otherUser)}
+          onAcceptBrandMessage={handleAcceptBrandMessage}
+          acceptingBrandMessage={acceptingBrandMessage}
           messagesLoading={loading}
           bottomInputPadding={bottomInputPadding}
           styles={styles}

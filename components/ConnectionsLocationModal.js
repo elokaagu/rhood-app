@@ -37,7 +37,7 @@ export default function ConnectionsLocationModal({
   onUpdateLocation,
   onUseCurrentLocation,
   title = "Update Location",
-  description = "This city is used for DJs and opportunities near you.",
+  description = "This city is used for DJs near you.",
   saveLabel = "Update",
 }) {
   const placesKey = getGooglePlacesApiKey();
