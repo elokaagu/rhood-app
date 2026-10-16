@@ -87,6 +87,7 @@ import {
   AnalyticsEvents,
 } from "./lib/analytics";
 import { requestAppTrackingIfNeeded } from "./lib/trackingPermission";
+import { checkForOtaUpdateAndReload } from "./lib/checkForOtaUpdate";
 import GlobalAudioPlayerUI from "./components/GlobalAudioPlayerUI";
 import { AppTutorialProvider, tutorialContextRef } from "./context/AppTutorialContext";
 import { APP_TUTORIAL_SCREEN_IDS } from "./lib/appTutorialContent";
