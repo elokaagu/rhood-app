@@ -26,6 +26,7 @@ import { HapticPatterns } from "../lib/haptics";
 import { Audio } from "expo-av";
 import { supabase, db } from "../lib/supabase";
 import { track, AnalyticsEvents } from "../lib/analytics";
+import { emitAppDataChanged } from "../lib/appDataEvents";
 import {
   GENRE_OTHER,
   MIN_MIX_GENRES,
@@ -279,9 +280,9 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
       isPinned: mix.is_pinned || false,
     });
     await fetchPinnedMixesCount();
-    if (mix.artwork_url || mix.image_url) {
-      setSelectedArtwork({ uri: mix.artwork_url || mix.image_url });
-    }
+    // Existing artwork shows via the "Current artwork" preview; selectedArtwork
+    // is only for a newly picked local image.
+    setSelectedArtwork(null);
   }, [fetchPinnedMixesCount]);
 
   const handleStartNewMix = useCallback(() => {
@@ -583,6 +584,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         effectiveDurationMillis,
       } = result;
 
+      emitAppDataChanged("mixes", { mix: mixRecord });
       await fetchPinnedMixesCount();
 
       if (editingMix && !mixSnapshot.isPinned && editingMix.is_pinned) {

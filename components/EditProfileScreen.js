@@ -17,6 +17,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { uploadFileStreaming, withRetry, guardFileSizeBytes } from "../lib/uploadUtils";
 import { db, supabase } from "../lib/supabase";
+import { emitAppDataChanged } from "../lib/appDataEvents";
 import RhoodModal from "./RhoodModal";
 import ConnectionsLocationModal from "./ConnectionsLocationModal";
 import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
@@ -503,6 +504,7 @@ export default function EditProfileScreen({
 
       console.log("📝 Updating profile with:", updatedProfile);
       await db.updateUserProfile(user.id, updatedProfile);
+      emitAppDataChanged("profile");
 
       setProfile((prev) => ({
         ...prev,

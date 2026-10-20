@@ -16,6 +16,7 @@ import { supabase, db } from "../lib/supabase";
 import { extractDurationSeconds } from "../lib/listenScreenUtils";
 import { HapticPatterns } from "../lib/haptics";
 import { createScreenCache } from "../lib/screenCache";
+import { onAppDataChanged } from "../lib/appDataEvents";
 import RhoodScreenTitleBlock from "./RhoodScreenTitleBlock";
 import ListenScreenFooter from "./ListenScreenFooter";
 import { SkeletonMix } from "./Skeleton";
@@ -190,6 +191,15 @@ function ListenScreen({
   useEffect(() => {
     fetchTrending();
   }, [fetchTrending]);
+
+  useEffect(
+    () =>
+      onAppDataChanged("mixes", () => {
+        trendingCache.invalidate(TRENDING_CACHE_KEY);
+        fetchTrending();
+      }),
+    [fetchTrending]
+  );
 
   const refreshUserMixPresence = useCallback(async () => {
     if (!user?.id) {

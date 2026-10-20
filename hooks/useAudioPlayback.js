@@ -28,6 +28,7 @@ import { parseRemoteSeekSeconds } from "../lib/nowPlayingRemote";
 import { applyMixPlaybackAudioMode } from "../lib/audioSessionMode";
 import { normalizeTrackForPlayback } from "../lib/normalizeTrackForPlayback";
 import { useAudioState, useAudioActions } from "../context/AudioContext";
+import { onAppDataChanged } from "../lib/appDataEvents";
 
 import { rhoodAlert } from "../lib/rhoodAlert";
 /** Mix duration in ms from metadata (Listen/DB). Used when expo-av reports 0 briefly. */
@@ -1688,6 +1689,31 @@ export default function useAudioPlayback({ user }) {
       setLikedMixIds(new Set());
     }
   }, [user?.id, fetchUserLikedMixes]);
+
+  // Keep the player's title/artwork in sync when the playing mix is edited.
+  useEffect(
+    () =>
+      onAppDataChanged("mixes", (payload) => {
+        const edited = payload?.mix;
+        const current = stateRef.current.currentTrack;
+        if (!edited?.id || !current || current.id !== edited.id) return;
+        const artwork = edited.artwork_url || edited.image_url || null;
+        setGlobalAudioState((prev) => ({
+          ...prev,
+          currentTrack: prev.currentTrack
+            ? {
+                ...prev.currentTrack,
+                title: edited.title || prev.currentTrack.title,
+                genre: edited.genre ?? prev.currentTrack.genre,
+                ...(artwork
+                  ? { image: artwork, artwork_url: artwork, image_url: artwork }
+                  : {}),
+              }
+            : prev.currentTrack,
+        }));
+      }),
+    [setGlobalAudioState, stateRef]
+  );
 
   // Sync isLiked state when likedMixIds changes
   useEffect(() => {

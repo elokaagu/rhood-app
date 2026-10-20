@@ -25,6 +25,7 @@ import {
 } from "../components/ListenScreenRows";
 import { extractDurationSeconds, formatDurationLabel, normalizeSearchValue } from "../lib/listenScreenUtils";
 import { listBlockedUserIds, promptReport, promptBlockUser } from "../lib/moderation";
+import { onAppDataChanged, emitAppDataChanged } from "../lib/appDataEvents";
 import styles from "../components/ListenScreen.styles";
 
 import { rhoodAlert, rhoodActionSheet } from "../lib/rhoodAlert";
@@ -274,6 +275,8 @@ export function useListenMixes({
     fetchMixes();
   }, []);
 
+  useEffect(() => onAppDataChanged("mixes", () => fetchMixes()), [fetchMixes]);
+
   // Single effect: run all user-dependent loads when user is available (avoids 4 separate effects)
   useEffect(() => {
     if (!user?.id) {
@@ -413,6 +416,7 @@ export function useListenMixes({
       }
     }
 
+    emitAppDataChanged("mixes", { deletedMixId: mix.id });
     return { ok: true };
   }, []);
 

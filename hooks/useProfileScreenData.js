@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { generateGenreWaveform } from "../lib/audioWaveform";
 import { createScreenCache } from "../lib/screenCache";
+import { onAppDataChanged } from "../lib/appDataEvents";
 import {
   buildProfileViewModel,
   extractDurationSeconds,
@@ -81,22 +82,24 @@ export function useProfileScreenData(user) {
   const [referralStats, setReferralStats] = useState(EMPTY_REFERRALS);
   const [bookingRequests, setBookingRequests] = useState([]);
 
-  const loadProfile = useCallback(async () => {
+  const loadProfile = useCallback(async ({ silent = false } = {}) => {
     if (!user?.id) {
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const { db, supabase } = await import("../lib/supabase");
       const userProfile = await db.getUserProfile(user.id);
 
       let recentGigs = [];
       let recentOpportunities = [];
       let gigsCompletedOverride = null;
+      let ratingAverage = null;
       try {
         const activity = await db.getProfileActivity(user.id);
+        ratingAverage = activity.ratingSummary?.average ?? null;
         const split = splitProfileOpportunityActivity(
           activity.applications,
           activity.ratingsByApplicationId
@@ -192,6 +195,7 @@ export function useProfileScreenData(user) {
           creditsValue,
           primaryMix,
           gigsCompletedOverride,
+          ratingAverage,
         });
         setProfile(profileData);
         profileCache.set(user.id, {
@@ -214,12 +218,15 @@ export function useProfileScreenData(user) {
     if (userId) {
       const cached = profileCache.getIfFresh(userId);
       if (cached?.profile) {
+        // Paint the cached copy instantly, then refresh so edits made in the
+        // app or the portal show without restarting.
         setProfile(normalizeProfileForUI(cached.profile));
         setConnectionsCount(cached.connectionsCount ?? 0);
         setInviteCode(cached.inviteCode ?? null);
         setReferralStats(cached.referralStats ?? EMPTY_REFERRALS);
         setBookingRequests(cached.bookingRequests ?? []);
         setLoading(false);
+        loadProfile({ silent: true });
       } else {
         loadProfile();
       }
@@ -228,6 +235,13 @@ export function useProfileScreenData(user) {
     }
 
     if (!userId) return undefined;
+
+    const refreshAfterEdit = () => {
+      profileCache.invalidate(userId);
+      loadProfile({ silent: true });
+    };
+    const offProfile = onAppDataChanged("profile", refreshAfterEdit);
+    const offMixes = onAppDataChanged("mixes", refreshAfterEdit);
 
     let subscription = null;
     let isMounted = true;
@@ -245,7 +259,7 @@ export function useProfileScreenData(user) {
             filter: `id=eq.${userId}`,
           },
           () => {
-            if (isMounted) loadProfile();
+            if (isMounted) loadProfile({ silent: true });
           }
         )
         .subscribe();
@@ -253,6 +267,8 @@ export function useProfileScreenData(user) {
 
     return () => {
       isMounted = false;
+      offProfile();
+      offMixes();
       if (subscription) subscription.unsubscribe();
     };
   }, [user?.id, loadProfile]);
@@ -264,6 +280,6 @@ export function useProfileScreenData(user) {
     inviteCode,
     referralStats,
     bookingRequests,
-    reload: loadProfile,
+    reload: () => loadProfile({ silent: true }),
   };
 }
