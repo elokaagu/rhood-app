@@ -6,7 +6,7 @@
  * │ AudioStateContext  (SLOW — updates only on meaningful events)            │
  * │   isPlaying, currentTrack, isLoading, isShuffled, repeatMode,           │
  * │   queue, currentQueueIndex, error, sound                                │
- * │   → ScreenRouter, ProfileScreen, UserProfileView, useListenMixes        │
+ * │   → ScreenRouter, ProfileScreen, UserProfileView, ListenScreen          │
  * ├──────────────────────────────────────────────────────────────────────────┤
  * │ AudioPlaybackContext  (FAST — updates every ~250 ms during playback)     │
  * │   positionMillis, durationMillis, progress                              │
@@ -14,7 +14,7 @@
  * │     ProfileScreen (progress bar only), UserProfileView (waveform only)  │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
- * Consumers that only need play/pause state (ScreenRouter, useListenMixes, etc.)
+ * Consumers that only need play/pause state (ScreenRouter, ListenScreen, etc.)
  * subscribe to AudioStateContext — they will NOT re-render during scrubbing.
  * Only the player UI and the small progress widgets subscribe to both.
  */
