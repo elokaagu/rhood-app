@@ -66,6 +66,40 @@ describe("profile star rating", () => {
     });
     assert.equal(vm.ratingDisplay, "4.5");
   });
+
+  it("prefers the database's combined rating over the ratings-table average", () => {
+    const vm = buildProfileViewModel({
+      userProfile: { ...baseProfile, rating: "4.0" },
+      recentGigs: [],
+      achievements: [],
+      achievementsStats: { earnedCount: 0, totalCount: 0 },
+      creditsValue: 0,
+      primaryMix: null,
+      ratingAverage: 5,
+    });
+    assert.equal(vm.ratingDisplay, "4.0");
+  });
+});
+
+describe("profile gigs done", () => {
+  const build = (gigs_completed, gigsCompletedOverride) =>
+    buildProfileViewModel({
+      userProfile: { id: "u1", dj_name: "Eloka", genres: [], gigs_completed },
+      recentGigs: [],
+      achievements: [],
+      achievementsStats: { earnedCount: 0, totalCount: 0 },
+      creditsValue: 0,
+      primaryMix: null,
+      gigsCompletedOverride,
+    });
+
+  it("counts completed gig records even when no application was completed", () => {
+    assert.equal(build(3, 0).gigsCompleted, 3);
+  });
+
+  it("still counts completed applications when the stored count lags", () => {
+    assert.equal(build(0, 2).gigsCompleted, 2);
+  });
 });
 
 describe("app data change signals", () => {
