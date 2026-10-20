@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -8,14 +8,15 @@ import {
   RefreshControl,
   Platform,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { HapticPatterns } from "../lib/haptics";
 import { SkeletonMix } from "./Skeleton";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 import { fetchMixesWithAggregates } from "../lib/fetchMixesWithAggregates";
+import { TRENDING_PAGE_SIZE } from "../lib/mixFeed";
 import { normalizeMixForPlayback } from "../lib/yourLikesUtils";
-import { rankTrendingMixes } from "../lib/trendingScore";
 import MixListRow, {
   MIX_LIST_ROW_HEIGHT_TRENDING,
 } from "./mixList/MixListRow";
@@ -38,13 +39,16 @@ export default function TrendingMixesScreen({
   const [loading, setLoading] = useState(true);
   /** Set when fetch fails — never conflate with “empty trending”. */
   const [loadError, setLoadError] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
 
   const loadMixes = useCallback(async ({ isInitial = false } = {}) => {
     if (isInitial) setLoading(true);
     setLoadError(null);
     try {
-      const { mixes: next, error } =
-        await fetchMixesWithAggregates();
+      const { mixes: next, hasMore: more, error } =
+        await fetchMixesWithAggregates({ limit: TRENDING_PAGE_SIZE, offset: 0 });
       if (error) {
         console.error("❌ Error fetching mixes:", error);
         setMixes([]);
@@ -59,6 +63,7 @@ export default function TrendingMixesScreen({
         return;
       }
       setMixes(next);
+      setHasMore(more);
     } catch (error) {
       console.error("❌ Error in loadMixes:", error);
       setMixes([]);
@@ -71,10 +76,30 @@ export default function TrendingMixesScreen({
     }
   }, []);
 
-  const trendingMixes = useMemo(
-    () => rankTrendingMixes(mixes, Date.now()),
-    [mixes]
-  );
+  // Ranked by the database; pages arrive in order, so append without re-sorting.
+  const trendingMixes = mixes;
+
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMoreRef.current || loading || loadError) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const { mixes: next, hasMore: more, error } =
+        await fetchMixesWithAggregates({
+          limit: TRENDING_PAGE_SIZE,
+          offset: mixes.length,
+        });
+      if (error) return;
+      setMixes((prev) => {
+        const seen = new Set(prev.map((m) => String(m.id)));
+        return [...prev, ...next.filter((m) => !seen.has(String(m.id)))];
+      });
+      setHasMore(more);
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [hasMore, loading, loadError, mixes.length]);
 
   useEffect(() => {
     loadMixes({ isInitial: true });
@@ -352,6 +377,16 @@ export default function TrendingMixesScreen({
           refreshControl={refreshControl}
           contentContainerStyle={styles.scrollContent}
           style={styles.scrollView}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator
+                style={styles.loadMoreSpinner}
+                color="hsl(75, 100%, 60%)"
+              />
+            ) : null
+          }
         />
       ) : null}
     </View>
@@ -409,6 +444,9 @@ const styles = StyleSheet.create({
   },
   skeletonContainer: {
     padding: 20,
+  },
+  loadMoreSpinner: {
+    paddingVertical: 20,
   },
   emptyState: {
     alignItems: "center",

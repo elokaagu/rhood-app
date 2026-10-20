@@ -14,6 +14,7 @@ import SaveToPlaylistModal from "./SaveToPlaylistModal";
 import styles from "./ListenScreen.styles";
 import { supabase, db } from "../lib/supabase";
 import { extractDurationSeconds } from "../lib/listenScreenUtils";
+import { fetchTrendingMixesPage, searchMixes, MIN_SEARCH_LENGTH } from "../lib/mixFeed";
 import { HapticPatterns } from "../lib/haptics";
 import { createScreenCache } from "../lib/screenCache";
 import { onAppDataChanged } from "../lib/appDataEvents";
@@ -32,11 +33,23 @@ const TRENDING_SKELETON_ROWS = 5;
 const TRENDING_CACHE_KEY = "trending";
 const trendingCache = createScreenCache("trending");
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 function formatDuration(seconds) {
   if (!seconds || seconds <= 0) return null;
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+/** Feed mix → shape the Listen rows and player expect. */
+function toListenRow(mix) {
+  return {
+    ...mix,
+    audio_url: mix.audioUrl || mix.file_url,
+    durationFormatted: formatDuration(mix.durationSeconds),
+    genre: mix.genre || null,
+  };
 }
 
 function PlaylistsSectionHeader() {
@@ -133,45 +146,15 @@ function ListenScreen({
     setTrendingLoading(true);
     setTrendingError(null);
     try {
-      const { data, error } = await supabase
-        .from("mixes")
-        .select("*")
-        .eq("is_public", true)
-        .order("created_at", { ascending: false })
-        .limit(TRENDING_LIMIT);
+      const { mixes, error } = await fetchTrendingMixesPage({
+        limit: TRENDING_LIMIT,
+        offset: 0,
+      });
       if (error) {
         if (mountedRef.current) setTrendingError(error.message || "Failed to load trending");
         return;
       }
-      const ids = (data || []).map((m) => m.user_id).filter(Boolean);
-      const userIds = [...new Set(ids)];
-      let profiles = {};
-      if (userIds.length > 0) {
-        const { data: prof } = await supabase
-          .from("user_profiles")
-          .select("id, dj_name")
-          .in("id", userIds);
-        if (prof) profiles = (prof || []).reduce((a, p) => ({ ...a, [p.id]: p }), {});
-      }
-      const transformed = (data || []).map((mix) => {
-        const sec = extractDurationSeconds(mix);
-        const profile = mix.user_id ? profiles[mix.user_id] : null;
-        const artist = profile?.dj_name || mix.artist || "Unknown";
-        return {
-          ...mix,
-          id: mix.id,
-          title: mix.title,
-          artist,
-          artwork_url: mix.artwork_url || mix.image_url || mix.image || null,
-          image_url: mix.artwork_url || mix.image_url || mix.image || null,
-          image: mix.artwork_url || mix.image_url || mix.image || null,
-          file_url: mix.file_url,
-          audio_url: mix.audio_url,
-          durationFormatted: formatDuration(sec),
-          genre: mix.genre || null,
-          user_id: mix.user_id,
-        };
-      });
+      const transformed = mixes.map(toListenRow);
       if (mountedRef.current) {
         setTrendingMixes(transformed);
         trendingCache.set(TRENDING_CACHE_KEY, { trendingMixes: transformed });
@@ -218,8 +201,38 @@ function ListenScreen({
     refreshUserMixPresence();
   }, [refreshUserMixPresence]);
 
-  // Fetch liked state for trending mix IDs
-  const trendingMixIdsStr = trendingMixes.map((m) => m.id).filter(Boolean).join(",");
+  // Search every public mix in the database, not just the trending rows on screen.
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const trimmedSearch = searchQuery.trim();
+  useEffect(() => {
+    if (trimmedSearch.length < MIN_SEARCH_LENGTH) {
+      setSearchResults(null);
+      setSearchLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setSearchLoading(true);
+    const timer = setTimeout(async () => {
+      const { mixes, error } = await searchMixes(trimmedSearch);
+      if (cancelled || !mountedRef.current) return;
+      setSearchResults(error ? null : mixes.map(toListenRow));
+      setSearchLoading(false);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [trimmedSearch]);
+
+  // Fetch liked state for the mixes on screen (trending + search results)
+  const trendingMixIdsStr = [
+    ...new Set(
+      [...trendingMixes, ...(searchResults || [])]
+        .map((m) => m.id)
+        .filter(Boolean)
+    ),
+  ].join(",");
   useEffect(() => {
     if (!user?.id || !trendingMixIdsStr) return;
     let cancelled = false;
@@ -425,13 +438,15 @@ function ListenScreen({
   const filteredTrendingMixes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return trendingMixes;
+    if (searchResults) return searchResults;
+    // Instant local matches while the database search is in flight.
     return trendingMixes.filter((mix) => {
       const title = (mix.title || "").toLowerCase();
       const artist = (mix.artist || "").toLowerCase();
       const genre = (mix.genre || "").toLowerCase();
       return title.includes(q) || artist.includes(q) || genre.includes(q);
     });
-  }, [trendingMixes, searchQuery]);
+  }, [trendingMixes, searchQuery, searchResults]);
 
   const filteredPlaylists = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -475,9 +490,9 @@ function ListenScreen({
         _skeleton: true,
       }));
     }
-    if (!trendingLoading && trendingMixes.length === 0) return [{ id: "__empty_trending", _empty: true }];
     const q = searchQuery.trim();
-    if (!trendingLoading && q && trendingMixes.length > 0 && filteredTrendingMixes.length === 0) {
+    if (!trendingLoading && !q && trendingMixes.length === 0) return [{ id: "__empty_trending", _empty: true }];
+    if (!trendingLoading && q && !searchLoading && filteredTrendingMixes.length === 0) {
       return [{ id: "__empty_search_trending", _emptySearch: true }];
     }
     return filteredTrendingMixes;
@@ -487,6 +502,7 @@ function ListenScreen({
     trendingLoading,
     trendingError,
     searchQuery,
+    searchLoading,
   ]);
 
   /** Don't mount playlists below until trending fetch has settled — avoids playlists populating first. */
