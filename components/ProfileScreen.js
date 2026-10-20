@@ -567,7 +567,7 @@ export default function ProfileScreen({
             <View style={styles.ratingContainer}>
               <Ionicons name="star" size={16} color="hsl(45, 100%, 60%)" />
               <Text style={styles.ratingText}>
-                {profile.ratingDisplay ?? "—"}
+                {profile.ratingDisplay ?? "No ratings yet"}
               </Text>
               <Text style={styles.gigsText}>
                 • {profile.gigsCompleted} gigs

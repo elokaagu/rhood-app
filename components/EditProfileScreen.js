@@ -190,6 +190,8 @@ export default function EditProfileScreen({
   });
   const [errors, setErrors] = useState({});
   const [showGenreModal, setShowGenreModal] = useState(false);
+  const [showOtherGenreInput, setShowOtherGenreInput] = useState(false);
+  const [otherGenreText, setOtherGenreText] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [errorModal, setErrorModal] = useState({ visible: false, title: "", message: "" });
   const [userMixes, setUserMixes] = useState([]);
@@ -627,6 +629,29 @@ export default function EditProfileScreen({
     }));
   };
 
+  /** Genres the user typed via "Other" stay visible (and selected) in the list. */
+  const genreChoices = [
+    ...availableGenres,
+    ...profile.genres.filter(
+      (g) => !availableGenres.some((preset) => preset.toLowerCase() === g.toLowerCase())
+    ),
+  ];
+
+  const handleAddOtherGenre = () => {
+    const trimmed = otherGenreText.trim();
+    if (!trimmed) return;
+    const lc = trimmed.toLowerCase();
+    const existing = genreChoices.find((g) => g.toLowerCase() === lc);
+    if (existing) {
+      if (!profile.genres.includes(existing)) handleGenreToggle(existing);
+    } else {
+      setProfile((prev) => ({ ...prev, genres: [...prev.genres, trimmed] }));
+      db.submitGenreSuggestion(trimmed).catch(() => {});
+    }
+    setOtherGenreText("");
+    setShowOtherGenreInput(false);
+  };
+
   const handleImagePicker = () => {
     rhoodAlert("Profile photo", "Choose a source", [
       { text: "Camera", onPress: () => openImagePicker("camera") },
@@ -736,8 +761,8 @@ export default function EditProfileScreen({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.genreList}>
-            {availableGenres.map((genre) => (
+          <ScrollView style={styles.genreList} keyboardShouldPersistTaps="handled">
+            {genreChoices.map((genre) => (
               <TouchableOpacity
                 key={genre}
                 style={[
@@ -759,6 +784,49 @@ export default function EditProfileScreen({
                 )}
               </TouchableOpacity>
             ))}
+
+            <TouchableOpacity
+              style={[styles.genreItem, showOtherGenreInput && styles.genreItemSelected]}
+              onPress={() => setShowOtherGenreInput((open) => !open)}
+            >
+              <Text
+                style={[styles.genreText, showOtherGenreInput && styles.genreTextSelected]}
+              >
+                Other
+              </Text>
+              <Ionicons
+                name={showOtherGenreInput ? "chevron-up" : "add"}
+                size={20}
+                color={showOtherGenreInput ? "hsl(0, 0%, 0%)" : "hsl(0, 0%, 70%)"}
+              />
+            </TouchableOpacity>
+
+            {showOtherGenreInput && (
+              <View style={styles.otherGenreRow}>
+                <TextInput
+                  style={styles.otherGenreInput}
+                  value={otherGenreText}
+                  onChangeText={setOtherGenreText}
+                  placeholder="Type your genre"
+                  placeholderTextColor="hsl(0, 0%, 50%)"
+                  autoFocus
+                  autoCapitalize="words"
+                  maxLength={40}
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddOtherGenre}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.otherGenreAddButton,
+                    !otherGenreText.trim() && styles.otherGenreAddButtonDisabled,
+                  ]}
+                  onPress={handleAddOtherGenre}
+                  disabled={!otherGenreText.trim()}
+                >
+                  <Text style={styles.otherGenreAddText}>Add</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </ScrollView>
 
           <View style={styles.modalActions}>
@@ -1566,6 +1634,39 @@ const styles = StyleSheet.create({
   genreList: {
     maxHeight: 400,
     padding: 20,
+  },
+  otherGenreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 28,
+  },
+  otherGenreInput: {
+    flex: 1,
+    backgroundColor: "hsl(0, 0%, 10%)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "hsl(0, 0%, 20%)",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: "hsl(0, 0%, 100%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+  },
+  otherGenreAddButton: {
+    backgroundColor: "hsl(75, 100%, 60%)",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  otherGenreAddButtonDisabled: {
+    opacity: 0.4,
+  },
+  otherGenreAddText: {
+    color: "hsl(0, 0%, 0%)",
+    fontSize: 16,
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
   },
   genreItem: {
     flexDirection: "row",
