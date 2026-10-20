@@ -293,6 +293,8 @@ export default function App() {
         track(AnalyticsEvents.APP_OPEN),
         startAnalyticsSession({ source: "app_open" }),
       ]);
+      // Apply JS OTAs on this launch (not only the following cold start).
+      await checkForOtaUpdateAndReload();
     })();
 
     return () => {
