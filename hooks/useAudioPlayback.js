@@ -17,7 +17,7 @@ import * as Haptics from "expo-haptics";
 import { HapticPatterns } from "../lib/haptics";
 import lockScreenControls from "../lib/lockScreenControls";
 import nowPlayingInfo from "../lib/nowPlayingInfo";
-import { db, supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import { getAudioErrorMessage } from "../lib/errorMessages";
 import {
   recordMixPlayStarted,
@@ -1202,18 +1202,6 @@ export default function useAudioPlayback({ user }) {
           throw error;
         }
 
-        // Roll back credits from mix creator
-        if (stateRef.current.currentTrack.user_id && stateRef.current.currentTrack.user_id !== user.id) {
-          try {
-            await db.incrementUserCredits(
-              stateRef.current.currentTrack.user_id,
-              -10,
-              mixId
-            );
-          } catch (creditError) {
-            if (__DEV__) console.error("❌ Error rolling back credits:", creditError);
-          }
-        }
       } else {
         const { error } = await supabase
           .from("mix_likes")
@@ -1235,19 +1223,6 @@ export default function useAudioPlayback({ user }) {
             return;
           } else {
             throw error;
-          }
-        } else {
-          // Award credits to mix creator
-          if (stateRef.current.currentTrack.user_id && stateRef.current.currentTrack.user_id !== user.id) {
-            try {
-              await db.incrementUserCredits(
-                stateRef.current.currentTrack.user_id,
-                10,
-                mixId
-              );
-            } catch (creditError) {
-              if (__DEV__) console.error("❌ Error awarding credits:", creditError);
-            }
           }
         }
       }
