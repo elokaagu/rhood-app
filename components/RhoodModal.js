@@ -30,6 +30,7 @@ import {
 
 import { rhoodAlert } from "../lib/rhoodAlert";
 import { useRegisterModalPresence } from "../lib/modalPresence";
+import OpportunityBriefText from "./OpportunityBriefText";
 const { width, height } = Dimensions.get("window");
 
 const RhoodModal = ({
@@ -204,22 +205,21 @@ const RhoodModal = ({
 
   const renderDescriptionContent = (text) => {
     if (!text) return null;
+    return (
+      <OpportunityBriefText
+        text={text}
+        renderInline={renderTextWithLinks}
+        style={styles.descriptionContainer}
+      />
+    );
+  };
 
-    const lines = text.split(/\r?\n+/);
-
+  const renderBriefField = (label, text) => {
+    if (!text) return null;
     return (
       <View style={styles.descriptionContainer}>
-        {lines.map((line, lineIndex) => (
-          <Text
-            key={`description-line-${lineIndex}`}
-            style={[
-              styles.descriptionText,
-              lineIndex > 0 && styles.descriptionLineSpacing,
-            ]}
-          >
-            {renderTextWithLinks(line.trim())}
-          </Text>
-        ))}
+        <Text style={styles.briefFieldLabel}>{label}</Text>
+        <OpportunityBriefText text={text} renderInline={renderTextWithLinks} />
       </View>
     );
   };
@@ -281,6 +281,8 @@ const RhoodModal = ({
         {details.description
           ? renderDescriptionContent(details.description)
           : null}
+        {renderBriefField("Requirements", details.requirements)}
+        {renderBriefField("Other details", details.otherDetails)}
       </View>
     );
   };
@@ -985,14 +987,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
-  descriptionText: {
-    fontSize: TYPOGRAPHY.md,
+  briefFieldLabel: {
+    fontSize: TYPOGRAPHY.xs,
     color: COLORS.textSecondary,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  descriptionLineSpacing: {
-    marginTop: SPACING.xs,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: SPACING.xs,
   },
   linkText: {
     color: COLORS.primary,

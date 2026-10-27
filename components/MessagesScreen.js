@@ -51,6 +51,10 @@ import {
   getMessagingDisplayName,
   isMessagingBrandProfile,
 } from "../lib/messagingDisplayName";
+import {
+  briefRequirementsText,
+  briefOtherDetailsText,
+} from "../lib/opportunityBrief";
 import MessagesSelectedMediaTray from "./messages/MessagesSelectedMediaTray";
 import MessagesMediaPickerModal from "./messages/MessagesMediaPickerModal";
 import MessagesFullscreenImageModal from "./messages/MessagesFullscreenImageModal";
@@ -1360,6 +1364,28 @@ const MessagesScreen = ({ user, navigation, route }) => {
   const handleOpportunityPress = useCallback((opp) => {
     setSelectedOpportunity(opp);
     setShowOpportunityModal(true);
+    // Shares store a snapshot; pull the current brief so older shares show
+    // Requirements / Other details too.
+    if (opp?.id) {
+      supabase
+        .from("opportunities")
+        .select("description, skill_level, additional_info")
+        .eq("id", opp.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!data) return;
+          setSelectedOpportunity((current) =>
+            current?.id === opp.id
+              ? {
+                  ...current,
+                  description: data.description || current.description,
+                  requirements: briefRequirementsText(data.skill_level),
+                  otherDetails: briefOtherDetailsText(data.additional_info),
+                }
+              : current
+          );
+        });
+    }
   }, []);
 
   const renderMessageItem = useCallback(
@@ -1696,6 +1722,8 @@ const MessagesScreen = ({ user, navigation, route }) => {
                 compensation: selectedOpportunity.compensation,
                 location: selectedOpportunity.location,
                 description: selectedOpportunity.description,
+                requirements: selectedOpportunity.requirements,
+                otherDetails: selectedOpportunity.otherDetails,
               }
             : null
         }

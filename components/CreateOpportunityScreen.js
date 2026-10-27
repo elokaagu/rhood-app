@@ -19,10 +19,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from "../lib/sharedStyles";
 import { HapticPatterns } from "../lib/haptics";
-import { MIX_GENRES } from "./upload/UploadMixPerfParts";
+import { OPPORTUNITY_GENRES } from "../lib/opportunityGenres";
 import {
   EMPTY_OPPORTUNITY_FORM,
-  GENRE_OTHER,
   MAX_OPPORTUNITY_GENRES,
   OPPORTUNITY_CURRENCIES,
   SKILL_LEVELS,
@@ -784,33 +783,13 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
                 Genres * ({form.genres.length}/{MAX_OPPORTUNITY_GENRES})
               </Text>
               <ChipRow
-                options={MIX_GENRES.map((g) => ({ value: g, label: g }))}
+                options={OPPORTUNITY_GENRES.map((g) => ({ value: g, label: g }))}
                 selected={form.genres}
                 onSelect={toggleGenre}
                 disabled={submitting}
               />
               {fieldErrors.genres ? (
                 <Text style={styles.errorText}>{fieldErrors.genres}</Text>
-              ) : null}
-
-              {form.genres.includes(GENRE_OTHER) ? (
-                <Field
-                  label="Specify the genre"
-                  error={fieldErrors.customGenre}
-                >
-                  <TextInput
-                    style={[
-                      styles.input,
-                      fieldErrors.customGenre && styles.inputError,
-                    ]}
-                    placeholder="e.g. Amapiano"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={form.customGenre}
-                    onChangeText={(text) => setField("customGenre", text)}
-                    editable={!submitting}
-                    maxLength={40}
-                  />
-                </Field>
               ) : null}
 
               <Text style={[styles.label, styles.labelSpaced]}>

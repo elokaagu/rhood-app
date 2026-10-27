@@ -22,6 +22,11 @@ import RhoodModal from "./RhoodModal";
 import ConnectionsLocationModal from "./ConnectionsLocationModal";
 import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
 import { formatMixGenreLabel } from "../lib/mixGenres";
+import {
+  OPPORTUNITY_GENRES,
+  canonicalGenreList,
+  genreKey,
+} from "../lib/opportunityGenres";
 import { formatDurationLabel } from "../lib/listenScreenUtils";
 
 import { rhoodAlert } from "../lib/rhoodAlert";
@@ -212,41 +217,7 @@ export default function EditProfileScreen({
     cityPicker.open();
   }, [focusField, loading, cityPicker.open]);
 
-  // Available genres for selection
-  const availableGenres = [
-    "House",
-    "Techno",
-    "Deep House",
-    "Progressive House",
-    "Tech House",
-    "Trance",
-    "Drum & Bass",
-    "Dubstep",
-    "Trap",
-    "Future Bass",
-    "Ambient",
-    "Downtempo",
-    "Breakbeat",
-    "Jungle",
-    "Garage",
-    "Disco",
-    "Funk",
-    "Soul",
-    "Hip Hop",
-    "R&B",
-    "Pop",
-    "Rock",
-    "Electronic",
-    "Experimental",
-    "Minimal",
-    "Acid",
-    "Hardcore",
-    "Hardstyle",
-    "Psytrance",
-    "Goa",
-    "Chillout",
-    "Lounge",
-  ];
+  const availableGenres = OPPORTUNITY_GENRES;
 
   useEffect(() => {
     loadUserProfile();
@@ -306,7 +277,7 @@ export default function EditProfileScreen({
           city: userProfile.city || "",
           bio: userProfile.bio || "",
           status_message: userProfile.status_message || "",
-          genres: userProfile.genres || [],
+          genres: canonicalGenreList(userProfile.genres),
           profile_image_url: userProfile.profile_image_url || null,
         });
 
@@ -633,15 +604,14 @@ export default function EditProfileScreen({
   const genreChoices = [
     ...availableGenres,
     ...profile.genres.filter(
-      (g) => !availableGenres.some((preset) => preset.toLowerCase() === g.toLowerCase())
+      (g) => !availableGenres.some((preset) => genreKey(preset) === genreKey(g))
     ),
   ];
 
   const handleAddOtherGenre = () => {
     const trimmed = otherGenreText.trim();
     if (!trimmed) return;
-    const lc = trimmed.toLowerCase();
-    const existing = genreChoices.find((g) => g.toLowerCase() === lc);
+    const existing = genreChoices.find((g) => genreKey(g) === genreKey(trimmed));
     if (existing) {
       if (!profile.genres.includes(existing)) handleGenreToggle(existing);
     } else {

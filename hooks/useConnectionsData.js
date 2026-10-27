@@ -21,6 +21,7 @@ import {
   connectionsSessionCacheIsFresh,
 } from "../lib/connectionsSessionCache";
 import { CONNECTIONS_SECTION_TYPE } from "../lib/connectionsSectionTypes";
+import { genreMatchesQuery } from "../lib/opportunityGenres";
 
 const STALE_MS = SCREEN_CACHE_STALE_MS;
 const PERIODIC_REFRESH_INTERVAL_MS = 30 * 1000;
@@ -328,7 +329,7 @@ export function useConnectionsData(
       const q = searchQuery.toLowerCase().trim();
       filtered = filtered.filter((c) => {
         const fields = [c.name, c.dj_name, c.full_name, c.username, c.location, c.city, c.statusMessage].filter(Boolean);
-        return fields.some((f) => f.toLowerCase().includes(q)) || c.genres?.some((g) => g.toLowerCase().includes(q));
+        return fields.some((f) => f.toLowerCase().includes(q)) || c.genres?.some((g) => genreMatchesQuery(g, q));
       });
     }
     return filtered;

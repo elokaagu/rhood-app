@@ -28,6 +28,11 @@ import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
 import { resolveCurrentCityLabel } from "../lib/locationService";
 import RhoodModal from "./RhoodModal";
 import { useDeleteAccount } from "../hooks/useDeleteAccount";
+import {
+  OPPORTUNITY_GENRES,
+  canonicalGenreList,
+  genreKey,
+} from "../lib/opportunityGenres";
 
 import { rhoodAlert } from "../lib/rhoodAlert";
 /** Shared animated wrapper for each onboarding step (fade + slide). */
@@ -46,44 +51,6 @@ function StepAnimatedShell({ fadeAnim, slideAnim, style, children }) {
     </Animated.View>
   );
 }
-
-// Music genres for selection — ordered by popularity/breadth first
-const MUSIC_GENRES = [
-  // Core urban / crossover (most requested additions)
-  "Hip-Hop",
-  "R&B",
-  "Soul",
-  "Afrobeats",
-  "Dancehall",
-  "Reggae",
-  "Funk",
-  "Jazz",
-  // Electronic / club
-  "House",
-  "Tech House",
-  "Deep House",
-  "Techno",
-  "Drum & Bass",
-  "Garage",
-  "Jungle",
-  "Dubstep",
-  "Trance",
-  "Psytrance",
-  "Hardstyle",
-  "Hardcore",
-  "Breakbeat",
-  // Electronic production
-  "Electronic",
-  "Electro",
-  "Synthwave",
-  "Ambient",
-  "Downtempo",
-  "Future Bass",
-  "Trap",
-  "Progressive",
-  "Minimal",
-  "Industrial",
-];
 
 export default function OnboardingForm({
   onComplete,
@@ -108,7 +75,6 @@ export default function OnboardingForm({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [customGenreInput, setCustomGenreInput] = useState("");  // typed custom genre
-  const [globalGenres, setGlobalGenres] = useState([]);          // user-contributed genres from the backend pool
 
   // Which profile fields are still missing after signup. Frozen on first mount
   // so the step list can't shift around while the user is filling it in.
@@ -131,7 +97,7 @@ export default function OnboardingForm({
   const totalSteps = steps.length;
   const currentKey = steps[currentStep - 1] || steps[0];
 
-  const selectedGenres = Array.isArray(djProfile.genres) ? djProfile.genres : [];
+  const selectedGenres = canonicalGenreList(djProfile.genres);
 
   const [detectingCity, setDetectingCity] = useState(
     () => profileNeeds.city && !(djProfile.city ?? "").trim()
@@ -180,38 +146,12 @@ export default function OnboardingForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Merge preset genres with the shared user-contributed pool and any custom
-  // genres the user has already selected — de-duplicated, presets first.
-  const genreOptions = React.useMemo(() => {
-    const seen = new Set();
-    const out = [];
-    const push = (g) => {
-      if (!g) return;
-      const lc = g.toLowerCase();
-      if (seen.has(lc)) return;
-      seen.add(lc);
-      out.push(g);
-    };
-    MUSIC_GENRES.forEach(push);
-    globalGenres.forEach(push);
-    (selectedGenres || []).forEach(push); // ensure selected customs stay visible
-    return out;
-  }, [globalGenres, selectedGenres]);
-
-  // Load the shared user-contributed genre pool once on mount (non-blocking).
-  useEffect(() => {
-    let mounted = true;
-    db.getGlobalGenres()
-      .then((genres) => {
-        if (mounted && Array.isArray(genres) && genres.length) {
-          setGlobalGenres(genres);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // Studio's genre list, plus any custom genres this user typed —
+  // de-duplicated ("Hip Hop" and "Hip-Hop" are one genre), presets first.
+  const genreOptions = React.useMemo(
+    () => canonicalGenreList([...OPPORTUNITY_GENRES, ...(selectedGenres || [])]),
+    [selectedGenres]
+  );
 
   useEffect(() => {
     fadeAnim.setValue(0);
@@ -379,7 +319,7 @@ export default function OnboardingForm({
 
   const toggleGenre = (genre) => {
     setDjProfile((prev) => {
-      const current = Array.isArray(prev.genres) ? prev.genres : [];
+      const current = canonicalGenreList(prev.genres);
       return {
         ...prev,
         genres: current.includes(genre)
@@ -394,23 +334,13 @@ export default function OnboardingForm({
   const addCustomGenre = () => {
     const trimmed = customGenreInput.trim();
     if (!trimmed) return;
-    const lc = trimmed.toLowerCase();
-    // If it matches an existing option (preset or contributed), just select it.
-    const existingMatch = genreOptions.find((g) => g.toLowerCase() === lc);
+    // If it matches an existing option, just select it.
+    const existingMatch = genreOptions.find((g) => genreKey(g) === genreKey(trimmed));
     if (existingMatch) {
       if (!selectedGenres.includes(existingMatch)) toggleGenre(existingMatch);
       setCustomGenreInput("");
       return;
     }
-    // Don't add duplicates that are already selected
-    if (selectedGenres.some((g) => g.toLowerCase() === lc)) {
-      setCustomGenreInput("");
-      return;
-    }
-    // Add locally (selected) and into the visible options pool immediately.
-    setGlobalGenres((prev) =>
-      prev.some((g) => g.toLowerCase() === lc) ? prev : [...prev, trimmed]
-    );
     setDjProfile((prev) => {
       const current = Array.isArray(prev.genres) ? prev.genres : [];
       return { ...prev, genres: [...current, trimmed] };

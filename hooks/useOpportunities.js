@@ -18,6 +18,7 @@ import {
   toAppliedOpportunityIdSet,
 } from "../lib/opportunities/excludeAppliedOpportunities";
 import { optimizeOpportunityImageUrl } from "../lib/opportunities/opportunityImageUrl";
+import { whereLiveOpportunity } from "../lib/opportunities/liveOpportunity";
 import {
   loadPostApplySuccessContext,
   classifyApplicationError,
@@ -148,32 +149,32 @@ export default function useOpportunities({
           : Promise.resolve([]);
 
       const OPPORTUNITY_FEED_COLUMNS =
-        "id, title, description, event_date, event_start_time, event_end_time, event_timezone, location, city, venue, payment, payment_currency, order_currency, compensation, genre, skill_level, organizer_name, image_url, created_at, organizer:user_profiles!opportunities_organizer_id_fkey(brand_name)";
+        "id, title, description, event_date, event_start_time, event_end_time, event_timezone, location, city, venue, payment, payment_currency, order_currency, compensation, genre, skill_level, additional_info, organizer_name, image_url, created_at, organizer:user_profiles!opportunities_organizer_id_fkey(brand_name)";
       const OPPORTUNITY_FEED_COLUMNS_NO_TZ =
-        "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, order_currency, compensation, genre, skill_level, organizer_name, image_url, created_at, organizer:user_profiles!opportunities_organizer_id_fkey(brand_name)";
+        "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, order_currency, compensation, genre, skill_level, additional_info, organizer_name, image_url, created_at, organizer:user_profiles!opportunities_organizer_id_fkey(brand_name)";
       const OPPORTUNITY_FEED_COLUMNS_NO_ORDER_CURRENCY =
-        "id, title, description, event_date, event_start_time, event_end_time, event_timezone, location, city, venue, payment, payment_currency, compensation, genre, skill_level, organizer_name, image_url, created_at, organizer:user_profiles!opportunities_organizer_id_fkey(brand_name)";
+        "id, title, description, event_date, event_start_time, event_end_time, event_timezone, location, city, venue, payment, payment_currency, compensation, genre, skill_level, additional_info, organizer_name, image_url, created_at, organizer:user_profiles!opportunities_organizer_id_fkey(brand_name)";
       const OPPORTUNITY_FEED_COLUMNS_NO_COMP =
         "id, title, description, event_date, event_start_time, event_end_time, location, city, venue, payment, payment_currency, genre, skill_level, organizer_name, image_url, created_at, organizer:user_profiles!opportunities_organizer_id_fkey(brand_name)";
 
+      // Only the columns transformOpportunityRow consumes — avoids shipping
+      // unused fields for every row in the swipe feed.
+      const fetchLiveOpportunities = (columns) =>
+        whereLiveOpportunity(supabase.from("opportunities").select(columns)).order(
+          "created_at",
+          { ascending: false }
+        );
+
       let { data: opportunitiesData, error: opportunitiesError } =
-        await supabase
-          .from("opportunities")
-          // Only the columns transformOpportunityRow consumes — avoids
-          // shipping unused fields for every row in the swipe feed.
-          .select(OPPORTUNITY_FEED_COLUMNS)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
+        await fetchLiveOpportunities(OPPORTUNITY_FEED_COLUMNS);
 
       if (
         opportunitiesError &&
         /order_currency/i.test(opportunitiesError.message || "")
       ) {
-        const retry = await supabase
-          .from("opportunities")
-          .select(OPPORTUNITY_FEED_COLUMNS_NO_ORDER_CURRENCY)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
+        const retry = await fetchLiveOpportunities(
+          OPPORTUNITY_FEED_COLUMNS_NO_ORDER_CURRENCY
+        );
         opportunitiesData = retry.data;
         opportunitiesError = retry.error;
       }
@@ -182,24 +183,16 @@ export default function useOpportunities({
         opportunitiesError &&
         /event_timezone/i.test(opportunitiesError.message || "")
       ) {
-        const retry = await supabase
-          .from("opportunities")
-          .select(OPPORTUNITY_FEED_COLUMNS_NO_TZ)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
+        const retry = await fetchLiveOpportunities(OPPORTUNITY_FEED_COLUMNS_NO_TZ);
         opportunitiesData = retry.data;
         opportunitiesError = retry.error;
       }
 
       if (
         opportunitiesError &&
-        /compensation/i.test(opportunitiesError.message || "")
+        /compensation|additional_info/i.test(opportunitiesError.message || "")
       ) {
-        const retry = await supabase
-          .from("opportunities")
-          .select(OPPORTUNITY_FEED_COLUMNS_NO_COMP)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
+        const retry = await fetchLiveOpportunities(OPPORTUNITY_FEED_COLUMNS_NO_COMP);
         opportunitiesData = retry.data;
         opportunitiesError = retry.error;
       }
@@ -581,6 +574,8 @@ export default function useOpportunities({
           compensation: opportunity.compensation,
           location: opportunity.location,
           description: opportunity.description,
+          requirements: opportunity.requirements,
+          otherDetails: opportunity.otherDetails,
           distanceFormatted: opportunity.distanceFormatted,
         },
         primaryButtonText: "Apply",
@@ -610,6 +605,8 @@ export default function useOpportunities({
             time: opportunity.time,
             location: opportunity.location,
             compensation: opportunity.compensation,
+            requirements: opportunity.requirements,
+            otherDetails: opportunity.otherDetails,
             distanceFormatted: opportunity.distanceFormatted,
             genre: opportunity.genre,
           },
@@ -700,6 +697,8 @@ export default function useOpportunities({
         compensation: currentOpportunity.compensation,
         location: currentOpportunity.location,
         description: currentOpportunity.description,
+        requirements: currentOpportunity.requirements,
+        otherDetails: currentOpportunity.otherDetails,
         distanceFormatted: currentOpportunity.distanceFormatted,
         applicationsRemainingText: `You have ${applicationsRemainingCount} applications remaining today.`,
       },

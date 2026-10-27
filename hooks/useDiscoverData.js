@@ -12,6 +12,7 @@ import {
 } from "../lib/discoverLoaders";
 import DiscoverUserCard from "../components/DiscoverUserCard";
 import { normalizeConnectionStatus } from "../lib/connectionStatusUtils";
+import { genreMatchesQuery } from "../lib/opportunityGenres";
 import { LIST_PERFORMANCE } from "../lib/performanceConstants";
 import styles from "../components/ConnectionsScreen.styles";
 
@@ -61,7 +62,7 @@ export function useDiscoverData(user, searchQuery) {
     return discoverUsers.filter((u) => {
       const searchableFields = [u.name, u.dj_name, u.username, u.location, u.city, u.statusMessage].filter(Boolean);
       const matchesName = searchableFields.some((f) => f.toLowerCase().includes(query));
-      const matchesGenre = u.genres?.some((g) => g.toLowerCase().includes(query));
+      const matchesGenre = u.genres?.some((g) => genreMatchesQuery(g, query));
       return matchesName || matchesGenre;
     });
   }, [discoverUsers, searchQuery]);

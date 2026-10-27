@@ -3,7 +3,8 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 
-function loadExportedFunctions(relPath) {
+/** `deps` supplies the names a module would otherwise import (imports are stripped). */
+function loadExportedFunctions(relPath, deps = {}) {
   const abs = path.join(__dirname, "..", relPath);
   let src = fs.readFileSync(abs, "utf8");
   src = src.replace(/^import .+?;?\s*$/gm, "");
@@ -18,10 +19,13 @@ function loadExportedFunctions(relPath) {
   });
   src += `\nmodule.exports = { ${names.join(", ")} };\n`;
   const mod = { exports: {} };
-  const fn = new Function("module", "exports", "require", src);
-  fn(mod, mod.exports, require);
+  const fn = new Function("module", "exports", "require", ...Object.keys(deps), src);
+  fn(mod, mod.exports, require, ...Object.values(deps));
   return mod.exports;
 }
+
+globalThis.__DEV__ = false;
+const { formatOpportunityPayDisplay } = loadExportedFunctions("lib/formatters.js");
 
 const {
   parseInviteCodeFromUrl,
@@ -33,7 +37,7 @@ const {
   mapApplicationRowForProfile,
   splitProfileOpportunityActivity,
   formatApplicationStatusLabel,
-} = loadExportedFunctions("lib/profileScreen/model.js");
+} = loadExportedFunctions("lib/profileScreen/model.js", { formatOpportunityPayDisplay });
 
 describe("invite deep links", () => {
   it("reads https://rhood.io/invite/CODE", () => {
