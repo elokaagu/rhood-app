@@ -890,9 +890,19 @@ export default function UserProfileView({
             <View style={styles.genresContainer}>
               {profile.genres && profile.genres.length > 0 ? (
                 profile.genres.map((genre, index) => (
-                  <View key={index} style={styles.genreTag}>
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.genreTag}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`See DJs who play ${genre}`}
+                    onPress={() => {
+                      HapticPatterns.buttonPress();
+                      onNavigate?.(SCREENS.GENRE_DJS, { genre });
+                    }}
+                  >
                     <Text style={styles.genreTagText}>{genre}</Text>
-                  </View>
+                  </TouchableOpacity>
                 ))
               ) : (
                 <View style={styles.genreTag}>

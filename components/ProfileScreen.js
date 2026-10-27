@@ -21,6 +21,7 @@ import RhoodModal from "./RhoodModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import ProfileBookingRequests from "./ProfileBookingRequests";
+import { SCREENS } from "../navigation/routes";
 import { useProfileScreenData } from "../hooks/useProfileScreenData";
 import {
   computeAudioIdProgress,
@@ -602,9 +603,19 @@ export default function ProfileScreen({
           <Text style={styles.sectionTitle}>Genres</Text>
           <View style={styles.genresList}>
             {profile.genres.map((genre, index) => (
-              <View key={index} style={styles.genreTag}>
+              <TouchableOpacity
+                key={index}
+                style={styles.genreTag}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`See DJs who play ${genre}`}
+                onPress={() => {
+                  HapticPatterns.buttonPress();
+                  onNavigate?.(SCREENS.GENRE_DJS, { genre });
+                }}
+              >
                 <Text style={styles.genreText}>{genre}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>

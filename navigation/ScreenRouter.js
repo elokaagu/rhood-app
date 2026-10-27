@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { useAudioState } from "../context/AudioContext";
 import { SCREENS, isTabScreen } from "./routes";
 import OpportunitiesScreen from "../components/OpportunitiesScreen";
@@ -17,6 +17,7 @@ import CreateHubScreen from "../components/CreateHubScreen";
 import CreateOpportunityScreen from "../components/CreateOpportunityScreen";
 import AboutScreen from "../components/AboutScreen";
 import CommunityMembersScreen from "../components/CommunityMembersScreen";
+import GenreDJsScreen from "../components/GenreDJsScreen";
 import TermsOfServiceScreen from "../components/TermsOfServiceScreen";
 import PrivacyPolicyScreen from "../components/PrivacyPolicyScreen";
 import HelpCenterScreen from "../components/HelpCenterScreen";
@@ -92,6 +93,8 @@ export default function ScreenRouter({
   lastTabScreen,
 }) {
   const globalAudioState = useAudioState();
+  const screenParamsRef = useRef(screenParams);
+  screenParamsRef.current = screenParams;
 
   const navigate = useCallback(
     (nextScreen, params = {}) => {
@@ -110,6 +113,13 @@ export default function ScreenRouter({
       // stranded the user away from wherever they actually came from.
       if (nextScreen === SCREENS.USER_PROFILE && next.returnScreen === undefined) {
         next.returnScreen = screen;
+      }
+      // Stack screens share screenParams: keep the originating profile's params
+      // in place (so it doesn't reload underneath) and remember them so
+      // GenreDJsScreen can restore them when the user comes back through it.
+      if (nextScreen === SCREENS.GENRE_DJS) {
+        const origin = screenParamsRef.current;
+        Object.assign(next, { ...origin, ...params, returnScreen: screen, originParams: origin });
       }
       setCurrentScreen(nextScreen);
       setScreenParams(next);
@@ -482,6 +492,22 @@ export default function ScreenRouter({
           onResumeAudio={resumeGlobalAudio}
           onStopAudio={stopGlobalAudio}
           onBack={backFromUserProfile}
+          onNavigate={navigate}
+        />
+      );
+    }
+
+    case SCREENS.GENRE_DJS: {
+      const backFromGenreDjs = pickScreen(
+        screenParams.returnScreen ?? SCREENS.PROFILE
+      );
+      return withSwipeBack(
+        backFromGenreDjs,
+        <GenreDJsScreen
+          genre={screenParams.genre}
+          paramsOnReturn={{ ...screenParams.originParams, genre: screenParams.genre }}
+          onRestoreParams={setScreenParams}
+          onBack={backFromGenreDjs}
           onNavigate={navigate}
         />
       );

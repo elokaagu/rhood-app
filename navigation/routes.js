@@ -19,6 +19,7 @@ export const SCREENS = Object.freeze({
   CONNECTIONS_LIST: "connections-list",
   USER_PROFILE: "user-profile",
   COMMUNITY_MEMBERS: "community-members",
+  GENRE_DJS: "genre-djs",
 
   // Create hub (Create tab) + its two flows
   CREATE_HUB: "create-hub",
