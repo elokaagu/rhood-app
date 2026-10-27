@@ -551,6 +551,11 @@ export default function NotificationsScreen({
       return 45;
     }
     
+    // Rate the brand after a completed gig
+    if (type === "rate_brand") {
+      return isRead ? 15 : 40;
+    }
+
     // Messages - medium priority
     if (type === "message") {
       return isRead ? 20 : 30; // Unread messages slightly higher
@@ -578,7 +583,7 @@ export default function NotificationsScreen({
   };
 
   const shouldRequireAction = (type) => {
-    return ["opportunity", "application", "message"].includes(type);
+    return ["opportunity", "application", "message", "rate_brand"].includes(type);
   };
 
   const handleNotificationPress = async (notification) => {
@@ -633,6 +638,16 @@ export default function NotificationsScreen({
       } else {
         onNavigate(SCREENS.OPPORTUNITIES);
       }
+      return;
+    }
+
+    if (type === "rate_brand") {
+      onNavigate(SCREENS.PROFILE, { openRateGigId: notification.relatedId || null });
+      return;
+    }
+
+    if (type === "mix_like") {
+      onNavigate(SCREENS.PROFILE);
       return;
     }
 
@@ -994,6 +1009,8 @@ export default function NotificationsScreen({
         return "chatbubble-outline";
       case "mix_like":
         return "heart";
+      case "rate_brand":
+        return "star-outline";
       case "connection":
       case "connection_request":
         return "person-add-outline";

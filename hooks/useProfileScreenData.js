@@ -9,6 +9,7 @@ import {
   mixToAudioId,
   normalizeProfileForUI,
   splitProfileOpportunityActivity,
+  withBrandRatings,
 } from "../lib/profileScreen/model";
 
 const profileCache = createScreenCache("profile", { userScoped: true });
@@ -98,7 +99,10 @@ export function useProfileScreenData(user) {
       let gigsCompletedOverride = null;
       let ratingAverage = null;
       try {
-        const activity = await db.getProfileActivity(user.id);
+        const [activity, userGigs] = await Promise.all([
+          db.getProfileActivity(user.id),
+          db.getUserGigs(user.id).catch(() => []),
+        ]);
         ratingAverage = activity.ratingSummary?.average ?? null;
         const split = splitProfileOpportunityActivity(
           activity.applications,
@@ -108,8 +112,7 @@ export function useProfileScreenData(user) {
         recentGigs = split.recentGigs;
         gigsCompletedOverride = split.gigsCompleted;
         if (!recentGigs.length) {
-          const legacyGigs = await db.getUserGigs(user.id).catch(() => []);
-          const completedLegacy = (legacyGigs || []).filter(
+          const completedLegacy = (userGigs || []).filter(
             (gig) => String(gig.status || "").toLowerCase() === "completed"
           );
           if (completedLegacy.length) {
@@ -119,6 +122,7 @@ export function useProfileScreenData(user) {
             }
           }
         }
+        recentGigs = withBrandRatings(recentGigs, userGigs);
       } catch (gigsError) {
         if (__DEV__) console.error("Error loading profile activity:", gigsError);
       }

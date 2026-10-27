@@ -37,7 +37,50 @@ const {
   mapApplicationRowForProfile,
   splitProfileOpportunityActivity,
   formatApplicationStatusLabel,
+  mapGigsForProfile,
+  gigBrandName,
+  withBrandRatings,
 } = loadExportedFunctions("lib/profileScreen/model.js", { formatOpportunityPayDisplay });
+
+describe("DJ rates the brand", () => {
+  const brandGig = {
+    id: "g1",
+    name: "Forest Rave",
+    status: "completed",
+    opportunity_id: "o1",
+    venue_rating: 4,
+    opportunity: { organizer_id: "b1", organizer_name: "Mackie events", organizer: { brand_name: "Mackie" } },
+  };
+  const noBrandGig = { id: "g2", name: "Mad Cats Cafe", status: "completed", opportunity_id: null };
+
+  it("names the brand, falling back through organiser fields", () => {
+    assert.equal(gigBrandName(brandGig), "Mackie");
+    assert.equal(
+      gigBrandName({ opportunity: { organizer_id: "b1", organizer_name: "Amuse", organizer: {} } }),
+      "Amuse"
+    );
+    assert.equal(gigBrandName(noBrandGig), null);
+    assert.equal(gigBrandName({ opportunity: { organizer_id: null, organizer_name: "X" } }), null);
+  });
+
+  it("attaches gig id, brand and the DJ's rating to Recent Gigs rows", () => {
+    const rows = withBrandRatings(mapGigsForProfile([brandGig, noBrandGig]), [brandGig, noBrandGig]);
+    assert.equal(rows[0].gigId, "g1");
+    assert.equal(rows[0].brandName, "Mackie");
+    assert.equal(rows[0].brandRating, 4);
+    assert.equal(rows[1].brandName, null);
+  });
+
+  it("matches application-based rows to their gig by opportunity", () => {
+    const [row] = withBrandRatings(
+      [{ id: "app1", opportunityId: "o1", name: "Forest Rave" }],
+      [{ ...brandGig, venue_rating: null }]
+    );
+    assert.equal(row.gigId, "g1");
+    assert.equal(row.brandName, "Mackie");
+    assert.equal(row.brandRating, null);
+  });
+});
 
 describe("invite deep links", () => {
   it("reads https://rhood.io/invite/CODE", () => {

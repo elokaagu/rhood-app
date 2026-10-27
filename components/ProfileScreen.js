@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from "react";
+import React, { useMemo, useCallback, useEffect, useState } from "react";
 import { useAudioPlayback } from "../context/AudioContext";
 import {
   View,
@@ -21,13 +21,17 @@ import RhoodModal from "./RhoodModal";
 import { useAppTutorialModal } from "../hooks/useAppTutorialModal";
 import { APP_TUTORIAL_SCREEN_IDS } from "../lib/appTutorialContent";
 import ProfileBookingRequests from "./ProfileBookingRequests";
+import RateBrandModal from "./RateBrandModal";
 import { SCREENS } from "../navigation/routes";
+import { db } from "../lib/supabase";
 import { useProfileScreenData } from "../hooks/useProfileScreenData";
 import {
   computeAudioIdProgress,
   getReferralLink,
   getReferralShareMessage,
+  mapGigsForProfile,
   parseDurationSeconds,
+  withBrandRatings,
 } from "../lib/profileScreen/model";
 import styles from "./ProfileScreen.styles";
 
@@ -40,6 +44,7 @@ export default function ProfileScreen({
   onPauseAudio,
   onResumeAudio,
   openBookingRequestId = null,
+  openRateGigId = null,
 }) {
   const {
     profile,
@@ -48,7 +53,10 @@ export default function ProfileScreen({
     inviteCode,
     referralStats,
     bookingRequests,
+    reload,
   } = useProfileScreenData(user);
+  const [rateTarget, setRateTarget] = useState(null);
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   const { tutorialModalProps } = useAppTutorialModal(APP_TUTORIAL_SCREEN_IDS.PROFILE);
   const audioPlayback = useAudioPlayback();
@@ -92,6 +100,54 @@ export default function ProfileScreen({
   const handleBookingDeepLinkConsumed = useCallback(() => {
     onNavigate?.("profile", { openBookingRequestId: null });
   }, [onNavigate]);
+
+  // Opened from a "Rate {brand}" notification or push.
+  useEffect(() => {
+    if (!openRateGigId || !profile || !user?.id) return;
+    let cancelled = false;
+    (async () => {
+      let gig = (profile.recentGigs || []).find((item) => item.gigId === openRateGigId);
+      if (!gig) {
+        // Older than the five gigs shown on the profile.
+        const gigs = await db.getUserGigs(user.id).catch(() => []);
+        const raw = (gigs || []).find(
+          (row) => row.id === openRateGigId && String(row.status || "").toLowerCase() === "completed"
+        );
+        gig = raw ? withBrandRatings(mapGigsForProfile([raw]), gigs)[0] : null;
+      }
+      if (cancelled) return;
+      if (gig?.brandName) {
+        setRateTarget({
+          gigId: gig.gigId,
+          brandName: gig.brandName,
+          gigName: gig.name,
+          stars: gig.brandRating,
+        });
+      }
+      onNavigate?.("profile", { openRateGigId: null });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [openRateGigId, profile, user?.id, onNavigate]);
+
+  const handleSubmitBrandRating = async (stars) => {
+    if (!rateTarget?.gigId) return;
+    setSubmittingRating(true);
+    try {
+      await db.rateBrandForGig(rateTarget.gigId, stars);
+      HapticPatterns.success();
+      const brandName = rateTarget.brandName;
+      setRateTarget(null);
+      reload();
+      showInviteFeedback("success", "Thanks for rating", `Your rating for ${brandName} was saved.`);
+    } catch (error) {
+      if (__DEV__) console.error("Error rating brand:", error);
+      rhoodAlert("Couldn't save rating", error?.message || "Please try again.");
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
 
   const handleSocialLinkPress = (platform, link) => {
     if (!link || link.trim() === "") {
@@ -327,6 +383,45 @@ export default function ProfileScreen({
             ) : null}
           </View>
         </View>
+        {item.gigId && item.brandName ? (
+          <TouchableOpacity
+            style={styles.brandRateRow}
+            onPress={() => {
+              HapticPatterns.buttonPress();
+              setRateTarget({
+                gigId: item.gigId,
+                brandName: item.brandName,
+                gigName: item.name,
+                stars: item.brandRating,
+              });
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              item.brandRating
+                ? `You rated ${item.brandName} ${item.brandRating} stars. Change rating`
+                : `Rate ${item.brandName}`
+            }
+          >
+            {item.brandRating ? (
+              <>
+                <Text style={styles.brandRatedText} numberOfLines={1}>
+                  You rated {item.brandName}
+                </Text>
+                <View style={styles.gigRating}>
+                  <Ionicons name="star" size={14} color="hsl(45, 100%, 60%)" />
+                  <Text style={styles.gigRatingText}>{item.brandRating}</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Ionicons name="star-outline" size={16} color="hsl(75, 100%, 60%)" />
+                <Text style={styles.brandRateText} numberOfLines={1}>
+                  Rate {item.brandName}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
       </TouchableOpacity>
     </AnimatedListItem>
   );
@@ -967,6 +1062,15 @@ export default function ProfileScreen({
       {tutorialModalProps ? (
         <AppScreenTutorialModal {...tutorialModalProps} />
       ) : null}
+      <RateBrandModal
+        visible={!!rateTarget}
+        brandName={rateTarget?.brandName}
+        gigName={rateTarget?.gigName}
+        initialStars={rateTarget?.stars}
+        submitting={submittingRating}
+        onSubmit={handleSubmitBrandRating}
+        onClose={() => setRateTarget(null)}
+      />
       <RhoodModal
         visible={inviteFeedback.visible}
         onClose={() => setInviteFeedback((prev) => ({ ...prev, visible: false }))}

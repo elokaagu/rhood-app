@@ -409,6 +409,7 @@ export default function ScreenRouter({
           onResumeAudio={resumeGlobalAudio}
           onNavigate={navigate}
           openBookingRequestId={screenParams.openBookingRequestId || null}
+          openRateGigId={screenParams.openRateGigId || null}
         />
       );
 

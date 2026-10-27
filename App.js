@@ -1402,6 +1402,13 @@ export default function App() {
         return;
       }
 
+      if (normalizedType === "rate_brand") {
+        handleMenuNavigation(SCREENS.PROFILE, {
+          openRateGigId: data?.related_id ? String(data.related_id) : null,
+        });
+        return;
+      }
+
       if (normalizedType.includes("message")) {
         const djId =
           data?.sender_id ??

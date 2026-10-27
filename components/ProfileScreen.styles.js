@@ -371,6 +371,28 @@ const styles = StyleSheet.create({
     borderColor: "hsl(75, 100%, 60%)",
     backgroundColor: "transparent",
   },
+  brandRateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "hsl(0, 0%, 15%)",
+  },
+  brandRateText: {
+    flex: 1,
+    fontSize: 14,
+    color: "hsl(75, 100%, 60%)",
+    fontFamily: "Helvetica Neue",
+    fontWeight: "600",
+  },
+  brandRatedText: {
+    flex: 1,
+    fontSize: 14,
+    color: "hsl(0, 0%, 70%)",
+    fontFamily: "Helvetica Neue",
+  },
   genreText: {
     fontSize: 14,
     color: "hsl(75, 100%, 60%)",
