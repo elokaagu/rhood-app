@@ -388,7 +388,7 @@ export default function OnboardingForm({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
           aspect: [1, 1],
-          quality: 0.8,
+          quality: 0.6,
         });
       } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -400,7 +400,7 @@ export default function OnboardingForm({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
           aspect: [1, 1],
-          quality: 0.8,
+          quality: 0.6,
         });
       }
 

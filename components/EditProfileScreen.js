@@ -635,7 +635,7 @@ export default function EditProfileScreen({
     console.log("📤 Uploading profile image…");
 
     // Verify the file still exists and is within the 20 MB cap.
-    // expo-image-picker with quality:0.8 typically outputs < 4 MB,
+    // expo-image-picker with quality:0.6 typically outputs < 3 MB,
     // but very high-res edits on newer iPhones can still be large.
     await guardFileSizeBytes(imageUri, 20 * 1024 * 1024, "Profile photo");
 
@@ -673,7 +673,7 @@ export default function EditProfileScreen({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
           aspect: [1, 1],
-          quality: 0.8,
+          quality: 0.6,
         });
       } else {
         const permission =
@@ -686,7 +686,7 @@ export default function EditProfileScreen({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
           aspect: [1, 1],
-          quality: 0.8,
+          quality: 0.6,
         });
       }
 
