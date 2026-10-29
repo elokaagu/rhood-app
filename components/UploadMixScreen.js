@@ -482,7 +482,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1], // Square aspect ratio for artwork
-        quality: 0.6, // Smaller file for slow connections; still sharp at artwork size
+        quality: 0.8, // Good quality but smaller file size
         base64: false,
         exif: false, // Don't include EXIF data to reduce file size
         allowsMultipleSelection: false,

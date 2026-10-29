@@ -635,8 +635,8 @@ export default function EditProfileScreen({
     console.log("📤 Uploading profile image…");
 
     // Verify the file still exists and is within the 20 MB cap.
-    // expo-image-picker with quality:0.6 typically outputs < 3 MB,
-    // but very high-res edits on newer iPhones can still be large.
+    // quality:0.6 keeps photos well under the avatars bucket's 5 MB limit;
+    // very high-res edits on newer iPhones can still be large.
     await guardFileSizeBytes(imageUri, 20 * 1024 * 1024, "Profile photo");
 
     // Lock to JPEG — expo-image-picker with quality < 1 outputs JPEG data
