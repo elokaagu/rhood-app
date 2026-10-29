@@ -81,5 +81,6 @@ BEGIN
 END;
 $$;
 
--- Allow the app to call this during signup (caller is anon before auth)
-GRANT EXECUTE ON FUNCTION public.cleanup_orphaned_auth_user(text) TO anon, authenticated;
+-- Service role only: granting anon/authenticated let anyone delete logins
+-- without a profile (see database-migrations/lock-down-cleanup-orphaned-auth-user-2026-10-29.sql).
+REVOKE EXECUTE ON FUNCTION public.cleanup_orphaned_auth_user(text) FROM PUBLIC, anon, authenticated;

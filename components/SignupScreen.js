@@ -27,7 +27,17 @@ import TermsOfServiceScreen from "./TermsOfServiceScreen";
 import SocialAuthButtons from "./SocialAuthButtons";
 
 import { rhoodAlert } from "../lib/rhoodAlert";
-export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
+/** True unless the profile row is confirmed missing — unknown errors count as "exists" so we never overwrite. */
+async function profileExists(userId) {
+  try {
+    return Boolean(await db.getUserProfile(userId));
+  } catch (error) {
+    const missing = error?.code === "PGRST116" || error?.message?.includes("No rows returned");
+    return !missing;
+  }
+}
+
+export default function SignupScreen({ onSignupSuccess, onLoginSuccess, onSwitchToLogin }) {
   const insets = useSafeAreaInsets();
   const [formData, setFormData] = useState({
     email: "",
@@ -115,10 +125,17 @@ export default function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
 
     try {
       setLoading(true);
-      const { user, needsEmailConfirmation } = await auth.signUp(
+      const { user, needsEmailConfirmation, existingAccount } = await auth.signUp(
         formData.email,
         formData.password
       );
+
+      // Signed into an account that already exists: if it has a profile, treat
+      // this as a normal login so nothing it holds gets overwritten.
+      if (user && existingAccount && (await profileExists(user.id))) {
+        onLoginSuccess(user);
+        return;
+      }
 
       if (user) {
         if (!needsEmailConfirmation) {

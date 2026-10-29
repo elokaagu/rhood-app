@@ -62,6 +62,7 @@ export default function AuthGate({
       ) : (
         <SignupScreen
           onSignupSuccess={onSignupSuccess}
+          onLoginSuccess={onLoginSuccess}
           onSwitchToLogin={onSwitchToLogin}
         />
       );
