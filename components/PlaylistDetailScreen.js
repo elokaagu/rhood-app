@@ -735,16 +735,7 @@ function PlaylistDetailScreen({
           quality: 0.8,
         });
       } else {
-        const permission =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-          showFeedback({
-            type: "warning",
-            title: "Permission required",
-            message: "Photo library access is needed to choose artwork.",
-          });
-          return;
-        }
+        // No library permission needed — the system picker only returns the photo picked.
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,

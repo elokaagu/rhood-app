@@ -391,11 +391,7 @@ export default function OnboardingForm({
           quality: 0.6,
         });
       } else {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-          rhoodAlert("Permission Required", "Photo library permission is needed to select images");
-          return;
-        }
+        // No library permission needed — the system picker only returns the photo picked.
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,

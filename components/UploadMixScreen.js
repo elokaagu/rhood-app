@@ -15,7 +15,6 @@ import {
   ActivityIndicator,
   Platform,
   Modal,
-  Linking,
   Image,
   Animated,
   KeyboardAvoidingView,
@@ -460,24 +459,7 @@ export default function UploadMixScreen({ user, onBack, onUploadComplete, existi
         return;
       }
 
-      // Request permissions
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (status !== "granted") {
-        showFeedback({
-          type: "warning",
-          title: "Permission Required",
-          message:
-            "We need access to your photo library to select artwork. Please enable media library access in your device settings.",
-          primaryButtonText: "Settings",
-          secondaryButtonText: "Cancel",
-          onPrimaryPress: () => Linking.openSettings(),
-        });
-        return;
-      }
-
-      // Launch image picker
+      // No library permission needed — the system picker only returns the photo picked.
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,

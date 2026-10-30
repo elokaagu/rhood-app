@@ -676,12 +676,9 @@ export default function EditProfileScreen({
           quality: 0.6,
         });
       } else {
-        const permission =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-          setErrorModal({ visible: true, title: "Permission Required", message: "Photo library permission is needed to select images" });
-          return;
-        }
+        // The iOS photo picker needs no library permission: it shows every
+        // photo but only hands the app the one picked. Asking first triggered
+        // the All / Limited prompt, which looked ignored when all photos showed.
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,

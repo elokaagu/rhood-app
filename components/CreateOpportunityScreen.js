@@ -422,15 +422,7 @@ export default function CreateOpportunityScreen({ user, onBack, onSubmitted }) {
             quality: 0.8,
           });
         } else {
-          const permission =
-            await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!permission.granted) {
-            rhoodAlert(
-              "Permission required",
-              "Photo library permission is needed to select an image."
-            );
-            return;
-          }
+          // No library permission needed — the system picker only returns the photo picked.
           result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
