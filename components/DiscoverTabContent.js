@@ -22,6 +22,8 @@ function DiscoverTabContent({
   popularDJsLoading,
   nearbyDJs,
   nearbyDJsLoading,
+  newDJs,
+  newDJsLoading,
   searchQuery,
   onNavigate,
   incomingConnectionRequests,
@@ -41,6 +43,8 @@ function DiscoverTabContent({
         popularDJsLoading={popularDJsLoading}
         nearbyDJs={nearbyDJs}
         nearbyDJsLoading={nearbyDJsLoading}
+        newDJs={newDJs}
+        newDJsLoading={newDJsLoading}
         searchQuery={searchQuery}
         onNavigate={onNavigate}
         incomingConnectionRequests={incomingConnectionRequests}
@@ -55,6 +59,8 @@ function DiscoverTabContent({
       popularDJsLoading,
       nearbyDJs,
       nearbyDJsLoading,
+      newDJs,
+      newDJsLoading,
       searchQuery,
       onNavigate,
       incomingConnectionRequests,

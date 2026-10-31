@@ -140,6 +140,8 @@ function DiscoverListHeader({
   popularDJsLoading = false,
   nearbyDJs,
   nearbyDJsLoading = false,
+  newDJs,
+  newDJsLoading = false,
   searchQuery,
   onNavigate,
   incomingConnectionRequests,
@@ -153,6 +155,7 @@ function DiscoverListHeader({
     showCarousels && (popularDJsLoading || (popularDJs?.length ?? 0) > 0);
   // Keep this section mounted to avoid "load then disappear" jank when empty.
   const showNearbyBlock = showCarousels;
+  const showNewBlock = showCarousels && (newDJsLoading || (newDJs?.length ?? 0) > 0);
 
   const requests = incomingConnectionRequests ?? [];
 
@@ -194,6 +197,24 @@ function DiscoverListHeader({
             onEmptyAction={() =>
               onNavigate?.("edit-profile", { focusField: "city" })
             }
+          />
+          <View style={styles.recommendationsDivider} />
+        </View>
+      )}
+
+      {showNewBlock && (
+        <View style={styles.recommendationsSection}>
+          <View style={styles.recommendationsHeader}>
+            <Text style={styles.recommendationsTitle}>New on R/HOOD</Text>
+          </View>
+          <DJRecommendationCarousel
+            djs={newDJs}
+            loading={newDJsLoading}
+            skeletonCardStyle={styles.discoverCarouselSkeletonCard}
+            onDjPress={(dj) => {
+              HapticPatterns.itemPress();
+              onNavigate?.("user-profile", { userId: dj.id, djName: dj.dj_name });
+            }}
           />
           <View style={styles.recommendationsDivider} />
         </View>

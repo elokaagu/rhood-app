@@ -8,6 +8,7 @@ import { Animated } from "react-native";
 import {
   loadPopularDJsImpl,
   loadNearbyDJsImpl,
+  loadNewDJsImpl,
   loadDiscoverDJsImpl,
 } from "../lib/discoverLoaders";
 import DiscoverUserCard from "../components/DiscoverUserCard";
@@ -24,6 +25,8 @@ export function useDiscoverData(user, searchQuery) {
   const [popularDJsLoading, setPopularDJsLoading] = useState(true);
   const [nearbyDJs, setNearbyDJs] = useState([]);
   const [nearbyDJsLoading, setNearbyDJsLoading] = useState(true);
+  const [newDJs, setNewDJs] = useState([]);
+  const [newDJsLoading, setNewDJsLoading] = useState(true);
   const [discoverLoadError, setDiscoverLoadError] = useState(null);
   const [discoverFadeAnim] = useState(() => new Animated.Value(1));
 
@@ -37,24 +40,30 @@ export function useDiscoverData(user, searchQuery) {
     setPopularDJsLoading,
     setNearbyDJs,
     setNearbyDJsLoading,
+    setNewDJs,
+    setNewDJsLoading,
     discoverFadeAnim,
   };
 
   const loadDiscoverDJs = useCallback(() => loadDiscoverDJsImpl(discoverCtxRef.current), []);
   const loadPopularDJs = useCallback(() => loadPopularDJsImpl(discoverCtxRef.current), []);
   const loadNearbyDJs = useCallback(() => loadNearbyDJsImpl(discoverCtxRef.current), []);
+  const loadNewDJs = useCallback(() => loadNewDJsImpl(discoverCtxRef.current), []);
 
   useEffect(() => {
     if (user?.id) {
       loadPopularDJs();
       loadNearbyDJs();
+      loadNewDJs();
     } else {
       setPopularDJs([]);
       setPopularDJsLoading(false);
       setNearbyDJs([]);
       setNearbyDJsLoading(false);
+      setNewDJs([]);
+      setNewDJsLoading(false);
     }
-  }, [user?.id, user?.city, loadPopularDJs, loadNearbyDJs]);
+  }, [user?.id, user?.city, loadPopularDJs, loadNearbyDJs, loadNewDJs]);
 
   const filteredDiscoverUsers = useMemo(() => {
     if (!searchQuery?.trim()) return discoverUsers;
@@ -84,10 +93,13 @@ export function useDiscoverData(user, searchQuery) {
     popularDJsLoading,
     nearbyDJs,
     nearbyDJsLoading,
+    newDJs,
+    newDJsLoading,
     discoverFadeAnim,
     loadDiscoverDJs,
     loadPopularDJs,
     loadNearbyDJs,
+    loadNewDJs,
     filteredDiscoverUsers,
     getDiscoverItemLayout,
     discoverCtxRef,

@@ -21,6 +21,7 @@ import { emitAppDataChanged } from "../lib/appDataEvents";
 import RhoodModal from "./RhoodModal";
 import ConnectionsLocationModal from "./ConnectionsLocationModal";
 import { useCityLocationPicker } from "../hooks/useCityLocationPicker";
+import { normalizeYouTubeOnBlur } from "../lib/onboardingHelpers";
 import { formatMixGenreLabel } from "../lib/mixGenres";
 import {
   OPPORTUNITY_GENRES,
@@ -152,7 +153,10 @@ function normalizeSoundcloudUrl(raw) {
 function normalizeTiktokUrl(raw) {
   const text = (raw ?? "").trim();
   if (!text) return "";
-  if (/^https?:\/\//i.test(text)) return text;
+  if (/^https?:\/\//i.test(text)) {
+    // tiktok.com/handle (no @) doesn't open the profile — add the @.
+    return text.replace(/(tiktok\.com\/)(?!@)([A-Za-z0-9._]+)\/?$/i, "$1@$2");
+  }
   if (text.startsWith("@")) {
     return `https://www.tiktok.com/${text}`;
   }
@@ -186,6 +190,7 @@ export default function EditProfileScreen({
     instagram: "",
     soundcloud: "",
     tiktok: "",
+    youtube: "",
     portfolio_url: "",
     city: "",
     bio: "",
@@ -273,6 +278,7 @@ export default function EditProfileScreen({
           instagram: userProfile.instagram || "",
           soundcloud: userProfile.soundcloud || "",
           tiktok: userProfile.tiktok || "",
+          youtube: userProfile.youtube || "",
           portfolio_url: userProfile.portfolio_url || "",
           city: userProfile.city || "",
           bio: userProfile.bio || "",
@@ -347,6 +353,13 @@ export default function EditProfileScreen({
       const n = normalizeTiktokUrl(profile.tiktok);
       if (!isValidUrl(n)) {
         newErrors.tiktok = "Please enter a valid TikTok handle or URL";
+      }
+    }
+
+    if (profile.youtube?.trim()) {
+      const n = normalizeYouTubeOnBlur(profile.youtube);
+      if (!isValidUrl(n)) {
+        newErrors.youtube = "Please enter a valid YouTube handle or URL";
       }
     }
 
@@ -443,6 +456,12 @@ export default function EditProfileScreen({
         updatedProfile.tiktok = normalizeTiktokUrl(profile.tiktok);
       } else {
         updatedProfile.tiktok = null;
+      }
+
+      if (profile.youtube && profile.youtube.trim()) {
+        updatedProfile.youtube = normalizeYouTubeOnBlur(profile.youtube);
+      } else {
+        updatedProfile.youtube = null;
       }
 
       if (profile.portfolio_url && profile.portfolio_url.trim()) {
@@ -1191,7 +1210,26 @@ export default function EditProfileScreen({
               )}
             </View>
 
-            {/* YouTube: hidden until DB column exists — see database/add-youtube-column.sql */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>YouTube</Text>
+              <TextInput
+                style={[styles.input, errors.youtube && styles.inputError]}
+                value={profile.youtube}
+                onChangeText={(text) => {
+                  setProfile((prev) => ({ ...prev, youtube: text }));
+                  if (errors.youtube) {
+                    setErrors((prev) => ({ ...prev, youtube: null }));
+                  }
+                }}
+                placeholder="@yourchannel"
+                placeholderTextColor="hsl(0, 0%, 50%)"
+                keyboardType="url"
+                autoCapitalize="none"
+              />
+              {errors.youtube && (
+                <Text style={styles.errorText}>{errors.youtube}</Text>
+              )}
+            </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Portfolio / Website</Text>
