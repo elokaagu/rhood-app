@@ -47,7 +47,7 @@ describe("opportunity genres", () => {
   it("matches Studio's list", () => {
     assert.deepEqual(OPPORTUNITY_GENRES, [
       "House", "Tech House", "Deep House", "Techno", "Electronic", "R&B",
-      "Hip-Hop", "Amapiano", "Afrobeats", "Garage", "Disco", "Funk",
+      "Hip-Hop", "Amapiano", "Afrobeats", "Dancehall", "Garage", "Disco", "Funk",
       "Drum & Bass", "Dubstep", "Trap", "Progressive", "Trance", "Ambient",
       "Breakbeat",
     ]);
