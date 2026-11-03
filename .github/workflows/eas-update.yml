@@ -1,0 +1,54 @@
+name: Publish OTA Update
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  quality:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  update:
+    name: Publish EAS Update
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+
+      # Branch name assumed to match eas.json's production build profile's
+      # "channel": "production" (the standard EAS convention — build
+      # profile channel and update branch sharing a name). Not verified
+      # against the actual EAS project's branch/channel mapping (no EAS
+      # credentials available to check `eas channel:list` from here) — if
+      # this run fails or the update doesn't reach devices, confirm the
+      # real branch name with `eas channel:list` / `eas branch:list` and
+      # update this flag.
+      - name: Publish update
+        run: eas update --branch production --message "$(git log -1 --pretty=%s)" --non-interactive
