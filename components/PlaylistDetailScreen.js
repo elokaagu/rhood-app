@@ -34,6 +34,7 @@ import ProgressiveImage from "./ProgressiveImage";
 import RhoodModal from "./RhoodModal";
 
 import { rhoodActionSheet } from "../lib/rhoodAlert";
+import { runAfterModalDismiss } from "../lib/afterModalDismiss";
 const SEARCH_DEBOUNCE_MS = 350;
 const PLAYLIST_NAME_MAX_LEN = 255;
 
@@ -229,16 +230,18 @@ function PlaylistDetailScreen({
     []
   );
 
+  // Deferred until the modal has closed: the artwork prompt's buttons open
+  // the photo picker / camera, which iOS swallows if the modal is still up.
   const handleFeedbackPrimary = useCallback(() => {
     const fn = feedbackActionsRef.current.primary;
     closeFeedback();
-    fn?.();
+    runAfterModalDismiss(fn);
   }, [closeFeedback]);
 
   const handleFeedbackSecondary = useCallback(() => {
     const fn = feedbackActionsRef.current.secondary;
     closeFeedback();
-    fn?.();
+    runAfterModalDismiss(fn);
   }, [closeFeedback]);
 
   const closeConfirm = useCallback(() => {

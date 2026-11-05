@@ -14,6 +14,7 @@ import {
   subscribeRhoodAlert,
   inferRhoodAlertType,
 } from "../lib/rhoodAlert";
+import { runAfterModalDismiss } from "../lib/afterModalDismiss";
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from "../lib/sharedStyles";
 
 // iOS presents RN Modals from the root view controller, which can only
@@ -106,14 +107,18 @@ export default function RhoodAlertHost() {
     shownIdRef.current = stateRef.current.id;
   }, []);
 
+  // Every handler below runs only after the modal has finished closing — see
+  // runAfterModalDismiss. Handlers that open the photo picker or camera
+  // otherwise get swallowed on iOS by the closing modal.
   const runButton = useCallback(
     (button) => {
       close();
       if (state.kind === "prompt") {
-        button?.onPress?.(promptValue);
+        const value = promptValue;
+        runAfterModalDismiss(() => button?.onPress?.(value));
         return;
       }
-      button?.onPress?.();
+      runAfterModalDismiss(() => button?.onPress?.());
     },
     [close, promptValue, state.kind]
   );
@@ -182,10 +187,11 @@ export default function RhoodAlertHost() {
               onPress={() => {
                 close();
                 if (state.kind === "sheet") {
-                  state.onPress?.(index);
+                  const onSheetPress = state.onPress;
+                  runAfterModalDismiss(() => onSheetPress?.(index));
                   return;
                 }
-                row.onPress?.();
+                runAfterModalDismiss(() => row.onPress?.());
               }}
             >
               <Text
@@ -210,7 +216,7 @@ export default function RhoodAlertHost() {
       ? promptButtons.primary
       : isList
         ? cancelSheet
-          ? { text: cancelSheet.label, onPress: () => state.onPress?.(cancelSheet.index) }
+          ? { text: cancelSheet.label }
           : { text: "Close" }
         : alertLayout?.primary;
   const secondary =
@@ -227,11 +233,13 @@ export default function RhoodAlertHost() {
       onClose={() => {
         close();
         if (state.kind === "sheet" && cancelSheet) {
-          state.onPress?.(cancelSheet.index);
+          const onSheetPress = state.onPress;
+          runAfterModalDismiss(() => onSheetPress?.(cancelSheet.index));
           return;
         }
         if (state.kind === "alert") {
-          (state.buttons || []).find((b) => b?.style === "cancel")?.onPress?.();
+          const cancel = (state.buttons || []).find((b) => b?.style === "cancel");
+          runAfterModalDismiss(() => cancel?.onPress?.());
         }
       }}
       type={state.type}
@@ -242,7 +250,10 @@ export default function RhoodAlertHost() {
       onPrimaryPress={() => {
         if (state.kind === "sheet" && isList) {
           close();
-          if (cancelSheet) state.onPress?.(cancelSheet.index);
+          if (cancelSheet) {
+            const onSheetPress = state.onPress;
+            runAfterModalDismiss(() => onSheetPress?.(cancelSheet.index));
+          }
           return;
         }
         runButton(primary);
