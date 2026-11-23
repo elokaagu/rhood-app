@@ -2006,6 +2006,8 @@ export default function App() {
         isLoadingOpportunities: opp.isLoadingOpportunities,
         showSwipeTutorial: opp.showSwipeTutorial,
         handleDismissSwipeTutorial: opp.handleDismissSwipeTutorial,
+        needsMixUploadGate: opp.needsMixUploadGate,
+        handleNavigateToUploadMix: opp.handleNavigateToUploadMix,
         loadNotificationCounts,
         shuffleAllMixes,
         shuffleByGenre,

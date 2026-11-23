@@ -86,6 +86,8 @@ export default function ScreenRouter({
   isLoadingOpportunities,
   showSwipeTutorial,
   handleDismissSwipeTutorial,
+  needsMixUploadGate,
+  handleNavigateToUploadMix,
   loadNotificationCounts,
   shuffleAllMixes,
   shuffleByGenre,
@@ -332,6 +334,8 @@ export default function ScreenRouter({
           isLoadingOpportunities={isLoadingOpportunities}
           showSwipeTutorial={showSwipeTutorial}
           handleDismissSwipeTutorial={handleDismissSwipeTutorial}
+          needsMixUploadGate={needsMixUploadGate}
+          handleNavigateToUploadMix={handleNavigateToUploadMix}
         />
       );
 

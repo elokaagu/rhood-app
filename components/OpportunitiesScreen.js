@@ -41,6 +41,8 @@ export default function OpportunitiesScreen({
   isLoadingOpportunities,
   showSwipeTutorial,
   handleDismissSwipeTutorial,
+  needsMixUploadGate = false,
+  handleNavigateToUploadMix,
 }) {
   const insets = useSafeAreaInsets();
   const [deckHeight, setDeckHeight] = useState(0);
@@ -51,19 +53,24 @@ export default function OpportunitiesScreen({
   }, []);
   const { tutorialModalProps } = useAppTutorialModal(
     APP_TUTORIAL_SCREEN_IDS.OPPORTUNITIES,
-    { preventShow: !!showSwipeTutorial }
+    { preventShow: !!showSwipeTutorial || needsMixUploadGate }
   );
 
   const current = opportunities?.[currentOpportunityIndex];
   const isEmptyDeck =
     !isLoadingOpportunities &&
-    currentOpportunityIndex >= (opportunities?.length ?? 0);
+    (needsMixUploadGate ||
+      currentOpportunityIndex >= (opportunities?.length ?? 0));
   const canApplyColor = dailyApplicationStats?.can_apply
     ? "hsl(75, 100%, 60%)"
     : "hsl(0, 100%, 60%)";
   const remaining = dailyApplicationStats?.remaining_applications ?? 0;
   const applyLabel =
     remaining === 1 ? "application left today" : "applications left today";
+  const emptyCardInsets = {
+    paddingTop: 14 + Math.max(0, Math.min(insets.top * 0.25, 6)),
+    paddingBottom: 12 + Math.max(insets.bottom, 6),
+  };
 
   return (
     <View style={[styles.screen, { backgroundColor: "hsl(0, 0%, 0%)" }]}>
@@ -71,34 +78,42 @@ export default function OpportunitiesScreen({
         <View style={styles.opportunitiesHeader}>
           <RhoodScreenTitleBlock
             title="Opportunities"
-            subtitle={personalizedOpportunitiesSubtitle(user)}
+            subtitle={
+              needsMixUploadGate
+                ? "Upload a mix to unlock gigs"
+                : personalizedOpportunitiesSubtitle(user)
+            }
             subtitleBottomSpacing={12}
           >
-            <View
-              style={[
-                styles.dailyApplicationChip,
-                dailyApplicationStats?.can_apply === false &&
-                  styles.dailyApplicationChipLimited,
-              ]}
-              accessibilityRole="text"
-              accessibilityLabel={`${remaining} ${applyLabel}`}
-            >
-              <Ionicons
-                name={
-                  dailyApplicationStats?.can_apply
-                    ? "checkmark-circle"
-                    : "alert-circle"
-                }
-                size={18}
-                color={canApplyColor}
-              />
-              <Text style={styles.dailyApplicationChipText}>
-                <Text style={[styles.dailyApplicationNumber, { color: canApplyColor }]}>
-                  {remaining}
+            {!needsMixUploadGate ? (
+              <View
+                style={[
+                  styles.dailyApplicationChip,
+                  dailyApplicationStats?.can_apply === false &&
+                    styles.dailyApplicationChipLimited,
+                ]}
+                accessibilityRole="text"
+                accessibilityLabel={`${remaining} ${applyLabel}`}
+              >
+                <Ionicons
+                  name={
+                    dailyApplicationStats?.can_apply
+                      ? "checkmark-circle"
+                      : "alert-circle"
+                  }
+                  size={18}
+                  color={canApplyColor}
+                />
+                <Text style={styles.dailyApplicationChipText}>
+                  <Text
+                    style={[styles.dailyApplicationNumber, { color: canApplyColor }]}
+                  >
+                    {remaining}
+                  </Text>
+                  <Text style={styles.dailyApplicationRest}> {applyLabel}</Text>
                 </Text>
-                <Text style={styles.dailyApplicationRest}> {applyLabel}</Text>
-              </Text>
-            </View>
+              </View>
+            ) : null}
           </RhoodScreenTitleBlock>
         </View>
         <View
@@ -108,7 +123,43 @@ export default function OpportunitiesScreen({
           ]}
           onLayout={handleDeckLayout}
         >
-          {isLoadingOpportunities ? (
+          {needsMixUploadGate ? (
+            <View style={[styles.noMoreOpportunities, emptyCardInsets]}>
+              <View style={styles.noMoreBadgeWrap}>
+                <Ionicons
+                  name="musical-notes"
+                  size={22}
+                  color="hsl(0, 0%, 0%)"
+                />
+              </View>
+              <Text style={styles.noMoreEyebrow}>Opportunities</Text>
+              <Text
+                style={styles.noMoreTitle}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.82}
+              >
+                Upload a Mix
+              </Text>
+              <Text style={styles.noMoreSubtitle}>
+                Add your first mix to unlock opportunities.
+                {"\n"}
+                Brands need to hear your sound before you can apply.
+              </Text>
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={handleNavigateToUploadMix}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Upload a mix"
+              >
+                <Text style={styles.resetButtonText}>Upload Mix</Text>
+              </TouchableOpacity>
+              <Text style={styles.resetHintText}>
+                Tip: You can also upload from Create or your profile.
+              </Text>
+            </View>
+          ) : isLoadingOpportunities ? (
             <View style={styles.loadingContainer}>
               <Text style={styles.loadingText}>Loading opportunities...</Text>
             </View>
@@ -133,15 +184,7 @@ export default function OpportunitiesScreen({
               }
             />
           ) : (
-            <View
-              style={[
-                styles.noMoreOpportunities,
-                {
-                  paddingTop: 14 + Math.max(0, Math.min(insets.top * 0.25, 6)),
-                  paddingBottom: 12 + Math.max(insets.bottom, 6),
-                },
-              ]}
-            >
+            <View style={[styles.noMoreOpportunities, emptyCardInsets]}>
               <View style={styles.noMoreBadgeWrap}>
                 <Ionicons
                   name="checkmark"

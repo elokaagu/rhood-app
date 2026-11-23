@@ -83,6 +83,8 @@ export default function useOpportunities({
   const [swipedOpportunities, setSwipedOpportunities] = useState([]);
   const [isLoadingOpportunities, setIsLoadingOpportunities] = useState(true);
   const [showSwipeTutorial, setShowSwipeTutorial] = useState(false);
+  /** null = still checking; false = hide deck until they upload a mix. */
+  const [hasUploadedMix, setHasUploadedMix] = useState(null);
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
   const [dailyApplicationStats, setDailyApplicationStats] = useState({
     daily_count: 0,
@@ -254,6 +256,23 @@ export default function useOpportunities({
     }
   }, [user?.id, userLocation]);
 
+  const refreshMixUploadGate = useCallback(async () => {
+    if (!user?.id) {
+      if (isMountedRef.current) setHasUploadedMix(null);
+      return false;
+    }
+    try {
+      const hasMixes = await db.hasUserUploadedMixes(user.id);
+      if (isMountedRef.current) setHasUploadedMix(!!hasMixes);
+      return !!hasMixes;
+    } catch (error) {
+      // Fail open so a flaky mix check can't permanently blank the deck.
+      if (__DEV__) console.error("Error checking mix upload gate:", error);
+      if (isMountedRef.current) setHasUploadedMix(true);
+      return true;
+    }
+  }, [user?.id]);
+
   /** Full reload when location / user changes would skew distances — call from screen if needed. */
   useEffect(() => {
     // Skip while onboarding is still in progress — fetching + prefetching
@@ -263,7 +282,20 @@ export default function useOpportunities({
     // completes, or a returning user's profile check resolves).
     if (isFirstTime) return;
     fetchOpportunities();
-  }, [fetchOpportunities, isFirstTime]);
+    refreshMixUploadGate();
+  }, [fetchOpportunities, refreshMixUploadGate, isFirstTime]);
+
+  // Re-check when they land back on Opportunities (e.g. after Upload Mix).
+  useEffect(() => {
+    if (isFirstTime || !user?.id) return;
+    if (currentScreen !== SCREENS.OPPORTUNITIES) return;
+    refreshMixUploadGate();
+  }, [currentScreen, user?.id, isFirstTime, refreshMixUploadGate]);
+
+  const handleNavigateToUploadMix = useCallback(() => {
+    setScreenParams({ returnScreen: SCREENS.OPPORTUNITIES });
+    setCurrentScreen(SCREENS.UPLOAD_MIX);
+  }, [setCurrentScreen, setScreenParams]);
 
   /** Deep link from notifications: jump swipe deck to a specific opportunity once rows are loaded. */
   useEffect(() => {
@@ -737,6 +769,7 @@ export default function useOpportunities({
         currentScreen === "opportunities" &&
         user?.id &&
         !isLoadingOpportunities &&
+        hasUploadedMix === true &&
         opportunities.length > 0
       ) {
         try {
@@ -764,7 +797,13 @@ export default function useOpportunities({
         interactionHandle.cancel();
       }
     };
-  }, [currentScreen, user?.id, isLoadingOpportunities, opportunities.length]);
+  }, [
+    currentScreen,
+    user?.id,
+    isLoadingOpportunities,
+    hasUploadedMix,
+    opportunities.length,
+  ]);
 
   useEffect(() => {
     // Same reasoning as the fetchOpportunities effect above: don't poll a
@@ -924,6 +963,9 @@ export default function useOpportunities({
     isLoadingOpportunities,
     showSwipeTutorial,
     selectedOpportunity,
+    /** true only after we know they have no mixes — hide the first card. */
+    needsMixUploadGate: hasUploadedMix === false,
+    handleNavigateToUploadMix,
 
     fetchOpportunities,
     handleOpportunityPress,
@@ -932,5 +974,6 @@ export default function useOpportunities({
     handleDismissSwipeTutorial,
     resetOpportunities,
     refreshOpportunities,
+    refreshMixUploadGate,
   };
 }
